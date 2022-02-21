@@ -1,0 +1,27 @@
+# Service making Redis available in its own namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-server
+  namespace: redis-server
+spec:
+  clusterIP: None
+  ports:
+  - port: 6379
+    protocol: TCP
+    targetPort: 6379
+  selector:
+    app: redis-server
+  type: ClusterIP
+---
+# Service making the previous service available in the openfaas-fn namespace
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-server
+  namespace: openfaas-fn
+spec:
+  type: ExternalName
+  externalName: redis-server.redis-server.svc.cluster.local
+  ports:
+    - port: 6379
