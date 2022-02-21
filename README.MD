@@ -26,6 +26,12 @@ Installs openfaas on the cluster
 arkade install openfaas
 ```
 
+Install redis on the cluster
+```sh
+./longhorn.sh
+kubectl apply -f redis
+```
+
 
 ## Tunnel the connection with the gateway
 ```shell
@@ -44,6 +50,12 @@ multipass delete --all --purge
 ```
 
 # Functions
+
+Up all
+```sh
+for f in *.yml ; do faas-cli up -f $f; done
+```
+
 ```mermaid
 graph TD;
     IotWeatherSensor-->weathersensorfilter;
