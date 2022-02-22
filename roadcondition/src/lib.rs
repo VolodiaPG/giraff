@@ -62,7 +62,7 @@ pub async fn handle(req: String) -> Result<String, Box<dyn Error>> {
 
     let ret = serde_json::to_string(&conditions)?;
     client
-        .post("http://gateway.openfaas:8080/function/lightcalculation")
+        .post("http://gateway.openfaas:8080/function/setlightphasecalculation")
         .body(ret)
         .send().await?;
 

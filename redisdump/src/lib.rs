@@ -10,9 +10,11 @@ use std::result::Result;
 //     }
 
 pub async fn handle(_req: String) -> Result<String, Box<dyn Error>> {
-    let client = redis::Client::open("redis://redis-server.redis-server.svc.cluster.local:6379/")?;
+    let client = redis::Client::open("redis://redis-server/")?;
     let mut con = client.get_connection()?;
    
-    let ret: String = con.get("foo")?;
-    Ok(ret)
+    let light: String = con.get("light")?;
+    let blink: String = con.get("blink")?;
+
+    Ok(format!("light:{},blink: {}", light, blink))
 }
