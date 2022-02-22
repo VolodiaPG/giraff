@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1.3-labs
 FROM openfaas/classic-watchdog:0.18.0 as watchdog
 
-FROM rust:1.58-slim-buster as build
+FROM rust:1.58-alpine as build
 
-RUN apt-get update -qy \
-    && apt-get install -qy curl ca-certificates pkg-config libssl-dev
+RUN apk update && apk upgrade \
+    && apk add --no-cache ca-certificates pkgconfig libressl-dev musl-dev
 
 WORKDIR /usr/src/openfaas
 
@@ -18,7 +18,7 @@ COPY function/Cargo.toml ./function/Cargo.toml
 COPY main ./main
 
 # Dirty hack to have the `handle` function in the library for compilation of the cache
-RUN echo 'use std::error::Error;\n\
+RUN echo -e 'use std::error::Error;\n\
 pub async fn handle(req : String) -> Result<String, Box<dyn Error>> {\n\
     Ok(req)\n\
 }\n'\
@@ -38,15 +38,15 @@ COPY function/src ./function/src
 RUN cd main && cargo build --release
 
 # Take a slimmer image as the runtime base
-FROM debian:buster-slim as runtime
+FROM alpine:3.15 as runtime
 
 # prepare the watchdog for open-faas
 COPY --from=watchdog /fwatchdog /usr/bin/fwatchdog
 RUN chmod +x /usr/bin/fwatchdog
 
 # install the soft dependencies
-RUN apt-get update -qy \
-    && apt-get install -qy curl ca-certificates pkg-config libssl-dev
+# RUN apk update --no-cache && apk upgrade --no-cache \
+    # && apk add --no-cache ca-certificates
 
 # Get the binary
 # COPY --from=build /usr/local/cargo/bin/main /usr/local/bin/main
