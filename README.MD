@@ -104,6 +104,7 @@ Killing the provisioned computing space is done via the CLI-frontend
 oardel $OAR_JOB_ID
 ```
 
+## Install on Grid'500 ([EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/index.html))
 
 # Usage
 
