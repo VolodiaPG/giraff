@@ -1,6 +1,16 @@
-# BeFaaS IoT adapted to OpenFaaS (in a lean way)
+---
+title: "Application samples"
+author: [Volodia PAROL-GUARINO]
+date: "\\today \\space-- v##VERSION##"
+header-includes:
+  - "\\usepackage{utf8}"
+titlepage: true
+...
 
-Please use `DOCKER_BUILDKIT=1` when performing building action with docker
+
+# Lean IoT application
+
+Inspiration taken from BeFaaS
 
 ## Prepare the functions
 
@@ -48,6 +58,75 @@ This is the *__nuke__* option, __finer grained could be better if you have other
 ```sh
 multipass delete --all --purge  
 ```
+
+# FaaS setup with Grid'5000
+
+## Connection
+
+```sh
+ssh $USER@acccess.grid500.fr
+ssh rennes
+```
+
+## Reserver resources
+
+First start the session for 1 hour:
+```sh
+oarsub -l core=1 -i ~/.ssh/id_rsa "sleep infinity"
+```
+
+Then take the returned `job_id` and connect interactively to it
+```sh
+export JOBID=??
+oarsub -C $JOB_ID
+```
+
+> To kill `oardel $OAR_JOB_ID`
+
+```sh
+nano ~/.ssh/config
+
+# and inside
+Host *.g5koar
+ ProxyCommand ssh $(whoami)@access.grid5000.fr -W "$(basename %h .g5koar):%p"
+ User oar
+ Port 6667
+ IdentityFile ~/.ssh/id_rsa
+ ForwardAgent no
+```
+
+```sh
+curl -sLS https://get.k3sup.dev | sh 
+install k3sup /usr/local/bin/
+export RESERVED_NODE=paravance-14
+export SITE=rennes
+export OAR_JOB_ID=??
+export context="k3s-cluster" && export MASTER_IP="$RESERVED_NODE.$SITE.g5koar" && ./k3sup install --ip 1.1.1.1 --context $context --user $(whoami) --ssh-key  $HOME/.ssh/id_rsa
+```
+
+```sh
+mkdir bin
+ln -s /usr/bin/oarsh ~/bin/ssh
+export PATH=$HOME/bin:$PATH
+oarsub -l core=1 "sleep infinity"
+oarsub -C $OAR_JOB_ID
+```
+
+```
+oarsub "sleep infinity"
+oarsub -C $OAR_JOB_ID
+sudo-g5k
+curl -sLS https://get.k3sup.dev | sh 
+sudo cp k3sup /usr/local/bin/k3sup
+export context="k3s-cluster" 
+k3sup install --context $context --user $(whoami) --local
+curl -SLsf https://get.arkade.dev/ | sudo sh
+arkade get faas-cli
+arkade install openfaas
+export KUBECONFIG=~/kubeconfig
+```
+
+## Installation
 
 # Functions
 
