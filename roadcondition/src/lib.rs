@@ -1,3 +1,5 @@
+use hyper::body;
+use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::result::Result;
@@ -51,20 +53,25 @@ fn calculate_road_condition(payload: IncomingPayload) -> u8 {
 
     condition
 }
+pub async fn handle(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+    let bytes = body::to_bytes(req.into_body()).await?;
+    let body: IncomingPayload = serde_json::from_slice(&bytes)?;
+    body.validate()?;
 
-pub async fn handle(req: String) -> Result<String, Box<dyn Error>> {
-    let des: IncomingPayload = serde_json::from_str(req.as_str())?;
-    des.validate()?;
     let client = reqwest::Client::new();
     let conditions = OutgoingPayload {
-        road_condition: calculate_road_condition(des),
+        road_condition: calculate_road_condition(body),
     };
 
     let ret = serde_json::to_string(&conditions)?;
     client
         .post("http://gateway.openfaas:8080/function/setlightphasecalculation")
         .body(ret)
-        .send().await?;
+        .send()
+        .await?;
 
-    Ok("".to_string())
+    let res = Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(vec![]))?;
+    Ok(res)
 }

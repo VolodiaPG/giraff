@@ -1,7 +1,9 @@
+use hyper::body;
+use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::result::Result;
-use validator::{Validate};
+use validator::Validate;
 
 // {
 //     "temperature_celsius": 25.4,
@@ -21,14 +23,20 @@ struct IncomingPayload {
     rain: bool,
 }
 
-pub async fn handle(req: String) -> Result<String, Box<dyn Error>> {
-    let des: IncomingPayload = serde_json::from_str(req.as_str())?;
-    des.validate()?;
+pub async fn handle(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+    let bytes = body::to_bytes(req.into_body()).await?;
+    let body: IncomingPayload = serde_json::from_slice(&bytes)?;
+    body.validate()?;
+
     let client = reqwest::Client::new();
-    client.post("http://gateway.openfaas:8080/function/roadcondition")
-    .body(req)
-    .send()
-    .await?;
-    
-    Ok("".to_string())
+    client
+        .post("http://gateway.openfaas:8080/function/roadcondition")
+        .body(bytes)
+        .send()
+        .await?;
+
+    let res = Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(vec![]))?;
+    Ok(res)
 }

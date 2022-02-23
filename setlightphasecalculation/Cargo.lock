@@ -207,6 +207,7 @@ dependencies = [
 name = "handler"
 version = "0.1.0"
 dependencies = [
+ "hyper",
  "redis",
  "reqwest",
  "serde",

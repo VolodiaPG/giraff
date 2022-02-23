@@ -4,7 +4,7 @@ provider:
   gateway: http://127.0.0.1:8080
 functions:
   redisdump:
-    lang: rust
+    lang: rust-http
     handler: ./redisdump
     image: volodiapg/redisdump:latest
 

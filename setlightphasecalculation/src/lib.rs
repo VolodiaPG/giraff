@@ -1,3 +1,5 @@
+use hyper::body;
+use hyper::{Body, Request, Response, StatusCode};
 use redis::Commands;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -143,22 +145,34 @@ async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>>
     let raw_plans: String = con.get("plans")?;
     let plans: Vec<Plan> = serde_json::from_str(&raw_plans.as_str()).unwrap();
     if plans.is_empty() || plans.iter().position(|x| x.speed > 50.0).is_some() {
-        con.set("light", serde_json::to_string(&Light {
-            blink: false,
-            color: LightType::YELLOW,
-        }).unwrap())?;
-        
+        con.set(
+            "light",
+            serde_json::to_string(&Light {
+                blink: false,
+                color: LightType::YELLOW,
+            })
+            .unwrap(),
+        )?;
+
         wait_appropriately(con).await;
-        
-        con.set("light", serde_json::to_string(&Light {
-            blink: false,
-            color: LightType::RED,
-        }).unwrap())?;
+
+        con.set(
+            "light",
+            serde_json::to_string(&Light {
+                blink: false,
+                color: LightType::RED,
+            })
+            .unwrap(),
+        )?;
     } else {
-        con.set("light", serde_json::to_string(&Light {
-            blink: false,
-            color: LightType::GREEN,
-        }).unwrap())?;
+        con.set(
+            "light",
+            serde_json::to_string(&Light {
+                blink: false,
+                color: LightType::GREEN,
+            })
+            .unwrap(),
+        )?;
     }
 
     let raw: String = con.get("emergency")?;
@@ -170,22 +184,33 @@ async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-pub async fn handle(req: String) -> Result<String, Box<dyn Error>> {
-    let des: Incoming = serde_json::from_str(req.as_str())?;
-    des.validate()?;
+pub async fn handle(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+    let bytes = body::to_bytes(req.into_body()).await?;
+    let body: Incoming = serde_json::from_slice(&bytes)?;
+    body.validate()?;
+
     let client = redis::Client::open("redis://redis-server/")?;
     let mut con = client.get_connection()?;
-    initial_db_update(&mut con, &des.condition, &des.emergency, &des.plans)?;
+    initial_db_update(&mut con, &body.condition, &body.emergency, &body.plans)?;
 
     if let Ok(true) = check_and_lock(&mut con) {
-        return Ok("locked".to_string());
+        let ret = Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::from("locked"))?;
+        return Ok(ret);
     }
 
     change_light(&mut con).await?;
 
     if let Ok(true) = check_and_unlock(&mut con) {
-        return Ok("unlocked".to_string());
+        let ret = Response::builder()
+            .status(StatusCode::OK)
+            .body(Body::from("unlocked"))?;
+        return Ok(ret);
     }
 
-    Ok("".to_string())
+    let ret = Response::builder()
+        .status(StatusCode::OK)
+        .body(Body::from(vec![]))?;
+    Ok(ret)
 }
