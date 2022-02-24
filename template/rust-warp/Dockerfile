@@ -10,26 +10,18 @@ WORKDIR /usr/src/openfaas
 # create a new empty shell project
 RUN cargo new --lib function
 
-# copy over the manifests
-COPY function/Cargo.lock ./function/Cargo.lock
-COPY function/Cargo.toml ./function/Cargo.toml
+COPY function/Cargo.lock  function/Cargo.toml ./function/
 COPY main ./main
 
-# dirty hack to have the `handle` function in the library for compilation of the cache
-RUN echo -e 'use std::error::Error;\n\
-use hyper::{Body, Request, Response};\n\
-const PHRASE: &str = "Hello, World!";\n\
-pub async fn handle(_req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {\n\
-    Ok(Response::new(Body::from(PHRASE)))\n\
-}\n'\
-> ./function/src/lib.rs
+# dirty hack to have the `handle::main` function in the library for compilation of the cache
+COPY main/lib.rs.template ./function/src/lib.rs
 
 # this build step will cache the dependencies
 # RUN cd function && cargo build --release
 RUN cd main && cargo build --release
-RUN rm function/src/*.rs
-RUN rm main/target/release/deps/handler*
 
+RUN rm function/src/*.rs
+RUN rm main/target/release/deps/handler*  main/target/release/deps/main*
 
 # copy all the sources
 COPY function/src ./function/src
@@ -52,6 +44,7 @@ RUN chmod +x /usr/bin/fwatchdog
 COPY --from=builder /usr/src/openfaas/main/target/release/main /usr/local/bin/main
 
 # Set up watchdog for HTTP mode
+# OpenFaaS vars
 ENV fprocess="main"
 ENV mode="http"
 ENV upstream_url="http://127.0.0.1:3000"
