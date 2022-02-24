@@ -1,9 +1,8 @@
-use hyper::body;
-use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::result::Result;
 use validator::Validate;
+use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
+
+type Result<T> = std::result::Result<T, warp::Rejection>;
 
 // {
 //     "temperature_celsius": 25.4,
@@ -53,25 +52,28 @@ fn calculate_road_condition(payload: IncomingPayload) -> u8 {
 
     condition
 }
-pub async fn handle(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
-    let bytes = body::to_bytes(req.into_body()).await?;
-    let body: IncomingPayload = serde_json::from_slice(&bytes)?;
-    body.validate()?;
 
+async fn handle(body: IncomingPayload) -> Result<impl Reply> {
     let client = reqwest::Client::new();
     let conditions = OutgoingPayload {
         road_condition: calculate_road_condition(body),
     };
 
-    let ret = serde_json::to_string(&conditions)?;
+    let ret = serde_json::to_string(&conditions).unwrap();
     client
         .post("http://gateway.openfaas:8080/function/setlightphasecalculation")
         .body(ret)
         .send()
-        .await?;
+        .await;
 
-    let res = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::from(vec![]))?;
-    Ok(res)
+    Ok(StatusCode::OK)
+}
+
+fn json_body() -> impl Filter<Extract = (IncomingPayload,), Error = warp::Rejection> + Clone {
+    // warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+    warp::body::json()
+}
+
+pub fn main() -> BoxedFilter<(impl Reply,)> {
+    warp::post().and(json_body()).and_then(handle).boxed()
 }

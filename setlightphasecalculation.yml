@@ -4,7 +4,7 @@ provider:
   gateway: http://127.0.0.1:8080
 functions:
   setlightphasecalculation:
-    lang: rust-http
+    lang: rust-warp
     handler: ./setlightphasecalculation
     image: volodiapg/setlightphasecalculation:latest
 

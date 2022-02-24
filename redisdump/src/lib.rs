@@ -1,18 +1,36 @@
-use hyper::{Body, Request, Response, StatusCode};
 use redis::Commands;
-use std::error::Error;
-use std::result::Result;
+use serde::{Deserialize, Serialize};
+use std::{error::Error, convert::Infallible};
+use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
 
-pub async fn handle(_req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Response {
+    light: bool,
+    blink: bool,
+}
+
+fn query_db() -> Result<Response, Box<dyn Error>> {
     let client = redis::Client::open("redis://redis-server/")?;
     let mut con = client.get_connection()?;
-   
-    let light: String = con.get("light")?;
-    let blink: String = con.get("blink")?;
+    let light = con.get("light")?;
+    let blink = con.get("blink")?;
 
-    let body = format!("{{\"light\":{},\"blink\": {}}}", light, blink);
-    let res = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::from(body))?;
-    Ok(res)
+    Ok(Response { light, blink })
+}
+
+impl warp::Reply for Response {
+    fn into_response(self) -> warp::reply::Response {
+        warp::reply::json(&self).into_response()
+    }
+}
+
+async fn handle() -> Result<Box<dyn Reply>, Infallible> {
+    match query_db() {
+        Ok(response) => Ok(Box::new(response)),
+        _ => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
+    }
+}
+
+pub fn main() -> BoxedFilter<(Box<dyn Reply>,)> {
+    warp::get().and_then(handle).boxed()
 }

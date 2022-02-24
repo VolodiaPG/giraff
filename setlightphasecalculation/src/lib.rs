@@ -1,19 +1,12 @@
-use hyper::body;
-use hyper::{Body, Request, Response, StatusCode};
+use std::convert::Infallible;
+use std::error::Error;
+
 use redis::Commands;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use std::result::Result;
 use tokio::time::sleep;
 use tokio::time::Duration;
 use validator::Validate;
-
-// {
-//     "temperature_celsius": 25.4,
-//     "humidity_percent": 70.0,
-//     "wind_kph": 100.0,
-//     "rain": false
-//     }
+use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
 
 #[derive(Serialize, Deserialize)]
 enum LightType {
@@ -184,33 +177,41 @@ async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>>
     Ok(())
 }
 
-pub async fn handle(req: Request<Body>) -> Result<Response<Body>, Box<dyn Error>> {
-    let bytes = body::to_bytes(req.into_body()).await?;
-    let body: Incoming = serde_json::from_slice(&bytes)?;
-    body.validate()?;
-
+async fn handle(body: Incoming) -> Result<Box<dyn Reply>, Box<dyn Error>> {
     let client = redis::Client::open("redis://redis-server/")?;
     let mut con = client.get_connection()?;
     initial_db_update(&mut con, &body.condition, &body.emergency, &body.plans)?;
 
     if let Ok(true) = check_and_lock(&mut con) {
-        let ret = Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::from("locked"))?;
-        return Ok(ret);
+        return Ok(Box::new(StatusCode::OK));
     }
 
     change_light(&mut con).await?;
 
     if let Ok(true) = check_and_unlock(&mut con) {
-        let ret = Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::from("unlocked"))?;
-        return Ok(ret);
+        return Ok(Box::new(StatusCode::OK));
     }
 
-    let ret = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::from(vec![]))?;
-    Ok(ret)
+    Ok(Box::new(StatusCode::OK))
+}
+
+async fn reply(
+    // result: Result<Box<dyn Reply>, Box<dyn Error>>,
+    body: Incoming) -> Result<Box<dyn Reply>, Infallible> {
+    match handle(body).await {
+        Ok(reply) => Ok(reply),
+        _ => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
+    }
+}
+
+fn json_body() -> impl Filter<Extract = (Incoming,), Error = warp::Rejection> + Clone {
+    warp::body::json()
+}
+
+pub fn main() -> BoxedFilter<(Box<dyn Reply>,)> {
+    warp::post()
+        .and(json_body())
+        // .and_then(handle)
+        .and_then(reply)
+        .boxed()
 }
