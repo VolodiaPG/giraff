@@ -23,8 +23,13 @@ struct IncomingPayload {
 }
 
 #[derive(Serialize)]
-struct OutgoingPayload {
+struct Payload {
     road_condition: u8,
+}
+
+#[derive(Serialize)]
+struct Response {
+    condition: Payload,
 }
 
 fn calculate_road_condition(payload: IncomingPayload) -> u8 {
@@ -54,19 +59,32 @@ fn calculate_road_condition(payload: IncomingPayload) -> u8 {
 }
 
 async fn handle(body: IncomingPayload) -> Result<impl Reply> {
-    let client = reqwest::Client::new();
-    let conditions = OutgoingPayload {
-        road_condition: calculate_road_condition(body),
+    if body.validate().is_err() {
+        return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    let conditions = Response {
+        condition: Payload {
+            road_condition: calculate_road_condition(body),
+        },
     };
 
-    let ret = serde_json::to_string(&conditions).unwrap();
-    client
-        .post("http://gateway.openfaas:8080/function/setlightphasecalculation")
-        .body(ret)
-        .send()
-        .await;
+    let client = reqwest::Client::new();
 
-    Ok(StatusCode::OK)
+    if let Ok(ret) = serde_json::to_string(&conditions) {
+        if let Ok(_) = client
+            .post("http://gateway.openfaas:8080/async-function/setlightphasecalculation")
+            .body(ret.clone())
+            .send()
+            .await
+        {
+            return Ok(StatusCode::OK);
+        }
+
+        println!("{}", ret);
+    }
+
+    Ok(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 fn json_body() -> impl Filter<Extract = (IncomingPayload,), Error = warp::Rejection> + Clone {

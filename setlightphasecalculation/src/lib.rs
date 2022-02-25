@@ -197,7 +197,8 @@ async fn handle(body: Incoming) -> Result<Box<dyn Reply>, Box<dyn Error>> {
 
 async fn reply(
     // result: Result<Box<dyn Reply>, Box<dyn Error>>,
-    body: Incoming) -> Result<Box<dyn Reply>, Infallible> {
+    body: Incoming,
+) -> Result<Box<dyn Reply>, Infallible> {
     match handle(body).await {
         Ok(reply) => Ok(reply),
         _ => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),

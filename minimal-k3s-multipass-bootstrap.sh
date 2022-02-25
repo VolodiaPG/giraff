@@ -1,7 +1,8 @@
 #!/bin/sh
 
 master="master"
-nodes=("node1" "node2")
+# nodes=("node1" "node2")
+nodes=()
 context="k3s-cluster"
 
 createInstance () {

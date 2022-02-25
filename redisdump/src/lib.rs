@@ -7,15 +7,18 @@ use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
 pub struct Response {
     light: bool,
     blink: bool,
+    condition: u8,
 }
 
 fn query_db() -> Result<Response, Box<dyn Error>> {
     let client = redis::Client::open("redis://redis-server/")?;
     let mut con = client.get_connection()?;
+    
     let light = con.get("light")?;
     let blink = con.get("blink")?;
+    let condition = con.get("condition")?;
 
-    Ok(Response { light, blink })
+    Ok(Response { light, blink, condition })
 }
 
 impl warp::Reply for Response {
