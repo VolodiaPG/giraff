@@ -108,9 +108,15 @@ oardel $OAR_JOB_ID
 
 # Usage
 
-## Tunnel the connection with the gateway
+## Tunnel connections
+To the gateway:
 ```shell
 kubectl port-forward -n openfaas svc/gateway 8080:8080
+```
+
+To redis:
+```sh
+kubectl port-forward -n redis-server svc/redis-server 6379:6379
 ```
 
 ## Login to FaaS CLI
