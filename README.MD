@@ -42,7 +42,7 @@ Installs openfaas on the cluster
 arkade install openfaas
 ```
 
-Install redis on the cluster, backed by longhorn-class storage
+Install redis on the cluster, backed by longhorn-class storage (you may have to wait a bit to apply redis after the creation of the longhorn storage-class)
 ```sh
 ./longhorn.sh
 kubectl apply -f redis
