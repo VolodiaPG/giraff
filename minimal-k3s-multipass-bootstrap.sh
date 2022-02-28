@@ -6,7 +6,7 @@ nodes=()
 context="k3s-cluster"
 
 createInstance () {
-    multipass launch -n "$1" -d 20G -c 1 -m 2G --cloud-init - <<EOF
+    multipass launch -n "$1" -d 20G -c 2 -m 4G --cloud-init - <<EOF
 users:
 - name: ${USER}
   groups: sudo

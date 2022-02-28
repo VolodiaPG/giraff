@@ -4,8 +4,8 @@ ARG RUST_TARGET=x86_64-unknown-linux-musl
 # Cargo Build Stage
 # ------------------------------------------------------------------------------
 
-FROM openfaas/of-watchdog:0.8.2 as watchdog
-ARG RUST_TARGET
+# FROM openfaas/of-watchdog:0.9.3 as watchdog
+# ARG RUST_TARGET
 
 FROM ekidd/rust-musl-builder:latest as builder
 ARG RUST_TARGET
@@ -23,11 +23,11 @@ COPY --chown=rust:rust main/lib.rs.template ./function/src/lib.rs
 # RUN cd function && cargo build --release
 RUN cd main && cargo build --release
 
-RUN rm function/src/*.rs
+RUN rm -rf function
 RUN rm main/target/$RUST_TARGET/release/deps/handler*  main/target/$RUST_TARGET/release/deps/main*
 
 # copy all the sources
-COPY --chown=rust:rust function/src ./function/src
+COPY --chown=rust:rust function ./function
 
 # build for release
 # RUN cd main && cargo build --target x86_64-unknown-linux-musl --release
@@ -47,7 +47,10 @@ RUN addgroup -g 1000 bobby
 RUN adduser -D -s /bin/sh -u 1000 -G bobby bobby
 
 # Copy of-watchdog binary
-COPY --from=watchdog /fwatchdog /usr/bin/fwatchdog
+# COPY --from=build /usr/bin/fwatchdog /usr/bin/fwatchdog
+ADD https://github.com/openfaas/of-watchdog/releases/download/0.9.3/fwatchdog-amd64 /usr/bin/fwatchdog
+# ADD https://github.com/openfaas/of-watchdog/releases/download/0.7.7/of-watchdog /usr/bin/fwatchdog
+
 RUN chmod +x /usr/bin/fwatchdog
 
 COPY --from=builder \
@@ -59,6 +62,10 @@ RUN chown bobby:bobby /usr/local/bin/main
 # OpenFaaS vars
 ENV fprocess="main"
 ENV mode="http"
+
+# https://github.com/openfaas/of-watchdog/pull/41
+ENV buffer_http="true"
+
 ENV upstream_url="http://127.0.0.1:3000"
 ENV cgi_headers="true"
 ENV exec_timeout="10s"
