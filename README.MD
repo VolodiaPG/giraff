@@ -133,20 +133,33 @@ faas-cli template pull --overwrite https://github.com/openfaas/templates
 
 # Functions
 
-Up all
+## Up all
 ```sh
 for f in *.yml ; do faas-cli up -f $f; done
 ```
+## Architecture
 
 ```mermaid
-graph TD;
-    IotWeatherSensor-->weathersensorfilter;
-```
-## Weathersensorfilter
-```sh
-curl http://127.0.0.1:8080/function/weathersensorfilter -d '{     "temperature_celsius": 25.4,     "humidity_percent": 70.0,     "wind_kph": 10.0,     "rain": false     }'
-```
+flowchart TD
+    A>CarPlate]
+    B>Camera image]
+    C>IoT weather sensor]
+    DB[(Redis)]
 
+
+    A --> B12[movementplan]
+
+    B --> B1[objectrecognition]
+    B1 --> B12
+    B1 --> B11[trafficstatistics]
+    B1 --> B13[emergencydetection]
+
+
+    C --> C1[roadcondition] --> E[setlightphasecalculation]
+
+    B11 & B12 & B13 -.- DB
+    E -.- DB
+```
 # Acknowledgments
 
 Inspiration taken from [BeFaaS](https://github.com/Be-FaaS/BeFaaS-framework)
