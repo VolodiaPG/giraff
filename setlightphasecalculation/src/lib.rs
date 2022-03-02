@@ -25,11 +25,19 @@ struct Condition {
     road_condition: u8,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
+enum Direction {
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST,
+}
+
 #[derive(Deserialize, Serialize, Validate)]
 struct Plan {
     plate: String,
-    direction: u8,
-    speed: f32,
+    direction: Direction,
+    speed: i16,
 }
 
 #[derive(Deserialize, Validate)]

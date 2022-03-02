@@ -12,6 +12,8 @@ titlepage: true
 
 This repository contains a collection of functions ready to be deployed on an OpenFaaS Fog infrastructure.
 
+> Due to a current bug, one may have to compile (`faas up`) once, then `touch` the file and redo it, why? Idk
+
 # Installation
 
 ## Install Locally (with multipass)
