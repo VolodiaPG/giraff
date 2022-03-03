@@ -137,7 +137,7 @@ faas-cli template pull --overwrite https://github.com/openfaas/templates
 
 ## Up all
 ```sh
-for f in *.yml ; do faas-cli up -f $f; done
+./scripts/all.sh
 ```
 ## Architecture
 
