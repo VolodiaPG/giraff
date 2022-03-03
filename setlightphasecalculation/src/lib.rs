@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::error::Error;
 
 use redis::Commands;
@@ -6,7 +5,11 @@ use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use tokio::time::Duration;
 use validator::Validate;
-use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
+use warp::{
+    filters::BoxedFilter,
+    http::{Response, StatusCode},
+    Filter, Reply,
+};
 
 #[derive(Serialize, Deserialize)]
 enum LightType {
@@ -97,29 +100,24 @@ fn initial_db_update(
     Ok(())
 }
 
+/// if the lock is set, then return true, otherwise set it to true and return false
 fn check_and_lock(con: &mut redis::Connection) -> Result<bool, Box<dyn Error>> {
-    let lock: bool = match con.get("lock") {
-        Ok(lock) => lock,
-        Err(_) => false,
-    };
-
-    if lock {
+    if Ok(true) == con.get("lock") {
         return Ok(true);
     }
-    con.set("lock", false)?;
+
+    // Whatever the results, we still try to set the lock
+    con.set("lock", true)?;
 
     Ok(false)
 }
 
+/// if the lock is set, then return false, otherwise set it to false and return false
 fn check_and_unlock(con: &mut redis::Connection) -> Result<bool, Box<dyn Error>> {
-    let lock: bool = match con.get("lock") {
-        Ok(lock) => lock,
-        Err(_) => false,
-    };
-
-    if !lock {
+    if Ok(false) == con.get("lock") {
         return Ok(true);
     }
+
     con.set("lock", false)?;
 
     Ok(false)
@@ -135,17 +133,23 @@ async fn wait_appropriately(con: &mut redis::Connection) {
     sleep(Duration::from_millis(wait_time)).await;
 }
 
-async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>> {
+fn get_emergency(con: &mut redis::Connection) -> Result<EmergencyType, Box<dyn Error>> {
     let raw: String = con.get("emergency")?;
-    let emergency: EmergencyType = serde_json::from_str(&raw.as_str()).unwrap();
+    let emergency: EmergencyType  = serde_json::from_str(&raw.as_str())?;
+
+    Ok(emergency)
+}
+
+async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>> {
+    let emergency = get_emergency(con).unwrap_or(EmergencyType::NONE);
     if emergency != EmergencyType::NONE {
         push_emergency(con)?;
     }
 
     // If no movement plan or cars just say lights are red blink (so pedestrians are happy)
-    let raw_plans: String = con.get("plans")?;
+    let raw_plans: String = con.get("plans").unwrap_or("[]".to_string());
     let plans: Vec<Plan> = serde_json::from_str(&raw_plans.as_str()).unwrap();
-    if plans.is_empty() || plans.iter().position(|x| x.speed > 50.0).is_some() {
+    if plans.is_empty() || plans.iter().position(|x| x.speed > 50).is_some() {
         con.set(
             "light",
             serde_json::to_string(&Light {
@@ -176,8 +180,7 @@ async fn change_light(con: &mut redis::Connection) -> Result<(), Box<dyn Error>>
         )?;
     }
 
-    let raw: String = con.get("emergency")?;
-    let emergency: EmergencyType = serde_json::from_str(&raw.as_str()).unwrap();
+    let emergency = get_emergency(con).unwrap_or(EmergencyType::NONE);
     if emergency != EmergencyType::NONE {
         push_emergency(con)?;
     }
@@ -203,13 +206,14 @@ async fn handle(body: Incoming) -> Result<Box<dyn Reply>, Box<dyn Error>> {
     Ok(Box::new(StatusCode::OK))
 }
 
-async fn reply(
-    // result: Result<Box<dyn Reply>, Box<dyn Error>>,
-    body: Incoming,
-) -> Result<Box<dyn Reply>, Infallible> {
+async fn reply(body: Incoming) -> Result<Box<dyn Reply>, warp::Rejection> {
     match handle(body).await {
         Ok(reply) => Ok(reply),
-        _ => Ok(Box::new(StatusCode::INTERNAL_SERVER_ERROR)),
+        Err(e) => Ok(Box::new(
+            Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .body(e.to_string()),
+        )),
     }
 }
 
