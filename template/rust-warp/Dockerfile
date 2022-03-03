@@ -21,17 +21,18 @@ COPY --chown=rust:rust main/lib.rs.template ./function/src/lib.rs
 
 # this build step will cache the dependencies
 # RUN cd function && cargo build --release
-RUN cd main && cargo build --release
+RUN cd main \
+    && cargo build --release
 
-RUN rm -rf function
-RUN rm main/target/$RUST_TARGET/release/deps/handler*  main/target/$RUST_TARGET/release/deps/main*
-
+RUN rm main/target/$RUST_TARGET/release/deps/handler* main/target/$RUST_TARGET/release/deps/libhandler*  main/target/$RUST_TARGET/release/deps/main*
+RUN rm -rf function/src
 # copy all the sources
-COPY --chown=rust:rust function ./function
+COPY --chown=rust:rust function/src function/src
 
 # build for release
 # RUN cd main && cargo build --target x86_64-unknown-linux-musl --release
-RUN cd main && cargo build --release
+RUN cd main \
+    && cargo build --release
 
 # ------------------------------------------------------------------------------
 # Final Stage
