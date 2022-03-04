@@ -1,9 +1,0 @@
-[package]
-name = "main"
-version = "0.1.0"
-authors = ["Mark Sta Ana <booyaabooyaabooyaa@gmail.com>"]
-edition = "2021"
-
-[dependencies]
-handler = { path = "../function" }
-tokio = { version = "1", features = ["full", "macros"] }

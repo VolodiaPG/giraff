@@ -31,7 +31,7 @@ This repository contains a collection of functions ready to be deployed on an Op
 
 Installs K3s
 ```sh
-PUBLIC_SSH_KEY_PATH=$HOME/.ssh/id_rsa.pub PRIVATE_SSH_KEY_PATH=$HOME/.ssh/id_rsa ./minimal-k3s-multipass-bootstrap.sh
+PUBLIC_SSH_KEY_PATH=$HOME/.ssh/id_rsa.pub PRIVATE_SSH_KEY_PATH=$HOME/.ssh/id_rsa ./scripts/minimal-k3s-multipass-bootstrap.sh
 ```
 
 To move the kubeconfig file to the local computer config using `kubctl`:
@@ -46,7 +46,7 @@ arkade install openfaas
 
 Install redis on the cluster, backed by longhorn-class storage (you may have to wait a bit to apply redis after the creation of the longhorn storage-class)
 ```sh
-./longhorn.sh
+./scripts/longhorn.sh
 kubectl apply -f redis
 ```
 
