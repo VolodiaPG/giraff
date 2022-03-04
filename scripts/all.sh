@@ -1,4 +1,4 @@
-files=(*.yml)
+files=(functions/*.yml)
 total=${#files[@]}
 i=0
 for file in "${files[@]}"; do
