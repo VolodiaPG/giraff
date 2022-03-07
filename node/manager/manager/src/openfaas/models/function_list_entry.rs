@@ -11,7 +11,7 @@ pub struct FunctionListEntry {
     image: String,
     /// The amount of invocations for the specified function
     #[serde(rename = "invocationCount")]
-    invocation_count: f32,
+    invocation_count: Option<f32>,
     /// The current minimal ammount of replicas
     #[serde(rename = "replicas")]
     replicas: f32,
