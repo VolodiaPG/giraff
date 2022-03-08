@@ -94,6 +94,7 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
+    Kube(kube::Error),
 }
 
 impl warp::reject::Reject for Error {}
@@ -118,7 +119,16 @@ fn handle_crate_error(e: &Error) -> HttpApiProblem {
                 .title("One or more validation errors occurred")
                 .detail("Please refer to the errors property for additional details");
 
-            let _ = problem.set_value("errors", errors.errors());
+            problem.set_value("errors", errors.errors());
+
+            problem
+        }
+        Error::Kube(e) => {
+            let mut problem = HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                .title("An error occurred while communicating with the Kubernetes API")
+                .detail("Please refer to the detail property for additional details");
+
+            problem.set_value("detail", &e.to_string());
 
             problem
         }
