@@ -9,9 +9,8 @@ pub struct SLA {
     #[serde(rename = "RAMBytes")]
     pub ram_bytes: u64,
     
-    #[validate(range(min=0, max=1))]
-    #[serde(rename = "CPUFractionPerSeconds")]
-    pub cpu_fraction_per_seconds: f32,
+    #[serde(rename = "CPUMillicpu")]
+    pub cpu_millicpu: u64,
 
     #[serde(rename = "LatencyMaxMilliseconds")]
     pub latency_max_ms: u64,
