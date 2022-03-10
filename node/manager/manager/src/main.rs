@@ -17,7 +17,7 @@ OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic
 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "info, manager=trace");
+    std::env::set_var("RUST_LOG", "info, manager=trace, node_logic=trace");
     env_logger::init();
 
     let debug = !env::var("DEBUG").is_err();
@@ -94,7 +94,7 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
-    Kube(kube::Error),
+    NodeLogicSatisfiability(node_logic::satisfiability::Error),
 }
 
 impl warp::reject::Reject for Error {}
@@ -112,8 +112,8 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
         .body(serde_json::to_string(&response).unwrap()))
 }
 
-fn handle_crate_error(e: &Error) -> HttpApiProblem {
-    match e {
+fn handle_crate_error(err: &Error) -> HttpApiProblem {
+    match err {
         Error::Validation(errors) => {
             let mut problem = HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
                 .title("One or more validation errors occurred")
@@ -123,12 +123,13 @@ fn handle_crate_error(e: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::Kube(e) => {
-            let mut problem = HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
-                .title("An error occurred while communicating with the Kubernetes API")
-                .detail("Please refer to the detail property for additional details");
+        Error::NodeLogicSatisfiability(err) => {
+            let mut problem =
+                HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                    .title("An error occurred while executing the node logic's code")
+                    .detail("Please refer to the detail property for additional details");
 
-            problem.set_value("detail", &e.to_string());
+            problem.set_value("detail", &err.to_string());
 
             problem
         }

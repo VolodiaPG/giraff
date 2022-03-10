@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 #[derive(Validate, Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
-pub struct SLA {
+pub struct Sla {
     #[serde(rename = "StorageBytes")]
     pub storage_bytes: u64,
     
