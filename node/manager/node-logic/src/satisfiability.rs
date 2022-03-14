@@ -19,7 +19,7 @@ pub enum Error {
     Kube(kube::Error),
     #[error("Unable to obtain the current key: {0}")]
     MissingKey(&'static str),
-    #[error("Unable to parse the quanitity: {0}")]
+    #[error("Unable to parse the quantity: {0}")]
     QuantityParsing(String),
 }
 
