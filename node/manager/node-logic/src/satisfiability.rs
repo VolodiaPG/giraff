@@ -3,10 +3,11 @@ use std::str::FromStr;
 
 use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
-use kube_metrics::node::{NodeMetrics, NodeMetricsUsage};
-use log::{debug, trace};
+use kube_metrics::node::NodeMetrics;
+use log::trace;
 use sla::Sla;
 extern crate uom;
+use if_chain::if_chain;
 use lazy_static::lazy_static;
 use regex::Regex;
 use uom::fmt::DisplayStyle::Description;
@@ -46,7 +47,24 @@ struct Metrics {
 pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
     // TODO: maybe consider other backend than f64 for storing values (ie passing to fixed point u64)
 
-    // Hashs map of the metrics by node name
+    let aggregated_metrics = get_k8s_metrics().await?;
+
+    for (key, metrics) in aggregated_metrics.iter() {
+        if_chain! {
+            if let Some(allocatable) = &metrics.allocatable;
+            if let Some(usage) = &metrics.usage;
+            if allocatable.memory - usage.memory>= sla.memory;
+            then
+            {
+                return Ok(true);
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+async fn get_k8s_metrics() -> Result<HashMap<String, Metrics>, Error> {
     let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
     let client = Client::try_default().await.map_err(Error::Kube)?;
@@ -82,48 +100,28 @@ pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
         .map_err(Error::Kube)?;
 
     for node in nodes {
-        match node.status {
-            Some(status) => match status.allocatable {
-                Some(allocatable) => {
-                    let key = node
-                        .metadata
-                        .name
-                        .ok_or(Error::MissingKey("metadata:name"))?;
+        let status = node.status.ok_or(Error::MissingKey("status"))?;
+        let allocatable = status.allocatable.ok_or(Error::MissingKey("allocatable"))?;
+        let key = node
+            .metadata
+            .name
+            .ok_or(Error::MissingKey("metadata:name"))?;
+        let cpu = allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
+        let memory = allocatable
+            .get("memory")
+            .ok_or(Error::MissingKey("memory"))?;
 
-                    let cpu = allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
-
-                    let memory = allocatable
-                        .get("memory")
-                        .ok_or(Error::MissingKey("memory"))?;
-
-                    // let memory = memory.into_format_args(gibibyte, Description);
-                    aggregated_metrics
-                        .get_mut(&key)
-                        .ok_or(Error::MissingKey("metadata:name"))?
-                        .allocatable = Some(Allocatable {
-                        cpu: cpu.0.to_owned(),
-                        memory: parse_quantity(&memory.0[..])?,
-                    });
-                }
-                None => return Err(Error::MissingKey("allocatable")),
-            },
-            None => {
-                return Err(Error::MissingKey("node_status"));
-            }
-        }
+        // let memory = memory.into_format_args(gibibyte, Description);
+        aggregated_metrics
+            .get_mut(&key)
+            .ok_or(Error::MissingKey("metadata:name"))?
+            .allocatable = Some(Allocatable {
+            cpu: cpu.0.to_owned(),
+            memory: parse_quantity(&memory.0[..])?,
+        });
     }
 
-    for (key, metrics) in aggregated_metrics.iter_mut() {
-        if let Some(allocatable) = &metrics.allocatable {
-            if let Some(usage) = &metrics.usage {
-                let memory = allocatable.memory - usage.memory;
-                let memory = memory.into_format_args(information::gibibyte, Description);
-                trace!("Node: {}, Memory left: {:?}", key, memory);
-            }
-        }
-    }
-
-    Ok(true)
+    Ok(aggregated_metrics)
 }
 
 fn parse_quantity<T>(quantity: &str) -> Result<T, Error>

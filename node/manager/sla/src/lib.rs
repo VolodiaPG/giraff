@@ -19,7 +19,7 @@ pub struct Sla {
     pub memory: Information,
 
     #[serde(rename = "cpu")]
-    pub cpu: String,
+    pub cpu: u16,
 
     #[serde(rename = "latencyMax")]
     #[serde_as(as = "crate::uom_time::Helper")]

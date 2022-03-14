@@ -14,5 +14,6 @@ env_logger = "0.9"
 uom = "0.32.0"
 regex = "1"
 lazy_static = "1.4"
+if_chain = "1.0.2"
 kube-metrics = { path = "../kube-metrics" }
 sla = { path = "../sla" }
