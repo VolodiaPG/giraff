@@ -94,7 +94,7 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
-    NodeLogicSatisfiability(node_logic::satisfiability::Error),
+    NodeLogicSatisfiability(node_logic::error::Error),
 }
 
 impl warp::reject::Reject for Error {}
