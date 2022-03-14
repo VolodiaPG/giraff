@@ -14,8 +14,8 @@ pub async fn get_k8s_metrics() -> Result<HashMap<String, Metrics>, Error> {
     let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
     let client = Client::try_default().await.map_err(Error::Kube)?;
-    let nodeMetrics: Api<NodeMetrics> = Api::all(client.clone());
-    let metrics = nodeMetrics
+    let node_metrics: Api<NodeMetrics> = Api::all(client.clone());
+    let metrics = node_metrics
         .list(&ListParams::default())
         .await
         .map_err(Error::Kube)?;

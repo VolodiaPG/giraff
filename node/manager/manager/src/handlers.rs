@@ -15,7 +15,7 @@ pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply
     Ok(Response::builder().body(body))
 }
 
-pub async fn post_sla(client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
+pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
     trace!("pos sla: {:?}", sla);
 
     match is_satisfiable(&sla).await {
