@@ -1,14 +1,16 @@
 use serde::{Deserialize, Serialize};
 use sla::Sla;
+use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Satisfiable {
     pub is_satisfiable: bool,
-    pub sla: Option<Sla>,
+    pub sla: Sla,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Bid {
     pub bid: f64,
-    pub sla: Option<Sla>,
+    pub sla: Sla,
+    pub id: Uuid,
 }

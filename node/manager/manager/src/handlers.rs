@@ -1,6 +1,11 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+use uuid::Uuid;
 use warp::{http::Response, Rejection};
 
-use crate::models::{Bid, Satisfiable};
+use crate::live_store::BidDataBase;
+use crate::models::{Bid, BidRecord, Satisfiable};
 use crate::openfaas::{DefaultApi, DefaultApiClient};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
 use sla::Sla;
@@ -24,7 +29,7 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
         Ok(res) => Ok(Response::builder().body(
             serde_json::to_string(&Satisfiable {
                 is_satisfiable: res,
-                sla: Some(sla),
+                sla: sla,
             })
             .unwrap(),
         )),
@@ -36,20 +41,72 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
 }
 
 /// Returns a bid for the SLA.
-pub async fn post_bid(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
+pub async fn post_bid(
+    _client: DefaultApiClient,
+    bid_db: Arc<Mutex<BidDataBase>>,
+    sla: Sla,
+) -> Result<impl warp::Reply, Rejection> {
     trace!("post bid with sla: {:?}", sla);
 
-    match bid(&sla).await {
-        Ok(bid) => Ok(Response::builder().body(
-            serde_json::to_string(&Bid {
-                bid: bid,
-                sla: Some(sla),
-            })
-            .unwrap(),
-        )),
-        Err(e) => {
-            error!("{}", e);
-            Err(warp::reject::custom(crate::Error::NodeLogicError(e)))
-        }
+    let bid = bid(&sla).await.map_err(|e| {
+        error!("{}", e);
+        warp::reject::custom(crate::Error::NodeLogicError(e))
+    })?;
+
+    let bid = BidRecord { bid: bid, sla: sla };
+
+    let id;
+
+    {
+        id = bid_db.lock().await.insert(bid.clone());
     }
+
+    Ok(Response::builder().body(
+        serde_json::to_string(&Bid {
+            bid: bid.bid,
+            sla: bid.sla,
+            id: id,
+        })
+        .map_err(|e| {
+            error!("{}", e);
+            warp::reject::custom(crate::Error::SerializationError(e))
+        })?,
+    ))
+}
+
+/// Returns a bid for the SLA.
+pub async fn post_bid_accept(
+    id: String,
+    _client: DefaultApiClient,
+    bid_db: Arc<Mutex<BidDataBase>>,
+    sla: Sla,
+) -> Result<impl warp::Reply, Rejection> {
+    trace!("post accept bid {:?} with sla: {:?}", id, sla);
+
+    let id = Uuid::parse_str(&id).map_err(|e| {
+        error!("{}", e);
+        warp::reject::custom(crate::Error::BidIdUnvalid(id, Some(e)))
+    })?;
+
+    let bid: BidRecord;
+    {
+        bid = bid_db.lock().await.get(&id).ok_or_else(||{
+            warp::reject::custom(crate::Error::BidIdUnvalid(
+                id.to_string(),
+                None,
+            ))
+        })?.clone();
+    }
+
+    Ok(Response::builder().body(
+        serde_json::to_string(&Bid {
+            bid: bid.bid,
+            sla: bid.sla,
+            id: id,
+        })
+        .map_err(|e| {
+            error!("{}", e);
+            warp::reject::custom(crate::Error::SerializationError(e))
+        })?,
+    ))
 }

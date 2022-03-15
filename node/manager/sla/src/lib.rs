@@ -7,7 +7,7 @@ mod utils;
 mod uom_information;
 
 #[serde_with::serde_as]
-#[derive(Validate, Serialize, Deserialize, Debug)]
+#[derive(Validate, Serialize, Deserialize, Debug, Clone)]
 pub struct Sla {
     #[serde(rename = "storage")]
     #[serde_as(as = "crate::uom_information::Helper")]

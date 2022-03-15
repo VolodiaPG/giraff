@@ -2,16 +2,21 @@
 extern crate log;
 
 mod handlers;
-mod openfaas;
+mod live_store;
 mod models;
+mod openfaas;
 
 use http_api_problem::{HttpApiProblem, StatusCode};
 use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
-use std::{convert::Infallible, env};
+use uuid::Uuid;
+use std::{convert::Infallible, env, sync::Arc};
+use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
-use warp::{http::Response, Filter, Rejection, Reply};
+use warp::{http::Response, Filter, Rejection, Reply, path};
+
+use crate::live_store::BidDataBase;
 /*
 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) cargo run
 */
@@ -40,16 +45,18 @@ async fn main() {
         basic_auth: auth,
     });
 
-    let path_api_prefix = warp::path("api");
+    let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
 
-    let path_functions = warp::path("functions");
+    let path_api_prefix = path!("api" / ..);
+
+    let path_functions = path!("functions");
     let routes = path_api_prefix
         .and(path_functions)
         .and(warp::get())
         .and(with_client(client.clone()))
         .and_then(handlers::list_functions);
 
-    let path_sla = warp::path("sla");
+    let path_sla = path!("sla");
     let routes = routes.or(path_api_prefix
         .and(path_sla)
         .and(warp::post())
@@ -57,13 +64,24 @@ async fn main() {
         .and(with_validated_json())
         .and_then(handlers::post_sla));
 
-    let path_bid = warp::path("bid");
+    let path_bid = path!("bid" / ..);
     let routes = routes.or(path_api_prefix
         .and(path_bid)
+        .and(path::end())
         .and(warp::post())
         .and(with_client(client.clone()))
+        .and(with_database::<BidDataBase>(db_bid.clone()))
         .and(with_validated_json())
         .and_then(handlers::post_bid));
+
+    let routes = routes.or(path_api_prefix
+        .and(path_bid)
+        .and(warp::path::param())
+        .and(warp::post())
+        .and(with_client(client.clone()))
+        .and(with_database(db_bid.clone()))
+        .and(with_validated_json())
+        .and_then(handlers::post_bid_accept));
 
     let routes = routes.recover(handle_rejection);
 
@@ -80,6 +98,15 @@ fn with_client(
     client: DefaultApiClient,
 ) -> impl Filter<Extract = (DefaultApiClient,), Error = Infallible> + Clone {
     warp::any().map(move || client.clone())
+}
+
+fn with_database<T>(
+    db: Arc<Mutex<T>>,
+) -> impl Filter<Extract = (Arc<Mutex<T>>,), Error = Infallible> + Clone
+where
+    T: Send + Sync,
+{
+    warp::any().map(move || db.clone())
 }
 
 fn with_validated_json<T>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
@@ -104,6 +131,8 @@ where
 enum Error {
     Validation(ValidationErrors),
     NodeLogicError(node_logic::error::Error),
+    SerializationError(serde_json::error::Error),
+    BidIdUnvalid(String, Option<uuid::Error>),
 }
 
 impl warp::reject::Reject for Error {}
@@ -136,9 +165,35 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
                     .title("An error occurred while executing the node logic's code")
-                    .detail("Please refer to the detail property for additional details");
+                    .detail("Please refer to the error property for additional details");
 
-            problem.set_value("detail", &err.to_string());
+            problem.set_value("error", &err.to_string());
+
+            problem
+        }
+        Error::SerializationError(err) => {
+            let mut problem =
+                HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                    .title("An error occurred while serializing the response")
+                    .detail("Please refer to the error property for additional details");
+
+            problem.set_value("error", &err.to_string());
+
+            problem
+        }
+        Error::BidIdUnvalid(id, err) => {
+            let mut problem =
+                HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                    .title("An error occurred while looking for a bid id")
+                    .detail("Something went wrong processing the id. Please refer to the detail property for additional details");
+
+            problem.set_value("uuid", &id);
+
+            let detail = match err {
+                Some(err) => err.to_string(),
+                None => "No additional details provided".to_string(),
+            };
+            problem.set_value("error", &detail);
 
             problem
         }
