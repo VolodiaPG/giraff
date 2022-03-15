@@ -1,13 +1,11 @@
 use warp::{http::Response, Rejection};
 
+use crate::models::{Bid, Satisfiable};
+use crate::openfaas::{DefaultApi, DefaultApiClient};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
 use sla::Sla;
 
-use crate::openfaas::{
-    models::{Bid, Satisfiable},
-    DefaultApi, DefaultApiClient,
-};
-
+/// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
     trace!("list_functions");
     let functions = client.get_functions().await.map_err(|e| {
@@ -18,6 +16,7 @@ pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply
     Ok(Response::builder().body(body))
 }
 
+/// Returns if the SLA can be satisfied.
 pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
     trace!("post sla: {:?}", sla);
 
@@ -36,6 +35,7 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
     }
 }
 
+/// Returns a bid for the SLA.
 pub async fn post_bid(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
     trace!("post bid with sla: {:?}", sla);
 

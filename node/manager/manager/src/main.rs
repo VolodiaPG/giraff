@@ -3,6 +3,7 @@ extern crate log;
 
 mod handlers;
 mod openfaas;
+mod models;
 
 use http_api_problem::{HttpApiProblem, StatusCode};
 use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};

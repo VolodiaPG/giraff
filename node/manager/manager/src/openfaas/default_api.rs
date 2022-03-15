@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 
-use super::{configuration, models};
+use crate::models;
+
+use super::configuration;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
