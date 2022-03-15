@@ -6,4 +6,6 @@ pub enum Error {
     MissingKey(&'static str),
     #[error("Unable to parse the quantity: {0}")]
     QuantityParsing(String),
+    #[error("The SLA is not satisfiable")]
+    Unsatisfiable,
 }

@@ -3,6 +3,7 @@ use sla::Sla;
 
 use crate::error::Error;
 use crate::k8s::get_k8s_metrics;
+use crate::models::Metrics;
 use if_chain::if_chain;
 
 pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
@@ -12,19 +13,24 @@ pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
 
     Ok(!aggregated_metrics
         .iter()
-        .map(|(_key, metrics)| {
-            if_chain! {
-                if let Some(allocatable) = &metrics.allocatable;
-                if let Some(usage) = &metrics.usage;
-                if allocatable.memory - usage.memory > sla.memory;
-                then
-                {
-                    trace!("{:?}", (allocatable.memory - usage.memory).into_format_args(uom::si::information::megabyte, uom::fmt::DisplayStyle::Description));
+        .map(|(_key, metrics)| satisfasibility_check(metrics, &sla))
+        .all(|res| res == false))
+}
 
-                    return true;
-                }
-            }
+pub fn satisfasibility_check(metrics: &Metrics, sla: &Sla) -> bool {
+    if_chain! {
+        if let Some(allocatable) = &metrics.allocatable;
+        if let Some(usage) = &metrics.usage;
+        if allocatable.memory - usage.memory > sla.memory;
+        then
+        {
+            trace!("{:?}", (allocatable.memory - usage.memory).into_format_args(uom::si::information::megabyte, uom::fmt::DisplayStyle::Description));
+
+            true
+        }
+        else
+        {
             false
-        })
-        .any(|res| res == false))
+        }
+    }
 }

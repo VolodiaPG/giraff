@@ -48,13 +48,21 @@ async fn main() {
         .and(with_client(client.clone()))
         .and_then(handlers::list_functions);
 
-    let path_stats = warp::path("sla");
+    let path_sla = warp::path("sla");
     let routes = routes.or(path_api_prefix
-        .and(path_stats)
+        .and(path_sla)
         .and(warp::post())
         .and(with_client(client.clone()))
         .and(with_validated_json())
         .and_then(handlers::post_sla));
+
+    let path_bid = warp::path("bid");
+    let routes = routes.or(path_api_prefix
+        .and(path_bid)
+        .and(warp::post())
+        .and(with_client(client.clone()))
+        .and(with_validated_json())
+        .and_then(handlers::post_bid));
 
     let routes = routes.recover(handle_rejection);
 
@@ -94,7 +102,7 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
-    NodeLogicSatisfiability(node_logic::error::Error),
+    NodeLogicError(node_logic::error::Error),
 }
 
 impl warp::reject::Reject for Error {}
@@ -123,7 +131,7 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::NodeLogicSatisfiability(err) => {
+        Error::NodeLogicError(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
                     .title("An error occurred while executing the node logic's code")
