@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, Filter, Rejection, Reply, path};
 
-use crate::live_store::BidDataBase;
+use crate::live_store::{BidDataBase, ProvisionedDataBase};
 /*
 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) cargo run
 */
@@ -46,6 +46,7 @@ async fn main() {
     });
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
+    let provisioned_db = Arc::new(Mutex::new(ProvisionedDataBase::new()));
 
     let path_api_prefix = path!("api" / ..);
 
@@ -80,6 +81,7 @@ async fn main() {
         .and(warp::post())
         .and(with_client(client.clone()))
         .and(with_database(db_bid.clone()))
+        .and(with_database(provisioned_db.clone()))
         .and(with_validated_json())
         .and_then(handlers::post_bid_accept));
 
@@ -133,6 +135,7 @@ enum Error {
     NodeLogicError(node_logic::error::Error),
     SerializationError(serde_json::error::Error),
     BidIdUnvalid(String, Option<uuid::Error>),
+    OpenFaasError
 }
 
 impl warp::reject::Reject for Error {}
@@ -183,7 +186,7 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
         }
         Error::BidIdUnvalid(id, err) => {
             let mut problem =
-                HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                HttpApiProblem::with_title_and_type(StatusCode::NOT_FOUND)
                     .title("An error occurred while looking for a bid id")
                     .detail("Something went wrong processing the id. Please refer to the detail property for additional details");
 
@@ -197,5 +200,13 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
+        Error::OpenFaasError => {
+            let mut problem =
+                HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
+                    .title("An error occurred while contacting the OpenFaaS backend through the gateway API")
+                    .detail("Something went wrong, refer to the server logs for more details");
+
+            problem
+        },
     }
 }

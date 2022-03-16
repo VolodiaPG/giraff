@@ -17,5 +17,7 @@ log = "0.4"
 env_logger = "0.9"
 http-api-problem = { version="0.51", features = ["warp"] }
 uuid = { version = "0.8.2", features = ["v4", "serde"]}
+if_chain = "1.0.2"
+thiserror = "1.0.30"
 sla = { path = "../sla" }
 node-logic = { path = "../node-logic" }

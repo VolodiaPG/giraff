@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Satisfiable {
+    #[serde(rename = "isSatisfiable")]
     pub is_satisfiable: bool,
     pub sla: Sla,
 }

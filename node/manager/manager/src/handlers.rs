@@ -4,8 +4,9 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use warp::{http::Response, Rejection};
 
-use crate::live_store::BidDataBase;
-use crate::models::{Bid, BidRecord, Satisfiable};
+use crate::live_store::{BidDataBase, ProvisionedDataBase};
+use crate::models::{AcceptBid, Bid, BidRecord, Satisfiable, ProvisionedRecord};
+use crate::openfaas::models::function_definition::FunctionDefinition;
 use crate::openfaas::{DefaultApi, DefaultApiClient};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
 use sla::Sla;
@@ -13,8 +14,8 @@ use sla::Sla;
 /// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
     trace!("list_functions");
-    let functions = client.get_functions().await.map_err(|e| {
-        error!("{}", e);
+    let functions = client.system_functions_get().await.map_err(|e| {
+        error!("{:#?}", e);
         warp::reject::reject()
     })?;
     let body = serde_json::to_string(&functions).unwrap();
@@ -34,7 +35,7 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
             .unwrap(),
         )),
         Err(e) => {
-            error!("{}", e);
+            error!("{:#?}", e);
             Err(warp::reject::custom(crate::Error::NodeLogicError(e)))
         }
     }
@@ -49,7 +50,7 @@ pub async fn post_bid(
     trace!("post bid with sla: {:?}", sla);
 
     let bid = bid(&sla).await.map_err(|e| {
-        error!("{}", e);
+        error!("{:#?}", e);
         warp::reject::custom(crate::Error::NodeLogicError(e))
     })?;
 
@@ -68,7 +69,7 @@ pub async fn post_bid(
             id: id,
         })
         .map_err(|e| {
-            error!("{}", e);
+            error!("{:#?}", e);
             warp::reject::custom(crate::Error::SerializationError(e))
         })?,
     ))
@@ -77,36 +78,51 @@ pub async fn post_bid(
 /// Returns a bid for the SLA.
 pub async fn post_bid_accept(
     id: String,
-    _client: DefaultApiClient,
+    client: DefaultApiClient,
     bid_db: Arc<Mutex<BidDataBase>>,
-    sla: Sla,
+    provisioned_db: Arc<Mutex<ProvisionedDataBase>>,
+    payload: AcceptBid,
 ) -> Result<impl warp::Reply, Rejection> {
-    trace!("post accept bid {:?} with sla: {:?}", id, sla);
+    trace!("post accept bid {:?}", payload);
 
     let id = Uuid::parse_str(&id).map_err(|e| {
-        error!("{}", e);
+        error!("{:#?}", e);
         warp::reject::custom(crate::Error::BidIdUnvalid(id, Some(e)))
     })?;
 
     let bid: BidRecord;
     {
-        bid = bid_db.lock().await.get(&id).ok_or_else(||{
-            warp::reject::custom(crate::Error::BidIdUnvalid(
-                id.to_string(),
-                None,
-            ))
-        })?.clone();
+        bid = bid_db
+            .lock()
+            .await
+            .get(&id)
+            .ok_or_else(|| warp::reject::custom(crate::Error::BidIdUnvalid(id.to_string(), None)))?
+            .clone();
     }
 
-    Ok(Response::builder().body(
-        serde_json::to_string(&Bid {
-            bid: bid.bid,
-            sla: bid.sla,
-            id: id,
-        })
+    let definition = FunctionDefinition {
+        image: payload.function_image,
+        service: payload.service,
+        ..Default::default()
+    };
+
+    client
+        .system_functions_post(definition)
+        .await
         .map_err(|e| {
-            error!("{}", e);
-            warp::reject::custom(crate::Error::SerializationError(e))
-        })?,
-    ))
+            error!("{:#?}", e);
+            warp::reject::custom(crate::Error::OpenFaasError)
+        })?;
+
+    {
+        bid_db.lock().await.remove(&id);
+    }
+    {
+        provisioned_db
+            .lock()
+            .await
+            .insert(ProvisionedRecord { bid });
+    }
+
+    Ok(Response::builder().body(""))
 }
