@@ -6,7 +6,7 @@ use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
 use crate::models::{AcceptBid, Bid, BidRecord, ProvisionedRecord, Satisfiable};
-use crate::openfaas::models::function_definition::FunctionDefinition;
+use crate::openfaas::models::{FunctionDefinition, Limits};
 use crate::openfaas::{DefaultApi, DefaultApiClient};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
 use sla::Sla;
@@ -103,6 +103,10 @@ pub async fn post_bid_accept(
     let definition = FunctionDefinition {
         image: payload.function_image,
         service: payload.service + "-" + id.to_string().as_str(),
+        limits: Some(Limits {
+            memory: bid.sla.memory,
+            cpu: (bid.sla.cpu as f64).to_string(),
+        }),
         ..Default::default()
     };
 
