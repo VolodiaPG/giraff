@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Time};
 use validator::Validate;
 
-mod uom_time;
+pub mod uom_information;
+pub mod uom_time;
 mod utils;
-mod uom_information;
 
 #[serde_with::serde_as]
 #[derive(Validate, Serialize, Deserialize, Debug, Clone)]
@@ -12,10 +12,9 @@ pub struct Sla {
     #[serde(rename = "storage")]
     #[serde_as(as = "crate::uom_information::Helper")]
     pub storage: Information,
-    
+
     #[serde(rename = "memory")]
     #[serde_as(as = "crate::uom_information::Helper")]
-
     pub memory: Information,
 
     #[serde(rename = "cpu")]
