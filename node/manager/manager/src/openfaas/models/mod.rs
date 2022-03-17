@@ -23,3 +23,6 @@ impl serde_with::SerializeAs<Information> for Helper {
 
 mod function_definition;
 pub use function_definition::{FunctionDefinition, Limits};
+
+mod function_list_entry;
+pub use self::function_list_entry::FunctionListEntry;

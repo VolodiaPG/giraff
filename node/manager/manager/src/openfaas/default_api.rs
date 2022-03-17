@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use super::{configuration, Error, models::{Helper, FunctionDefinition}};
-use crate::models::FunctionListEntry;
+use super::{configuration, Error, models::FunctionDefinition};
+use super::models::FunctionListEntry;
 
 type Result<T> = std::result::Result<T, Error<serde_json::Value>>;
 
