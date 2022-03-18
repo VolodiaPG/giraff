@@ -61,6 +61,10 @@ impl RollingAvg {
     pub fn get_avg(&self) -> Time {
         self.avg
     }
+
+    pub fn get_last_update(&self) -> DateTime<Utc> {
+        self.last_update
+    }
 }
 
 impl Default for RollingAvg {

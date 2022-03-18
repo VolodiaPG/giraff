@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use chrono::{Duration, Utc};
 use sla::Sla;
 use uuid::Uuid;
 
@@ -63,7 +64,10 @@ impl NodesDataBase {
     pub fn get_bid_candidates(&self, sla: &Sla) -> HashMap<NodeId, NodeRecord> {
         self.database
             .iter()
-            .filter(|&(id, node)| node.latency.get_avg() < sla.latency_max)
+            .filter(|&(id, node)| {
+                node.latency.get_avg() < sla.latency_max
+                    && Utc::now() - node.latency.get_last_update() > Duration::seconds(10)
+            })
             .map(|(id, node)| (id.clone(), node.clone()))
             .collect()
     }
