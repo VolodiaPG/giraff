@@ -53,7 +53,7 @@ mod outputs;
 pub use outputs::{Bid, Satisfiable};
 
 mod database;
-pub use database::{BidRecord, NodeRecord};
+pub use database::{BidRecord, NodeRecord, BidProposal};
 
 mod inputs;
 pub use inputs::{PatchNode, RegisterNode};

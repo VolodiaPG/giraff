@@ -4,6 +4,7 @@ extern crate log;
 mod handlers;
 mod live_store;
 mod models;
+mod tasks;
 
 use crate::live_store::BidDataBase;
 use crate::models::NodeId;
@@ -34,6 +35,7 @@ async fn main() {
         .and(path!("sla"))
         .and(warp::put())
         .and(with_database(db_bid.clone()))
+        .and(with_database(db_nodes.clone()))
         .and(with_validated_json())
         .and_then(handlers::clients::put_sla);
 

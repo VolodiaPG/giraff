@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use sla::Sla;
 use uuid::Uuid;
 
 use crate::models::{BidRecord, ClientId, NodeId, NodeRecord};
@@ -29,6 +30,10 @@ impl BidDataBase {
         self.database.get(id)
     }
 
+    pub fn get_mut(&mut self, id: &ClientId) -> Option<&mut BidRecord> {
+        self.database.get_mut(id)
+    }
+
     pub fn remove(&mut self, id: &ClientId) {
         self.database.remove(id);
     }
@@ -53,5 +58,13 @@ impl NodesDataBase {
 
     pub fn remove(&mut self, id: &NodeId) {
         self.database.remove(id);
+    }
+
+    pub fn get_bid_candidates(&self, sla: &Sla) -> HashMap<NodeId, NodeRecord> {
+        self.database
+            .iter()
+            .filter(|&(id, node)| node.latency.get_avg() < sla.latency_max)
+            .map(|(id, node)| (id.clone(), node.clone()))
+            .collect()
     }
 }

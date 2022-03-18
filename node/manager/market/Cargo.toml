@@ -20,6 +20,7 @@ http-api-problem = { version="0.51", features = ["warp"] }
 uuid = { version = "0.8.2", features = ["v4", "serde"]}
 if_chain = "1.0.2"
 thiserror = "1.0.30"
+anyhow = "1.0.56"
 chrono = "0.4"
 uom = { version = "0.32.0", default-features = false, features = ["f64", "si", "autoconvert"]}
 sla = { path = "../sla" }
