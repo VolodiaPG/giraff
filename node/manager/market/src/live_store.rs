@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use uuid::Uuid;
 
-use crate::models::{BidRecord, ProvisionedRecord};
-
-pub type ClientId = Uuid;
-pub type BidId = Uuid;
+use crate::models::{BidRecord, ClientId, NodeId, NodeRecord};
 
 pub struct BidDataBase {
     database: HashMap<ClientId, BidRecord>,
+}
+
+pub struct NodesDataBase {
+    database: HashMap<ClientId, NodeRecord>,
 }
 
 impl BidDataBase {
@@ -29,6 +30,28 @@ impl BidDataBase {
     }
 
     pub fn remove(&mut self, id: &ClientId) {
+        self.database.remove(id);
+    }
+}
+
+impl NodesDataBase {
+    pub fn new() -> Self {
+        NodesDataBase {
+            database: HashMap::new(),
+        }
+    }
+
+    pub fn insert(&mut self, node: NodeRecord) -> NodeId {
+        let uuid = Uuid::new_v4();
+        self.database.insert(uuid, node);
+        uuid
+    }
+
+    pub fn get(&mut self, id: &ClientId) -> Option<&mut NodeRecord> {
+        self.database.get_mut(id)
+    }
+
+    pub fn remove(&mut self, id: &NodeId) {
         self.database.remove(id);
     }
 }

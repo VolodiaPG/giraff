@@ -5,17 +5,15 @@ mod handlers;
 mod live_store;
 mod models;
 
+use crate::live_store::BidDataBase;
+use crate::models::NodeId;
 use http_api_problem::{HttpApiProblem, StatusCode};
+use live_store::NodesDataBase;
 use serde::de::DeserializeOwned;
 use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
-use warp::{http::Response, Filter, Rejection, Reply, path};
-
-use crate::live_store::BidDataBase;
-/*
-OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) cargo run
-*/
+use warp::{http::Response, path, Filter, Rejection, Reply};
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +23,7 @@ async fn main() {
     let debug = !env::var("DEBUG").is_err();
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
+    let db_nodes = Arc::new(Mutex::new(NodesDataBase::new()));
 
     let path_api_prefix = path!("api" / ..);
 
@@ -34,8 +33,22 @@ async fn main() {
     let routes = path_client_api_prefix
         .and(path!("sla"))
         .and(warp::put())
+        .and(with_database(db_bid.clone()))
         .and(with_validated_json())
-        .and_then(handlers::put_sla);
+        .and_then(handlers::clients::put_sla);
+
+    let routes = routes.or(path_node_api_prefix
+        .and(path!(NodeId))
+        .and(warp::patch())
+        .and(with_database(db_nodes.clone()))
+        .and(with_validated_json())
+        .and_then(handlers::nodes::patch_nodes));
+
+    let routes = routes.or(path_node_api_prefix
+        .and(warp::put())
+        .and(with_database(db_nodes.clone()))
+        .and(with_validated_json())
+        .and_then(handlers::nodes::put_nodes));
 
     let routes = routes.recover(handle_rejection);
 
@@ -79,6 +92,7 @@ where
 enum Error {
     Validation(ValidationErrors),
     SerializationError(serde_json::error::Error),
+    NodeIdNotFound(NodeId),
 }
 
 impl warp::reject::Reject for Error {}
@@ -117,5 +131,15 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
+        Error::NodeIdNotFound(id) => {
+            let mut problem =
+                HttpApiProblem::with_title_and_type(StatusCode::NOT_FOUND)
+                    .title("Node ID not found")
+                    .detail("Please refer to the id property to know what node ID was not found");
+
+            problem.set_value("id", &id.to_string());
+
+            problem
+        },
     }
 }
