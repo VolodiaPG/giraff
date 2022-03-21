@@ -17,7 +17,7 @@ use warp::{http::Response, path, Filter, Rejection, Reply};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
 /*
-OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) cargo run
+KUBECONFIG=../../../kubeconfig-cluster1 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT=3001 OPENFAAS_PORT=8080 cargo run
 */
 
 #[tokio::main]
@@ -30,14 +30,16 @@ async fn main() {
         .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .unwrap_or(3000);
+    let port_openfaas = env::var("PORT_OPENFAAS")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .unwrap_or(8080);
+    debug!("OpenFaaS port: {}", port);
 
-    let manager_gateway =
-        env::var("MANAGER_GATEWAY").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let username = env::var("OPENFAAS_USERNAME").ok();
     let password = env::var("OPENFAAS_PASSWORD").ok();
     debug!("username: {:?}", username);
     debug!("password?: {:?}", password.is_some());
-    debug!("manager gateway: {}", manager_gateway);
 
     let auth: Option<BasicAuth>;
     if let Some(username) = username {
@@ -47,7 +49,7 @@ async fn main() {
     }
 
     let client = DefaultApiClient::new(Configuration {
-        base_path: "http://localhost:8080".to_owned(),
+        base_path: format!("http://localhost:{}", port_openfaas),
         client: Client::new(),
         basic_auth: auth,
     });
