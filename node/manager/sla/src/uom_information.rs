@@ -7,12 +7,18 @@ use uom::{fmt::DisplayStyle::Description, si::information};
 use crate::utils::parse_quantity;
 pub struct Helper;
 
-impl serde_with::SerializeAs<Information> for Helper{
+impl serde_with::SerializeAs<Information> for Helper {
     fn serialize_as<S>(value: &Information, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&format!("{:?}", value.into_format_args(information::megabyte, Description)).as_str())
+        serializer.serialize_str(
+            format!(
+                "{:?}",
+                value.into_format_args(information::megabyte, Description)
+            )
+            .as_str(),
+        )
     }
 }
 

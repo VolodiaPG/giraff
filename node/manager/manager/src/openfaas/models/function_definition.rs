@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use uom::si::f64::Information;
 

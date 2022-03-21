@@ -13,7 +13,7 @@ pub struct DefaultApiClient {
 impl DefaultApiClient {
     pub fn new(configuration: configuration::Configuration) -> DefaultApiClient {
         DefaultApiClient {
-            configuration: configuration,
+            configuration,
         }
     }
 }

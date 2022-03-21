@@ -1,6 +1,6 @@
 pub mod bidding;
-pub mod satisfiability;
 pub mod error;
+pub mod satisfiability;
 
-mod models;
 mod k8s;
+mod models;

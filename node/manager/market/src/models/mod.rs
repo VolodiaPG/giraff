@@ -50,13 +50,13 @@ impl<'de> Visitor<'de> for CustomVisitor {
 }
 
 mod outputs;
-pub use outputs::{Bid, Satisfiable};
+pub use outputs::{Bid, MarketBidProposal, Satisfiable};
 
 mod database;
-pub use database::{BidRecord, NodeRecord, BidProposal};
+pub use database::{BidProposal, BidRecord, NodeRecord};
 
 mod inputs;
 pub use inputs::{PatchNode, RegisterNode};
 
 mod disks;
-pub use disks::{NodeRecordDisk};
+pub use disks::NodeRecordDisk;

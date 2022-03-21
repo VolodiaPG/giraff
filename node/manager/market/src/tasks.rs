@@ -1,7 +1,7 @@
 use anyhow::Result;
 use if_chain::if_chain;
 use sla::Sla;
-use std::{collections::BinaryHeap, convert::Infallible, sync::Arc};
+use std::{convert::Infallible, sync::Arc};
 
 use crate::{
     live_store::{BidDataBase, NodesDataBase},
@@ -27,20 +27,20 @@ pub async fn call_for_bids(
         let node_record = node_record.to_owned();
         let sla_safe = sla_safe.clone();
 
-        let job = tokio::spawn(async move { request_bids(node_id, node_record, sla_safe) });
+        let job = tokio::spawn(async move { request_bids(node_id, node_record, sla_safe).await });
 
         handles.push(job);
     }
 
     let mut bid_record = BidRecord {
-        sla: sla,
-        bids: BinaryHeap::new(),
+        sla,
+        bids: Vec::new(),
     };
 
     for handle in handles {
         if_chain! {
-            if let Some(join) = handle.await.ok();
-            if let Some(proposal) = join.await.ok();
+            if let Ok(join) = handle.await;
+            if let Ok(proposal) = join;
             then
             {
                 trace!("got bid proposal: {:?}", proposal);
@@ -73,7 +73,7 @@ async fn request_bids(
         .await?;
 
     Ok(BidProposal {
-        node_id: node_id.clone(),
+        node_id,
         id: bid.id,
         bid: bid.bid,
     })

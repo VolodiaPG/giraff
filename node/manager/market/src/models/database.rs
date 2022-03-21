@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    collections::{BinaryHeap, HashMap},
-};
+use std::{cmp::Ordering, collections::HashMap};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -13,7 +10,7 @@ use super::{BidId, NodeId, NodeRecordDisk};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BidRecord {
-    pub bids: BinaryHeap<BidProposal>,
+    pub bids: Vec<BidProposal>,
     pub sla: Sla,
 }
 
@@ -86,21 +83,22 @@ impl Default for RollingAvg {
     }
 }
 
-impl Ord for BidProposal {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.bid == other.bid {
-            Ordering::Equal
-        } else if self.bid > other.bid {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
-    }
-}
+// impl Ord for BidProposal {
+//     fn cmp(&self, other: &Self) -> Ordering {
+//         self.bid.partial_cmp(&other.bid)
+//         // if self.bid == other.bid {
+//         //     Ordering::Equal
+//         // } else if self.bid > other.bid {
+//         //     Ordering::Greater
+//         // } else {
+//         //     Ordering::Less
+//         // }
+//     }
+// }
 
 impl PartialOrd for BidProposal {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+        self.bid.partial_cmp(&other.bid)
     }
 }
 

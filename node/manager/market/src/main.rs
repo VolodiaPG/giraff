@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+mod auction;
 mod handlers;
 mod live_store;
 mod models;
@@ -11,7 +12,7 @@ use crate::models::NodeId;
 use http_api_problem::{HttpApiProblem, StatusCode};
 use live_store::NodesDataBase;
 use serde::de::DeserializeOwned;
-use std::{convert::Infallible, env, sync::Arc, fs};
+use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
@@ -21,8 +22,9 @@ async fn main() {
     std::env::set_var("RUST_LOG", "info, market=trace");
     env_logger::init();
 
-    let debug = !env::var("DEBUG").is_err(); 
-    let predefined_clients_path = env::var("PREDEFINED_NODES_PATH").unwrap_or("predefined_nodes.ron".to_string());
+    let debug = env::var("DEBUG").is_ok();
+    let predefined_clients_path =
+        env::var("PREDEFINED_NODES_PATH").unwrap_or_else(|_| "predefined_nodes.ron".to_string());
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
     let db_nodes = Arc::new(Mutex::new(NodesDataBase::new(predefined_clients_path)));
@@ -94,7 +96,7 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
-    SerializationError(serde_json::error::Error),
+    Serialization(serde_json::error::Error),
     NodeIdNotFound(NodeId),
 }
 
@@ -124,7 +126,7 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::SerializationError(err) => {
+        Error::Serialization(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
                     .title("An error occurred while serializing the response")
@@ -135,14 +137,13 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
             problem
         }
         Error::NodeIdNotFound(id) => {
-            let mut problem =
-                HttpApiProblem::with_title_and_type(StatusCode::NOT_FOUND)
-                    .title("Node ID not found")
-                    .detail("Please refer to the id property to know what node ID was not found");
+            let mut problem = HttpApiProblem::with_title_and_type(StatusCode::NOT_FOUND)
+                .title("Node ID not found")
+                .detail("Please refer to the id property to know what node ID was not found");
 
             problem.set_value("id", &id.to_string());
 
             problem
-        },
+        }
     }
 }

@@ -46,12 +46,4 @@ impl ProvisionedDataBase {
         self.database.insert(uuid, bid);
         uuid
     }
-
-    pub fn get(&self, id: &Uuid) -> Option<&ProvisionedRecord> {
-        self.database.get(id)
-    }
-
-    pub fn remove(&mut self, id: &Uuid) {
-        self.database.remove(id);
-    }
 }

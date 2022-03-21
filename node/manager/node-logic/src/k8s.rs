@@ -80,14 +80,13 @@ where
 
     let captures = RE
         .captures(quantity)
-        .ok_or(Error::QuantityParsing(quantity.to_string()))?;
-
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
     let measure = captures
         .get(1)
-        .ok_or(Error::QuantityParsing(quantity.to_string()))?;
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
     let unit = captures
         .get(2)
-        .ok_or(Error::QuantityParsing(quantity.to_string()))?;
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
     let qty = format!("{} {}B", measure.as_str(), unit.as_str())
         .parse::<T>()

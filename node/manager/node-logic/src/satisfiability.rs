@@ -13,8 +13,8 @@ pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
 
     Ok(!aggregated_metrics
         .iter()
-        .map(|(_key, metrics)| satisfasibility_check(metrics, &sla))
-        .all(|res| res == false))
+        .map(|(_key, metrics)| satisfasibility_check(metrics, sla))
+        .all(|res| !res))
 }
 
 pub fn satisfasibility_check(metrics: &Metrics, sla: &Sla) -> bool {

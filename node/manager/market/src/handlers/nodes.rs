@@ -2,13 +2,11 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use tokio::sync::Mutex;
-use uuid::Uuid;
 use warp::{http::Response, Rejection};
 
-use crate::live_store::{BidDataBase, NodesDataBase};
-use crate::models::{BidRecord, NodeId, NodeRecord, PatchNode, RegisterNode};
+use crate::live_store::NodesDataBase;
+use crate::models::{NodeId, NodeRecord, PatchNode, RegisterNode};
 use crate::Error;
-use sla::Sla;
 
 /// Register a new node in the database
 pub async fn put_nodes(

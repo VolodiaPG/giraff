@@ -12,4 +12,8 @@ validator = { version = "0.12", features = ["derive"] }
 lazy_static = "1.4"
 regex = "1"
 thiserror = "1.0.30"
-uom = { version = "0.32.0", default-features = false, features = ["f64", "si", "autoconvert"]}
+uom = { version = "0.32.0", default-features = false, features = [
+  "f64",
+  "si",
+  "autoconvert",
+] }

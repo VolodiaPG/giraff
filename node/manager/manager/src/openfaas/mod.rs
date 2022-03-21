@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
 use serde::{self, Deserialize};
-use serde_json;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T>
@@ -13,7 +12,7 @@ where
     #[error("Serde failed with error: {0}")]
     Serde(serde_json::Error),
     #[error("The API request responded an unexpected payload")]
-    ApiError(ApiError<T>),
+    Api(ApiError<T>),
 }
 
 #[derive(Debug)]
@@ -31,7 +30,7 @@ where
 {
     fn from(err: (reqwest::StatusCode, Result<T, reqwest::Error>)) -> Self {
         match err.1 {
-            Ok(content) => Error::ApiError(ApiError {
+            Ok(content) => Error::Api(ApiError {
                 code: err.0,
                 content,
             }),

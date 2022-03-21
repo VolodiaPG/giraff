@@ -7,12 +7,14 @@ use uom::{fmt::DisplayStyle::Description, si::time};
 use crate::utils::parse_quantity;
 pub struct Helper;
 
-impl serde_with::SerializeAs<Time> for Helper{
+impl serde_with::SerializeAs<Time> for Helper {
     fn serialize_as<S>(value: &Time, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&format!("{:?}", value.into_format_args(time::second, Description)).as_str())
+        serializer.serialize_str(
+            format!("{:?}", value.into_format_args(time::second, Description)).as_str(),
+        )
     }
 }
 

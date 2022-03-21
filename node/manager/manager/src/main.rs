@@ -25,14 +25,14 @@ async fn main() {
     std::env::set_var("RUST_LOG", "info, manager=trace, node_logic=trace");
     env_logger::init();
 
-    let debug = !env::var("DEBUG").is_err();
+    let debug = env::var("DEBUG").is_ok();
     let port = env::var("PORT")
-        .unwrap_or("3000".to_string())
+        .unwrap_or_else(|_| "3000".to_string())
         .parse::<u16>()
         .unwrap_or(3000);
 
     let manager_gateway =
-        env::var("MANAGER_GATEWAY").unwrap_or("http://localhost:8080".to_string());
+        env::var("MANAGER_GATEWAY").unwrap_or_else(|_| "http://localhost:8080".to_string());
     let username = env::var("OPENFAAS_USERNAME").ok();
     let password = env::var("OPENFAAS_PASSWORD").ok();
     debug!("username: {:?}", username);
@@ -139,10 +139,10 @@ where
 #[derive(Debug)]
 enum Error {
     Validation(ValidationErrors),
-    NodeLogicError(node_logic::error::Error),
-    SerializationError(serde_json::error::Error),
+    NodeLogic(node_logic::error::Error),
+    Serialization(serde_json::error::Error),
     BidIdUnvalid(String, Option<uuid::Error>),
-    OpenFaasError,
+    OpenFaas,
 }
 
 impl warp::reject::Reject for Error {}
@@ -171,7 +171,7 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::NodeLogicError(err) => {
+        Error::NodeLogic(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
                     .title("An error occurred while executing the node logic's code")
@@ -181,7 +181,7 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::SerializationError(err) => {
+        Error::Serialization(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
                     .title("An error occurred while serializing the response")
@@ -207,16 +207,14 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::OpenFaasError => {
-            let mut problem = HttpApiProblem::with_title_and_type(
+        Error::OpenFaas => {
+            HttpApiProblem::with_title_and_type(
                 StatusCode::INTERNAL_SERVER_ERROR,
             )
             .title(
                 "An error occurred while contacting the OpenFaaS backend through the gateway API",
             )
-            .detail("Something went wrong, refer to the server logs for more details");
-
-            problem
+            .detail("Something went wrong, refer to the server logs for more details")
         }
     }
 }

@@ -11,7 +11,7 @@ pub async fn bid(sla: &Sla) -> Result<f64, Error> {
     let aggregated_metrics = get_k8s_metrics().await?;
 
     if_chain! {
-        if let Some((name, metrics)) = aggregated_metrics.iter().find(|(_key, metrics)| crate::satisfiability::satisfasibility_check(metrics, &sla));
+        if let Some((name, metrics)) = aggregated_metrics.iter().find(|(_key, metrics)| crate::satisfiability::satisfasibility_check(metrics, sla));
         if let Some(allocatable) = &metrics.allocatable;
         if let Some(usage) = &metrics.usage;
         then

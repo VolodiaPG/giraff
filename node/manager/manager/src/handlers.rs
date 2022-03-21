@@ -30,13 +30,13 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
         Ok(res) => Ok(Response::builder().body(
             serde_json::to_string(&Satisfiable {
                 is_satisfiable: res,
-                sla: sla,
+                sla,
             })
             .unwrap(),
         )),
         Err(e) => {
             error!("{:#?}", e);
-            Err(warp::reject::custom(crate::Error::NodeLogicError(e)))
+            Err(warp::reject::custom(crate::Error::NodeLogic(e)))
         }
     }
 }
@@ -51,10 +51,10 @@ pub async fn post_bid(
 
     let bid = bid(&sla).await.map_err(|e| {
         error!("{:#?}", e);
-        warp::reject::custom(crate::Error::NodeLogicError(e))
+        warp::reject::custom(crate::Error::NodeLogic(e))
     })?;
 
-    let bid = BidRecord { bid: bid, sla: sla };
+    let bid = BidRecord { bid, sla };
 
     let id;
 
@@ -66,11 +66,11 @@ pub async fn post_bid(
         serde_json::to_string(&Bid {
             bid: bid.bid,
             sla: bid.sla,
-            id: id,
+            id,
         })
         .map_err(|e| {
             error!("{:#?}", e);
-            warp::reject::custom(crate::Error::SerializationError(e))
+            warp::reject::custom(crate::Error::Serialization(e))
         })?,
     ))
 }
@@ -115,7 +115,7 @@ pub async fn post_bid_accept(
         .await
         .map_err(|e| {
             error!("{:#?}", e);
-            warp::reject::custom(crate::Error::OpenFaasError)
+            warp::reject::custom(crate::Error::OpenFaas)
         })?;
 
     {
