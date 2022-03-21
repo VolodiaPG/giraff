@@ -9,7 +9,7 @@ use serde_with::serde_as;
 use sla::Sla;
 use uom::si::f64::Time;
 
-use super::{BidId, NodeId};
+use super::{BidId, NodeId, NodeRecordDisk};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BidRecord {
@@ -29,6 +29,15 @@ pub struct NodeRecord {
     pub ip: String,
     pub latency: RollingAvg,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
+}
+
+impl From<&NodeRecordDisk> for NodeRecord {
+    fn from(disk: &NodeRecordDisk) -> Self {
+        NodeRecord {
+            ip: disk.ip.clone(),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

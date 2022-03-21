@@ -1,7 +1,7 @@
 use anyhow::Result;
 use if_chain::if_chain;
 use sla::Sla;
-use std::{collections::BinaryHeap, sync::Arc, convert::Infallible};
+use std::{collections::BinaryHeap, convert::Infallible, sync::Arc};
 
 use crate::{
     live_store::{BidDataBase, NodesDataBase},
@@ -19,13 +19,15 @@ pub async fn call_for_bids(
     }
 
     let mut handles = Vec::new();
+    let sla_safe = Arc::new(sla.clone());
     for (node_id, node_record) in nodes.iter() {
         trace!("node @{:?}: {:#?}", node_id, node_record);
 
         let node_id = node_id.to_owned();
         let node_record = node_record.to_owned();
+        let sla_safe = sla_safe.clone();
 
-        let job = tokio::spawn(async move { request_bids(node_id, node_record) });
+        let job = tokio::spawn(async move { request_bids(node_id, node_record, sla_safe) });
 
         handles.push(job);
     }
@@ -58,10 +60,16 @@ pub async fn call_for_bids(
 async fn request_bids(
     node_id: NodeId,
     node_record: NodeRecord,
-) -> Result<BidProposal, reqwest::Error> {
-    let bid = reqwest::get(format!("http://{}/api/bid", node_record.ip))
+    sla: Arc<Sla>,
+) -> Result<BidProposal, anyhow::Error> {
+    trace!("requesting bids from node @{:?}", node_id);
+    let client = reqwest::Client::new();
+    let bid: Bid = client
+        .post(format!("http://{}/api/bid", node_record.ip))
+        .body(serde_json::to_string(&sla)?)
+        .send()
         .await?
-        .json::<Bid>()
+        .json()
         .await?;
 
     Ok(BidProposal {

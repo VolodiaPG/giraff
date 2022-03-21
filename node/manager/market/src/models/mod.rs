@@ -57,3 +57,6 @@ pub use database::{BidRecord, NodeRecord, BidProposal};
 
 mod inputs;
 pub use inputs::{PatchNode, RegisterNode};
+
+mod disks;
+pub use disks::{NodeRecordDisk};

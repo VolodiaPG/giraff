@@ -11,7 +11,7 @@ use crate::models::NodeId;
 use http_api_problem::{HttpApiProblem, StatusCode};
 use live_store::NodesDataBase;
 use serde::de::DeserializeOwned;
-use std::{convert::Infallible, env, sync::Arc};
+use std::{convert::Infallible, env, sync::Arc, fs};
 use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
@@ -21,10 +21,11 @@ async fn main() {
     std::env::set_var("RUST_LOG", "info, market=trace");
     env_logger::init();
 
-    let debug = !env::var("DEBUG").is_err();
+    let debug = !env::var("DEBUG").is_err(); 
+    let predefined_clients_path = env::var("PREDEFINED_NODES_PATH").unwrap_or("predefined_nodes.ron".to_string());
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
-    let db_nodes = Arc::new(Mutex::new(NodesDataBase::new()));
+    let db_nodes = Arc::new(Mutex::new(NodesDataBase::new(predefined_clients_path)));
 
     let path_api_prefix = path!("api" / ..);
 

@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use chrono::{Duration, Utc};
 use sla::Sla;
 use uuid::Uuid;
+use if_chain::if_chain;
+use std::fs;
 
-use crate::models::{BidRecord, ClientId, NodeId, NodeRecord};
+use crate::models::{BidRecord, ClientId, NodeId, NodeRecord, self};
 
 pub struct BidDataBase {
     database: HashMap<ClientId, BidRecord>,
@@ -41,10 +43,25 @@ impl BidDataBase {
 }
 
 impl NodesDataBase {
-    pub fn new() -> Self {
-        NodesDataBase {
+    pub fn new(path: String) -> Self {
+        let mut ret = NodesDataBase {
             database: HashMap::new(),
+        };
+        if_chain!{
+            if let Ok(content) = fs::read_to_string(path.clone());
+            if let Ok(nodes) = ron::from_str::<HashMap<NodeId, models::NodeRecordDisk>>(&content);
+            then 
+            {
+                info!("Loading nodes from disk, path: {}", path);
+                ret.database.extend(nodes.iter().map(|(k, v)| (*k, v.into())));
+            }
+            else 
+            {
+                debug!("No nodes found on disk, path: {}", path);
+            }
         }
+
+        ret
     }
 
     pub fn insert(&mut self, node: NodeRecord) -> NodeId {
