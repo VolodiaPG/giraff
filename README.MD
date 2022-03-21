@@ -39,6 +39,8 @@ To move the kubeconfig file to the local computer config using `kubctl`:
 cp kubeconfig ~/.kube/config
 ```
 
+> Careful if you have multiple instances running on the same computer
+
 Installs openfaas on the cluster
 ```sh
 arkade install openfaas
