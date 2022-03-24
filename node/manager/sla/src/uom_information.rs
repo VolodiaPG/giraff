@@ -2,7 +2,7 @@ use core::fmt;
 
 use serde::de::Visitor;
 use uom::si::f64::Information;
-use uom::{fmt::DisplayStyle::Description, si::information};
+use uom::{fmt::DisplayStyle::Abbreviation, si::information};
 
 use crate::utils::parse_quantity;
 pub struct Helper;
@@ -15,7 +15,7 @@ impl serde_with::SerializeAs<Information> for Helper {
         serializer.serialize_str(
             format!(
                 "{:?}",
-                value.into_format_args(information::megabyte, Description)
+                value.into_format_args(information::megabyte, Abbreviation)
             )
             .as_str(),
         )

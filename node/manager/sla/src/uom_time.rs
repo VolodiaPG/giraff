@@ -2,7 +2,7 @@ use core::fmt;
 
 use serde::de::Visitor;
 use uom::si::f64::Time;
-use uom::{fmt::DisplayStyle::Description, si::time};
+use uom::{fmt::DisplayStyle::Abbreviation, si::time};
 
 use crate::utils::parse_quantity;
 pub struct Helper;
@@ -13,7 +13,7 @@ impl serde_with::SerializeAs<Time> for Helper {
         S: serde::Serializer,
     {
         serializer.serialize_str(
-            format!("{:?}", value.into_format_args(time::second, Description)).as_str(),
+            format!("{:?}", value.into_format_args(time::second, Abbreviation)).as_str(),
         )
     }
 }

@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use uom::si::f64::Information;
+use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug, Serialize, Default)]
 pub struct FunctionDefinition {
@@ -44,7 +44,8 @@ pub struct FunctionDefinition {
 #[serde_with::serde_as]
 #[derive(Debug, Serialize, Default)]
 pub struct Limits {
-    pub cpu: String,
-    #[serde_as(as = "super::Helper")]
+    #[serde_as(as = "super::RatioHelper")]
+    pub cpu: Ratio,
+    #[serde_as(as = "super::InformationHelper")]
     pub memory: Information,
 }

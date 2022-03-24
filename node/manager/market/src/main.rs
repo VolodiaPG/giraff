@@ -15,7 +15,7 @@ use serde::de::DeserializeOwned;
 use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
-use warp::{http::Response, path, Filter, Rejection, Reply};
+use warp::{http::Response, path, Filter, Rejection, Reply, body::BodyDeserializeError};
 
 #[tokio::main]
 async fn main() {
@@ -106,7 +106,13 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
     trace!("{:?}", err);
     let response = if let Some(e) = err.find::<Error>() {
         handle_crate_error(e)
-    } else {
+    } else if err.is_not_found() {
+        HttpApiProblem::with_title_and_type(StatusCode::NOT_FOUND)
+    } else if err.find::<BodyDeserializeError>().is_some()
+    {
+        HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
+      
+    }     else     {
         HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
     };
 

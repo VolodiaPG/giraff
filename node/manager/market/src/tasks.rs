@@ -50,18 +50,18 @@ pub async fn call_for_bids(
     }
 
     let id: ClientId;
-
     {
-        id = bid_db.lock().await.insert(bid_record);
+        id = bid_db.lock().await.insert(bid_record.clone());
     }
 
     Ok(id)
 }
+
 async fn request_bids(
     node_id: NodeId,
     node_record: NodeRecord,
     sla: Arc<Sla>,
-) -> Result<BidProposal, anyhow::Error> {
+) -> Result<BidProposal> {
     trace!("requesting bids from node @{:?}", node_id);
     let client = reqwest::Client::new();
     let bid: Bid = client
@@ -77,4 +77,20 @@ async fn request_bids(
         id: bid.id,
         bid: bid.bid,
     })
+}
+
+pub async fn take_offer(node_record: &NodeRecord, bid: &BidProposal) -> Result<()> {
+    let client = reqwest::Client::new();
+    if client
+        .post(format!("http://{}/api/bid/{}", node_record.ip, bid.id))
+        .send()
+        .await?
+        .status()
+        .is_success()
+    {
+        Ok(())
+    } else {
+        error!("failed to take offer");
+        Err(anyhow::anyhow!("failed to take offer"))
+    }
 }

@@ -23,7 +23,7 @@ This repository contains a collection of functions ready to be deployed on an Op
 - Arkade `curl -SLsf https://get.arkade.dev/ | sudo sh`
 - Docker
 - Helm `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
-- K3sup `curl -sLS https://get.k3sup.dev | sh `
+- K3sup `curl -sLS https://get.k3sup.dev | sh`
 - Kubectl
 - Multipass `sudo snap install multipass`
 
@@ -31,7 +31,7 @@ This repository contains a collection of functions ready to be deployed on an Op
 
 Installs K3s
 ```sh
-PUBLIC_SSH_KEY_PATH=$HOME/.ssh/id_rsa.pub PRIVATE_SSH_KEY_PATH=$HOME/.ssh/id_rsa ./scripts/minimal-k3s-multipass-bootstrap.sh
+PUBLIC_SSH_KEY_PATH=$HOME/.ssh/id_ed25519.pub PRIVATE_SSH_KEY_PATH=$HOME/.ssh/id_ed25519 ./scripts/minimal-k3s-multipass-bootstrap.sh
 ```
 
 To move the kubeconfig file to the local computer config using `kubctl`:

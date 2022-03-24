@@ -41,13 +41,13 @@ pub async fn patch_nodes(
         nodes_db
             .lock()
             .await
-            .get(&id)
+            .get_mut(&id)
             .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(id)))?
             .latency
             .update(Utc::now(), created_at);
     }
 
-    trace!("{:#?}", nodes_db.lock().await.get(&id).unwrap());
+    trace!("{:#?}", nodes_db.lock().await.get_mut(&id).unwrap());
 
     Ok(Response::builder().body(id.to_string()))
 }

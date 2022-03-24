@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use tokio::sync::Mutex;
-use uuid::Uuid;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
-use crate::models::{AcceptBid, Bid, BidRecord, ProvisionedRecord, Satisfiable};
+use crate::models::{Bid, BidId, BidRecord, ProvisionedRecord, Satisfiable};
 use crate::openfaas::models::{FunctionDefinition, Limits};
 use crate::openfaas::{DefaultApi, DefaultApiClient};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
@@ -77,18 +76,12 @@ pub async fn post_bid(
 
 /// Returns a bid for the SLA.
 pub async fn post_bid_accept(
-    id: String,
+    id: BidId,
     client: DefaultApiClient,
     bid_db: Arc<Mutex<BidDataBase>>,
     provisioned_db: Arc<Mutex<ProvisionedDataBase>>,
-    payload: AcceptBid,
 ) -> Result<impl warp::Reply, Rejection> {
-    trace!("post accept bid {:?}", payload);
-
-    let id = Uuid::parse_str(&id).map_err(|e| {
-        error!("{:#?}", e);
-        warp::reject::custom(crate::Error::BidIdUnvalid(id, Some(e)))
-    })?;
+    trace!("post accept bid {:?}", id);
 
     let bid: BidRecord;
     {
@@ -101,14 +94,18 @@ pub async fn post_bid_accept(
     }
 
     let definition = FunctionDefinition {
-        image: payload.function_image,
-        service: payload.service + "-" + id.to_string().as_str(),
+        image: bid.sla.function_image.to_owned(),
+        service: bid.sla.function_live_name.to_owned().unwrap_or_else(|| "".to_string())
+            + "-"
+            + id.to_string().as_str(),
         limits: Some(Limits {
             memory: bid.sla.memory,
-            cpu: (bid.sla.cpu as f64).to_string(),
+            cpu: bid.sla.cpu,
         }),
         ..Default::default()
     };
+
+    trace!("post accept bid {:#?}", definition);
 
     client
         .system_functions_post(definition)

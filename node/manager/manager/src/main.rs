@@ -15,9 +15,10 @@ use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
 
-use crate::live_store::{BidDataBase, ProvisionedDataBase};
+use crate::{live_store::{BidDataBase, ProvisionedDataBase}, models::BidId};
 /*
 KUBECONFIG=../../../kubeconfig-cluster1 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT=3001 OPENFAAS_PORT=8080 cargo run
+KUBECONFIG=../../../kubeconfig-master-1 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=$KUBECONFIG basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT=3001 OPENFAAS_PORT=8080 cargo run
 */
 
 #[tokio::main]
@@ -86,12 +87,11 @@ async fn main() {
 
     let routes = routes.or(path_api_prefix
         .and(path_bid)
-        .and(warp::path::param())
+        .and(path!(BidId))
         .and(warp::post())
         .and(with_client(client.clone()))
         .and(with_database(db_bid.clone()))
         .and(with_database(provisioned_db.clone()))
-        .and(with_validated_json())
         .and_then(handlers::post_bid_accept));
 
     let routes = routes.recover(handle_rejection);
@@ -209,14 +209,10 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::OpenFaas => {
-            HttpApiProblem::with_title_and_type(
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
+        Error::OpenFaas => HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
             .title(
                 "An error occurred while contacting the OpenFaaS backend through the gateway API",
             )
-            .detail("Something went wrong, refer to the server logs for more details")
-        }
+            .detail("Something went wrong, refer to the server logs for more details"),
     }
 }

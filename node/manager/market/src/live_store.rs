@@ -62,8 +62,12 @@ impl NodesDataBase {
         uuid
     }
 
-    pub fn get(&mut self, id: &ClientId) -> Option<&mut NodeRecord> {
+    pub fn get_mut(&mut self, id: &ClientId) -> Option<&mut NodeRecord> {
         self.database.get_mut(id)
+    }
+
+    pub fn get(&self, id: &ClientId) -> Option<&NodeRecord> {
+        self.database.get(id)
     }
 
     pub fn get_bid_candidates(&self, sla: &Sla) -> HashMap<NodeId, NodeRecord> {
