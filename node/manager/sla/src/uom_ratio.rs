@@ -2,10 +2,10 @@ use core::fmt;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::de::Visitor;
+use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::Ratio;
-use uom::{fmt::DisplayStyle::Abbreviation, si::Unit};
 
-use crate::utils::{parse_quantity, Error};
+use crate::utils::Error;
 pub struct Helper;
 
 impl serde_with::SerializeAs<Ratio> for Helper {
