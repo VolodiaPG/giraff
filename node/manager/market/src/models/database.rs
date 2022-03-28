@@ -83,19 +83,6 @@ impl Default for RollingAvg {
     }
 }
 
-// impl Ord for BidProposal {
-//     fn cmp(&self, other: &Self) -> Ordering {
-//         self.bid.partial_cmp(&other.bid)
-//         // if self.bid == other.bid {
-//         //     Ordering::Equal
-//         // } else if self.bid > other.bid {
-//         //     Ordering::Greater
-//         // } else {
-//         //     Ordering::Less
-//         // }
-//     }
-// }
-
 impl PartialOrd for BidProposal {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.bid.partial_cmp(&other.bid)
