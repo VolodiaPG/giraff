@@ -5,6 +5,7 @@ mod handlers;
 mod live_store;
 mod models;
 mod openfaas;
+mod node_situation;
 
 use http_api_problem::{HttpApiProblem, StatusCode};
 use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
@@ -15,7 +16,7 @@ use tokio::sync::Mutex;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
 
-use crate::{live_store::{BidDataBase, ProvisionedDataBase}, models::BidId};
+use crate::{live_store::{BidDataBase, ProvisionedDataBase}, models::BidId, node_situation::NodeSitutation};
 /*
 KUBECONFIG=../../../kubeconfig-cluster1 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT=3001 OPENFAAS_PORT=8080 cargo run
 KUBECONFIG=../../../kubeconfig-master-1 OPENFAAS_USERNAME=admin OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=$KUBECONFIG basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT=3001 OPENFAAS_PORT=8080 cargo run
@@ -36,6 +37,10 @@ async fn main() {
         .parse::<u16>()
         .unwrap_or(8080);
     debug!("OpenFaaS port: {}", port);
+    let path_node_situation = env::var("PATH_NODE_SITUATION")
+        .unwrap_or_else(|_| "node_situation.ron".to_string());
+    debug!("Loading node situation from: {}", path_node_situation);
+
 
     let username = env::var("OPENFAAS_USERNAME").ok();
     let password = env::var("OPENFAAS_PASSWORD").ok();
@@ -57,6 +62,7 @@ async fn main() {
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
     let provisioned_db = Arc::new(Mutex::new(ProvisionedDataBase::new()));
+    let node_situation = NodeSitutation::new(path_node_situation);
 
     let path_api_prefix = path!("api" / ..);
 
@@ -118,6 +124,13 @@ where
     T: Send + Sync,
 {
     warp::any().map(move || db.clone())
+}
+
+fn with_node_situation(
+    node_situation: Arc<NodeSitutation>,
+) -> impl Filter<Extract = (Arc<NodeSitutation>,), Error = Infallible> + Clone
+{
+    warp::any().map(move || node_situation.to_owned())
 }
 
 fn with_validated_json<T>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
