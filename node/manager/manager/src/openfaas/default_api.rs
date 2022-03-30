@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use super::{configuration, Error, models::FunctionDefinition};
 use super::models::FunctionListEntry;
 
-type Result<T> = std::result::Result<T, Error<serde_json::Value>>;
+type Result<T> = std::result::Result<T, Error<String>>;
 
 #[derive(Clone)]
 pub struct DefaultApiClient {
@@ -22,6 +22,7 @@ impl DefaultApiClient {
 pub trait DefaultApi {
     async fn system_functions_get(&self) -> Result<Vec<FunctionListEntry>>;
     async fn system_functions_post(&self, body: FunctionDefinition) -> Result<()>;
+    async fn async_function_name_post(&self, function_name: &str, input: warp::hyper::body::Bytes) -> Result<()>;
 }
 
 #[async_trait]
@@ -57,7 +58,31 @@ impl DefaultApi for DefaultApiClient {
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(Error::from((response.status(), response.json().await)))
+            Err(Error::from((response.status(), response.text().await)))
+        }
+    }
+
+    async fn async_function_name_post(&self, function_name: &str, input: warp::hyper::body::Bytes) -> Result<()> {
+        // TODO redo in async
+        let uri_str = format!("{}/async-function/{}", self.configuration.base_path, function_name);
+
+        let mut builder = self
+            .configuration
+            .client
+            .post(&uri_str)
+            .body(input);
+
+        if let Some((username, password)) = &self.configuration.basic_auth {
+            builder = builder.basic_auth(username, password.as_ref());
+        }
+
+        let response = builder.send().await?;
+        trace!("response: {:#?}", response);
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::from((response.status(), response.text().await)))
         }
     }
 }

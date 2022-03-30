@@ -11,7 +11,7 @@ where
     Reqwest(reqwest::Error),
     #[error("Serde failed with error: {0}")]
     Serde(serde_json::Error),
-    #[error("The API request responded an unexpected payload")]
+    #[error("The API request responded an unexpected payload: {0}")]
     Api(ApiError<T>),
 }
 
@@ -22,6 +22,12 @@ where
 {
     pub code: reqwest::StatusCode,
     pub content: T,
+}
+
+impl<T> std::fmt::Display for ApiError<T> where T: Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "http code {}, content: {}", self.code, self.content)
+    }
 }
 
 impl<'de, T> From<(reqwest::StatusCode, Result<T, reqwest::Error>)> for Error<T>

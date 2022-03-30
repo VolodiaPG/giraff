@@ -1,12 +1,16 @@
 use std::sync::Arc;
 
-use tokio::sync::Mutex;
+use http_api_problem::StatusCode;
+use tokio::sync::RwLock;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
-use crate::models::{Bid, BidId, BidRecord, ProvisionedRecord, Satisfiable};
+use crate::models::{
+    Bid, BidId, BidRecord, NodeId, ProvisionedRecord, Satisfiable,
+};
 use crate::openfaas::models::{FunctionDefinition, Limits};
 use crate::openfaas::{DefaultApi, DefaultApiClient};
+use crate::routing::{self, NodeSituation};
 use node_logic::{bidding::bid, satisfiability::is_satisfiable};
 use sla::Sla;
 
@@ -43,7 +47,7 @@ pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::
 /// Returns a bid for the SLA.
 pub async fn post_bid(
     _client: DefaultApiClient,
-    bid_db: Arc<Mutex<BidDataBase>>,
+    bid_db: Arc<RwLock<BidDataBase>>,
     sla: Sla,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("post bid with sla: {:?}", sla);
@@ -58,7 +62,7 @@ pub async fn post_bid(
     let id;
 
     {
-        id = bid_db.lock().await.insert(bid.clone());
+        id = bid_db.write().await.insert(bid.clone());
     }
 
     Ok(Response::builder().body(
@@ -75,29 +79,36 @@ pub async fn post_bid(
 }
 
 /// Returns a bid for the SLA.
+/// Creates the function on OpenFaaS and use the SLA to enable the limits
 pub async fn post_bid_accept(
     id: BidId,
     client: DefaultApiClient,
-    bid_db: Arc<Mutex<BidDataBase>>,
-    provisioned_db: Arc<Mutex<ProvisionedDataBase>>,
+    bid_db: Arc<RwLock<BidDataBase>>,
+    provisioned_db: Arc<RwLock<ProvisionedDataBase>>,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("post accept bid {:?}", id);
 
     let bid: BidRecord;
     {
         bid = bid_db
-            .lock()
+            .read()
             .await
             .get(&id)
             .ok_or_else(|| warp::reject::custom(crate::Error::BidIdUnvalid(id.to_string(), None)))?
             .clone();
     }
 
+    let function_name = bid
+        .sla
+        .function_live_name
+        .to_owned()
+        .unwrap_or_else(|| "".to_string())
+        + "-"
+        + id.to_string().as_str();
+
     let definition = FunctionDefinition {
         image: bid.sla.function_image.to_owned(),
-        service: bid.sla.function_live_name.to_owned().unwrap_or_else(|| "".to_string())
-            + "-"
-            + id.to_string().as_str(),
+        service: function_name.to_owned(),
         limits: Some(Limits {
             memory: bid.sla.memory,
             cpu: bid.sla.cpu,
@@ -112,18 +123,118 @@ pub async fn post_bid_accept(
         .await
         .map_err(|e| {
             error!("{:#?}", e);
-            warp::reject::custom(crate::Error::OpenFaas)
+            warp::reject::custom(crate::Error::from(e))
         })?;
 
     {
-        bid_db.lock().await.remove(&id);
+        bid_db.write().await.remove(&id);
     }
     {
         provisioned_db
-            .lock()
+            .write()
             .await
-            .insert(ProvisionedRecord { bid });
+            .insert(id, ProvisionedRecord { bid, function_name });
     }
 
     Ok(Response::builder().body(""))
+}
+
+pub async fn put_routing(
+    function_id: BidId,
+    node_id: NodeId,
+    node_situation: Arc<NodeSituation>,
+    routing_table: Arc<RwLock<routing::RoutingTable>>,
+    provisioned_db: Arc<RwLock<ProvisionedDataBase>>,
+) -> Result<impl warp::Reply, Rejection> {
+    trace!("put routing {:?}", function_id);
+
+    {
+        routing_table
+            .write()
+            .await
+            .update_route(function_id, node_id)
+            .await;
+    }
+
+    Ok(Response::builder().body(""))
+}
+
+#[derive(Debug)]
+enum Routing {
+    Outside(String),  // url
+    OpenFaaS(String), // function_name
+    Market(BidId),
+}
+
+pub async fn post_forward_routing(
+    function_id: BidId,
+    node_situation: Arc<NodeSituation>,
+    routing_table: Arc<RwLock<routing::RoutingTable>>,
+    provisioned_db: Arc<RwLock<ProvisionedDataBase>>,
+    openfaas_client: DefaultApiClient,
+    raw_body: warp::hyper::body::Bytes,
+) -> Result<impl warp::Reply, Rejection> {
+    trace!("post forward routing {:?}", function_id);
+    let routing_action;
+    {
+        routing_action = routing_table.read().await.route(function_id).await;
+    }
+
+    trace!("routing action {:?}", routing_action);
+
+    let routing_choice = match routing_action {
+        routing::Forward::Outside(function_id, node_id) => {
+            match node_situation.get(&node_id) {
+                Some(node) => {
+                    Routing::Outside(format!("http://{}/api/routing/{}", node.uri, function_id))
+                }
+                None => Routing::Market(function_id),
+            }
+        }
+        routing::Forward::Inside(function_id) => {
+            match provisioned_db.read().await.get(&function_id) {
+                Some(provisioned) => Routing::OpenFaaS(provisioned.function_name.to_owned()),
+                None => Routing::Market(function_id),
+            }
+        }
+        routing::Forward::ToMarket(provisioned) => {
+            if node_situation.is_market{
+                if let Some(provisioned) = provisioned_db.read().await.get(&function_id){
+                    Routing::OpenFaaS(provisioned.function_name.to_owned())
+                }
+                else{
+                    Routing::Market(provisioned)
+                }
+            }else{
+                Routing::Market(provisioned)
+            }
+        },
+    };
+
+    trace!("routing choice is: {:?}", routing_choice);
+
+    let client = reqwest::Client::new();
+    match routing_choice {
+        Routing::Outside(url) => {
+            client.post(url).body(raw_body).send().await;
+        }
+        Routing::OpenFaaS(function_name) => {
+            openfaas_client.async_function_name_post(function_name.as_str(), raw_body).await.map_err(|e| {
+                trace!("{:#?}", e);
+                warp::reject::custom(crate::Error::from(e))
+            })?;
+        },
+        Routing::Market(function_id) => {
+            client
+                .post(format!(
+                    "http://{}/api/routing/{}",
+                    node_situation.market_uri, function_id
+                ))
+                .body(raw_body)
+                .send()
+                .await;
+                // TODO fix market calling itself
+        }
+    }
+    Ok(Response::builder().status(StatusCode::ACCEPTED).body(""))
 }

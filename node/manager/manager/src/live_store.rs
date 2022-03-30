@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::models::{BidId, BidRecord, ProvisionedRecord, RecordId};
+use crate::models::{BidId, BidRecord, ProvisionedRecord};
 
 pub struct BidDataBase {
     database: HashMap<BidId, BidRecord>,
 }
 
 pub struct ProvisionedDataBase {
-    database: HashMap<RecordId, ProvisionedRecord>,
+    database: HashMap<BidId, ProvisionedRecord>,
 }
 
 impl BidDataBase {
@@ -39,9 +39,11 @@ impl ProvisionedDataBase {
         }
     }
 
-    pub fn insert(&mut self, bid: ProvisionedRecord) -> RecordId {
-        let uuid = RecordId::new_v4();
-        self.database.insert(uuid, bid);
-        uuid
+    pub fn insert(&mut self, bid_id: BidId, bid: ProvisionedRecord) {
+        self.database.insert(bid_id, bid);
+    }
+
+    pub fn get(&self, id: &BidId) -> Option<&ProvisionedRecord> {
+        self.database.get(id)
     }
 }

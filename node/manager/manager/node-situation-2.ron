@@ -1,0 +1,11 @@
+NodeSituation (
+    nodes: {
+        "49aaea47-7af7-4c68-b29a-b445ef194d3a": Node (
+            uri: "localhost:3001",
+            id: "49aaea47-7af7-4c68-b29a-b445ef194d3a",
+            category: Child,
+        ),
+    },
+    market_uri: "localhost:3002",
+    is_market: true,
+)

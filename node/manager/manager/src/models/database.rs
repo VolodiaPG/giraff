@@ -10,4 +10,5 @@ pub struct BidRecord {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ProvisionedRecord {
     pub bid: BidRecord,
+    pub function_name: String,
 }
