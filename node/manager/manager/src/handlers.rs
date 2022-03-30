@@ -142,9 +142,7 @@ pub async fn post_bid_accept(
 pub async fn put_routing(
     function_id: BidId,
     node_id: NodeId,
-    node_situation: Arc<NodeSituation>,
     routing_table: Arc<RwLock<routing::RoutingTable>>,
-    provisioned_db: Arc<RwLock<ProvisionedDataBase>>,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("put routing {:?}", function_id);
 
@@ -216,7 +214,12 @@ pub async fn post_forward_routing(
     let client = reqwest::Client::new();
     match routing_choice {
         Routing::Outside(url) => {
-            client.post(url).body(raw_body).send().await;
+            match client.post(url).body(raw_body).send().await{
+                Ok(_) => (),
+                Err(e) => {
+                    error!("{:#?}", e);
+                }
+            }
         }
         Routing::OpenFaaS(function_name) => {
             openfaas_client.async_function_name_post(function_name.as_str(), raw_body).await.map_err(|e| {
@@ -225,15 +228,19 @@ pub async fn post_forward_routing(
             })?;
         },
         Routing::Market(function_id) => {
-            client
+            match client
                 .post(format!(
                     "http://{}/api/routing/{}",
                     node_situation.market_uri, function_id
                 ))
                 .body(raw_body)
                 .send()
-                .await;
-                // TODO fix market calling itself
+                .await{
+                Ok(_) => (),
+                Err(e) => {
+                    error!("{:#?}", e);
+                }
+            }
         }
     }
     Ok(Response::builder().status(StatusCode::ACCEPTED).body(""))

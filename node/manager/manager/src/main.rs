@@ -12,7 +12,7 @@ use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use std::{convert::Infallible, env, sync::Arc};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
 
@@ -21,6 +21,7 @@ use crate::{
     models::{BidId, NodeId},
     routing::{NodeSituation, RoutingTable},
 };
+
 /*
 ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run
 */
@@ -106,9 +107,7 @@ async fn main() {
     let routes = routes.or(path_api_prefix
         .and(path!("routing" / BidId / NodeId))
         .and(warp::put())
-        .and(with_node_situation(node_situation.clone()))
         .and(with_routing_table(routing_table.clone()))
-        .and(with_database(provisioned_db.clone()))
         .and_then(handlers::put_routing));
             
     let routes = routes.or(path_api_prefix

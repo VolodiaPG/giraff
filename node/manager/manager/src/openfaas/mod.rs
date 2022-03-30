@@ -24,7 +24,10 @@ where
     pub content: T,
 }
 
-impl<T> std::fmt::Display for ApiError<T> where T: Display {
+impl<T> std::fmt::Display for ApiError<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "http code {}, content: {}", self.code, self.content)
     }

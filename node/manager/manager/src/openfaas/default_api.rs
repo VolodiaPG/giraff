@@ -63,7 +63,6 @@ impl DefaultApi for DefaultApiClient {
     }
 
     async fn async_function_name_post(&self, function_name: &str, input: warp::hyper::body::Bytes) -> Result<()> {
-        // TODO redo in async
         let uri_str = format!("{}/async-function/{}", self.configuration.base_path, function_name);
 
         let mut builder = self
