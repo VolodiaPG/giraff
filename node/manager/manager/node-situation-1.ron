@@ -1,11 +1,9 @@
-NodeSituation (
-    nodes: {
-        "e13f2a63-2934-480a-a448-b1b01af7e170": Node (
+NodeSituationDisk (
+    nodes: [
+        Node (
             uri: "localhost:3002",
             id: "e13f2a63-2934-480a-a448-b1b01af7e170",
             category: Parent,
         ),
-    },
-    market_uri: "localhost:3002",
-    is_market: false,
+    ],
 )

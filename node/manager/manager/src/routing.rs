@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use crate::models::BidId;
 type NodeId = uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum NodeCategory {
     Parent,
     Child
@@ -21,18 +21,36 @@ pub struct Node {
     pub category: NodeCategory,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct NodeSituation {
+#[derive(Debug, Clone, Default)]
+pub struct NodeSituation{
     nodes: HashMap<NodeId, Node>,
-    pub market_uri: String,
+    pub to_market: Option<Node>,
     pub is_market: bool,
 }
 
-impl NodeSituation {
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct NodeSituationDisk {
+    pub nodes: Vec<Node>,
+}
+
+impl From<NodeSituationDisk> for NodeSituation {
+    fn from(disk: NodeSituationDisk) -> Self {
+        let nodes: HashMap<NodeId, Node> = disk.nodes.into_iter().map(|node| (node.id, node)).collect();
+        let to_market = nodes.clone().into_iter().find(|(_id, node)| node.category == NodeCategory::Parent).map(|(_id, node)| node);
+        let is_market = to_market.is_none();
+        NodeSituation {
+            nodes,
+            to_market,
+            is_market,
+        }
+    }
+}
+
+impl NodeSituationDisk {
     pub fn new(path: String) -> Self {
         if_chain! {
             if let Ok(content) = fs::read_to_string(path.clone());
-            if let Ok(situation) = ron::from_str::<NodeSituation>(&content);
+            if let Ok(situation) = ron::from_str::<NodeSituationDisk>(&content);
             then
             {
                 info!("Loading nodes from disk, path: {}", path);
@@ -41,13 +59,14 @@ impl NodeSituation {
             else
             {
                 warn!("No node situation config found on disk, tried path: {}", path);
-                NodeSituation {
+                NodeSituationDisk {
                     ..Default::default()
                 }
             }
         }
     }
-
+}
+impl NodeSituation{
     pub fn get(&self, id: &NodeId) -> Option<&Node> {
         self.nodes.get(id)
     }

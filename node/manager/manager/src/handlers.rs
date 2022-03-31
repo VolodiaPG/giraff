@@ -161,7 +161,7 @@ pub async fn put_routing(
 enum Routing {
     Outside(String),  // url
     OpenFaaS(String), // function_name
-    Market(BidId),
+    Market(BidId)
 }
 
 pub async fn post_forward_routing(
@@ -201,6 +201,7 @@ pub async fn post_forward_routing(
                     Routing::OpenFaaS(provisioned.function_name.to_owned())
                 }
                 else{
+                    trace!("Could not find the function name so redirected to market");
                     Routing::Market(provisioned)
                 }
             }else{
@@ -228,18 +229,22 @@ pub async fn post_forward_routing(
             })?;
         },
         Routing::Market(function_id) => {
-            match client
+            if let Some(node_to_market) = &node_situation.to_market {
+                match client
                 .post(format!(
                     "http://{}/api/routing/{}",
-                    node_situation.market_uri, function_id
+                    node_to_market.uri, function_id
                 ))
                 .body(raw_body)
                 .send()
                 .await{
-                Ok(_) => (),
-                Err(e) => {
-                    error!("{:#?}", e);
+                    Ok(_) => (),
+                    Err(e) => {
+                        error!("{:#?}", e);
+                    }
                 }
+            } else {
+                trace!("no node to market");
             }
         }
     }

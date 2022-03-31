@@ -19,7 +19,7 @@ use warp::{http::Response, path, Filter, Rejection, Reply};
 use crate::{
     live_store::{BidDataBase, ProvisionedDataBase},
     models::{BidId, NodeId},
-    routing::{NodeSituation, RoutingTable},
+    routing::{NodeSituation, RoutingTable, NodeSituationDisk},
 };
 
 /*
@@ -65,8 +65,14 @@ async fn main() {
 
     let db_bid = Arc::new(RwLock::new(BidDataBase::new()));
     let provisioned_db = Arc::new(RwLock::new(ProvisionedDataBase::new()));
-    let node_situation = Arc::new(NodeSituation::new(path_node_situation));
+    let node_situation = Arc::new(NodeSituation::from(NodeSituationDisk::new(path_node_situation)));
     let routing_table = Arc::new(RwLock::new(RoutingTable::default()));
+
+    if node_situation.is_market{
+        info!("This node is a provider node located at the market node");
+    }else{
+        info!("This node is a provider node");
+    }
 
     let path_api_prefix = path!("api" / ..);
 
