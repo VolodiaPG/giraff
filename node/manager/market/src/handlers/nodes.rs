@@ -5,29 +5,29 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::NodesDataBase;
-use crate::models::{NodeId, NodeRecord, PatchNode, RegisterNode};
+use crate::models::{NodeId, PatchNode};
 use crate::Error;
 
 /// Register a new node in the database
-pub async fn put_nodes(
-    nodes_db: Arc<Mutex<NodesDataBase>>,
-    payload: RegisterNode,
-) -> Result<impl warp::Reply, Rejection> {
-    trace!("put/register a new node");
+// pub async fn put_nodes(
+//     nodes_db: Arc<Mutex<NodesDataBase>>,
+//     payload: RegisterNode,
+// ) -> Result<impl warp::Reply, Rejection> {
+//     trace!("put/register a new node");
 
-    let node = NodeRecord {
-        ip: payload.ip,
-        ..Default::default()
-    };
+//     let node = NodeRecord {
+//         ip: payload.ip,
+//         ..Default::default()
+//     };
 
-    let id;
+//     let id;
 
-    {
-        id = nodes_db.lock().await.insert(node);
-    }
+//     {
+//         id = nodes_db.lock().await.insert(node);
+//     }
 
-    Ok(Response::builder().body(id.to_string()))
-}
+//     Ok(Response::builder().body(id.to_string()))
+// }
 
 /// Patch part of the node data
 pub async fn patch_nodes(
@@ -42,7 +42,7 @@ pub async fn patch_nodes(
             .lock()
             .await
             .get_mut(&id)
-            .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(id)))?
+            .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(id.clone())))?
             .latency
             .update(Utc::now(), created_at);
     }

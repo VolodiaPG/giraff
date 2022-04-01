@@ -1,11 +1,72 @@
 use core::fmt;
+use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use serde::de::Visitor;
+use serde::{de::Visitor, Deserialize, Serialize};
 use uuid::Uuid;
 pub type ClientId = Uuid;
 pub type BidId = Uuid;
-pub type NodeId = Uuid;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NodeId {
+    id: Uuid,
+}
+
+impl From<Uuid> for NodeId {
+    fn from(id: Uuid) -> Self {
+        NodeId { id }
+    }
+}
+
+impl FromStr for NodeId {
+    type Err = uuid::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::from_str(s).map(|id| id.into())
+    }
+}
+
+impl fmt::Display for NodeId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
+
+impl Serialize for NodeId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.id.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for NodeId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct NodeIdVisitor;
+
+        impl<'de> Visitor<'de> for NodeIdVisitor {
+            type Value = NodeId;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a NodeId, i.e., a UUIDv4")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(NodeId {
+                    id: Uuid::parse_str(value).unwrap(),
+                })
+            }
+        }
+
+        deserializer.deserialize_str(NodeIdVisitor)
+    }
+}
 
 struct DateTimeHelper;
 

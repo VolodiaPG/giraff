@@ -27,7 +27,16 @@ async fn main() {
         env::var("PREDEFINED_NODES_PATH").unwrap_or_else(|_| "predefined_nodes.ron".to_string());
 
     let db_bid = Arc::new(Mutex::new(BidDataBase::new()));
-    let db_nodes = Arc::new(Mutex::new(NodesDataBase::new(predefined_clients_path)));
+    let db_nodes  = match NodesDataBase::new(predefined_clients_path){
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            std::process::exit(1);
+        }
+    };
+    let db_nodes = Arc::new(Mutex::new(db_nodes));
+
+    
 
     let path_api_prefix = path!("api" / ..);
 
@@ -49,11 +58,11 @@ async fn main() {
         .and(with_validated_json())
         .and_then(handlers::nodes::patch_nodes));
 
-    let routes = routes.or(path_node_api_prefix
-        .and(warp::put())
-        .and(with_database(db_nodes.clone()))
-        .and(with_validated_json())
-        .and_then(handlers::nodes::put_nodes));
+    // let routes = routes.or(path_node_api_prefix
+    //     .and(warp::put())
+    //     .and(with_database(db_nodes.clone()))
+    //     .and(with_validated_json())
+    //     .and_then(handlers::nodes::put_nodes));
 
     let routes = routes.recover(handle_rejection);
 

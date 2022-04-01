@@ -25,13 +25,13 @@ pub struct BidProposal {
 pub struct NodeRecord {
     pub ip: String,
     pub latency: RollingAvg,
-    pub accepted_bids: HashMap<BidId, AcceptedBid>,
+    pub accepted_bids: HashMap<BidId, AcceptedBid>, // TODO change name
 }
 
-impl From<&NodeRecordDisk> for NodeRecord {
-    fn from(disk: &NodeRecordDisk) -> Self {
+impl From<NodeRecordDisk> for NodeRecord {
+    fn from(disk: NodeRecordDisk) -> Self {
         NodeRecord {
-            ip: disk.ip.clone(),
+            ip: disk.ip,
             ..Default::default()
         }
     }
