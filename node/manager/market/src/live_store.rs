@@ -8,10 +8,10 @@ use serde::Deserialize;
 use sla::Sla;
 use uuid::Uuid;
 
-use crate::models::{BidRecord, ClientId, NodeId, NodeRecord, NodeRecordDisk};
+use crate::models::{BidId, BidRecord, NodeId, NodeRecord, NodeRecordDisk};
 
 pub struct BidDataBase {
-    database: HashMap<ClientId, BidRecord>,
+    database: HashMap<BidId, BidRecord>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,13 +44,13 @@ impl BidDataBase {
         }
     }
 
-    pub fn insert(&mut self, bid: BidRecord) -> ClientId {
-        let uuid = Uuid::new_v4();
-        self.database.insert(uuid, bid);
+    pub fn insert(&mut self, bid: BidRecord) -> BidId {
+        let uuid: BidId = Uuid::new_v4().into();
+        self.database.insert(uuid.clone(), bid);
         uuid
     }
 
-    pub fn get(&self, id: &ClientId) -> Option<&BidRecord> {
+    pub fn get(&self, id: &BidId) -> Option<&BidRecord> {
         self.database.get(id)
     }
 }

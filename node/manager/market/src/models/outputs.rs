@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 use sla::Sla;
-use uuid::Uuid;
 
 use crate::auction::Price;
 
-use super::BidProposal;
+use super::{BidId, BidProposal};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Satisfiable {
@@ -17,7 +16,7 @@ pub struct Satisfiable {
 pub struct Bid {
     pub bid: f64,
     pub sla: Sla,
-    pub id: Uuid,
+    pub id: BidId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

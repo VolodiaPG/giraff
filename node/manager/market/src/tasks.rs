@@ -5,7 +5,7 @@ use std::{convert::Infallible, sync::Arc};
 
 use crate::{
     live_store::{BidDataBase, NodesDataBase},
-    models::{Bid, BidProposal, BidRecord, ClientId, NodeId, NodeRecord},
+    models::{Bid, BidProposal, BidRecord, NodeId, NodeRecord, BidId},
 };
 
 pub async fn call_for_bids(
@@ -13,7 +13,7 @@ pub async fn call_for_bids(
     bid_db: Arc<tokio::sync::Mutex<BidDataBase>>,
     node_db: Arc<tokio::sync::Mutex<NodesDataBase>>,
     leaf_node: NodeId
-) -> Result<ClientId, Infallible> {
+) -> Result<BidId, Infallible> {
     let nodes;
     {
         nodes = node_db.lock().await.get_bid_candidates(&sla, leaf_node);
@@ -50,7 +50,7 @@ pub async fn call_for_bids(
         }
     }
 
-    let id: ClientId;
+    let id: BidId;
     {
         id = bid_db.lock().await.insert(bid_record.clone());
     }
