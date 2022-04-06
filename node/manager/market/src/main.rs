@@ -44,7 +44,7 @@ async fn main() {
     let path_client_api_prefix = path_api_prefix.and(path!("client" / ..));
 
     let routes = path_client_api_prefix
-        .and(path!("sla"))
+        .and(path!("sla" / NodeId))
         .and(warp::put())
         .and(with_database(db_bid.clone()))
         .and(with_database(db_nodes.clone()))

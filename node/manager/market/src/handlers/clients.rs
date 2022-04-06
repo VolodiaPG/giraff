@@ -4,20 +4,21 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, NodesDataBase};
-use crate::models::MarketBidProposal;
+use crate::models::{MarketBidProposal, NodeId};
 use crate::{auction, tasks, Error};
 use if_chain::if_chain;
 use sla::Sla;
 
 /// Register a SLA and starts the auctionning process
 pub async fn put_sla(
+    leaf_node: NodeId,
     bid_db: Arc<Mutex<BidDataBase>>,
     nodes_db: Arc<Mutex<NodesDataBase>>,
     sla: Sla,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("put sla: {:?}", sla);
 
-    let id = tasks::call_for_bids(sla.clone(), bid_db.clone(), nodes_db.clone()).await?;
+    let id = tasks::call_for_bids(sla.clone(), bid_db.clone(), nodes_db.clone(), leaf_node).await?;
 
     let res;
     {

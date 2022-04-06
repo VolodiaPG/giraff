@@ -12,10 +12,11 @@ pub async fn call_for_bids(
     sla: Sla,
     bid_db: Arc<tokio::sync::Mutex<BidDataBase>>,
     node_db: Arc<tokio::sync::Mutex<NodesDataBase>>,
+    leaf_node: NodeId
 ) -> Result<ClientId, Infallible> {
     let nodes;
     {
-        nodes = node_db.lock().await.get_bid_candidates(&sla);
+        nodes = node_db.lock().await.get_bid_candidates(&sla, leaf_node);
     }
 
     let mut handles = Vec::new();

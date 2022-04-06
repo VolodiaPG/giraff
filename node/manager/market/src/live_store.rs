@@ -203,15 +203,24 @@ impl NodesDataBase {
         self.nodes.get(id).map(|node| &node.data)
     }
 
-    pub fn get_bid_candidates(&self, sla: &Sla) -> HashMap<NodeId, NodeRecord> {
-        self.nodes
-            .iter()
-            .map(|(id, node)| (id, &node.data))
-            .filter(|&(_id, node)| {
-                node.latency.get_avg() < sla.latency_max
-                    && Utc::now() - node.latency.get_last_update() > Duration::seconds(10)
-            })
-            .map(|(id, node)| (id.clone(), node.clone()))
-            .collect()
+    pub fn get_bid_candidates(&self, sla: &Sla, leaf_node: NodeId) -> HashMap<NodeId, NodeRecord> {
+        let mut candidates = HashMap::new();
+        let mut next_raw = Some(&leaf_node);
+        while let Some(next) = next_raw {
+            if_chain! {
+                if let Some(node) = self.nodes.get(next);
+                if node.data.latency.get_avg() < sla.latency_max;
+                if Utc::now() - node.data.latency.get_last_update() > Duration::seconds(10);
+                then {
+                    candidates.insert(next.clone(), node.data.clone());
+                    next_raw = node.parent.as_ref();
+                }
+                else {
+                    next_raw = None;
+                }
+            }
+        }
+
+        candidates
     }
 }
