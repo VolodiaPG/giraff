@@ -4,7 +4,7 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, NodesDataBase};
-use crate::models::{MarketBidProposal, NodeId};
+use crate::models::{MarketBidProposal, NodeId, AuctionStatus};
 use crate::{auction, tasks, Error};
 use if_chain::if_chain;
 use sla::Sla;
@@ -25,7 +25,11 @@ pub async fn put_sla(
         res = bid_db.lock().await.get(&id).unwrap().clone();
     }
 
-    let auctions_result = auction::second_price(&sla, &res.bids);
+    let auctions_result = if let AuctionStatus::Active(bids) = &res.auction{
+        auction::second_price(&sla, bids)
+    } else{
+        None
+    };
 
     let res = if_chain! {
         if let Some((bid, price)) = auctions_result;
@@ -35,10 +39,12 @@ pub async fn put_sla(
         .get(&bid.node_id)
         .cloned()
         .unwrap_or_default();
+        if let AuctionStatus::Active(bids) = res.auction;
         if tasks::take_offer(&node, &bid).await.is_ok();
-        then{
+        then {
+            bid_db.lock().await.update_auction(&id, AuctionStatus::Finished(bid.clone()));
             MarketBidProposal {
-                bids: res.bids,
+                bids,
                 chosen_bid: Some(bid),
                 price: Some(price),
             }
@@ -46,7 +52,7 @@ pub async fn put_sla(
         else
         {
             MarketBidProposal {
-                bids: res.bids,
+                bids: Vec::new(),
                 chosen_bid: None,
                 price: None,
             }

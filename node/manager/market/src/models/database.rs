@@ -9,8 +9,14 @@ use uom::si::f64::Time;
 use super::{BidId, NodeId, NodeRecordDisk};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum AuctionStatus {
+    Active(Vec<BidProposal>),
+    Finished(BidProposal),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BidRecord {
-    pub bids: Vec<BidProposal>,
+    pub auction: AuctionStatus,
     pub sla: Sla,
 }
 

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use sla::Sla;
 use uuid::Uuid;
 
-use crate::models::{BidId, BidRecord, NodeId, NodeRecord, NodeRecordDisk};
+use crate::models::{AuctionStatus, BidId, BidRecord, NodeId, NodeRecord, NodeRecordDisk};
 
 pub struct BidDataBase {
     database: HashMap<BidId, BidRecord>,
@@ -52,6 +52,12 @@ impl BidDataBase {
 
     pub fn get(&self, id: &BidId) -> Option<&BidRecord> {
         self.database.get(id)
+    }
+
+    pub fn update_auction(&mut self, id: &BidId, status: AuctionStatus) {
+        if let Some(bid) = self.database.get_mut(id) {
+            bid.auction = status;
+        }
     }
 }
 

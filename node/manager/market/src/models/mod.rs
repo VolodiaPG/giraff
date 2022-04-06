@@ -120,7 +120,7 @@ mod outputs;
 pub use outputs::{Bid, MarketBidProposal, Satisfiable};
 
 mod database;
-pub use database::{BidProposal, BidRecord, NodeRecord};
+pub use database::{AuctionStatus, BidProposal, BidRecord, NodeRecord};
 
 mod inputs;
 pub use inputs::{PatchNode, RegisterNode};

@@ -5,7 +5,7 @@ use std::{convert::Infallible, sync::Arc};
 
 use crate::{
     live_store::{BidDataBase, NodesDataBase},
-    models::{Bid, BidProposal, BidRecord, NodeId, NodeRecord, BidId},
+    models::{Bid, BidProposal, BidRecord, NodeId, NodeRecord, BidId, AuctionStatus},
 };
 
 pub async fn call_for_bids(
@@ -33,11 +33,8 @@ pub async fn call_for_bids(
         handles.push(job);
     }
 
-    let mut bid_record = BidRecord {
-        sla,
-        bids: Vec::new(),
-    };
-
+    let mut bids = Vec::new();
+    
     for handle in handles {
         if_chain! {
             if let Ok(join) = handle.await;
@@ -45,10 +42,15 @@ pub async fn call_for_bids(
             then
             {
                 trace!("got bid proposal: {:?}", proposal);
-                bid_record.bids.push(proposal);
+                bids.push(proposal);
             }
         }
     }
+    
+    let bid_record = BidRecord {
+        sla,
+        auction: AuctionStatus::Active(bids),
+    };
 
     let id: BidId;
     {
