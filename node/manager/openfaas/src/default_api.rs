@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-
+use log::trace;
 use super::{configuration, Error, models::FunctionDefinition};
 use super::models::FunctionListEntry;
 

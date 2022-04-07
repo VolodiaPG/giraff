@@ -29,3 +29,4 @@ uom = { version = "0.32.0", default-features = false, features = [
 ] }
 sla = { path = "../sla" }
 node-logic = { path = "../node-logic" }
+openfaas = { path = "../openfaas" }
