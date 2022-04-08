@@ -1,16 +1,8 @@
----
-title: "Application samples"
-author: [Volodia PAROL-GUARINO]
-date: "\\today \\space-- v##VERSION##"
-header-includes:
-  - "\\usepackage{utf8}"
-titlepage: true
-...
-
-
 # About
 
-This repository contains a collection of functions ready to be deployed on an OpenFaaS Fog infrastructure.
+1. This repository contains a collection of functions ready to be deployed on an OpenFaaS Fog infrastructure.
+
+2. It also hosts a WiP framework to host functions in a Fog network.
 
 > Due to a current bug, one may have to compile (`faas up`) once, then `touch` the file and redo it, why? Idk
 
