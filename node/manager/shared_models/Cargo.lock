@@ -113,18 +113,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "308cc39be01b73d0d18f82a0e7b2a3df85245f84af96fdddc5d202d27e47b86a"
 
 [[package]]
-name = "models"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_with",
- "uom",
- "uom_helpers",
- "uuid",
-]
-
-[[package]]
 name = "num-integer"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,6 +213,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "shared_models"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_with",
+ "uom",
+ "uom_helpers",
+ "uuid",
 ]
 
 [[package]]

@@ -7,8 +7,6 @@ use crate::models::Metrics;
 use if_chain::if_chain;
 
 pub async fn is_satisfiable(sla: &Sla) -> Result<bool, Error> {
-    // TODO: maybe consider other backend than f64 for storing values (ie passing to fixed point u64)
-
     let aggregated_metrics = get_k8s_metrics().await?;
 
     Ok(!aggregated_metrics

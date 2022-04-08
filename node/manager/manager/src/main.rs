@@ -6,7 +6,7 @@ mod live_store;
 mod models;
 mod routing;
 
-use openfaas;
+
 use http_api_problem::{HttpApiProblem, StatusCode};
 use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
 use reqwest::Client;
