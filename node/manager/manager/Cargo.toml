@@ -26,6 +26,7 @@ uom = { version = "0.32.0", default-features = false, features = [
   "si",
   "autoconvert",
 ] }
+tokio-cron-scheduler = "0.6.0"
 shared_models = { path = "../shared_models" }
 node-logic = { path = "../node-logic" }
 openfaas = { path = "../openfaas" }

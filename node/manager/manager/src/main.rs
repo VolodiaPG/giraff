@@ -5,6 +5,7 @@ mod handlers;
 mod live_store;
 mod models;
 mod routing;
+mod cron;
 
 
 use http_api_problem::{HttpApiProblem, StatusCode};
@@ -19,6 +20,7 @@ use shared_models::{BidId, NodeId};
 use crate::{
     live_store::{BidDataBase, ProvisionedDataBase},
     routing::{NodeSituation, RoutingTable, NodeSituationDisk},
+    cron::cron_init
 };
 
 /*
@@ -118,6 +120,9 @@ async fn main() {
         .and_then(handlers::post_forward_routing));
 
     let routes = routes.recover(handle_rejection);
+
+    // start the cron jobs
+    cron_init();
 
     let app = warp::serve(routes);
 
