@@ -95,7 +95,7 @@ pub async fn take_offer(node_record: &NodeRecord, bid: &BidProposal) -> Result<(
     {
         Ok(())
     } else {
-        error!("failed to take offer");
+        error!("The client {}@{} failed to take offer", bid.node_id, node_record.ip);
         Err(anyhow::anyhow!("failed to take offer"))
     }
 }
