@@ -19,4 +19,4 @@ uom = { version = "0.32.0", default-features = false, features = [
 ] }
 async-trait = "0.1"
 thiserror = "1.0.30"
-sla = { path = "../sla" }
+uom_helpers = { path = "../uom_helpers" }

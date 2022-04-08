@@ -32,7 +32,7 @@ impl serde_with::SerializeAs<Ratio> for RatioHelper {
         serializer.serialize_str(
             &(&format!(
                 "{:?}",
-                value.into_format_args(sla::cpu_ratio::cpu, Abbreviation)
+                value.into_format_args(uom_helpers::cpu_ratio::cpu, Abbreviation)
             )
             .split_whitespace()
             .collect::<Vec<&str>>()[0])
