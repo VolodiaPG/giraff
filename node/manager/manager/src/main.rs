@@ -13,12 +13,11 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::RwLock;
-use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply};
 
+use shared_models::{BidId, NodeId};
 use crate::{
     live_store::{BidDataBase, ProvisionedDataBase},
-    models::{BidId, NodeId},
     routing::{NodeSituation, RoutingTable, NodeSituationDisk},
 };
 
@@ -82,14 +81,6 @@ async fn main() {
         .and(warp::get())
         .and(with_client(client.clone()))
         .and_then(handlers::list_functions);
-
-    let path_sla = path!("sla");
-    let routes = routes.or(path_api_prefix
-        .and(path_sla)
-        .and(warp::post())
-        .and(with_client(client.clone()))
-        .and(with_validated_json())
-        .and_then(handlers::post_sla));
 
     let path_bid = path!("bid" / ..);
     let routes = routes.or(path_api_prefix
@@ -166,11 +157,11 @@ fn with_routing_table(
 
 fn with_validated_json<T>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
 where
-    T: DeserializeOwned + Validate + Send,
+    T: DeserializeOwned + Send,
 {
     warp::body::content_length_limit(1024 * 16)
         .and(warp::body::json())
-        .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
+        // .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
 }
 
 
@@ -180,18 +171,18 @@ fn with_raw_body() -> impl Filter<Extract = (warp::hyper::body::Bytes,), Error =
         .and(warp::body::bytes())
 }
 
-fn validate<T>(value: T) -> Result<T, Error>
-where
-    T: Validate,
-{
-    value.validate().map_err(Error::Validation)?;
+// fn validate<T>(value: T) -> Result<T, Error>
+// where
+//     T: Validate,
+// {
+//     value.validate().map_err(Error::Validation)?;
 
-    Ok(value)
-}
+//     Ok(value)
+// }
 
 #[derive(Debug)]
 enum Error {
-    Validation(ValidationErrors),
+    // Validation(ValidationErrors),
     NodeLogic(node_logic::error::Error),
     Serialization(serde_json::error::Error),
     BidIdUnvalid(String, Option<uuid::Error>),
@@ -221,15 +212,15 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
 
 fn handle_crate_error(err: &Error) -> HttpApiProblem {
     match err {
-        Error::Validation(errors) => {
-            let mut problem = HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
-                .title("One or more validation errors occurred")
-                .detail("Please refer to the errors property for additional details");
+        // Error::Validation(errors) => {
+        //     let mut problem = HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
+        //         .title("One or more validation errors occurred")
+        //         .detail("Please refer to the errors property for additional details");
 
-            problem.set_value("errors", errors.errors());
+        //     problem.set_value("errors", errors.errors());
 
-            problem
-        }
+        //     problem
+        // }
         Error::NodeLogic(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)

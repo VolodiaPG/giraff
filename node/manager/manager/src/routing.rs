@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use lazy_static::lazy_static;
 
-use crate::models::BidId;
-type NodeId = uuid::Uuid;
+use shared_models::{BidId, NodeId};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum NodeCategory {
@@ -35,7 +34,7 @@ pub struct NodeSituationDisk {
 
 impl From<NodeSituationDisk> for NodeSituation {
     fn from(disk: NodeSituationDisk) -> Self {
-        let nodes: HashMap<NodeId, Node> = disk.nodes.into_iter().map(|node| (node.id, node)).collect();
+        let nodes: HashMap<NodeId, Node> = disk.nodes.into_iter().map(|node| (node.id.clone(), node)).collect();
         let to_market = nodes.clone().into_iter().find(|(_id, node)| node.category == NodeCategory::Parent).map(|(_id, node)| node);
         let is_market = to_market.is_none();
         NodeSituation {
@@ -91,14 +90,14 @@ impl RoutingTable{
 
     pub async fn route(&self, source: BidId) -> Forward {
         lazy_static! {
-            static ref DEFAULT_NODE: NodeId = Uuid::from_str("00000000-0000-0000-0000-000000000000").unwrap();
+            static ref DEFAULT_NODE: NodeId = Uuid::from_str("00000000-0000-0000-0000-000000000000").unwrap().into();
         }
         match self.routes.get(&source){
             Some(node) => {
                 if node.eq(&DEFAULT_NODE) {
                     Forward::Inside(source)
                 } else {
-                    Forward::Outside(source, *node)
+                    Forward::Outside(source, node.clone())
                 }
             },
             None => Forward::ToMarket(source),

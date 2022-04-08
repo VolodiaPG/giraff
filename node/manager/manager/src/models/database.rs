@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sla::Sla;
+use shared_models::sla::Sla;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BidRecord {

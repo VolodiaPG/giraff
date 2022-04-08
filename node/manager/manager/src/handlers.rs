@@ -6,13 +6,14 @@ use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
 use crate::models::{
-    Bid, BidId, BidRecord, NodeId, ProvisionedRecord, Satisfiable,
+    BidRecord, ProvisionedRecord,
 };
+use shared_models::{auction::Bid, BidId, NodeId};
 use crate::openfaas::models::{FunctionDefinition, Limits};
 use crate::openfaas::{DefaultApi, DefaultApiClient};
 use crate::routing::{self, NodeSituation};
-use node_logic::{bidding::bid, satisfiability::is_satisfiable};
-use sla::Sla;
+use node_logic::{bidding::bid};
+use shared_models::sla::Sla;
 
 /// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
@@ -23,25 +24,6 @@ pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply
     })?;
     let body = serde_json::to_string(&functions).unwrap();
     Ok(Response::builder().body(body))
-}
-
-/// Returns if the SLA can be satisfied.
-pub async fn post_sla(_client: DefaultApiClient, sla: Sla) -> Result<impl warp::Reply, Rejection> {
-    trace!("post sla: {:?}", sla);
-
-    match is_satisfiable(&sla).await {
-        Ok(res) => Ok(Response::builder().body(
-            serde_json::to_string(&Satisfiable {
-                is_satisfiable: res,
-                sla,
-            })
-            .unwrap(),
-        )),
-        Err(e) => {
-            error!("{:#?}", e);
-            Err(warp::reject::custom(crate::Error::NodeLogic(e)))
-        }
-    }
 }
 
 /// Returns a bid for the SLA.
@@ -175,7 +157,7 @@ pub async fn post_forward_routing(
     trace!("post forward routing {:?}", function_id);
     let routing_action;
     {
-        routing_action = routing_table.read().await.route(function_id).await;
+        routing_action = routing_table.read().await.route(function_id.clone()).await;
     }
 
     trace!("routing action {:?}", routing_action);

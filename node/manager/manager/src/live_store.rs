@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::models::{BidId, BidRecord, ProvisionedRecord};
+use crate::models::{BidRecord, ProvisionedRecord};
+use shared_models::BidId;
+use uuid::Uuid;
 
 pub struct BidDataBase {
     database: HashMap<BidId, BidRecord>,
@@ -18,8 +20,8 @@ impl BidDataBase {
     }
 
     pub fn insert(&mut self, bid: BidRecord) -> BidId {
-        let uuid = BidId::new_v4();
-        self.database.insert(uuid, bid);
+        let uuid: BidId = Uuid::new_v4().into();
+        self.database.insert(uuid.clone(), bid);
         uuid
     }
 
