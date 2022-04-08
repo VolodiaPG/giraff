@@ -9,8 +9,8 @@ use crate::models::{
     BidRecord, ProvisionedRecord,
 };
 use shared_models::{auction::Bid, BidId, NodeId};
-use crate::openfaas::models::{FunctionDefinition, Limits};
-use crate::openfaas::{DefaultApi, DefaultApiClient};
+use openfaas::models::{FunctionDefinition, Limits};
+use openfaas::{DefaultApi, DefaultApiClient};
 use crate::routing::{self, NodeSituation};
 use node_logic::{bidding::bid};
 use shared_models::sla::Sla;
