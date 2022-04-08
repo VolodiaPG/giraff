@@ -1,5 +1,5 @@
 use log::trace;
-use sla::Sla;
+use shared_models::sla::Sla;
 
 use crate::error::Error;
 use crate::k8s::get_k8s_metrics;

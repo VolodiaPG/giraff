@@ -16,4 +16,4 @@ regex = "1"
 lazy_static = "1.4"
 if_chain = "1.0.2"
 kube-metrics = { path = "../kube-metrics" }
-sla = { path = "../sla" }
+shared_models = { path = "../shared_models" }
