@@ -11,7 +11,6 @@ serde_with = "1.12.0"
 serde_json = "1.0"
 tokio = { version = "1.17", features = ["full"] }
 warp = "0.3"
-validator = { version = "0.12", features = ["derive"] }
 reqwest = { version = "0.11", features = ["json"] }
 async-trait = "0.1"
 log = "0.4"
@@ -28,4 +27,4 @@ uom = { version = "0.32.0", default-features = false, features = [
   "si",
   "autoconvert",
 ] }
-sla = { path = "../sla" }
+shared_models = { path = "../shared_models" }

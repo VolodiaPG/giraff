@@ -8,13 +8,12 @@ mod models;
 mod tasks;
 
 use crate::live_store::BidDataBase;
-use crate::models::NodeId;
+use shared_models::NodeId;
 use http_api_problem::{HttpApiProblem, StatusCode};
 use live_store::NodesDataBase;
 use serde::de::DeserializeOwned;
 use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::Mutex;
-use validator::{Validate, ValidationErrors};
 use warp::{http::Response, path, Filter, Rejection, Reply, body::BodyDeserializeError};
 
 #[tokio::main]
@@ -86,25 +85,25 @@ where
 
 fn with_validated_json<T>() -> impl Filter<Extract = (T,), Error = Rejection> + Clone
 where
-    T: DeserializeOwned + Validate + Send,
+    T: DeserializeOwned + Send,
 {
     warp::body::content_length_limit(1024 * 16)
         .and(warp::body::json())
-        .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
+        // .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
 }
 
-fn validate<T>(value: T) -> Result<T, Error>
-where
-    T: Validate,
-{
-    value.validate().map_err(Error::Validation)?;
+// fn validate<T>(value: T) -> Result<T, Error>
+// where
+//     T: Validate,
+// {
+//     value.validate().map_err(Error::Validation)?;
 
-    Ok(value)
-}
+//     Ok(value)
+// }
 
 #[derive(Debug)]
 enum Error {
-    Validation(ValidationErrors),
+    // Validation(ValidationErrors),
     Serialization(serde_json::error::Error),
     NodeIdNotFound(NodeId),
 }
@@ -132,15 +131,15 @@ async fn handle_rejection(err: Rejection) -> Result<impl Reply, Infallible> {
 
 fn handle_crate_error(err: &Error) -> HttpApiProblem {
     match err {
-        Error::Validation(errors) => {
-            let mut problem = HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
-                .title("One or more validation errors occurred")
-                .detail("Please refer to the errors property for additional details");
+        // Error::Validation(errors) => {
+        //     let mut problem = HttpApiProblem::with_title_and_type(StatusCode::BAD_REQUEST)
+        //         .title("One or more validation errors occurred")
+        //         .detail("Please refer to the errors property for additional details");
 
-            problem.set_value("errors", errors.errors());
+        //     problem.set_value("errors", errors.errors());
 
-            problem
-        }
+        //     problem
+        // }
         Error::Serialization(err) => {
             let mut problem =
                 HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)

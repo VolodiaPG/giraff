@@ -1,14 +1,14 @@
 use core::fmt;
 use std::{collections::HashMap, fs};
 
+use crate::models::{AuctionStatus, BidRecord, NodeRecord, NodeRecordDisk};
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use if_chain::if_chain;
 use serde::Deserialize;
-use sla::Sla;
+use shared_models::sla::Sla;
+use shared_models::{BidId, NodeId};
 use uuid::Uuid;
-
-use crate::models::{AuctionStatus, BidId, BidRecord, NodeId, NodeRecord, NodeRecordDisk};
 
 pub struct BidDataBase {
     database: HashMap<BidId, BidRecord>,

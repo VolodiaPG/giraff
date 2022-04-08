@@ -4,10 +4,12 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, NodesDataBase};
-use crate::models::{MarketBidProposal, NodeId, AuctionStatus};
+use shared_models::NodeId;
+use shared_models::auction::MarketBidProposal;
+use crate::models::AuctionStatus;
 use crate::{auction, tasks, Error};
 use if_chain::if_chain;
-use sla::Sla;
+use shared_models::sla::Sla;
 
 /// Register a SLA and starts the auctionning process
 pub async fn put_sla(

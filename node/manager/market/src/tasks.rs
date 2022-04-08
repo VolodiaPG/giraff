@@ -1,11 +1,13 @@
 use anyhow::Result;
 use if_chain::if_chain;
-use sla::Sla;
+use shared_models::{sla::Sla, 
+auction::{Bid, BidProposal},
+BidId, NodeId};
 use std::{convert::Infallible, sync::Arc};
 
 use crate::{
     live_store::{BidDataBase, NodesDataBase},
-    models::{Bid, BidProposal, BidRecord, NodeId, NodeRecord, BidId, AuctionStatus},
+    models::{BidRecord,NodeRecord, AuctionStatus},
 };
 
 pub async fn call_for_bids(

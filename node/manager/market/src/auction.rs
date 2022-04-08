@@ -1,5 +1,5 @@
-use crate::models::BidProposal;
-use sla::Sla;
+use shared_models::auction::BidProposal;
+use shared_models::sla::Sla;
 
 pub type Price = f64;
 

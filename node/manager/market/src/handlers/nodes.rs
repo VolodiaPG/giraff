@@ -5,7 +5,8 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::NodesDataBase;
-use crate::models::{NodeId, PatchNode};
+use shared_models::{NodeId};
+use shared_models::node::PatchNode;
 use crate::Error;
 
 /// Register a new node in the database
