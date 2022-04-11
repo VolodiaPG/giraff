@@ -6,7 +6,7 @@ use warp::{http::Response, Rejection};
 
 use crate::live_store::NodesDataBase;
 use shared_models::{NodeId};
-use shared_models::node::PatchNode;
+use shared_models::node::{PatchNode, PatchNodeResponse};
 use crate::Error;
 
 /// Register a new node in the database
@@ -50,5 +50,7 @@ pub async fn patch_nodes(
 
     trace!("{:#?}", nodes_db.lock().await.get_mut(&id).unwrap());
 
-    Ok(Response::builder().body(id.to_string()))
+    Ok(Response::builder().body(serde_json::to_string(&PatchNodeResponse {
+        answered_at: Utc::now(),
+    }).unwrap()))
 }

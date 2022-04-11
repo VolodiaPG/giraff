@@ -122,7 +122,9 @@ async fn main() {
     let routes = routes.recover(handle_rejection);
 
     // start the cron jobs
-    cron_init();
+    let market_url = if node_situation.is_market {node_situation.market_url.clone() } else { node_situation.to_market.as_ref().map(|node| node.uri.clone() ) };
+    debug!("URL to market: {:?}", market_url);
+    cron_init(market_url.unwrap_or_else(|| "".to_string()), node_situation.my_id.clone());
 
     let app = warp::serve(routes);
 

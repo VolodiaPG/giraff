@@ -5,15 +5,13 @@ use tokio::sync::RwLock;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, ProvisionedDataBase};
-use crate::models::{
-    BidRecord, ProvisionedRecord,
-};
-use shared_models::{auction::Bid, BidId, NodeId};
+use crate::models::{BidRecord, ProvisionedRecord};
+use crate::routing::{self, NodeSituation};
+use node_logic::bidding::bid;
 use openfaas::models::{FunctionDefinition, Limits};
 use openfaas::{DefaultApi, DefaultApiClient};
-use crate::routing::{self, NodeSituation};
-use node_logic::{bidding::bid};
 use shared_models::sla::Sla;
+use shared_models::{auction::Bid, BidId, NodeId, ids::Reserved};
 
 /// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
@@ -143,7 +141,7 @@ pub async fn put_routing(
 enum Routing {
     Outside(String),  // url
     OpenFaaS(String), // function_name
-    Market(BidId)
+    Market(BidId),
 }
 
 pub async fn post_forward_routing(
@@ -163,14 +161,12 @@ pub async fn post_forward_routing(
     trace!("routing action {:?}", routing_action);
 
     let routing_choice = match routing_action {
-        routing::Forward::Outside(function_id, node_id) => {
-            match node_situation.get(&node_id) {
-                Some(node) => {
-                    Routing::Outside(format!("http://{}/api/routing/{}", node.uri, function_id))
-                }
-                None => Routing::Market(function_id),
+        routing::Forward::Outside(function_id, node_id) => match node_situation.get(&node_id) {
+            Some(node) => {
+                Routing::Outside(format!("http://{}/api/routing/{}", node.uri, function_id))
             }
-        }
+            None => Routing::Market(function_id),
+        },
         routing::Forward::Inside(function_id) => {
             match provisioned_db.read().await.get(&function_id) {
                 Some(provisioned) => Routing::OpenFaaS(provisioned.function_name.to_owned()),
@@ -178,55 +174,75 @@ pub async fn post_forward_routing(
             }
         }
         routing::Forward::ToMarket(provisioned) => {
-            if node_situation.is_market{
-                if let Some(provisioned) = provisioned_db.read().await.get(&function_id){
-                    Routing::OpenFaaS(provisioned.function_name.to_owned())
+            if node_situation.is_market {
+                match provisioned_db.read().await.get(&function_id) {
+                    Some(provisioned) => Routing::OpenFaaS(provisioned.function_name.to_owned()),
+                    None => {
+                        trace!("Could not find the function name so redirected to market");
+                        Routing::Market(function_id)},
                 }
-                else{
-                    trace!("Could not find the function name so redirected to market");
-                    Routing::Market(provisioned)
-                }
-            }else{
+            } else {
                 Routing::Market(provisioned)
             }
-        },
+        }
     };
 
     trace!("routing choice is: {:?}", routing_choice);
 
     let client = reqwest::Client::new();
     match routing_choice {
-        Routing::Outside(url) => {
-            match client.post(url).body(raw_body).send().await{
-                Ok(_) => (),
-                Err(e) => {
-                    error!("{:#?}", e);
-                }
+        Routing::Outside(url) => match client.post(url).body(raw_body).send().await {
+            Ok(_) => (),
+            Err(e) => {
+                error!("{:#?}", e);
             }
-        }
-        Routing::OpenFaaS(function_name) => {
-            openfaas_client.async_function_name_post(function_name.as_str(), raw_body).await.map_err(|e| {
-                trace!("{:#?}", e);
-                warp::reject::custom(crate::Error::from(e))
-            })?;
         },
+        Routing::OpenFaaS(function_name) => {
+            openfaas_client
+                .async_function_name_post(function_name.as_str(), raw_body)
+                .await
+                .map_err(|e| {
+                    trace!("{:#?}", e);
+                    warp::reject::custom(crate::Error::from(e))
+                })?;
+        }
         Routing::Market(function_id) => {
             if let Some(node_to_market) = &node_situation.to_market {
                 match client
-                .post(format!(
-                    "http://{}/api/routing/{}",
-                    node_to_market.uri, function_id
-                ))
-                .body(raw_body)
-                .send()
-                .await{
+                    .post(format!(
+                        "http://{}/api/routing/{}",
+                        node_to_market.uri, function_id
+                    ))
+                    .body(raw_body)
+                    .send()
+                    .await
+                {
                     Ok(_) => (),
                     Err(e) => {
                         error!("{:#?}", e);
                     }
                 }
-            } else {
-                trace!("no node to market");
+            } else if let Some(reserved_id) = function_id.into() {
+                match reserved_id {
+                    Reserved::MarketPing => {
+                        if let Some(market_url) = &node_situation.market_url {
+                                match client
+                            .patch(format!(
+                                "http://{}/api/node",
+                                market_url
+                            ))
+                            .body(raw_body)
+                            .send()
+                            .await
+                        {
+                            Ok(_) => (),
+                            Err(e) => error!("{:#?}", e)
+                            
+                        };
+                            }
+                        }
+                        };
+                warn!("no node to market");
             }
         }
     }

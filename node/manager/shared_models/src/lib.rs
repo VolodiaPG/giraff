@@ -1,4 +1,4 @@
-mod ids;
+pub mod ids;
 pub use ids::{BidId, NodeId};
 
 mod rolling_avg;

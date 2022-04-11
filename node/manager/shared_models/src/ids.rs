@@ -1,4 +1,5 @@
 use core::str::FromStr;
+use lazy_static::lazy_static;
 use serde::{de::Visitor, Deserialize, Serialize};
 use std::fmt;
 use uuid::Uuid;
@@ -9,6 +10,14 @@ macro_rules! impl_id_encapsulation {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $name {
             id: Uuid,
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                $name {
+                    id: Uuid::from_str("10000000-0000-0000-0000-000000000000").unwrap(),
+                }
+            }
         }
 
         impl From<Uuid> for $name {
@@ -71,3 +80,24 @@ macro_rules! impl_id_encapsulation {
 
 impl_id_encapsulation!(NodeId);
 impl_id_encapsulation!(BidId);
+
+#[derive(Debug, Clone)]
+pub enum Reserved {
+    MarketPing,
+}
+
+impl From<BidId> for Option<Reserved> {
+    fn from(id: BidId) -> Option<Reserved> {
+        lazy_static! {
+            static ref MARKET_PING: BidId = Uuid::from_str("00000000-0000-0000-0000-000000000001")
+                .unwrap()
+                .into();
+        }
+
+        if id.eq(&MARKET_PING) {
+            Some(Reserved::MarketPing)
+        } else {
+            None
+        }
+    }
+}

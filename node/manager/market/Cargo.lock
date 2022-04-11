@@ -1144,6 +1144,7 @@ name = "shared_models"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "lazy_static",
  "serde",
  "serde_with",
  "uom",

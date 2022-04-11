@@ -14,3 +14,12 @@ pub struct PatchNode {
     #[serde_as(as = "Option<super::DateTimeHelper>")]
     pub created_at: Option<DateTime<Utc>>,
 }
+
+/// The answer to the patch node request
+#[serde_with::serde_as]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PatchNodeResponse {
+    #[serde(rename = "answeredAt")]
+    #[serde_as(as = "super::DateTimeHelper")]
+    pub answered_at: DateTime<Utc>,
+}

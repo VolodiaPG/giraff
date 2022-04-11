@@ -20,6 +20,7 @@ uuid = { version = "0.8.2", features = ["v4", "serde"] }
 if_chain = "1.0.2"
 thiserror = "1.0.30"
 ron = "0.7.0"
+anyhow = "1.0.56"
 lazy_static = "1.4.0"
 uom = { version = "0.32.0", default-features = false, features = [
   "f64",
@@ -27,6 +28,7 @@ uom = { version = "0.32.0", default-features = false, features = [
   "autoconvert",
 ] }
 tokio-cron-scheduler = "0.6.0"
+chrono = "0.4"
 shared_models = { path = "../shared_models" }
 node-logic = { path = "../node-logic" }
 openfaas = { path = "../openfaas" }

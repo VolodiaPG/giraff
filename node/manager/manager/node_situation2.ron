@@ -1,7 +1,0 @@
-NodeSituation (
-    next_node: None,
-    lower_nodes: {"49aaea47-7af7-4c68-b29a-b445ef194d3a": Node (
-        url: "localhost:3001",
-        id: "49aaea47-7af7-4c68-b29a-b445ef194d3a"
-    )}
-)
