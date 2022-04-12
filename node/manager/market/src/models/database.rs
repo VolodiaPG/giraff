@@ -22,7 +22,8 @@ pub struct BidRecord {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct NodeRecord {
     pub ip: String,
-    pub latency: RollingAvg,
+    pub latency_to_market: RollingAvg,
+    pub latency_to_node: RollingAvg,
     pub accepted_bids: HashMap<BidId, AcceptedBid>, // TODO change name
 }
 

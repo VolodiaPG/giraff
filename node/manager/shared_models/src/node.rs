@@ -12,8 +12,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PostNode {
     #[serde(rename = "createdAt")]
+    #[serde_as(as = "super::DateTimeHelper")]
+    pub created_at: DateTime<Utc>,
+
+    #[serde(rename = "lastAnsweredAt")]
     #[serde_as(as = "Option<super::DateTimeHelper>")]
-    pub created_at: Option<DateTime<Utc>>,
+    pub last_answered_at: Option<DateTime<Utc>>,
+
+    #[serde(rename = "lastAnswerReceivedAt")]
+    #[serde_as(as = "Option<super::DateTimeHelper>")]
+    pub last_answer_received_at: Option<DateTime<Utc>>,
 
     pub from: NodeId,
 }

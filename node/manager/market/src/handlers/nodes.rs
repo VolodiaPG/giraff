@@ -7,7 +7,7 @@ use warp::{http::Response, Rejection};
 use crate::live_store::NodesDataBase;
 use crate::Error;
 use shared_models::node::{PostNode, PostNodeResponse};
-
+use if_chain::if_chain;
 /// Register a new node in the database
 // pub async fn put_nodes(
 //     nodes_db: Arc<Mutex<NodesDataBase>>,
@@ -35,15 +35,26 @@ pub async fn post_nodes(
     payload: PostNode,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("patch the node @{}", &payload.from);
+    nodes_db
+        .lock()
+        .await
+        .get_mut(&payload.from)
+        .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(payload.from.clone())))?
+        .latency_to_market
+        .update(Utc::now(), payload.created_at);
 
-    if let Some(created_at) = payload.created_at {
-        nodes_db
-            .lock()
-            .await
-            .get_mut(&payload.from)
-            .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(payload.from)))?
-            .latency
-            .update(Utc::now(), created_at);
+    if_chain! {
+        if let Some(last_answered_at) = payload.last_answered_at;
+        if let Some(last_answer_received_at) = payload.last_answer_received_at;
+        then {
+            nodes_db
+                .lock()
+                .await
+                .get_mut(&payload.from)
+                .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(payload.from.clone())))?
+                .latency_to_node
+                .update(last_answer_received_at, last_answered_at);
+        }
     }
 
     Ok(Response::builder().body(

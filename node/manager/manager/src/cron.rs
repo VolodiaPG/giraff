@@ -23,7 +23,7 @@ pub fn init(to_market_url: String, my_id: NodeId) {
 
     // TODO option to configure ?
     let to_market_url = Arc::new(to_market_url);
-    let shared_last_answered_time = Arc::new(Mutex::new(Utc::now()));
+    let shared_last_answered_time = Arc::new(Mutex::new((Utc::now(), Utc::now())));
     let my_id = Arc::new(my_id);
     sched
         .add(
@@ -42,24 +42,28 @@ pub fn init(to_market_url: String, my_id: NodeId) {
     sched.start().unwrap();
 }
 
-async fn ping(to_market_url: Arc<String>, shared_last_answered_time: Arc<Mutex<DateTime<Utc>>>, my_id: Arc<NodeId>) {
-    if let Ok(answered_at) = do_ping(to_market_url, my_id).await {
+async fn ping(to_market_url: Arc<String>, shared_last_answered_time: Arc<Mutex<(DateTime<Utc>, DateTime<Utc>)>>, my_id: Arc<NodeId>) {
+    if let Ok(answered_at) = do_ping(to_market_url, &shared_last_answered_time, my_id).await {
         let mut value = shared_last_answered_time.lock().await;
-        *value = answered_at;
+        *value = (Utc::now(), answered_at);
     } else {
         trace!("ping failed");
     }
 }
 
-async fn do_ping(to_market_url: Arc<String>, my_id: Arc<NodeId>) -> Result<DateTime<Utc>> {
+async fn do_ping(to_market_url: Arc<String>, shared_last_answered_time: &Arc<Mutex<(DateTime<Utc>, DateTime<Utc>)>>, my_id: Arc<NodeId>) -> Result<DateTime<Utc>> {
     let client = reqwest::Client::new();
     trace!("pinging to market {}", to_market_url);
+
+    let (last_answer_received_at, last_answered_at) = shared_last_answered_time.lock().await.clone();
 
     let result: PostNodeResponse = client
         .post(to_market_url.as_str())
         .body(
             serde_json::to_string(&PostNode {
-                created_at: Some(Utc::now()),
+                created_at: Utc::now(),
+                last_answered_at: Some(last_answered_at),
+                last_answer_received_at: Some(last_answer_received_at),
                 from: (*my_id).clone(),
             })
             .unwrap(),

@@ -209,21 +209,43 @@ impl NodesDataBase {
         self.nodes.get(id).map(|node| &node.data)
     }
 
+    fn is_parent_candidate_sustainable(_sla: &Sla, _candidate: &NodeRecord) -> bool {
+        true
+    }
+
+    fn is_child_candidate_sustainable(_sla: &Sla, _node: &NodeRecord) -> bool {
+        true
+    }
+
     pub fn get_bid_candidates(&self, sla: &Sla, leaf_node: NodeId) -> HashMap<NodeId, NodeRecord> {
         let mut candidates = HashMap::new();
-        let mut next_raw = Some(&leaf_node);
-        while let Some(next) = next_raw {
-            if_chain! {
-                if let Some(node) = self.nodes.get(next);
-                if node.data.latency.get_avg() < sla.latency_max;
-                if Utc::now() - node.data.latency.get_last_update() > Duration::seconds(10);
-                then {
-                    candidates.insert(next.clone(), node.data.clone());
-                    next_raw = node.parent.as_ref();
+
+        let mut stack = vec![leaf_node];
+        while let Some(next) = stack.pop() {
+            if let Some(node) = self.nodes.get(&next) {
+                candidates.insert(next, node.data.clone());
+
+                if_chain! {
+                    if let Some(parent_id) = &node.parent;
+                    if let Some(parent) = self.nodes.get(parent_id);
+                    if Self::is_parent_candidate_sustainable(sla, &parent.data);
+                    then {
+                        stack.push(parent_id.to_owned());
+                    }
                 }
-                else {
-                    next_raw = None;
-                }
+
+                stack.extend(
+                    node.children
+                        .iter()
+                        .map(|id| {
+                            let node = self.nodes.get(id);
+                            (id, node)
+                        })
+                        .filter(|(_, node)| node.is_some())
+                        .map(|(node_id, node)| (node_id, node.unwrap()))
+                        .filter(|(_, node)| Self::is_child_candidate_sustainable(sla, &node.data))
+                        .map(|(node_id, _)| node_id.clone()),
+                );
             }
         }
 
