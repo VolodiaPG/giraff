@@ -4,12 +4,12 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::{BidDataBase, NodesDataBase};
-use shared_models::NodeId;
-use shared_models::auction::MarketBidProposal;
 use crate::models::AuctionStatus;
 use crate::{auction, tasks, Error};
 use if_chain::if_chain;
+use shared_models::auction::MarketBidProposal;
 use shared_models::sla::Sla;
+use shared_models::NodeId;
 
 /// Register a SLA and starts the auctionning process
 pub async fn put_sla(
@@ -27,9 +27,9 @@ pub async fn put_sla(
         res = bid_db.lock().await.get(&id).unwrap().clone();
     }
 
-    let auctions_result = if let AuctionStatus::Active(bids) = &res.auction{
+    let auctions_result = if let AuctionStatus::Active(bids) = &res.auction {
         auction::second_price(&sla, bids)
-    } else{
+    } else {
         None
     };
 
