@@ -1,13 +1,24 @@
-use shared_models::NodeId;
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use shared_models::node::{PatchNode, PatchNodeResponse};
+use shared_models::{
+    ids::Reserved,
+    node::{PostNode, PostNodeResponse},
+    BidId, NodeId,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
-pub fn cron_init(to_market_url: String, my_id: NodeId) {
+pub fn generate_market_url_as_root_node(market_url: String) -> String {
+    format!("http://{}/api/node", market_url)
+}
+
+pub fn generate_market_url_as_regular_node(to_market_url: String) -> String {
+    format!("http://{}/api/routing/{}", to_market_url, BidId::from(Reserved::MarketPing))
+}
+
+pub fn init(to_market_url: String, my_id: NodeId) {
     let sched = JobScheduler::new().unwrap();
 
     // TODO option to configure ?
@@ -44,11 +55,12 @@ async fn do_ping(to_market_url: Arc<String>, my_id: Arc<NodeId>) -> Result<DateT
     let client = reqwest::Client::new();
     trace!("pinging to market {}", to_market_url);
 
-    let result: PatchNodeResponse = client
-        .patch(format!("http://{}/api/node/{}", to_market_url, my_id))
+    let result: PostNodeResponse = client
+        .post(to_market_url.as_str())
         .body(
-            serde_json::to_string(&PatchNode {
+            serde_json::to_string(&PostNode {
                 created_at: Some(Utc::now()),
+                from: (*my_id).clone(),
             })
             .unwrap(),
         )

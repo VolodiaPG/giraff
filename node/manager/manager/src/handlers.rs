@@ -11,7 +11,7 @@ use node_logic::bidding::bid;
 use openfaas::models::{FunctionDefinition, Limits};
 use openfaas::{DefaultApi, DefaultApiClient};
 use shared_models::sla::Sla;
-use shared_models::{auction::Bid, BidId, NodeId, ids::Reserved};
+use shared_models::{auction::Bid, ids::Reserved, BidId, NodeId};
 
 /// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
@@ -179,7 +179,8 @@ pub async fn post_forward_routing(
                     Some(provisioned) => Routing::OpenFaaS(provisioned.function_name.to_owned()),
                     None => {
                         trace!("Could not find the function name so redirected to market");
-                        Routing::Market(function_id)},
+                        Routing::Market(function_id)
+                    }
                 }
             } else {
                 Routing::Market(provisioned)
@@ -192,9 +193,12 @@ pub async fn post_forward_routing(
     let client = reqwest::Client::new();
     match routing_choice {
         Routing::Outside(url) => match client.post(url).body(raw_body).send().await {
-            Ok(_) => (),
+            Ok(response) => Ok(Response::builder()
+                .status(response.status())
+                .body(response.bytes().await.map_err(crate::Error::from)?)),
             Err(e) => {
                 error!("{:#?}", e);
+                Err(warp::reject::custom(crate::Error::from(e)))
             }
         },
         Routing::OpenFaaS(function_name) => {
@@ -205,10 +209,14 @@ pub async fn post_forward_routing(
                     trace!("{:#?}", e);
                     warp::reject::custom(crate::Error::from(e))
                 })?;
+
+            Ok(Response::builder()
+                .status(StatusCode::ACCEPTED)
+                .body("".to_string().into()))
         }
         Routing::Market(function_id) => {
             if let Some(node_to_market) = &node_situation.to_market {
-                match client
+                return match client
                     .post(format!(
                         "http://{}/api/routing/{}",
                         node_to_market.uri, function_id
@@ -217,34 +225,43 @@ pub async fn post_forward_routing(
                     .send()
                     .await
                 {
-                    Ok(_) => (),
+                    Ok(response) => Ok(Response::builder()
+                        .status(response.status())
+                        .body(response.bytes().await.map_err(crate::Error::from)?)),
                     Err(e) => {
                         error!("{:#?}", e);
+                        Err(warp::reject::custom(crate::Error::from(e)))
                     }
-                }
+                };
             } else if let Some(reserved_id) = function_id.into() {
                 match reserved_id {
                     Reserved::MarketPing => {
                         if let Some(market_url) = &node_situation.market_url {
-                                match client
-                            .patch(format!(
-                                "http://{}/api/node",
-                                market_url
-                            ))
-                            .body(raw_body)
-                            .send()
-                            .await
-                        {
-                            Ok(_) => (),
-                            Err(e) => error!("{:#?}", e)
-                            
-                        };
-                            }
+                            return match client
+                                .post(format!("http://{}/api/node", market_url))
+                                .body(raw_body)
+                                .send()
+                                .await
+                            {
+                                Ok(response) => Ok(Response::builder()
+                                    .status(response.status())
+                                    .body(response.bytes().await.map_err(crate::Error::from)?)),
+                                Err(e) => {
+                                    error!("{:#?}", e);
+                                    Err(warp::reject::custom(crate::Error::TransmittingRequest(
+                                        None,
+                                    )))
+                                }
+                            };
                         }
-                        };
-                warn!("no node to market");
+                    }
+                }
             }
+
+            // default case
+            Err(warp::reject::custom(crate::Error::TransmittingRequest(
+                None,
+            )))
         }
     }
-    Ok(Response::builder().status(StatusCode::ACCEPTED).body(""))
 }

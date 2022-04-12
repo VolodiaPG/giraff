@@ -51,11 +51,10 @@ async fn main() {
         .and_then(handlers::clients::put_sla);
 
     let routes = routes.or(path_node_api_prefix
-        .and(path!(NodeId))
-        .and(warp::patch())
+        .and(warp::post())
         .and(with_database(db_nodes.clone()))
         .and(with_validated_json())
-        .and_then(handlers::nodes::patch_nodes));
+        .and_then(handlers::nodes::post_nodes));
 
     // let routes = routes.or(path_node_api_prefix
     //     .and(warp::put())

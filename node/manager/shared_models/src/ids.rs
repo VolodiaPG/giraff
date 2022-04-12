@@ -86,18 +86,25 @@ pub enum Reserved {
     MarketPing,
 }
 
+lazy_static! {
+    static ref MARKET_PING: BidId =
+        BidId::from(Uuid::from_str("00000000-0000-0000-0000-000000000001").unwrap());
+}
+
 impl From<BidId> for Option<Reserved> {
     fn from(id: BidId) -> Option<Reserved> {
-        lazy_static! {
-            static ref MARKET_PING: BidId = Uuid::from_str("00000000-0000-0000-0000-000000000001")
-                .unwrap()
-                .into();
-        }
-
         if id.eq(&MARKET_PING) {
             Some(Reserved::MarketPing)
         } else {
             None
+        }
+    }
+}
+
+impl From<Reserved> for BidId {
+    fn from(reserved: Reserved) -> BidId {
+        match reserved {
+            Reserved::MarketPing => (*MARKET_PING).clone(),
         }
     }
 }

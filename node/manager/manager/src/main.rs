@@ -1,12 +1,11 @@
 #[macro_use]
 extern crate log;
 
+mod cron;
 mod handlers;
 mod live_store;
 mod models;
 mod routing;
-mod cron;
-
 
 use http_api_problem::{HttpApiProblem, StatusCode};
 use openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
@@ -16,12 +15,11 @@ use std::{convert::Infallible, env, sync::Arc};
 use tokio::sync::RwLock;
 use warp::{http::Response, path, Filter, Rejection, Reply};
 
-use shared_models::{BidId, NodeId};
 use crate::{
     live_store::{BidDataBase, ProvisionedDataBase},
-    routing::{NodeSituation, RoutingTable, NodeSituationDisk},
-    cron::cron_init
+    routing::{NodeSituation, NodeSituationDisk, RoutingTable},
 };
+use shared_models::{BidId, NodeId};
 
 /*
 ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run
@@ -66,12 +64,14 @@ async fn main() {
 
     let db_bid = Arc::new(RwLock::new(BidDataBase::new()));
     let provisioned_db = Arc::new(RwLock::new(ProvisionedDataBase::new()));
-    let node_situation = Arc::new(NodeSituation::from(NodeSituationDisk::new(path_node_situation)));
+    let node_situation = Arc::new(NodeSituation::from(NodeSituationDisk::new(
+        path_node_situation,
+    )));
     let routing_table = Arc::new(RwLock::new(RoutingTable::default()));
 
-    if node_situation.is_market{
+    if node_situation.is_market {
         info!("This node is a provider node located at the market node");
-    }else{
+    } else {
         info!("This node is a provider node");
     }
 
@@ -108,7 +108,6 @@ async fn main() {
         .and(warp::put())
         .and(with_routing_table(routing_table.clone()))
         .and_then(handlers::put_routing));
-            
     let routes = routes.or(path_api_prefix
         .and(path!("routing" / BidId))
         .and(warp::post())
@@ -122,9 +121,16 @@ async fn main() {
     let routes = routes.recover(handle_rejection);
 
     // start the cron jobs
-    let market_url = if node_situation.is_market {node_situation.market_url.clone() } else { node_situation.to_market.as_ref().map(|node| node.uri.clone() ) };
-    debug!("URL to market: {:?}", market_url);
-    cron_init(market_url.unwrap_or_else(|| "".to_string()), node_situation.my_id.clone());
+    let url = if node_situation.is_market{
+        cron::generate_market_url_as_root_node(node_situation.market_url.clone().unwrap_or_else(|| "".to_string()))
+    } else {
+        cron::generate_market_url_as_regular_node(node_situation
+            .to_market
+            .as_ref()
+            .map(|node| node.uri.clone()).unwrap_or_else(|| "".to_string()))
+    };
+    debug!("URL to market: {:?}", url);
+    cron::init(url, node_situation.my_id.to_owned());
 
     let app = warp::serve(routes);
 
@@ -166,16 +172,13 @@ fn with_validated_json<T>() -> impl Filter<Extract = (T,), Error = Rejection> + 
 where
     T: DeserializeOwned + Send,
 {
-    warp::body::content_length_limit(1024 * 16)
-        .and(warp::body::json())
-        // .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
+    warp::body::content_length_limit(1024 * 16).and(warp::body::json())
+    // .and_then(|value| async move { validate(value).map_err(warp::reject::custom) })
 }
-
 
 fn with_raw_body() -> impl Filter<Extract = (warp::hyper::body::Bytes,), Error = Rejection> + Clone
 {
-    warp::body::content_length_limit(1024 * 16)
-        .and(warp::body::bytes())
+    warp::body::content_length_limit(1024 * 16).and(warp::body::bytes())
 }
 
 // fn validate<T>(value: T) -> Result<T, Error>
@@ -194,13 +197,23 @@ enum Error {
     Serialization(serde_json::error::Error),
     BidIdUnvalid(String, Option<uuid::Error>),
     OpenFaas(String),
+    TransmittingRequest(Option<reqwest::Error>),
 }
 
 impl warp::reject::Reject for Error {}
 
-impl<T> From<openfaas::Error<T>> for Error where T: std::fmt::Display{
+impl<T> From<openfaas::Error<T>> for Error
+where
+    T: std::fmt::Display,
+{
     fn from(error: openfaas::Error<T>) -> Self {
         Error::OpenFaas(error.to_string())
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        Error::TransmittingRequest(Some(error))
     }
 }
 
@@ -264,10 +277,15 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
 
             problem
         }
-        Error::OpenFaas(details) => HttpApiProblem::with_title_and_type(StatusCode::INTERNAL_SERVER_ERROR)
-            .title(
-                "An error occurred while contacting the OpenFaaS backend through the gateway API",
-            )
-            .detail(details),
+        Error::OpenFaas(details) => HttpApiProblem::with_title_and_type(
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .title("An error occurred while contacting the OpenFaaS backend through the gateway API")
+        .detail(details), 
+        Error::TransmittingRequest(details) => {HttpApiProblem::with_title_and_type(
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .title("An error occurred while transmitting a request to another service as a result of the intial request")
+        .detail(details.as_ref().map(|err| err.to_string()).unwrap_or_else(|| "".to_string()))},
     }
 }

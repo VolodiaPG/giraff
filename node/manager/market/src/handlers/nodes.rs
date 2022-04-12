@@ -5,9 +5,8 @@ use tokio::sync::Mutex;
 use warp::{http::Response, Rejection};
 
 use crate::live_store::NodesDataBase;
-use shared_models::{NodeId};
-use shared_models::node::{PatchNode, PatchNodeResponse};
 use crate::Error;
+use shared_models::node::{PostNode, PostNodeResponse};
 
 /// Register a new node in the database
 // pub async fn put_nodes(
@@ -31,26 +30,26 @@ use crate::Error;
 // }
 
 /// Patch part of the node data
-pub async fn patch_nodes(
-    id: NodeId,
+pub async fn post_nodes(
     nodes_db: Arc<Mutex<NodesDataBase>>,
-    payload: PatchNode,
+    payload: PostNode,
 ) -> Result<impl warp::Reply, Rejection> {
-    trace!("patch the node @{}", id);
+    trace!("patch the node @{}", &payload.from);
 
     if let Some(created_at) = payload.created_at {
         nodes_db
             .lock()
             .await
-            .get_mut(&id)
-            .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(id.clone())))?
+            .get_mut(&payload.from)
+            .ok_or_else(|| warp::reject::custom(Error::NodeIdNotFound(payload.from)))?
             .latency
             .update(Utc::now(), created_at);
     }
 
-    trace!("{:#?}", nodes_db.lock().await.get_mut(&id).unwrap());
-
-    Ok(Response::builder().body(serde_json::to_string(&PatchNodeResponse {
-        answered_at: Utc::now(),
-    }).unwrap()))
+    Ok(Response::builder().body(
+        serde_json::to_string(&PostNodeResponse {
+            answered_at: Utc::now(),
+        })
+        .unwrap(),
+    ))
 }
