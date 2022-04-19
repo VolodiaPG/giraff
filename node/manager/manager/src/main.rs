@@ -19,7 +19,7 @@ use crate::{
     live_store::{BidDataBase, ProvisionedDataBase},
     routing::{NodeSituation, NodeSituationDisk, RoutingTable},
 };
-use shared_models::{BidId, NodeId};
+use shared_models::{BidId, node::RoutingStackError};
 
 /*
 ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) PORT="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run
@@ -104,9 +104,11 @@ async fn main() {
         .and_then(handlers::post_bid_accept));
 
     let routes = routes.or(path_api_prefix
-        .and(path!("routing" / BidId / NodeId))
+        .and(path!("routing" / BidId))
         .and(warp::put())
         .and(with_routing_table(routing_table.clone()))
+        .and(with_node_situation(node_situation.clone()))
+        .and(with_validated_json())
         .and_then(handlers::put_routing));
     let routes = routes.or(path_api_prefix
         .and(path!("routing" / BidId))
@@ -198,6 +200,7 @@ enum Error {
     BidIdUnvalid(String, Option<uuid::Error>),
     OpenFaas(String),
     TransmittingRequest(Option<reqwest::Error>),
+    SettingRoute(RoutingStackError)
 }
 
 impl warp::reject::Reject for Error {}
@@ -214,6 +217,12 @@ where
 impl From<reqwest::Error> for Error {
     fn from(error: reqwest::Error) -> Self {
         Error::TransmittingRequest(Some(error))
+    }
+}
+
+impl From<RoutingStackError> for Error{
+    fn from(error: RoutingStackError) -> Self {
+        Error::SettingRoute(error)
     }
 }
 
@@ -287,5 +296,10 @@ fn handle_crate_error(err: &Error) -> HttpApiProblem {
         )
         .title("An error occurred while transmitting a request to another service as a result of the intial request")
         .detail(details.as_ref().map(|err| err.to_string()).unwrap_or_else(|| "".to_string()))},
+        Error::SettingRoute(error) => HttpApiProblem::with_title_and_type(
+            StatusCode::BAD_REQUEST,
+        )
+        .title("An error occurred while setting the routes")
+        .detail(error.to_string()),
     }
 }

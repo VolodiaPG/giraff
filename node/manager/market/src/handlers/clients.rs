@@ -8,7 +8,7 @@ use crate::models::AuctionStatus;
 use crate::{auction, tasks, Error};
 use if_chain::if_chain;
 use shared_models::auction::MarketBidProposal;
-use shared_models::sla::Sla;
+use shared_models::sla::PutSla;
 use shared_models::NodeId;
 
 /// Register a SLA and starts the auctionning process
@@ -16,11 +16,11 @@ pub async fn put_sla(
     leaf_node: NodeId,
     bid_db: Arc<Mutex<BidDataBase>>,
     nodes_db: Arc<Mutex<NodesDataBase>>,
-    sla: Sla,
+    payload: PutSla,
 ) -> Result<impl warp::Reply, Rejection> {
-    trace!("put sla: {:?}", sla);
+    trace!("put sla: {:?}", payload);
 
-    let id = tasks::call_for_bids(sla.clone(), bid_db.clone(), nodes_db.clone(), leaf_node).await?;
+    let id = tasks::call_for_bids(payload.sla.clone(), bid_db.clone(), nodes_db.clone(), leaf_node).await?;
 
     let res;
     {
@@ -28,7 +28,7 @@ pub async fn put_sla(
     }
 
     let auctions_result = if let AuctionStatus::Active(bids) = &res.auction {
-        auction::second_price(&sla, bids)
+        auction::second_price(&payload.sla, bids)
     } else {
         None
     };
@@ -39,12 +39,13 @@ pub async fn put_sla(
         .lock()
         .await
         .get(&bid.node_id)
-        .cloned()
+        .map(|node| node.data.clone())
         .unwrap_or_default();
         if let AuctionStatus::Active(bids) = res.auction;
         if tasks::take_offer(&node, &bid).await.is_ok();
         then {
             bid_db.lock().await.update_auction(&id, AuctionStatus::Finished(bid.clone()));
+
             MarketBidProposal {
                 bids,
                 chosen_bid: Some(bid),

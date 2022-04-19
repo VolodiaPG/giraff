@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use http_api_problem::StatusCode;
+use shared_models::node::{RouteAction, RouteStack, RoutingStackError};
 use tokio::sync::RwLock;
 use warp::{http::Response, Rejection};
 
@@ -11,7 +12,7 @@ use node_logic::bidding::bid;
 use openfaas::models::{FunctionDefinition, Limits};
 use openfaas::{DefaultApi, DefaultApiClient};
 use shared_models::sla::Sla;
-use shared_models::{auction::Bid, ids::Reserved, BidId, NodeId};
+use shared_models::{auction::Bid, ids::Reserved, BidId};
 
 /// Lists the functions available on the OpenFaaS gateway.
 pub async fn list_functions(client: DefaultApiClient) -> Result<impl warp::Reply, warp::Rejection> {
@@ -121,20 +122,133 @@ pub async fn post_bid_accept(
 
 pub async fn put_routing(
     function_id: BidId,
-    node_id: NodeId,
     routing_table: Arc<RwLock<routing::RoutingTable>>,
+    node_situation: Arc<NodeSituation>,
+    mut stack: RouteStack,
 ) -> Result<impl warp::Reply, Rejection> {
     trace!("put routing {:?}", function_id);
 
-    {
-        routing_table
-            .write()
-            .await
-            .update_route(function_id, node_id)
-            .await;
+    if stack.routes.is_empty() {
+        return Err(warp::reject::custom(crate::Error::from(
+            RoutingStackError::Empty(function_id),
+        )));
     }
 
-    Ok(Response::builder().body(""))
+    let cursor = stack.routes.pop().unwrap();
+
+    match cursor {
+        RouteAction::Assign { node, next } => {
+            if node == node_situation.my_id {
+                routing_table
+                    .write()
+                    .await
+                    .update_route(function_id.to_owned(), next)
+                    .await;
+
+                return update_next(function_id, stack, node_situation).await;
+            }
+            Err(warp::reject::custom(crate::Error::from(
+                RoutingStackError::CurrentIdIsNotMine {
+                    current: node,
+                    stack,
+                },
+            )))
+        }
+        RouteAction::Skip { node } => {
+            if node == node_situation.my_id {
+                return update_next(function_id, stack, node_situation).await;
+            }
+            Err(warp::reject::custom(crate::Error::from(
+                RoutingStackError::CurrentIdIsNotMine {
+                    current: node,
+                    stack,
+                },
+            )))
+        }
+        RouteAction::Divide {
+            node,
+            next_from_side,
+            next_to_side,
+        } => {
+            if node == node_situation.my_id {
+                let next_node = next_to_side.routes.get(0).ok_or_else(|| {
+                    warp::reject::custom(crate::Error::from(RoutingStackError::Empty(
+                        function_id.to_owned(),
+                    )))
+                })?;
+                let next_node = match next_node {
+                    RouteAction::Assign { node, .. } | RouteAction::Divide { node, .. } => node,
+                    RouteAction::Skip { node } => {
+                        return Err(warp::reject::custom(crate::Error::from(
+                            RoutingStackError::SkipMispositioned(node.to_owned()),
+                        )))
+                    }
+                };
+                routing_table
+                    .write()
+                    .await
+                    .update_route(function_id.to_owned(), next_node.to_owned())
+                    .await;
+
+                update_next(
+                    function_id.to_owned(),
+                    *next_to_side,
+                    node_situation.to_owned(),
+                )
+                .await?;
+                return update_next(function_id, *next_from_side, node_situation).await;
+            }
+            Err(warp::reject::custom(crate::Error::from(
+                RoutingStackError::CurrentIdIsNotMine {
+                    current: node,
+                    stack,
+                },
+            )))
+        }
+    }
+}
+
+async fn update_next(
+    function_id: BidId,
+    stack: RouteStack,
+    node_situation: Arc<NodeSituation>,
+) -> Result<impl warp::Reply, Rejection> {
+    let next_node = stack.routes.get(0).ok_or_else(|| {
+        warp::reject::custom(crate::Error::from(RoutingStackError::Empty(
+            function_id.to_owned(),
+        )))
+    })?;
+
+    let next_node = match next_node {
+        RouteAction::Assign { node, .. }
+        | RouteAction::Skip { node }
+        | RouteAction::Divide { node, .. } => node,
+    };
+
+    let url = &node_situation
+        .get(next_node)
+        .ok_or_else(|| {
+            warp::reject::custom(crate::Error::from(
+                RoutingStackError::NextNodeIsNotAChildOfMine(stack.clone()),
+            ))
+        })?
+        .uri;
+
+    let client = reqwest::Client::new();
+    match client
+        .put(&format!("http://{}/routing/{}", url, function_id))
+        .body(serde_json::to_string(&stack).unwrap())
+        .send()
+        .await
+    {
+        Ok(response) => Ok(Response::builder()
+            .status(response.status())
+            .body(response.bytes().await.map_err(crate::Error::from)?)),
+        Err(e) => {
+            error!("{:#?}", e);
+            Err(warp::reject::custom(crate::Error::from(e)))
+        }
+    }
 }
 
 #[derive(Debug)]

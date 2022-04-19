@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Ratio, Time};
 
+use crate::NodeId;
+
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Sla {
@@ -41,4 +43,16 @@ pub struct Sla {
 
     #[serde(rename = "functionLiveName")]
     pub function_live_name: Option<String>,
+}
+
+/// Structures used to register a SLA, starts the auctionning process and establish the routing
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PutSla {
+    pub sla: Sla,
+    #[serde(rename = "targetNode")]
+    pub target_node: NodeId,
+    #[serde(rename = "requestSources")]
+    pub request_sources: Vec<NodeId>,
+    #[serde(rename = "requestDestinations")]
+    pub request_destinations: Vec<NodeId>,
 }

@@ -223,6 +223,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_with",
+ "thiserror",
  "uom",
  "uom_helpers",
  "uuid",

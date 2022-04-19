@@ -1,4 +1,5 @@
 use core::fmt;
+use std::collections::HashSet;
 use std::{collections::HashMap, fs};
 
 use crate::models::{AuctionStatus, BidRecord, NodeRecord, NodeRecordDisk};
@@ -16,8 +17,8 @@ pub struct BidDataBase {
 
 #[derive(Debug, Deserialize)]
 pub struct Node<T> {
-    parent: Option<NodeId>,
-    children: Vec<NodeId>,
+    pub parent: Option<NodeId>,
+    pub children: Vec<NodeId>,
 
     /// The actual data which will be stored within the tree
     pub data: T,
@@ -205,8 +206,8 @@ impl NodesDataBase {
         self.nodes.get_mut(id).map(|node| &mut node.data)
     }
 
-    pub fn get(&self, id: &NodeId) -> Option<&NodeRecord> {
-        self.nodes.get(id).map(|node| &node.data)
+    pub fn get(&self, id: &NodeId) -> Option<&Node<NodeRecord>> {
+        self.nodes.get(id)
     }
 
     fn is_parent_candidate_sustainable(_sla: &Sla, _candidate: &NodeRecord) -> bool {
@@ -250,5 +251,35 @@ impl NodesDataBase {
         }
 
         candidates
+    }
+
+    /// Get the oriented path between two nodes using the lowest common ancestor
+    /// The first element of the list is the "to" node and the last the "from" node
+    pub fn get_path(&self, from: &NodeId, to: &NodeId) -> Option<Vec<NodeId>> {
+        if self.nodes.get(from).is_none() || self.nodes.get(to).is_none() || from == to {
+            return None;
+        }
+
+        let mut from_ancestors_hash = HashSet::new();
+        let mut from_ancestors_stack = vec![from];
+        let mut cursor = self.nodes.get(from);
+        while let Some(parent) = cursor.map(|node| node.parent.as_ref()).flatten() {
+            from_ancestors_hash.insert(parent);
+            cursor = self.nodes.get(parent);
+            from_ancestors_stack.push(parent);
+        }
+
+        let mut to_ancestors_stack = Vec::new();
+        let mut cursor = to;
+        while !from_ancestors_hash.contains(cursor) {
+            to_ancestors_stack.push(cursor.clone());
+            if let Some(parent) = self.nodes.get(cursor).map(|node| node.parent.as_ref()).flatten() {
+                cursor = parent;
+            }
+        }
+        
+        to_ancestors_stack.extend(from_ancestors_stack.into_iter().rev().take_while(|id| id != &cursor).map(|id| id.clone()));
+
+        return Some(to_ancestors_stack);
     }
 }

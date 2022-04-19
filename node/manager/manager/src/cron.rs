@@ -55,7 +55,7 @@ async fn do_ping(to_market_url: Arc<String>, shared_last_answered_time: &Arc<Mut
     let client = reqwest::Client::new();
     trace!("pinging to market {}", to_market_url);
 
-    let (last_answer_received_at, last_answered_at) = shared_last_answered_time.lock().await.clone();
+    let (last_answer_received_at, last_answered_at) = shared_last_answered_time.lock().await.to_owned();
 
     let result: PostNodeResponse = client
         .post(to_market_url.as_str())
