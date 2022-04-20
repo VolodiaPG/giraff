@@ -1,9 +1,9 @@
 use super::NodeRecordDisk;
 use serde::{Deserialize, Serialize};
 use shared_models::{
-    auction::{AcceptedBid, BidProposal},
-    sla::Sla,
-    BidId, RollingAvg,
+    domain::{rolling_avg::RollingAvg, sla::Sla},
+    view::auction::{AcceptedBid, BidProposal},
+    BidId,
 };
 use std::collections::HashMap;
 

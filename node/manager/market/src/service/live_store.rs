@@ -1,14 +1,11 @@
 use core::fmt;
-use std::collections::HashSet;
 use std::{collections::HashMap, fs};
 
-use crate::models::{AuctionStatus, BidRecord, NodeRecord, NodeRecordDisk};
+use crate::model::{AuctionStatus, BidRecord, NodeRecord, NodeRecordDisk};
 use anyhow::Result;
-use chrono::{Duration, Utc};
 use if_chain::if_chain;
 use serde::Deserialize;
-use shared_models::sla::Sla;
-use shared_models::{BidId, NodeId};
+use shared_models::{domain::sla::Sla, BidId, NodeId};
 use uuid::Uuid;
 
 pub struct BidDataBase {
@@ -253,33 +250,44 @@ impl NodesDataBase {
         candidates
     }
 
-    /// Get the oriented path between two nodes using the lowest common ancestor
-    /// The first element of the list is the "to" node and the last the "from" node
-    pub fn get_path(&self, from: &NodeId, to: &NodeId) -> Option<Vec<NodeId>> {
-        if self.nodes.get(from).is_none() || self.nodes.get(to).is_none() || from == to {
-            return None;
-        }
+    // /// Get the oriented path between two nodes using the lowest common ancestor
+    // /// The first element of the list is the "to" node and the last the "from" node
+    // pub fn get_path(&self, from: &NodeId, to: &NodeId) -> Option<Vec<NodeId>> {
+    //     if self.nodes.get(from).is_none() || self.nodes.get(to).is_none() || from == to {
+    //         return None;
+    //     }
 
-        let mut from_ancestors_hash = HashSet::new();
-        let mut from_ancestors_stack = vec![from];
-        let mut cursor = self.nodes.get(from);
-        while let Some(parent) = cursor.map(|node| node.parent.as_ref()).flatten() {
-            from_ancestors_hash.insert(parent);
-            cursor = self.nodes.get(parent);
-            from_ancestors_stack.push(parent);
-        }
+    //     let mut from_ancestors_hash = HashSet::new();
+    //     let mut from_ancestors_stack = vec![from];
+    //     let mut cursor = self.nodes.get(from);
+    //     while let Some(parent) = cursor.map(|node| node.parent.as_ref()).flatten() {
+    //         from_ancestors_hash.insert(parent);
+    //         cursor = self.nodes.get(parent);
+    //         from_ancestors_stack.push(parent);
+    //     }
 
-        let mut to_ancestors_stack = Vec::new();
-        let mut cursor = to;
-        while !from_ancestors_hash.contains(cursor) {
-            to_ancestors_stack.push(cursor.clone());
-            if let Some(parent) = self.nodes.get(cursor).map(|node| node.parent.as_ref()).flatten() {
-                cursor = parent;
-            }
-        }
-        
-        to_ancestors_stack.extend(from_ancestors_stack.into_iter().rev().take_while(|id| id != &cursor).map(|id| id.clone()));
+    //     let mut to_ancestors_stack = Vec::new();
+    //     let mut cursor = to;
+    //     while !from_ancestors_hash.contains(cursor) {
+    //         to_ancestors_stack.push(cursor.clone());
+    //         if let Some(parent) = self
+    //             .nodes
+    //             .get(cursor)
+    //             .map(|node| node.parent.as_ref())
+    //             .flatten()
+    //         {
+    //             cursor = parent;
+    //         }
+    //     }
 
-        return Some(to_ancestors_stack);
-    }
+    //     to_ancestors_stack.extend(
+    //         from_ancestors_stack
+    //             .into_iter()
+    //             .rev()
+    //             .take_while(|id| id != &cursor)
+    //             .map(|id| id.clone()),
+    //     );
+
+    //     return Some(to_ancestors_stack);
+    // }
 }

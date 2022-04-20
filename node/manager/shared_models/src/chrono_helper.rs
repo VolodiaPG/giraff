@@ -1,8 +1,11 @@
 use core::fmt;
 
 use chrono::{DateTime, Utc};
+use schemars::{
+    gen::SchemaGenerator,
+    schema::{InstanceType, Schema, SchemaObject},
+};
 use serde::de::Visitor;
-
 pub struct DateTimeHelper;
 
 impl serde_with::SerializeAs<DateTime<Utc>> for DateTimeHelper {
@@ -43,4 +46,13 @@ impl<'de> Visitor<'de> for CustomVisitor {
             .map_err(|e| E::custom(e.to_string()))?
             .with_timezone(&Utc))
     }
+}
+
+pub fn schema_function(_: &mut SchemaGenerator) -> Schema {
+    SchemaObject {
+        instance_type: Some(InstanceType::String.into()),
+        format: Some("date-time".to_owned()),
+        ..Default::default()
+    }
+    .into()
 }

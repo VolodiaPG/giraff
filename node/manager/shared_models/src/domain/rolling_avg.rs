@@ -5,8 +5,9 @@ use uom::si::f64::Time;
 #[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RollingAvg {
-    #[serde_as(as = "super::DateTimeHelper")]
+    #[serde_as(as = "crate::chrono_helper::DateTimeHelper")]
     last_update: DateTime<Utc>,
+
     #[serde_as(as = "uom_helpers::time::Helper")]
     avg: Time,
     count: u32,

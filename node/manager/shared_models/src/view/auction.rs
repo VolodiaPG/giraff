@@ -1,8 +1,9 @@
 use std::cmp::Ordering;
 
-use crate::sla::Sla;
+use crate::domain::sla::Sla;
 
-use super::{BidId, NodeId};
+use crate::{BidId, NodeId};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A bid
@@ -14,7 +15,7 @@ pub struct Bid {
 }
 
 /// Sums up all proposal received by the market
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct MarketBidProposal {
     pub bids: Vec<BidProposal>,
     pub chosen_bid: Option<BidProposal>,
@@ -29,7 +30,7 @@ pub struct AcceptedBid {
 }
 
 /// The bid proposal and the node who issued it
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct BidProposal {
     pub node_id: NodeId,
     pub id: BidId,

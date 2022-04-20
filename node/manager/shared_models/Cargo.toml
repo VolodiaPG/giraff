@@ -13,4 +13,6 @@ chrono = "0.4"
 uom = { version = "0.32.0", default-features = false, features = ["f64", "si"] }
 lazy_static = "1.4.0"
 thiserror = "1.0.30"
+rocket = { version = "0.5.0-rc.1", features = ["uuid"] }
+schemars = { version = "0.8", features = ["chrono"] }
 uom_helpers = { path = "../uom_helpers" }

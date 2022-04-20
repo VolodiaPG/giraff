@@ -1,5 +1,4 @@
-use shared_models::auction::BidProposal;
-use shared_models::sla::Sla;
+use shared_models::{domain::sla::Sla, view::auction::BidProposal};
 
 pub type Price = f64;
 

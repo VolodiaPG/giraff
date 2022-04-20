@@ -16,3 +16,4 @@ uom = { version = "0.32.0", default-features = false, features = [
   "si",
   "autoconvert",
 ] }
+schemars = "0.8"
