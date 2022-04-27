@@ -4,8 +4,8 @@ use std::fmt;
 use lazy_static::lazy_static;
 use rocket::request::FromParam;
 use schemars::gen::SchemaGenerator;
-use schemars::JsonSchema;
 use schemars::schema::*;
+use schemars::JsonSchema;
 use serde::{de::Visitor, Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -77,7 +77,7 @@ macro_rules! impl_id_encapsulation {
                         E: serde::de::Error,
                     {
                         Ok($name {
-                            id: Uuid::parse_str(value).unwrap(),
+                            id: Uuid::parse_str(value).map_err(E::custom)?,
                         })
                     }
                 }

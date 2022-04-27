@@ -2,21 +2,20 @@ use std::sync::Arc;
 
 use okapi::openapi3::Responses;
 use rocket::{post, serde::json::Json};
-use rocket::{put, Request, response::Responder, State};
+use rocket::{put, response::Responder, Request, State};
 use rocket_okapi::{openapi, response::OpenApiResponderInner, util::ensure_status_code_exists};
 use tokio::sync::Mutex;
 
+use manager::model::domain::auction::AuctionResult;
 use manager::model::{
-    NodeId,
     view::{
-        auction::MarketBidProposal,
         node::{PostNode, PostNodeResponse},
         sla::PutSla,
     },
+    NodeId,
 };
 
 use crate::controller;
-use crate::service::live_store::{BidDataBase, NodesDataBase};
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
@@ -24,8 +23,8 @@ pub type Result<T = ()> = std::result::Result<T, Error>;
 pub struct Error(pub anyhow::Error);
 
 impl<E> From<E> for Error
-    where
-        E: Into<anyhow::Error>,
+where
+    E: Into<anyhow::Error>,
 {
     fn from(error: E) -> Self {
         Error(error.into())
@@ -48,32 +47,15 @@ impl OpenApiResponderInner for Error {
     }
 }
 
-/// Register a SLA and starts the auctionning process, as well as establishing the routing once the auction is completed
+/// Register a SLA and starts the auctioning process, as well as establishing the routing once the auction is completed
 #[openapi]
 #[put("/function/<leaf_node>", data = "<payload>")]
 pub async fn put_function(
     leaf_node: NodeId,
     payload: Json<PutSla>,
-    bid_db: &State<Arc<Mutex<BidDataBase>>>,
-    nodes_db: &State<Arc<Mutex<NodesDataBase>>>,
-) -> Result<Json<MarketBidProposal>> {
-    let res = controller::process_function_host(
-        leaf_node,
-        bid_db.inner().clone(),
-        nodes_db.inner().clone(),
-        payload.0,
-    )
-        .await?;
-    Ok(Json(res))
-}
-
-/// Modify the [NodesDataBase] with the content of the [PostNode]
-#[openapi]
-#[post("/nodes", data = "<payload>")]
-pub async fn post_nodes(
-    payload: Json<PostNode>,
-    nodes_db: &State<Arc<Mutex<NodesDataBase>>>,
-) -> Result<Json<PostNodeResponse>> {
-    let res = controller::post_nodes(nodes_db.inner().clone(), payload.0).await?;
+    auction_service: &State<Arc<dyn crate::service::auction::Auction>>,
+) -> Result<Json<AuctionResult>> {
+    let res =
+        controller::process_function_host(leaf_node, payload.0, auction_service.inner()).await?;
     Ok(Json(res))
 }
