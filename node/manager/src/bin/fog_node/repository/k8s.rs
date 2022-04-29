@@ -36,6 +36,7 @@ impl K8sImpl {
 #[async_trait]
 impl K8s for K8sImpl {
     async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
+        trace!("get_k8s_metrics");
         let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
         let client = Client::try_default().await.map_err(Error::Kube)?;

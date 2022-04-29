@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Configuration {
     pub base_path: String,
     pub client: reqwest::Client,

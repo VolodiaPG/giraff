@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use log::trace;
+use std::fmt::Debug;
 
 use super::models::FunctionListEntry;
 use super::{configuration, models::FunctionDefinition, Error};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DefaultApiClient {
     configuration: configuration::Configuration,
 }
@@ -16,13 +17,13 @@ impl DefaultApiClient {
 }
 
 #[async_trait]
-pub trait DefaultApi: Sync + Send {
+pub trait DefaultApi: Debug + Sync + Send {
     async fn system_functions_get(&self) -> Result<Vec<FunctionListEntry>, Error<String>>;
     async fn system_functions_post(&self, body: FunctionDefinition) -> Result<(), Error<String>>;
     async fn async_function_name_post(
         &self,
         function_name: &str,
-        input: Vec<u8>,
+        input: String,
     ) -> Result<(), Error<String>>;
 }
 
@@ -30,6 +31,7 @@ pub trait DefaultApi: Sync + Send {
 impl DefaultApi for DefaultApiClient {
     async fn system_functions_get(&self) -> Result<Vec<FunctionListEntry>, Error<String>> {
         let uri_str = format!("{}/system/functions", self.configuration.base_path);
+        trace!("Requesting {}", uri_str);
 
         let mut builder = self.configuration.client.get(&uri_str);
 
@@ -42,6 +44,7 @@ impl DefaultApi for DefaultApiClient {
 
     async fn system_functions_post(&self, body: FunctionDefinition) -> Result<(), Error<String>> {
         let uri_str = format!("{}/system/functions", self.configuration.base_path);
+        trace!("Requesting {}", uri_str);
 
         let mut builder = self
             .configuration
@@ -66,12 +69,13 @@ impl DefaultApi for DefaultApiClient {
     async fn async_function_name_post(
         &self,
         function_name: &str,
-        input: Vec<u8>,
+        input: String,
     ) -> Result<(), Error<String>> {
         let uri_str = format!(
             "{}/async-function/{}",
             self.configuration.base_path, function_name
         );
+        trace!("Requesting {}", uri_str);
 
         let mut builder = self.configuration.client.post(&uri_str).body(input);
 

@@ -1,18 +1,6 @@
-use std::sync::Arc;
-
 use anyhow::Result;
-use chrono::Utc;
-use if_chain::if_chain;
-use tokio::sync::Mutex;
-
-use manager::model::domain::auction::AuctionResult;
-use manager::model::{
-    view::{
-        node::{PostNode, PostNodeResponse},
-        sla::PutSla,
-    },
-    NodeId,
-};
+use manager::model::{view::sla::PutSla, NodeId};
+use std::sync::Arc;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
@@ -23,13 +11,17 @@ pub enum ControllerError {
 }
 
 /// Register a SLA and starts the auctionning process
-pub async fn process_function_host(
+pub async fn start_auction(
     leaf_node: NodeId,
     payload: PutSla,
     auction_service: &Arc<dyn crate::service::auction::Auction>,
-) -> Result<AuctionResult, ControllerError> {
+) -> Result<(), ControllerError> {
     trace!("put sla: {:?}", payload);
 
-    let bids = auction_service.call_for_bids(leaf_node, &payload.sla).await;
-    Ok(auction_service.do_auction(bids).await?)
+    auction_service
+        .call_for_bids(leaf_node, &payload.sla)
+        .await?;
+    // Ok(auction_service.do_auction(bids).await?)
+    // Todo: start cron job to then do the auction + end the auction when all bids have been studied : level 2
+    Ok(())
 }

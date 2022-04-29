@@ -5,9 +5,8 @@ extern crate rocket;
 
 use std::{env, sync::Arc};
 
-use rocket::{launch, routes};
+use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
-use tokio::sync::Mutex;
 
 use manager::helper::from_disk::FromDisk;
 
@@ -40,7 +39,7 @@ async fn rocket() -> _ {
     };
     let fog_node = Arc::new(fog_node);
     let fog_node_communication =
-        Arc::new(crate::repository::node_communication::NodeCommunicationImpl::new());
+        Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new());
     let auction_process = Arc::new(crate::repository::auction::SecondPriceAuction::new());
 
     // Services

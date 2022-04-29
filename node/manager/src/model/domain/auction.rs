@@ -10,6 +10,7 @@ pub enum AuctionStatus {
     Finished(BidProposal),
 }
 
+#[derive(Debug)]
 pub struct AuctionSummary {
     pub status: AuctionStatus,
 }

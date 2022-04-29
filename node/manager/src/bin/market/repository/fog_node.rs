@@ -1,18 +1,14 @@
-use anyhow::anyhow;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
 use async_trait::async_trait;
-use if_chain::if_chain;
 use tokio::sync::RwLock;
 
 use manager::helper::from_disk::FromDisk;
-use manager::model::domain::auction::AuctionStatus;
-use manager::model::domain::sla::Sla;
 use manager::model::dto::node::NodeRecordDisk;
 use manager::model::dto::node::{Node, NodeIdList, NodeRecord};
-use manager::model::{BidId, NodeId};
+use manager::model::NodeId;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -30,9 +26,9 @@ pub enum Error {
 pub trait FogNode: Sync + Send {
     async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>>;
     async fn update(&self, id: &NodeId, node: NodeRecord);
-    /// Get the bid candidates and for each node return the description of the node.
-    async fn get_bid_candidates(&self, sla: &Sla, leaf_node: NodeId)
-        -> HashMap<NodeId, NodeRecord>;
+    /// Get all the [NodeId] up to the target node (included).
+    /// Return the stack, meaning the destination is at the bottom and the next node is at the top.
+    async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
 }
 
 pub struct FogNodeImpl {
@@ -101,37 +97,17 @@ impl FogNode for FogNodeImpl {
         }
     }
 
-    async fn get_bid_candidates(
-        &self,
-        sla: &Sla,
-        leaf_node: NodeId,
-    ) -> HashMap<NodeId, NodeRecord> {
-        let mut candidates = HashMap::new();
-
-        let mut stack = vec![leaf_node];
-        while let Some(next) = stack.pop() {
-            if let Some(node) = self.get(&next).await {
-                candidates.insert(next, node.data.clone());
-
-                if_chain! {
-                    if let Some(parent_id) = &node.parent;
-                    if let Some(parent) = self.get(parent_id).await;
-                    // if Self::is_parent_candidate_sustainable(sla, &parent.data);
-                    then {
-                        stack.push(parent_id.to_owned());
-                    }
-                }
-
-                for child in node.children.iter() {
-                    let node = self.get(child).await;
-                    if node.is_some() {
-                        stack.push(child.to_owned());
-                    }
-                }
+    async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId> {
+        let mut current_cursor = Some(to);
+        let mut route_stack = vec![]; // bottom: dest, top: next
+        while let Some(current) = &current_cursor {
+            if let Some(node) = self.get(&current).await {
+                route_stack.push(current.clone());
+                current_cursor = node.parent;
             }
         }
 
-        candidates
+        route_stack
     }
 }
 

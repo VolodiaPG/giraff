@@ -1,20 +1,21 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
-use manager::model::{domain::routing::RoutingStack, BidId, NodeId};
+use manager::model::domain::routing::Packet;
+use manager::model::dto::routing::Direction;
+use manager::model::{domain::routing::FunctionRoutingStack, BidId, NodeId};
 use manager::openfaas::DefaultApi;
 
+use crate::repository::faas_routing::FaaSRoutingTable;
 use crate::repository::routing::Routing as RoutingRepository;
-use crate::routing::RoutingTable;
 use crate::service::faas::FaaSBackend;
 use crate::NodeSituation;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
-    Repository(#[from] crate::repository::routing::Error),
+    Routing(#[from] crate::repository::routing::Error),
     #[error("The next node doesn't exist: {0}")]
     NextNodeDoesntExist(NodeId),
     #[error("The routing stack was not correct to be utilized")]
@@ -31,18 +32,13 @@ pub enum Error {
 #[async_trait]
 pub trait Router: Send + Sync {
     /// Register a new route, from a [RoutingStack], making the follow up requests left to do in the chain
-    async fn register_route(&self, stack: RoutingStack) -> Result<(), Error>;
+    async fn register_function_route(&self, stack: FunctionRoutingStack) -> Result<(), Error>;
     /// Forward payloads to a neighbour node
-    async fn forward(
-        self: &Self,
-        to: &BidId,
-        resource_url: String,
-        payload: Vec<u8>,
-    ) -> Result<(), Error>;
+    async fn forward(&self, packet: &Packet) -> Result<(), Error>;
 }
-
+#[derive(Debug)]
 pub struct RouterImpl {
-    routing_table: Arc<RwLock<RoutingTable>>,
+    faas_routing_table: Arc<dyn FaaSRoutingTable>,
     node_situation: Arc<NodeSituation>,
     routing: Arc<dyn RoutingRepository>,
     faas: Arc<dyn FaaSBackend>,
@@ -51,13 +47,14 @@ pub struct RouterImpl {
 
 impl RouterImpl {
     pub fn new(
+        faas_routing_table: Arc<dyn FaaSRoutingTable>,
         node_situation: Arc<NodeSituation>,
         routing: Arc<dyn RoutingRepository>,
         faas: Arc<dyn FaaSBackend>,
         faas_api: Arc<dyn DefaultApi>,
     ) -> Self {
         Self {
-            routing_table: Arc::new(RwLock::new(RoutingTable::default())),
+            faas_routing_table,
             node_situation,
             routing,
             faas,
@@ -65,24 +62,29 @@ impl RouterImpl {
         }
     }
 
-    async fn forward_to_node(
+    async fn forward_register_to_node(
         &self,
         to: &NodeId,
-        resource_url: String,
-        payload: Vec<u8>,
+        stack: FunctionRoutingStack,
     ) -> Result<(), Error> {
         let next = self
             .node_situation
             .get(to)
             .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
-        let url = format!("http://{}/routing/{}", &next.uri, &resource_url);
-        self.routing.forward(url, payload).await.map_err(Into::into)
+        self.routing
+            .forward_to_url(
+                &next.uri,
+                &"register".to_string(),
+                serde_json::to_string(&stack)?,
+            )
+            .await
+            .map_err(Into::into)
     }
 }
 
 #[async_trait]
 impl Router for RouterImpl {
-    async fn register_route(&self, mut stack: RoutingStack) -> Result<(), Error> {
+    async fn register_function_route(&self, mut stack: FunctionRoutingStack) -> Result<(), Error> {
         // At least 1 more stop
         if stack.route_to_first.len() > 1
             && stack
@@ -93,13 +95,9 @@ impl Router for RouterImpl {
             let next = stack
                 .route_to_first
                 .get(0)
-                .ok_or(Error::MalformedRoutingStack)?;
-            self.forward_to_node(
-                next,
-                "/api/routing/register".to_string(),
-                serde_json::to_vec(&stack).map_err(Error::from)?,
-            )
-            .await?;
+                .ok_or(Error::MalformedRoutingStack)?
+                .to_owned();
+            self.forward_register_to_node(&next, stack).await?;
             return Ok(());
         }
 
@@ -120,37 +118,35 @@ impl Router for RouterImpl {
                 // left: from, right: to
                 let (left, right) = stack.routes.split_at(mid);
 
-                self.routing_table
-                    .blocking_write()
-                    .update_route(stack.function.to_owned(), right[0].to_owned())
+                self.faas_routing_table
+                    .update(
+                        stack.function.to_owned(),
+                        Direction::NextNode(right[0].to_owned()),
+                    )
                     .await;
 
                 if left.len() > 0 {
                     let next = &left[0];
-                    self.forward_to_node(
+                    self.forward_register_to_node(
                         next,
-                        "/api/routing/register".to_string(),
-                        serde_json::to_vec(&RoutingStack {
+                        FunctionRoutingStack {
                             function: stack.function.to_owned(),
                             route_to_first: vec![],
                             routes: left.to_vec(),
-                        })
-                        .map_err(Error::from)?,
+                        },
                     )
                     .await?;
                 }
 
                 if right.len() > 1 {
                     let next = &right[1];
-                    self.forward_to_node(
+                    self.forward_register_to_node(
                         next,
-                        "/api/routing/register".to_string(),
-                        serde_json::to_vec(&RoutingStack {
+                        FunctionRoutingStack {
                             function: stack.function.to_owned(),
                             route_to_first: vec![],
                             routes: right.to_vec(),
-                        })
-                        .map_err(Error::from)?,
+                        },
                     )
                     .await?;
                 }
@@ -177,15 +173,13 @@ impl Router for RouterImpl {
                 }
 
                 if let Some(next) = next {
-                    self.forward_to_node(
+                    self.forward_register_to_node(
                         next,
-                        "/api/routing/register".to_string(),
-                        serde_json::to_vec(&RoutingStack {
+                        FunctionRoutingStack {
                             function: stack.function.to_owned(),
                             route_to_first: vec![],
                             routes: stack.routes.to_vec(),
-                        })
-                        .map_err(Error::from)?,
+                        },
                     )
                     .await?;
                     return Ok(());
@@ -196,12 +190,14 @@ impl Router for RouterImpl {
                 let last_node = stack.routes.pop().unwrap();
                 return if last_node == self.node_situation.my_id {
                     trace!("Routing table is complete, I am the arrival point");
+                    self.faas_routing_table
+                        .update(stack.function, Direction::CurrentNode)
+                        .await;
                     Ok(())
                 } else {
                     trace!("Routing table is complete, I am the departure point");
-                    self.routing_table
-                        .blocking_write()
-                        .update_route(stack.function, last_node)
+                    self.faas_routing_table
+                        .update(stack.function, Direction::NextNode(last_node))
                         .await;
                     Ok(())
                 };
@@ -210,26 +206,93 @@ impl Router for RouterImpl {
         Err(Error::MalformedRoutingStack)
     }
 
-    async fn forward(
-        &self,
-        to: &BidId,
-        resource_url: String,
-        payload: Vec<u8>,
-    ) -> Result<(), Error> {
-        let node_to = self.routing_table.read().await.get_node(to).cloned();
-
-        match node_to {
-            Some(node_to) => self.forward_to_node(&node_to, resource_url, payload).await,
-            None => {
-                let record = self
-                    .faas
-                    .get_provisioned_function(to)
+    async fn forward(&self, packet: &Packet) -> Result<(), Error> {
+        match packet {
+            Packet::FaaSFunction { to, data: payload } => {
+                let node_to = self
+                    .faas_routing_table
+                    .get(&to)
                     .await
                     .ok_or(Error::UnknownBidId(to.to_owned()))?;
-                self.faas_api
-                    .async_function_name_post(&*record.function_name, payload)
-                    .await
-                    .map_err(Error::from)
+
+                match node_to {
+                    // TODO: otpimization: is it possible to send the packet directly to the node? w/o redoing the same structure, what impact?
+                    Direction::NextNode(next) => {
+                        let next = self
+                            .node_situation
+                            .get(&next)
+                            .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
+                        self.routing
+                            .forward_to_routing(
+                                &next.uri,
+                                &Packet::FaaSFunction {
+                                    to: to.to_owned(),
+                                    data: payload,
+                                },
+                            )
+                            .await
+                            .map_err(Error::from)?;
+                        Ok(())
+                    }
+                    Direction::CurrentNode => {
+                        let record = self
+                            .faas
+                            .get_provisioned_function(&to)
+                            .await
+                            .ok_or(Error::UnknownBidId(to.to_owned()))?;
+                        self.faas_api
+                            .async_function_name_post(
+                                &*record.function_name,
+                                serde_json::to_string(payload)?,
+                            )
+                            .await
+                            .map_err(Error::from)?;
+                        Ok(())
+                    }
+                }
+            }
+            Packet::FogNode {
+                route_to_stack: route_to,
+                resource_uri,
+                data,
+            } => {
+                let mut route_to = route_to.clone();
+                let current_node = route_to.pop().ok_or(Error::MalformedRoutingStack)?;
+
+                if current_node != self.node_situation.my_id {
+                    return Err(Error::MalformedRoutingStack);
+                }
+
+                if route_to.len() == 1 {
+                    let next = route_to.pop().unwrap();
+                    let next = self
+                        .node_situation
+                        .get(&next)
+                        .ok_or(Error::NextNodeDoesntExist(next))?;
+                    self.routing
+                        .forward_to_url(&next.uri, &resource_uri, serde_json::to_string(data)?)
+                        .await
+                        .map_err(Error::from)?;
+                    Ok(())
+                } else {
+                    let next = route_to.get(0).unwrap();
+                    let next = self
+                        .node_situation
+                        .get(&next)
+                        .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
+                    self.routing
+                        .forward_to_routing(
+                            &next.uri,
+                            &Packet::FogNode {
+                                route_to_stack: route_to,
+                                resource_uri: resource_uri.to_owned(),
+                                data,
+                            },
+                        )
+                        .await
+                        .map_err(Error::from)?;
+                    Ok(())
+                }
             }
         }
     }

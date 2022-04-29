@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 
-use crate::model::dto::auction::ChosenBid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

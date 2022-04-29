@@ -2,9 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::model::domain::rolling_avg::RollingAvg;
-use crate::model::domain::sla::Sla;
-use crate::model::view::auction::{AcceptedBid, BidProposal};
+use crate::model::view::auction::AcceptedBid;
 use crate::model::{BidId, NodeId};
 
 #[derive(Debug, Deserialize, Clone)]

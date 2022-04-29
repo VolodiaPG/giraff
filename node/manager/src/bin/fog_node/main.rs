@@ -19,7 +19,6 @@ use crate::service::function_life::FunctionLifeImpl;
 use crate::service::routing::RouterImpl;
 
 mod controller;
-mod cron;
 mod handler;
 mod repository;
 mod routing;
@@ -85,6 +84,7 @@ async fn rocket() -> _ {
         auction_service.to_owned(),
     ));
     let router_service = Arc::new(RouterImpl::new(
+        Arc::new(crate::repository::faas_routing::FaaSRoutingTableHashMap::new()),
         node_situation.to_owned(),
         Arc::new(crate::repository::routing::RoutingImpl),
         faas_service.to_owned(),

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -7,11 +8,12 @@ use manager::model::dto::faas::ProvisionedRecord;
 use manager::model::BidId;
 
 #[async_trait]
-pub trait Provisioned: Sync + Send {
+pub trait Provisioned: Debug + Sync + Send {
     async fn insert(&self, id: BidId, record: ProvisionedRecord);
     async fn get(&self, id: &BidId) -> Option<ProvisionedRecord>;
 }
 
+#[derive(Debug)]
 pub struct ProvisionedHashMapImpl {
     database: RwLock<HashMap<BidId, ProvisionedRecord>>,
 }
