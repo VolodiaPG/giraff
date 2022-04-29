@@ -1,5 +1,5 @@
 use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
-use kube::core::ObjectMeta;
+use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct NodeMetricsUsage {

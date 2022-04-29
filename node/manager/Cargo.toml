@@ -49,5 +49,5 @@ futures = "0.3.21"
 lazy_static = "1.4.0"
 lazy-regex = "2.3.0"
 tokio-cron-scheduler = "0.6.0"
-kube = { version = "0.71.0", default-features = false, features = ["client", "runtime"] }
+kube = { version = "0.71.0", features = ["client", "runtime"] }
 k8s-openapi = { version = "0.14.0", features = ["v1_22"] }
