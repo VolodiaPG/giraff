@@ -37,19 +37,25 @@ pub trait Router: Send + Sync {
     async fn forward(&self, packet: &Packet) -> Result<(), Error>;
 }
 #[derive(Debug)]
-pub struct RouterImpl {
+pub struct RouterImpl<R>
+where
+    R: RoutingRepository,
+{
     faas_routing_table: Arc<dyn FaaSRoutingTable>,
     node_situation: Arc<NodeSituation>,
-    routing: Arc<dyn RoutingRepository>,
+    routing: Arc<R>,
     faas: Arc<dyn FaaSBackend>,
     faas_api: Arc<dyn DefaultApi>,
 }
 
-impl RouterImpl {
+impl<R> RouterImpl<R>
+where
+    R: RoutingRepository,
+{
     pub fn new(
         faas_routing_table: Arc<dyn FaaSRoutingTable>,
         node_situation: Arc<NodeSituation>,
-        routing: Arc<dyn RoutingRepository>,
+        routing: Arc<R>,
         faas: Arc<dyn FaaSBackend>,
         faas_api: Arc<dyn DefaultApi>,
     ) -> Self {
@@ -72,18 +78,17 @@ impl RouterImpl {
             .get(to)
             .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
-            .forward_to_url(
-                &next.uri,
-                &"register".to_string(),
-                serde_json::to_string(&stack)?,
-            )
+            .forward_to_url(&next.uri, &"register".to_string(), &stack)
             .await
             .map_err(Into::into)
     }
 }
 
 #[async_trait]
-impl Router for RouterImpl {
+impl<R> Router for RouterImpl<R>
+where
+    R: RoutingRepository,
+{
     async fn register_function_route(&self, mut stack: FunctionRoutingStack) -> Result<(), Error> {
         // At least 1 more stop
         if stack.route_to_first.len() > 1
@@ -270,7 +275,7 @@ impl Router for RouterImpl {
                         .get(&next)
                         .ok_or(Error::NextNodeDoesntExist(next))?;
                     self.routing
-                        .forward_to_url(&next.uri, &resource_uri, serde_json::to_string(data)?)
+                        .forward_to_url(&next.uri, &resource_uri, data)
                         .await
                         .map_err(Error::from)?;
                     Ok(())

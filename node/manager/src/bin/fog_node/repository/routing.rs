@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use reqwest::StatusCode;
+use serde::Serialize;
 
 use manager::model::domain::routing::Packet;
 
@@ -22,12 +23,14 @@ pub trait Routing: Debug + Sync + Send {
     async fn forward_to_routing(&self, uri: &String, packet: &Packet) -> Result<(), Error>;
 
     /// Foward to the url to be handled by aribitrary route
-    async fn forward_to_url(
+    async fn forward_to_url<'a, T>(
         &self,
         node_uri: &String,
         resource_uri: &String,
-        data: String,
-    ) -> Result<(), Error>;
+        data: &'a T,
+    ) -> Result<(), Error>
+    where
+        T: Serialize + Send + Sync;
 }
 
 #[derive(Debug, Default)]
@@ -41,25 +44,28 @@ impl Routing for RoutingImpl {
         let client = reqwest::Client::new();
         client
             .post(url)
-            .body(serde_json::to_string(packet)?)
+            .json(packet)
             .send()
             .await
             .map_err(Error::from)?;
         Ok(())
     }
 
-    async fn forward_to_url(
+    async fn forward_to_url<'a, T>(
         &self,
         node_uri: &String,
         resource_uri: &String,
-        data: String,
-    ) -> Result<(), Error> {
+        data: &'a T,
+    ) -> Result<(), Error>
+    where
+        T: Serialize + Send + Sync,
+    {
         let url = format!("http://{}/api/{}", node_uri, resource_uri);
         trace!("Posting (forward) to {}", &url);
         let client = reqwest::Client::new();
         let res = client
             .post(url.to_owned())
-            .body(data)
+            .json(data)
             .send()
             .await
             .map_err(Error::from)?;
