@@ -9,4 +9,5 @@ pub enum ControllerError {
 }
 
 pub mod auction;
+pub mod node;
 pub mod routing;

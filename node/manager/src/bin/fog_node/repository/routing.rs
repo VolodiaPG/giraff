@@ -22,7 +22,7 @@ pub trait Routing: Debug + Sync + Send {
     /// Forward to the url to be handled by the routing service of the node
     async fn forward_to_routing(&self, uri: &String, packet: &Packet) -> Result<(), Error>;
 
-    /// Foward to the url to be handled by aribitrary route
+    /// Forward to the url to be handled by arbitrary route
     async fn forward_to_url<'a, T>(
         &self,
         node_uri: &String,

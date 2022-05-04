@@ -18,6 +18,8 @@ pub enum Error {
     StackEmpty(NodeId),
     #[error(transparent)]
     RequestFailed(#[from] crate::repository::node_communication::Error),
+    #[error("The first node is the routing stack is not the routing node, and thus not URI can be deduced from a lower node that than the unique root node.")]
+    FirstNodeInStackIsNotRootNode,
 }
 
 #[async_trait]
@@ -68,7 +70,8 @@ impl Auction for AuctionImpl {
             .await
             .ok_or(Error::NodeIdNotFound(leaf_node))?
             .data
-            .ip;
+            .uri
+            .ok_or(Error::FirstNodeInStackIsNotRootNode)?;
 
         self.node_communication
             .request_bid_from_node(next_uri, first_node_route_stack, sla)

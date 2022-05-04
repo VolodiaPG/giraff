@@ -41,3 +41,17 @@ pub struct PostNodeResponse {
     #[serde_as(as = "chrono_helper::DateTimeHelper")]
     pub answered_at: DateTime<Utc>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum RegisterNode {
+    MarketNode {
+        node_id: NodeId,
+        uri: String,
+    },
+    Node {
+        parent: NodeId,
+        node_id: NodeId,
+        uri: String,
+    },
+}

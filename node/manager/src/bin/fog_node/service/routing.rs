@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -30,7 +31,7 @@ pub enum Error {
 
 /// Service to manage the behaviour of the routing
 #[async_trait]
-pub trait Router: Send + Sync {
+pub trait Router: Debug + Send + Sync {
     /// Register a new route, from a [RoutingStack], making the follow up requests left to do in the chain
     async fn register_function_route(&self, stack: FunctionRoutingStack) -> Result<(), Error>;
     /// Forward payloads to a neighbour node
@@ -42,7 +43,7 @@ where
     R: RoutingRepository,
 {
     faas_routing_table: Arc<dyn FaaSRoutingTable>,
-    node_situation: Arc<NodeSituation>,
+    node_situation: Arc<dyn NodeSituation>,
     routing: Arc<R>,
     faas: Arc<dyn FaaSBackend>,
     faas_api: Arc<dyn DefaultApi>,
@@ -54,7 +55,7 @@ where
 {
     pub fn new(
         faas_routing_table: Arc<dyn FaaSRoutingTable>,
-        node_situation: Arc<NodeSituation>,
+        node_situation: Arc<dyn NodeSituation>,
         routing: Arc<R>,
         faas: Arc<dyn FaaSBackend>,
         faas_api: Arc<dyn DefaultApi>,
@@ -76,6 +77,7 @@ where
         let next = self
             .node_situation
             .get(to)
+            .await
             .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
             .forward_to_url(&next.uri, &"register".to_string(), &stack)
@@ -94,12 +96,12 @@ where
         if stack.route_to_first.len() > 1
             && stack
                 .route_to_first
-                .starts_with(&[self.node_situation.my_id.to_owned()])
+                .starts_with(&[self.node_situation.get_my_id().await])
         {
             stack.route_to_first.pop();
             let next = stack
                 .route_to_first
-                .get(0)
+                .get(stack.route_to_first.len() - 1)
                 .ok_or(Error::MalformedRoutingStack)?
                 .to_owned();
             self.forward_register_to_node(&next, stack).await?;
@@ -111,13 +113,14 @@ where
             if stack.route_to_first.len() == 1
                 && stack
                     .route_to_first
-                    .starts_with(&[self.node_situation.my_id.to_owned()])
+                    .starts_with(&[self.node_situation.get_my_id().await])
             {
+                let my_id = self.node_situation.get_my_id().await;
                 stack.route_to_first.pop();
                 let mid = stack
                     .routes
                     .iter()
-                    .position(|node| node == &self.node_situation.my_id)
+                    .position(|node| node == &my_id)
                     .ok_or(Error::MalformedRoutingStack)?;
 
                 // left: from, right: to
@@ -163,13 +166,15 @@ where
                 let next;
                 if stack
                     .routes
-                    .starts_with(&[self.node_situation.my_id.to_owned()])
+                    .starts_with(&[self.node_situation.get_my_id().await])
                 {
                     stack.routes.remove(0);
                     next = Some(&stack.routes[0]);
-                } else if stack
-                    .routes
-                    .ends_with(&[self.node_situation.my_id.to_owned()])
+                } else if stack.routes.ends_with(&[self
+                    .node_situation
+                    .get_my_id()
+                    .await
+                    .to_owned()])
                 {
                     stack.routes.remove(stack.routes.len() - 1);
                     next = Some(&stack.routes[stack.routes.len() - 1]);
@@ -193,7 +198,7 @@ where
 
             if stack.routes.len() == 1 {
                 let last_node = stack.routes.pop().unwrap();
-                return if last_node == self.node_situation.my_id {
+                return if last_node == self.node_situation.get_my_id().await {
                     trace!("Routing table is complete, I am the arrival point");
                     self.faas_routing_table
                         .update(stack.function, Direction::CurrentNode)
@@ -221,11 +226,12 @@ where
                     .ok_or(Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
-                    // TODO: otpimization: is it possible to send the packet directly to the node? w/o redoing the same structure, what impact?
+                    // TODO: optimization: is it possible to send the packet directly to the node? w/o redoing the same structure, what impact?
                     Direction::NextNode(next) => {
                         let next = self
                             .node_situation
                             .get(&next)
+                            .await
                             .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
                         self.routing
                             .forward_to_routing(
@@ -264,7 +270,7 @@ where
                 let mut route_to = route_to.clone();
                 let current_node = route_to.pop().ok_or(Error::MalformedRoutingStack)?;
 
-                if current_node != self.node_situation.my_id {
+                if current_node != self.node_situation.get_my_id().await {
                     return Err(Error::MalformedRoutingStack);
                 }
 
@@ -273,6 +279,7 @@ where
                     let next = self
                         .node_situation
                         .get(&next)
+                        .await
                         .ok_or(Error::NextNodeDoesntExist(next))?;
                     self.routing
                         .forward_to_url(&next.uri, &resource_uri, data)
@@ -280,10 +287,11 @@ where
                         .map_err(Error::from)?;
                     Ok(())
                 } else {
-                    let next = route_to.get(0).unwrap();
+                    let next = route_to.get(route_to.len() - 1).unwrap();
                     let next = self
                         .node_situation
                         .get(&next)
+                        .await
                         .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
                     self.routing
                         .forward_to_routing(
@@ -296,6 +304,29 @@ where
                         )
                         .await
                         .map_err(Error::from)?;
+                    Ok(())
+                }
+            }
+            Packet::Market { resource_uri, data } => {
+                if self.node_situation.is_market().await {
+                    self.routing
+                        .forward_to_url(
+                            &self.node_situation.get_market_node_uri().await.unwrap(),
+                            resource_uri,
+                            data,
+                        )
+                        .await?;
+                    Ok(())
+                } else {
+                    self.routing
+                        .forward_to_routing(
+                            &self.node_situation.get_parent_node_uri().await.unwrap(),
+                            &Packet::Market {
+                                resource_uri: resource_uri.to_owned(),
+                                data,
+                            },
+                        )
+                        .await?;
                     Ok(())
                 }
             }

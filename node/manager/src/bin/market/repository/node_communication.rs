@@ -2,7 +2,6 @@ use async_trait::async_trait;
 
 use manager::model::domain::routing::Packet;
 use manager::model::domain::sla::Sla;
-use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::BidProposal;
 use manager::model::NodeId;
 
@@ -23,7 +22,13 @@ pub trait NodeCommunication: Sync + Send {
         route_to_stack: Vec<NodeId>,
         sla: &Sla,
     ) -> Result<(), Error>;
-    async fn take_offer(&self, node_record: &NodeRecord, bid: &BidProposal) -> Result<(), Error>;
+
+    async fn take_offer(
+        &self,
+        to_uri: String,
+        route_to_stack: Vec<NodeId>,
+        bid: &BidProposal,
+    ) -> Result<(), Error>;
 }
 
 pub struct NodeCommunicationThroughRoutingImpl {}
@@ -31,6 +36,19 @@ pub struct NodeCommunicationThroughRoutingImpl {}
 impl NodeCommunicationThroughRoutingImpl {
     pub fn new() -> Self {
         Self {}
+    }
+
+    async fn call_routing(&self, to_uri: String, packet: Packet<'_>) -> Result<(), Error> {
+        let client = reqwest::Client::new();
+        let url = format!("http://{}/api/routing", to_uri);
+        trace!("Posting to {}", &url);
+        let status = client.post(url).json(&packet).send().await?.status();
+
+        if status.is_success() {
+            Ok(())
+        } else {
+            Err(Error::ErrorStatus(status))
+        }
     }
 }
 
@@ -48,28 +66,21 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
             data: &*serde_json::value::to_raw_value(sla)?,
         };
 
-        let client = reqwest::Client::new();
-        let url = format!("http://{}/api/routing", to_uri);
-        trace!("Posting to {}", &url);
-        let status = client.post(url).json(&data).send().await?.status();
-
-        if status.is_success() {
-            Ok(())
-        } else {
-            Err(Error::ErrorStatus(status))
-        }
+        self.call_routing(to_uri, data).await
     }
 
-    async fn take_offer(&self, node_record: &NodeRecord, bid: &BidProposal) -> Result<(), Error> {
-        let client = reqwest::Client::new();
-        let url = format!("http://{}/api/bid/{}", node_record.ip, bid.id);
-        trace!("Posting to {}", &url);
-        let status = client.post(url).send().await?.status();
+    async fn take_offer(
+        &self,
+        to_uri: String,
+        route_to_stack: Vec<NodeId>,
+        bid: &BidProposal,
+    ) -> Result<(), Error> {
+        let data = Packet::FogNode {
+            route_to_stack,
+            resource_uri: format!("/bid/{}", bid.id),
+            data: &*serde_json::value::to_raw_value(&())?,
+        };
 
-        if status.is_success() {
-            Ok(())
-        } else {
-            Err(Error::ErrorStatus(status))
-        }
+        self.call_routing(to_uri, data).await
     }
 }

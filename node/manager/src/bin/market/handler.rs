@@ -1,22 +1,32 @@
 use std::sync::Arc;
 
 use rocket::serde::json::Json;
-use rocket::{put, State};
+use rocket::{post, put, State};
 use rocket_okapi::openapi;
 
 use manager::helper::handler::Resp;
-use manager::model::{view::sla::PutSla, NodeId};
+use manager::model::view::node::RegisterNode;
+use manager::model::view::sla::PutSla;
 use manager::respond;
 
 use crate::controller;
 
 /// Register a SLA and starts the auctioning process, as well as establishing the routing once the auction is completed
 #[openapi]
-#[put("/function/<leaf_node>", data = "<payload>")]
+#[put("/function", data = "<payload>")]
 pub async fn put_function(
-    leaf_node: NodeId,
     payload: Json<PutSla>,
     auction_service: &State<Arc<dyn crate::service::auction::Auction>>,
 ) -> Resp {
-    respond!(controller::start_auction(leaf_node, payload.0, auction_service.inner()).await)
+    respond!(controller::start_auction(payload.0, auction_service.inner()).await)
+}
+
+/// Register a new node in the network
+#[openapi]
+#[post("/register", data = "<payload>")]
+pub async fn post_register_node(
+    payload: Json<RegisterNode>,
+    node_net: &State<Arc<dyn crate::service::fog_node_network::FogNodeNetwork>>,
+) -> Resp {
+    respond!(controller::register_node(payload.0, node_net.inner()).await)
 }

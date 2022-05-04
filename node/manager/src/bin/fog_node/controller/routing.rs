@@ -21,6 +21,6 @@ pub async fn post_forward_function_routing(
     packet: &Packet<'_>,
     router: &Arc<dyn Router>,
 ) -> anyhow::Result<()> {
-    trace!("post forward routing");
+    trace!("post forward routing from packet {:?}", packet);
     router.forward(packet).await.map_err(|e| anyhow::anyhow!(e))
 }

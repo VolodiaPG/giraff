@@ -3,6 +3,7 @@ use std::{collections::HashMap, fs};
 use if_chain::if_chain;
 use serde::{Deserialize, Serialize};
 
+use crate::NodeSituation;
 use manager::model::NodeId;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -16,15 +17,6 @@ pub struct Node {
     pub uri: String,
     pub id: NodeId,
     pub category: NodeCategory,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct NodeSituation {
-    nodes: HashMap<NodeId, Node>,
-    pub to_market: Option<Node>,
-    pub is_market: bool,
-    pub market_url: Option<String>,
-    pub my_id: NodeId,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -54,27 +46,6 @@ impl From<NodeSituationDisk> for NodeSituation {
             is_market,
             market_url: if is_market { disk.market_url } else { None },
             my_id,
-        }
-    }
-}
-
-impl NodeSituationDisk {
-    pub fn new(path: String) -> Self {
-        if_chain! {
-            if let Ok(content) = fs::read_to_string(path.clone());
-            if let Ok(situation) = ron::from_str::<NodeSituationDisk>(&content);
-            then
-            {
-                info!("Loading nodes from disk, path: {}", path);
-                situation
-            }
-            else
-            {
-                warn!("No node situation config found on disk, tried path: {}", path);
-                NodeSituationDisk {
-                    ..Default::default()
-                }
-            }
         }
     }
 }

@@ -1,27 +1,31 @@
 #[macro_use]
 extern crate log;
+extern crate core;
 
 use std::{env, sync::Arc};
 
 use reqwest::Client;
+use rocket::fairing::AdHoc;
 use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
 
+use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
 use manager::openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
 
 use crate::handler::*;
 use crate::repository::k8s::K8sImpl;
+use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
+use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
 use crate::repository::provisioned::ProvisionedHashMapImpl;
-use crate::routing::{NodeSituation, NodeSituationDisk};
 use crate::service::auction::AuctionImpl;
 use crate::service::faas::OpenFaaSBackend;
 use crate::service::function_life::FunctionLifeImpl;
-use crate::service::routing::RouterImpl;
+use crate::service::node_life::{NodeLife, NodeLifeImpl};
+use crate::service::routing::{Router, RouterImpl};
 
 mod controller;
 mod handler;
 mod repository;
-mod routing;
 mod service;
 
 /*
@@ -63,9 +67,17 @@ async fn rocket() -> _ {
         client: Client::new(),
         basic_auth: auth,
     }));
-    let node_situation = Arc::new(NodeSituation::from(NodeSituationDisk::new(
-        path_node_situation,
+    let disk_data = NodeSituationDisk::new(path_node_situation);
+    if let Err(e) = disk_data {
+        error!("Error loading node situation from disk: {}", e);
+        std::process::exit(1);
+    }
+    let node_situation = Arc::new(NodeSituationHashSetImpl::new(NodeSituationData::from(
+        disk_data.unwrap(),
     )));
+
+    info!("Current node ID is {}", node_situation.get_my_id().await);
+    let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(K8sImpl::new());
     let auction_repo = Arc::new(crate::repository::auction::AuctionImpl::new());
@@ -90,18 +102,25 @@ async fn rocket() -> _ {
         faas_service.to_owned(),
         client.to_owned(),
     ));
+    let node_life_service = Arc::new(NodeLifeImpl::new(
+        router_service.to_owned(),
+        node_situation.to_owned(),
+        node_query.to_owned(),
+    ));
 
-    if node_situation.is_market {
+    if node_situation.is_market().await {
         info!("This node is a provider node located at the market node");
     } else {
         info!("This node is a provider node");
     }
 
+    let node_life_service_clone = node_life_service.clone();
     rocket::build()
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
         .manage(function_life_service as Arc<dyn crate::service::function_life::FunctionLife>)
         .manage(router_service as Arc<dyn crate::service::routing::Router>)
+        .manage(node_life_service as Arc<dyn crate::service::node_life::NodeLife>)
         .mount(
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -111,6 +130,33 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/",
-            openapi_get_routes![post_bid, post_bid_accept, post_routing, put_routing],
+            openapi_get_routes![
+                post_bid,
+                post_bid_accept,
+                post_routing,
+                put_routing,
+                post_register_child_node
+            ],
         )
+        .attach(AdHoc::on_liftoff(
+            "Registration to the parent & market",
+            |rocket| {
+                Box::pin(async {
+                    info!("Registering to market and parent...");
+                    let address = rocket.config().address.to_string();
+                    let port = rocket.config().port.to_string();
+                    trace!("Register using address: {}:{}", address, port);
+                    register_to_market(node_life_service_clone, format!("{}:{}", address, port))
+                        .await;
+                    info!("Registered to market and parent.");
+                })
+            },
+        ))
+}
+
+async fn register_to_market(node_life: Arc<dyn NodeLife>, my_uri: String) {
+    if let Err(err) = node_life.init_registration(my_uri).await {
+        error!("Failed to register to market: {}", err.to_string());
+        std::process::exit(1);
+    }
 }

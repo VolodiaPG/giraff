@@ -17,6 +17,10 @@ pub struct FunctionRoutingStack {
     pub routes: Vec<NodeId>,
 }
 
+/// [PacketPacket] with its direction:
+/// - [Packet::FaaSFunction] directs to the hosted faaSFunction
+/// - [Packet::FogNode] directs to the fog node itself (at the start of the routing stack transmitted)
+/// - [Packet::Market] directs to the market
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum Packet<'a> {
     FaaSFunction {
@@ -27,6 +31,12 @@ pub enum Packet<'a> {
     },
     FogNode {
         route_to_stack: Vec<NodeId>,
+        resource_uri: String,
+        #[serde(borrow)]
+        #[schemars(schema_with = "schema_function")]
+        data: &'a RawValue,
+    },
+    Market {
         resource_uri: String,
         #[serde(borrow)]
         #[schemars(schema_with = "schema_function")]

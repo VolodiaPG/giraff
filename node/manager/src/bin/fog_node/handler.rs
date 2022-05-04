@@ -7,12 +7,13 @@ use rocket_okapi::openapi;
 use manager::model::domain::routing::{FunctionRoutingStack, Packet};
 use manager::model::domain::sla::Sla;
 use manager::model::view::auction::Bid;
+use manager::model::view::node::RegisterNode;
 use manager::model::BidId;
 use manager::respond;
 
-use crate::controller;
 use crate::service::function_life::FunctionLife;
 use crate::service::routing::Router;
+use crate::{controller, NodeLife};
 
 /// Return a bid for the SLA.
 #[openapi]
@@ -44,4 +45,13 @@ pub async fn put_routing(
     stack: Json<FunctionRoutingStack>,
 ) -> Resp {
     respond!(controller::routing::register_route(router.inner(), stack.0).await)
+}
+
+#[openapi]
+#[post("/register", data = "<payload>")]
+pub async fn post_register_child_node(
+    payload: Json<RegisterNode>,
+    router: &State<Arc<dyn NodeLife>>,
+) -> Resp {
+    respond!(controller::node::register_child_node(payload.0, router.inner()).await)
 }
