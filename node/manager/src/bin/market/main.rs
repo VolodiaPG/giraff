@@ -21,20 +21,6 @@ async fn rocket() -> _ {
     std::env::set_var("RUST_LOG", "info, market=trace");
     env_logger::init();
 
-    // let predefined_clients_path =
-    //     env::var("PREDEFINED_NODES_PATH").unwrap_or_else(|_| "predefined_nodes.ron".to_string());
-
-    // Repositories
-    // let fog_node = match FogNodeImpl::from_disk(predefined_clients_path.as_ref()).await {
-    //     Ok(db) => {
-    //         info!("Loading nodes from disk, path: {}", predefined_clients_path);
-    //         db
-    //     }
-    //     Err(e) => {
-    //         error!("{}", e.to_string());
-    //         std::process::exit(1);
-    //     }
-    // };
     let fog_node = Arc::new(FogNodeImpl::new());
     let fog_node_communication =
         Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new());
