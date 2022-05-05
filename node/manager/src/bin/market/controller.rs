@@ -1,4 +1,5 @@
 use anyhow::Result;
+use manager::model::domain::auction::AuctionResult;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
 use std::sync::Arc;

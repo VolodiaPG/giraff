@@ -45,6 +45,7 @@ pub async fn put_routing(
     respond!(controller::routing::register_route(router.inner(), stack.0).await)
 }
 
+/// Register a child node to this one
 #[openapi]
 #[post("/register", data = "<payload>")]
 pub async fn post_register_child_node(
@@ -54,6 +55,7 @@ pub async fn post_register_child_node(
     respond!(controller::node::register_child_node(payload.0, router.inner()).await)
 }
 
+/// Route to compute latencies
 #[openapi]
 #[post("/ping", data = "<payload>")]
 pub async fn post_ping(payload: Json<Ping>) -> Json<PingResponse> {
