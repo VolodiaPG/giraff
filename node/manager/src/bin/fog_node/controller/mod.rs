@@ -8,6 +8,7 @@ pub enum ControllerError {
     Function(#[from] crate::service::function_life::Error),
 }
 
-pub mod auction;
-pub mod node;
-pub mod routing;
+pub(crate) mod auction;
+pub(crate) mod node;
+pub(crate) mod ping;
+pub(crate) mod routing;

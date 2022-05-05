@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
+use std::net::IpAddr;
 
 use log::trace;
 use serde::{Deserialize, Serialize};
@@ -20,33 +21,10 @@ pub struct Node<T> {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct NodeRecord {
     /// URI, only in the case of the market node
-    pub uri: Option<String>,
+    pub ip: Option<IpAddr>,
+    pub port: Option<u16>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct NodeRecordDisk {
-//     pub ip: String,
-// }
-//
-// impl From<NodeRecordDisk> for NodeRecord {
-//     fn from(disk: NodeRecordDisk) -> Self {
-//         NodeRecord {
-//             ip: disk.ip,
-//             ..Default::default()
-//         }
-//     }
-// }
-//
-// impl From<Node<NodeRecordDisk>> for Node<NodeRecord> {
-//     fn from(disk: Node<NodeRecordDisk>) -> Self {
-//         Node {
-//             parent: disk.parent,
-//             children: disk.children,
-//             data: NodeRecord::from(disk.data),
-//         }
-//     }
-// }
 
 #[derive(Debug)]
 pub struct NodeIdList {
@@ -67,20 +45,23 @@ impl From<Vec<NodeId>> for NodeIdList {
 
 #[derive(Debug, Clone)]
 pub struct NodeDescription {
-    pub uri: String,
+    pub ip: IpAddr,
+    pub port: u16,
 }
 
 #[derive(Debug)]
 pub enum NodeSituationData {
     MarketConnected {
         children: HashMap<NodeId, NodeDescription>,
-        market_uri: String,
+        market_ip: IpAddr,
+        market_port: u16,
         my_id: NodeId,
     },
     NodeConnected {
         children: HashMap<NodeId, NodeDescription>,
         parent_id: NodeId,
-        parent_node_uri: String,
+        parent_node_ip: IpAddr,
+        parent_node_port: u16,
         my_id: NodeId,
     },
 }
@@ -88,12 +69,14 @@ pub enum NodeSituationData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeSituationDisk {
     MarketConnected {
-        market_uri: String,
+        market_ip: IpAddr,
+        market_port: u16,
         my_id: NodeId,
     },
     NodeConnected {
         parent_id: NodeId,
-        parent_node_uri: String,
+        parent_node_ip: IpAddr,
+        parent_node_port: u16,
         my_id: NodeId,
     },
 }
@@ -125,21 +108,26 @@ impl NodeSituationDisk {
 impl From<NodeSituationDisk> for NodeSituationData {
     fn from(disk: NodeSituationDisk) -> Self {
         match disk {
-            NodeSituationDisk::MarketConnected { market_uri, my_id } => {
-                NodeSituationData::MarketConnected {
-                    children: HashMap::new(),
-                    market_uri,
-                    my_id,
-                }
-            }
+            NodeSituationDisk::MarketConnected {
+                market_port,
+                market_ip,
+                my_id,
+            } => NodeSituationData::MarketConnected {
+                children: HashMap::new(),
+                market_ip,
+                market_port,
+                my_id,
+            },
             NodeSituationDisk::NodeConnected {
                 parent_id,
-                parent_node_uri,
+                parent_node_port,
+                parent_node_ip,
                 my_id,
             } => NodeSituationData::NodeConnected {
                 children: HashMap::new(),
                 parent_id,
-                parent_node_uri,
+                parent_node_ip,
+                parent_node_port,
                 my_id,
             },
         }

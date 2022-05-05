@@ -38,25 +38,36 @@ impl NodeQueryRESTImpl {
 impl NodeQuery for NodeQueryRESTImpl {
     async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error> {
         trace!("Registering to parent or market...");
-        let upper_uri;
-        if !self.node_situation.is_market().await {
-            upper_uri = self
+        let upper_node_address;
+        if self.node_situation.is_market().await {
+            upper_node_address = self
                 .node_situation
-                .get_parent_node_uri()
+                .get_market_node_address()
                 .await
                 .ok_or(Error::NoURIToUpper)?;
         } else {
-            upper_uri = self
+            upper_node_address = self
                 .node_situation
-                .get_market_node_uri()
+                .get_parent_node_address()
                 .await
                 .ok_or(Error::NoURIToUpper)?;
         }
 
         let client = reqwest::Client::new();
         // Both the market and node APIs offer the same endpoint.
+        trace!(
+            "Registering to {}:{}",
+            upper_node_address.0,
+            upper_node_address.1
+        );
         let response = client
-            .post(format!("http://{}/api/register", upper_uri).as_str())
+            .post(
+                format!(
+                    "http://{}:{}/api/register",
+                    upper_node_address.0, upper_node_address.1
+                )
+                .as_str(),
+            )
             .json(&register)
             .send()
             .await?;

@@ -2,6 +2,7 @@
 extern crate log;
 extern crate core;
 
+use std::net::IpAddr;
 use std::{env, sync::Arc};
 
 use reqwest::Client;
@@ -14,16 +15,19 @@ use manager::openfaas::{configuration::BasicAuth, Configuration, DefaultApiClien
 
 use crate::handler::*;
 use crate::repository::k8s::K8sImpl;
+use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
 use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
 use crate::repository::provisioned::ProvisionedHashMapImpl;
 use crate::service::auction::AuctionImpl;
 use crate::service::faas::OpenFaaSBackend;
 use crate::service::function_life::FunctionLifeImpl;
+use crate::service::neighbor_monitor::NeighborMonitorImpl;
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
 
 mod controller;
+mod cron;
 mod handler;
 mod repository;
 mod service;
@@ -81,6 +85,7 @@ async fn rocket() -> _ {
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(K8sImpl::new());
     let auction_repo = Arc::new(crate::repository::auction::AuctionImpl::new());
+    let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
 
     // Services
     let auction_service = Arc::new(AuctionImpl::new(
@@ -107,6 +112,7 @@ async fn rocket() -> _ {
         node_situation.to_owned(),
         node_query.to_owned(),
     ));
+    let neighbor_monitor_service = Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
 
     if node_situation.is_market().await {
         info!("This node is a provider node located at the market node");
@@ -121,6 +127,8 @@ async fn rocket() -> _ {
         .manage(function_life_service as Arc<dyn crate::service::function_life::FunctionLife>)
         .manage(router_service as Arc<dyn crate::service::routing::Router>)
         .manage(node_life_service as Arc<dyn crate::service::node_life::NodeLife>)
+        .manage(neighbor_monitor_service.clone()
+            as Arc<dyn crate::service::neighbor_monitor::NeighborMonitor>)
         .mount(
             "/swagger-ui/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -135,7 +143,8 @@ async fn rocket() -> _ {
                 post_bid_accept,
                 post_routing,
                 put_routing,
-                post_register_child_node
+                post_register_child_node,
+                post_ping,
             ],
         )
         .attach(AdHoc::on_liftoff(
@@ -143,19 +152,24 @@ async fn rocket() -> _ {
             |rocket| {
                 Box::pin(async {
                     info!("Registering to market and parent...");
-                    let address = rocket.config().address.to_string();
-                    let port = rocket.config().port.to_string();
+                    let address = rocket.config().address;
+                    let port = rocket.config().port;
                     trace!("Register using address: {}:{}", address, port);
-                    register_to_market(node_life_service_clone, format!("{}:{}", address, port))
-                        .await;
+                    register_to_market(node_life_service_clone, address, port).await;
                     info!("Registered to market and parent.");
                 })
             },
         ))
+        .attach(AdHoc::on_liftoff("Starting CRON jobs", |_rocket| {
+            Box::pin(async {
+                cron::init(neighbor_monitor_service);
+                info!("Initialized CRON jobs.");
+            })
+        }))
 }
 
-async fn register_to_market(node_life: Arc<dyn NodeLife>, my_uri: String) {
-    if let Err(err) = node_life.init_registration(my_uri).await {
+async fn register_to_market(node_life: Arc<dyn NodeLife>, my_ip: IpAddr, my_port: u16) {
+    if let Err(err) = node_life.init_registration(my_ip, my_port).await {
         error!("Failed to register to market: {}", err.to_string());
         std::process::exit(1);
     }

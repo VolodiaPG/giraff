@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::net::IpAddr;
 
 use async_trait::async_trait;
 use reqwest::StatusCode;
@@ -20,12 +21,18 @@ pub enum Error {
 #[async_trait]
 pub trait Routing: Debug + Sync + Send {
     /// Forward to the url to be handled by the routing service of the node
-    async fn forward_to_routing(&self, uri: &String, packet: &Packet) -> Result<(), Error>;
+    async fn forward_to_routing(
+        &self,
+        ip: &IpAddr,
+        port: &u16,
+        packet: &Packet,
+    ) -> Result<(), Error>;
 
     /// Forward to the url to be handled by arbitrary route
     async fn forward_to_url<'a, T>(
         &self,
-        node_uri: &String,
+        node_ip: &IpAddr,
+        node_port: &u16,
         resource_uri: &String,
         data: &'a T,
     ) -> Result<(), Error>
@@ -38,9 +45,14 @@ pub struct RoutingImpl;
 
 #[async_trait]
 impl Routing for RoutingImpl {
-    async fn forward_to_routing(&self, uri: &String, packet: &Packet) -> Result<(), Error> {
-        let url = format!("http://{}/api/routing", uri);
-        trace!("Posting to routing on node {}", &uri);
+    async fn forward_to_routing(
+        &self,
+        ip: &IpAddr,
+        port: &u16,
+        packet: &Packet,
+    ) -> Result<(), Error> {
+        let url = format!("http://{}:{}/api/routing", ip, port);
+        trace!("Posting to routing on: {}", &url);
         let client = reqwest::Client::new();
         client
             .post(url)
@@ -53,14 +65,15 @@ impl Routing for RoutingImpl {
 
     async fn forward_to_url<'a, T>(
         &self,
-        node_uri: &String,
+        node_ip: &IpAddr,
+        node_port: &u16,
         resource_uri: &String,
         data: &'a T,
     ) -> Result<(), Error>
     where
         T: Serialize + Send + Sync,
     {
-        let url = format!("http://{}/api/{}", node_uri, resource_uri);
+        let url = format!("http://{}:{}/api/{}", node_ip, node_port, resource_uri);
         trace!("Posting (forward) to {}", &url);
         let client = reqwest::Client::new();
         let res = client

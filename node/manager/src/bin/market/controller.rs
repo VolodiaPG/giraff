@@ -24,8 +24,9 @@ pub async fn start_auction(
     auction_service
         .call_for_bids(payload.target_node, &payload.sla)
         .await?;
-    Ok(auction_service.do_auction(bids).await?)
+    // Ok(auction_service.do_auction(bids).await?)
     // Todo: start cron job to then do the auction + end the auction when all bids have been studied : level 2
+    Ok(())
 }
 
 /// Register a new node in the network

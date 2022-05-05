@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+use std::net::IpAddr;
 
 use crate::helper::chrono as chrono_helper;
 
@@ -47,11 +48,13 @@ pub struct PostNodeResponse {
 pub enum RegisterNode {
     MarketNode {
         node_id: NodeId,
-        uri: String,
+        ip: IpAddr,
+        port: u16,
     },
     Node {
         parent: NodeId,
         node_id: NodeId,
-        uri: String,
+        ip: IpAddr,
+        port: u16,
     },
 }

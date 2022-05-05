@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::net::IpAddr;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -26,7 +27,7 @@ pub trait FogNode: Debug + Sync + Send {
     /// Append a new child to the current node, if fails, then doesn't append
     async fn append_new_child(&self, parent: &NodeId, child: NodeId) -> Result<(), Error>;
     /// Append the root of the tree, i.e., will fail if not the first node in the whole tree, and will fail thereafter
-    async fn append_root(&self, root: NodeId, uri: String) -> Result<(), Error>;
+    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
     /// Return the stack, meaning the destination is at the bottom and the next node is at the top.
     async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
@@ -153,14 +154,15 @@ impl FogNode for FogNodeImpl {
         Ok(())
     }
 
-    async fn append_root(&self, root: NodeId, uri: String) -> Result<(), Error> {
+    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16) -> Result<(), Error> {
         self.nodes.write().await.insert(
             root.clone(),
             Node {
                 parent: None,
                 children: vec![],
                 data: NodeRecord {
-                    uri: Some(uri),
+                    ip: Some(ip),
+                    port: Some(port),
                     ..NodeRecord::default()
                 },
             },

@@ -1,3 +1,4 @@
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -28,7 +29,7 @@ pub trait NodeLife: Send + Sync {
     /// Register locally the child node, but also send the packet towards the market to register it there, also.
     async fn register_child_node(&self, register: RegisterNode) -> Result<(), Error>;
     /// Initialize the negotiating process to get connected to the parent node
-    async fn init_registration(&self, my_node_uri: String) -> Result<(), Error>;
+    async fn init_registration(&self, my_ip: IpAddr, my_port: u16) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -60,14 +61,21 @@ impl NodeLife for NodeLifeImpl {
             RegisterNode::Node {
                 node_id,
                 parent,
-                uri,
+                ip,
+                port,
             } => {
                 if &self.node_situation.get_my_id().await != parent {
                     return Err(Error::NotTheParent);
                 }
 
                 self.node_situation
-                    .register(node_id.clone(), NodeDescription { uri: uri.clone() })
+                    .register(
+                        node_id.clone(),
+                        NodeDescription {
+                            ip: ip.clone(),
+                            port: port.clone(),
+                        },
+                    )
                     .await;
             }
             RegisterNode::MarketNode { .. } => {
@@ -77,23 +85,25 @@ impl NodeLife for NodeLifeImpl {
 
         self.router
             .forward(&Packet::Market {
-                resource_uri: "/register".to_string(),
+                resource_uri: "register".to_string(),
                 data: &*serde_json::value::to_raw_value(&register).unwrap(),
             })
             .await?;
         Ok(())
     }
 
-    async fn init_registration(&self, my_uri: String) -> Result<(), Error> {
+    async fn init_registration(&self, ip: IpAddr, port: u16) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market().await {
             RegisterNode::MarketNode {
                 node_id: self.node_situation.get_my_id().await,
-                uri: my_uri,
+                ip,
+                port,
             }
         } else {
             RegisterNode::Node {
-                uri: my_uri,
+                ip,
+                port,
                 node_id: self.node_situation.get_my_id().await,
                 parent: self
                     .node_situation

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::net::IpAddr;
 
 use manager::model::domain::routing::Packet;
 use manager::model::domain::sla::Sla;
@@ -18,14 +19,16 @@ pub enum Error {
 pub trait NodeCommunication: Sync + Send {
     async fn request_bid_from_node(
         &self,
-        to_uri: String,
+        ip: IpAddr,
+        port: u16,
         route_to_stack: Vec<NodeId>,
         sla: &Sla,
     ) -> Result<(), Error>;
 
     async fn take_offer(
         &self,
-        to_uri: String,
+        ip: IpAddr,
+        port: u16,
         route_to_stack: Vec<NodeId>,
         bid: &BidProposal,
     ) -> Result<(), Error>;
@@ -38,9 +41,9 @@ impl NodeCommunicationThroughRoutingImpl {
         Self {}
     }
 
-    async fn call_routing(&self, to_uri: String, packet: Packet<'_>) -> Result<(), Error> {
+    async fn call_routing(&self, ip: IpAddr, port: u16, packet: Packet<'_>) -> Result<(), Error> {
         let client = reqwest::Client::new();
-        let url = format!("http://{}/api/routing", to_uri);
+        let url = format!("http://{}:{}/api/routing", ip, port);
         trace!("Posting to {}", &url);
         let status = client.post(url).json(&packet).send().await?.status();
 
@@ -56,7 +59,8 @@ impl NodeCommunicationThroughRoutingImpl {
 impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
     async fn request_bid_from_node(
         &self,
-        to_uri: String,
+        ip: IpAddr,
+        port: u16,
         route_to_stack: Vec<NodeId>,
         sla: &Sla,
     ) -> Result<(), Error> {
@@ -66,12 +70,13 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
             data: &*serde_json::value::to_raw_value(sla)?,
         };
 
-        self.call_routing(to_uri, data).await
+        self.call_routing(ip, port, data).await
     }
 
     async fn take_offer(
         &self,
-        to_uri: String,
+        ip: IpAddr,
+        port: u16,
         route_to_stack: Vec<NodeId>,
         bid: &BidProposal,
     ) -> Result<(), Error> {
@@ -81,6 +86,6 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
             data: &*serde_json::value::to_raw_value(&())?,
         };
 
-        self.call_routing(to_uri, data).await
+        self.call_routing(ip, port, data).await
     }
 }

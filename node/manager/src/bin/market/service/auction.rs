@@ -4,6 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 
 use manager::model::domain::auction::{AuctionResult, AuctionStatus, AuctionSummary};
+use manager::model::dto::node::NodeRecord;
 use manager::model::{domain::sla::Sla, NodeId};
 
 #[derive(thiserror::Error, Debug)]
@@ -60,7 +61,7 @@ impl Auction for AuctionImpl {
             first_node_route_stack
         );
 
-        let next_uri = self
+        let (ip, port) = match self
             .fog_node
             .get(
                 first_node_route_stack
@@ -70,11 +71,16 @@ impl Auction for AuctionImpl {
             .await
             .ok_or(Error::NodeIdNotFound(leaf_node))?
             .data
-            .uri
-            .ok_or(Error::FirstNodeInStackIsNotRootNode)?;
+        {
+            NodeRecord { ip, port, .. } => {
+                let ip = ip.ok_or(Error::FirstNodeInStackIsNotRootNode)?.clone();
+                let port = port.ok_or(Error::FirstNodeInStackIsNotRootNode)?.clone();
+                (ip, port)
+            }
+        };
 
         self.node_communication
-            .request_bid_from_node(next_uri, first_node_route_stack, sla)
+            .request_bid_from_node(ip, port, first_node_route_stack, sla)
             .await?;
 
         Ok(())

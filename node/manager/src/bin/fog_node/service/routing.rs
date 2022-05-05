@@ -80,7 +80,7 @@ where
             .await
             .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
-            .forward_to_url(&next.uri, &"register".to_string(), &stack)
+            .forward_to_url(&next.ip, &next.port, &"register".to_string(), &stack)
             .await
             .map_err(Into::into)
     }
@@ -235,7 +235,8 @@ where
                             .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
                         self.routing
                             .forward_to_routing(
-                                &next.uri,
+                                &next.ip,
+                                &next.port,
                                 &Packet::FaaSFunction {
                                     to: to.to_owned(),
                                     data: payload,
@@ -282,7 +283,7 @@ where
                         .await
                         .ok_or(Error::NextNodeDoesntExist(next))?;
                     self.routing
-                        .forward_to_url(&next.uri, &resource_uri, data)
+                        .forward_to_url(&next.ip, &next.port, &resource_uri, data)
                         .await
                         .map_err(Error::from)?;
                     Ok(())
@@ -295,7 +296,8 @@ where
                         .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
                     self.routing
                         .forward_to_routing(
-                            &next.uri,
+                            &next.ip,
+                            &next.port,
                             &Packet::FogNode {
                                 route_to_stack: route_to,
                                 resource_uri: resource_uri.to_owned(),
@@ -309,24 +311,16 @@ where
             }
             Packet::Market { resource_uri, data } => {
                 if self.node_situation.is_market().await {
+                    trace!("Transmitting market packet to market: {:?}", packet);
+                    let (ip, port) = self.node_situation.get_market_node_address().await.unwrap();
                     self.routing
-                        .forward_to_url(
-                            &self.node_situation.get_market_node_uri().await.unwrap(),
-                            resource_uri,
-                            data,
-                        )
+                        .forward_to_url(&ip, &port, resource_uri, data)
                         .await?;
                     Ok(())
                 } else {
-                    self.routing
-                        .forward_to_routing(
-                            &self.node_situation.get_parent_node_uri().await.unwrap(),
-                            &Packet::Market {
-                                resource_uri: resource_uri.to_owned(),
-                                data,
-                            },
-                        )
-                        .await?;
+                    trace!("Transmitting market packet to other node: {:?}", packet);
+                    let (ip, port) = self.node_situation.get_parent_node_address().await.unwrap();
+                    self.routing.forward_to_routing(&ip, &port, packet).await?;
                     Ok(())
                 }
             }

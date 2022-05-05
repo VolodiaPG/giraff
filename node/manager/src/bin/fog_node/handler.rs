@@ -1,19 +1,17 @@
-use std::sync::Arc;
-
+use crate::service::function_life::FunctionLife;
+use crate::service::routing::Router;
+use crate::{controller, NodeLife};
 use manager::helper::handler::Resp;
-use rocket::{post, put, serde::json::Json, State};
-use rocket_okapi::openapi;
-
 use manager::model::domain::routing::{FunctionRoutingStack, Packet};
 use manager::model::domain::sla::Sla;
 use manager::model::view::auction::Bid;
 use manager::model::view::node::RegisterNode;
+use manager::model::view::ping::{Ping, PingResponse};
 use manager::model::BidId;
 use manager::respond;
-
-use crate::service::function_life::FunctionLife;
-use crate::service::routing::Router;
-use crate::{controller, NodeLife};
+use rocket::{post, put, serde::json::Json, State};
+use rocket_okapi::openapi;
+use std::sync::Arc;
 
 /// Return a bid for the SLA.
 #[openapi]
@@ -54,4 +52,10 @@ pub async fn post_register_child_node(
     router: &State<Arc<dyn NodeLife>>,
 ) -> Resp {
     respond!(controller::node::register_child_node(payload.0, router.inner()).await)
+}
+
+#[openapi]
+#[post("/ping", data = "<payload>")]
+pub async fn post_ping(payload: Json<Ping>) -> Json<PingResponse> {
+    controller::ping::ping(payload.0).await.into()
 }
