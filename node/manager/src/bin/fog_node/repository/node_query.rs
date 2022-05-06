@@ -69,20 +69,17 @@ impl NodeQueryRESTImpl {
 impl NodeQuery for NodeQueryRESTImpl {
     async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error> {
         trace!("Registering to parent or market...");
-        let upper_node_address;
-        if self.node_situation.is_market().await {
-            upper_node_address = self
-                .node_situation
+        let upper_node_address = if self.node_situation.is_market().await {
+            self.node_situation
                 .get_market_node_address()
                 .await
-                .ok_or(Error::NoURIToUpper)?;
+                .ok_or(Error::NoURIToUpper)?
         } else {
-            upper_node_address = self
-                .node_situation
+            self.node_situation
                 .get_parent_node_address()
                 .await
-                .ok_or(Error::NoURIToUpper)?;
-        }
+                .ok_or(Error::NoURIToUpper)?
+        };
 
         // Both the market and node APIs offer the same endpoint.
         trace!(
@@ -101,14 +98,12 @@ impl NodeQuery for NodeQueryRESTImpl {
     }
 
     async fn request_neighbor_bid(&self, sla: &Sla, id: NodeId) -> Result<BidProposals, Error> {
-        let (ip, port) = match self
+        let NodeDescription { ip, port, .. } = self
             .node_situation
             .get_fog_node_neighbor(&id)
             .await
-            .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?
-        {
-            NodeDescription { ip, port, .. } => (ip, port),
-        };
+            .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
+        let (ip, port) = (ip, port);
 
         Ok(self.post(&ip, &port, "bid", sla).await?.json().await?)
     }

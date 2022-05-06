@@ -178,7 +178,7 @@ impl FogNode for FogNodeImpl {
         let mut current_cursor = Some(to);
         let mut route_stack = vec![]; // bottom: dest, top: next
         while let Some(current) = &current_cursor {
-            if let Some(node) = self.get(&current).await {
+            if let Some(node) = self.get(current).await {
                 route_stack.push(current.clone());
                 current_cursor = node.parent;
             }

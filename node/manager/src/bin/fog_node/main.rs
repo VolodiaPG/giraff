@@ -11,7 +11,7 @@ use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
 
 use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
-use manager::openfaas::{configuration::BasicAuth, Configuration, DefaultApiClient};
+use manager::openfaas::{Configuration, DefaultApiClient};
 
 use crate::handler::*;
 use crate::repository::k8s::K8sImpl;
@@ -58,12 +58,7 @@ async fn rocket() -> _ {
     debug!("username: {:?}", username);
     debug!("password?: {:?}", password.is_some());
 
-    let auth: Option<BasicAuth>;
-    if let Some(username) = username {
-        auth = Some((username, password));
-    } else {
-        auth = None;
-    }
+    let auth = username.map(|username| (username, password));
 
     // Repositories
     let client = Arc::new(DefaultApiClient::new(Configuration {

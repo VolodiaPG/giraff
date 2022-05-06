@@ -90,8 +90,7 @@ impl FunctionLifeImpl {
             bids: try_join_all(promises)
                 .await?
                 .into_iter()
-                .map(|proposals: BidProposals| proposals.bids)
-                .flatten()
+                .flat_map(|proposals: BidProposals| proposals.bids)
                 .collect(),
         })
     }

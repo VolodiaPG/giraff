@@ -80,9 +80,9 @@ where
             .node_situation
             .get_fog_node_neighbor(to)
             .await
-            .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
+            .ok_or_else(|| Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
-            .forward_to_url(&next.ip, &next.port, &"register".to_string(), &stack)
+            .forward_to_url(&next.ip, &next.port, "register", &stack)
             .await
             .map_err(Error::from)
     }
@@ -103,7 +103,7 @@ where
             stack.route_to_first.pop();
             let next = stack
                 .route_to_first
-                .get(stack.route_to_first.len() - 1)
+                .last()
                 .ok_or(Error::MalformedRoutingStack)?
                 .to_owned();
             self.forward_register_to_node(&next, stack).await?;
@@ -135,7 +135,7 @@ where
                     )
                     .await;
 
-                if left.len() > 0 {
+                if !left.is_empty() {
                     let next = &left[0];
                     self.forward_register_to_node(
                         next,
@@ -172,11 +172,9 @@ where
                 {
                     stack.routes.remove(0);
                     next = Some(&stack.routes[0]);
-                } else if stack.routes.ends_with(&[self
-                    .node_situation
-                    .get_my_id()
-                    .await
-                    .to_owned()])
+                } else if stack
+                    .routes
+                    .ends_with(&[self.node_situation.get_my_id().await])
                 {
                     stack.routes.remove(stack.routes.len() - 1);
                     next = Some(&stack.routes[stack.routes.len() - 1]);
@@ -223,9 +221,9 @@ where
             Packet::FaaSFunction { to, data: payload } => {
                 let node_to = self
                     .faas_routing_table
-                    .get(&to)
+                    .get(to)
                     .await
-                    .ok_or(Error::UnknownBidId(to.to_owned()))?;
+                    .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
                     // TODO: optimization: is it possible to send the packet directly to the node? w/o redoing the same structure, what impact?
@@ -234,7 +232,7 @@ where
                             .node_situation
                             .get_fog_node_neighbor(&next)
                             .await
-                            .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
+                            .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
                         Ok(self
                             .routing
                             .forward_to_routing(
@@ -250,9 +248,9 @@ where
                     Direction::CurrentNode => {
                         let record = self
                             .faas
-                            .get_provisioned_function(&to)
+                            .get_provisioned_function(to)
                             .await
-                            .ok_or(Error::UnknownBidId(to.to_owned()))?;
+                            .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
                         self.faas_api
                             .async_function_name_post(
                                 &*record.function_name,
@@ -286,13 +284,13 @@ where
                         .ok_or(Error::NextNodeDoesntExist(next))?;
                     Ok(self
                         .routing
-                        .forward_to_url(&next.ip, &next.port, &resource_uri, data)
+                        .forward_to_url(&next.ip, &next.port, resource_uri, data)
                         .await?)
                 } else {
                     let next = route_to.last().unwrap();
                     let next = self
                         .node_situation
-                        .get_fog_node_neighbor(&next)
+                        .get_fog_node_neighbor(next)
                         .await
                         .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
                     Ok(self

@@ -33,7 +33,7 @@ async fn rocket() -> _ {
         fog_node_communication,
     ));
     let fog_node_network_service = Arc::new(
-        service::fog_node_network::FogNodeNetworkHashTreeImpl::new(fog_node.clone()),
+        service::fog_node_network::FogNodeNetworkHashTreeImpl::new(fog_node),
     );
 
     rocket::build()

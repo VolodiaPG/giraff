@@ -6,8 +6,8 @@ use crate::helper::uom::cpu_ratio;
 use super::Error;
 
 fn match_unit<T>(raw: &str) -> bool
-    where
-        T: uom::si::Unit + Sized,
+where
+    T: uom::si::Unit + Sized,
 {
     raw == <T as uom::si::Unit>::singular()
         || raw == <T as uom::si::Unit>::abbreviation()

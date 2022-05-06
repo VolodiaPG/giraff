@@ -28,11 +28,11 @@ pub trait Routing: Debug + Sync + Send {
     ) -> Result<Bytes, Error>;
 
     /// Forward to the url to be handled by arbitrary route
-    async fn forward_to_url<'a, T>(
+    async fn forward_to_url<'a, 'b, T>(
         &self,
         node_ip: &IpAddr,
         node_port: &u16,
-        resource_uri: &String,
+        resource_uri: &'b str,
         data: &'a T,
     ) -> Result<Bytes, Error>
     where
@@ -56,11 +56,11 @@ impl Routing for RoutingImpl {
         Ok(client.post(url).json(packet).send().await?.bytes().await?)
     }
 
-    async fn forward_to_url<'a, T>(
+    async fn forward_to_url<'a, 'b, T>(
         &self,
         node_ip: &IpAddr,
         node_port: &u16,
-        resource_uri: &String,
+        resource_uri: &'b str,
         data: &'a T,
     ) -> Result<Bytes, Error>
     where

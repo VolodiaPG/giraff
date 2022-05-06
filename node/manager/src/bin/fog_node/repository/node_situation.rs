@@ -60,8 +60,8 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 let ret = children.get(id).cloned();
                 if ret.is_none() && parent_id == id {
                     return Some(NodeDescription {
-                        ip: parent_node_ip.clone(),
-                        port: parent_node_port.clone(),
+                        ip: *parent_node_ip,
+                        port: *parent_node_port,
                     });
                 }
                 ret
@@ -83,10 +83,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
     }
 
     async fn is_market(&self) -> bool {
-        match &*self.database.read().await {
-            MarketConnected { .. } => true,
-            _ => false,
-        }
+        matches!(&*self.database.read().await, MarketConnected { .. })
     }
 
     async fn get_parent_node_address(&self) -> Option<(IpAddr, u16)> {
@@ -95,7 +92,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 parent_node_ip,
                 parent_node_port,
                 ..
-            } => Some((parent_node_ip.clone(), parent_node_port.clone())),
+            } => Some((*parent_node_ip, *parent_node_port)),
             _ => None,
         }
     }
@@ -106,7 +103,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 market_ip,
                 market_port,
                 ..
-            } => Some((market_ip.clone(), market_port.clone())),
+            } => Some((*market_ip, *market_port)),
             _ => None,
         }
     }

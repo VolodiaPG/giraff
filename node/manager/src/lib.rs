@@ -5,4 +5,3 @@ pub mod helper;
 pub mod kube_metrics;
 pub mod model;
 pub mod openfaas;
-

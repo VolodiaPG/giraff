@@ -18,7 +18,7 @@ pub enum Error {
     #[error(transparent)]
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error(transparent)]
-    RoutingError(#[from] crate::service::routing::Error),
+    Routing(#[from] crate::service::routing::Error),
     #[error("Trying to register/pass a register message for a market node,but it should not happen since the market node is always on top of the tree network.")]
     CannotRegisterMarketOnRegularNode,
 }
@@ -72,8 +72,8 @@ impl NodeLife for NodeLifeImpl {
                     .register(
                         node_id.clone(),
                         NodeDescription {
-                            ip: ip.clone(),
-                            port: port.clone(),
+                            ip: *ip,
+                            port: *port,
                         },
                     )
                     .await;

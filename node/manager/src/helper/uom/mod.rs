@@ -9,8 +9,8 @@ pub enum Error {
 }
 
 pub fn parse_quantity<T>(quantity: &str) -> Result<T, Error>
-    where
-        T: FromStr,
+where
+    T: FromStr,
 {
     let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
 

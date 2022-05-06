@@ -47,7 +47,7 @@ impl AuctionImpl {
 
         let (name, metrics) = aggregated_metrics
             .iter()
-            .find(|(_key, metrics)| self.satisfiability_check(&metrics, &sla))
+            .find(|(_key, metrics)| self.satisfiability_check(metrics, sla))
             .ok_or(Error::Unsatisfiable)?;
 
         let allocatable = metrics.allocatable.as_ref().ok_or(Error::Unsatisfiable)?;
