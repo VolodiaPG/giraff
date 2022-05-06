@@ -1,11 +1,10 @@
-use std::fmt::Debug;
-use std::net::IpAddr;
-
 use async_trait::async_trait;
+use bytes::Bytes;
+use manager::model::domain::routing::Packet;
 use reqwest::StatusCode;
 use serde::Serialize;
-
-use manager::model::domain::routing::Packet;
+use std::fmt::Debug;
+use std::net::IpAddr;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -26,7 +25,7 @@ pub trait Routing: Debug + Sync + Send {
         ip: &IpAddr,
         port: &u16,
         packet: &Packet,
-    ) -> Result<(), Error>;
+    ) -> Result<Bytes, Error>;
 
     /// Forward to the url to be handled by arbitrary route
     async fn forward_to_url<'a, T>(
@@ -35,7 +34,7 @@ pub trait Routing: Debug + Sync + Send {
         node_port: &u16,
         resource_uri: &String,
         data: &'a T,
-    ) -> Result<(), Error>
+    ) -> Result<Bytes, Error>
     where
         T: Serialize + Send + Sync;
 }
@@ -50,17 +49,11 @@ impl Routing for RoutingImpl {
         ip: &IpAddr,
         port: &u16,
         packet: &Packet,
-    ) -> Result<(), Error> {
+    ) -> Result<Bytes, Error> {
         let url = format!("http://{}:{}/api/routing", ip, port);
         trace!("Posting to routing on: {}", &url);
         let client = reqwest::Client::new();
-        client
-            .post(url)
-            .json(packet)
-            .send()
-            .await
-            .map_err(Error::from)?;
-        Ok(())
+        Ok(client.post(url).json(packet).send().await?.bytes().await?)
     }
 
     async fn forward_to_url<'a, T>(
@@ -69,7 +62,7 @@ impl Routing for RoutingImpl {
         node_port: &u16,
         resource_uri: &String,
         data: &'a T,
-    ) -> Result<(), Error>
+    ) -> Result<Bytes, Error>
     where
         T: Serialize + Send + Sync,
     {
@@ -84,7 +77,7 @@ impl Routing for RoutingImpl {
             .map_err(Error::from)?;
 
         if res.status().is_success() {
-            Ok(())
+            Ok(res.bytes().await?)
         } else {
             Err(Error::ForwardingResponse(
                 url,

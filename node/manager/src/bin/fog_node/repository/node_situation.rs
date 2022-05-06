@@ -12,7 +12,7 @@ use manager::model::NodeId;
 pub trait NodeSituation: Debug + Sync + Send {
     async fn register(&self, id: NodeId, description: NodeDescription);
     /// Get a node: children, parent
-    async fn get(&self, id: &NodeId) -> Option<NodeDescription>;
+    async fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription>;
     async fn get_my_id(&self) -> NodeId;
     async fn get_parent_id(&self) -> Option<NodeId>;
     /// Whether the node is connected to the market (i.e., doesn't have any parent = root of the network)
@@ -21,7 +21,7 @@ pub trait NodeSituation: Debug + Sync + Send {
     async fn get_market_node_address(&self) -> Option<(IpAddr, u16)>;
     /// Return iter over both the parent and the children node...
     /// Aka all the nodes interesting that can accommodate a function
-    async fn get_neighbor_nodes_iter(&self) -> Vec<NodeId>;
+    async fn get_neighbors(&self) -> Vec<NodeId>;
 }
 
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
         }
     }
 
-    async fn get(&self, id: &NodeId) -> Option<NodeDescription> {
+    async fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription> {
         match &*self.database.read().await {
             MarketConnected { children, .. } => children.get(id).cloned(),
             NodeConnected {
@@ -111,7 +111,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
         }
     }
 
-    async fn get_neighbor_nodes_iter(&self) -> Vec<NodeId> {
+    async fn get_neighbors(&self) -> Vec<NodeId> {
         match &*self.database.read().await {
             MarketConnected { children, .. } => children.keys().cloned().collect(),
             NodeConnected {

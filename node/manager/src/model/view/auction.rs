@@ -6,6 +6,13 @@ use serde::{Deserialize, Serialize};
 use super::super::domain::sla::Sla;
 use super::super::{BidId, NodeId};
 
+/// Request for a bid over the [Sla] coming from the [NodeId].
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct BidRequest {
+    pub node_origin: NodeId,
+    pub sla: Sla,
+}
+
 /// A bid
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct Bid {
@@ -28,6 +35,11 @@ pub struct BidProposal {
     pub node_id: NodeId,
     pub id: BidId,
     pub bid: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct BidProposals {
+    pub bids: Vec<BidProposal>,
 }
 
 impl PartialOrd for BidProposal {

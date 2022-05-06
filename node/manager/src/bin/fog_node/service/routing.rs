@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 
 use manager::model::domain::routing::Packet;
 use manager::model::dto::routing::Direction;
@@ -35,8 +36,9 @@ pub trait Router: Debug + Send + Sync {
     /// Register a new route, from a [RoutingStack], making the follow up requests left to do in the chain
     async fn register_function_route(&self, stack: FunctionRoutingStack) -> Result<(), Error>;
     /// Forward payloads to a neighbour node
-    async fn forward(&self, packet: &Packet) -> Result<(), Error>;
+    async fn forward(&self, packet: &Packet) -> Result<Bytes, Error>;
 }
+
 #[derive(Debug)]
 pub struct RouterImpl<R>
 where
@@ -73,16 +75,16 @@ where
         &self,
         to: &NodeId,
         stack: FunctionRoutingStack,
-    ) -> Result<(), Error> {
+    ) -> Result<Bytes, Error> {
         let next = self
             .node_situation
-            .get(to)
+            .get_fog_node_neighbor(to)
             .await
             .ok_or(Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
             .forward_to_url(&next.ip, &next.port, &"register".to_string(), &stack)
             .await
-            .map_err(Into::into)
+            .map_err(Error::from)
     }
 }
 
@@ -216,7 +218,7 @@ where
         Err(Error::MalformedRoutingStack)
     }
 
-    async fn forward(&self, packet: &Packet) -> Result<(), Error> {
+    async fn forward(&self, packet: &Packet) -> Result<Bytes, Error> {
         match packet {
             Packet::FaaSFunction { to, data: payload } => {
                 let node_to = self
@@ -230,10 +232,11 @@ where
                     Direction::NextNode(next) => {
                         let next = self
                             .node_situation
-                            .get(&next)
+                            .get_fog_node_neighbor(&next)
                             .await
                             .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
-                        self.routing
+                        Ok(self
+                            .routing
                             .forward_to_routing(
                                 &next.ip,
                                 &next.port,
@@ -242,9 +245,7 @@ where
                                     data: payload,
                                 },
                             )
-                            .await
-                            .map_err(Error::from)?;
-                        Ok(())
+                            .await?)
                     }
                     Direction::CurrentNode => {
                         let record = self
@@ -259,7 +260,8 @@ where
                             )
                             .await
                             .map_err(Error::from)?;
-                        Ok(())
+                        // TODO check if that doesn't cause any harm
+                        Ok(Bytes::new())
                     }
                 }
             }
@@ -279,22 +281,22 @@ where
                     let next = route_to.pop().unwrap();
                     let next = self
                         .node_situation
-                        .get(&next)
+                        .get_fog_node_neighbor(&next)
                         .await
                         .ok_or(Error::NextNodeDoesntExist(next))?;
-                    self.routing
+                    Ok(self
+                        .routing
                         .forward_to_url(&next.ip, &next.port, &resource_uri, data)
-                        .await
-                        .map_err(Error::from)?;
-                    Ok(())
+                        .await?)
                 } else {
-                    let next = route_to.get(route_to.len() - 1).unwrap();
+                    let next = route_to.last().unwrap();
                     let next = self
                         .node_situation
-                        .get(&next)
+                        .get_fog_node_neighbor(&next)
                         .await
-                        .ok_or(Error::NextNodeDoesntExist(next.to_owned()))?;
-                    self.routing
+                        .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
+                    Ok(self
+                        .routing
                         .forward_to_routing(
                             &next.ip,
                             &next.port,
@@ -304,24 +306,21 @@ where
                                 data,
                             },
                         )
-                        .await
-                        .map_err(Error::from)?;
-                    Ok(())
+                        .await?)
                 }
             }
             Packet::Market { resource_uri, data } => {
                 if self.node_situation.is_market().await {
                     trace!("Transmitting market packet to market: {:?}", packet);
                     let (ip, port) = self.node_situation.get_market_node_address().await.unwrap();
-                    self.routing
+                    Ok(self
+                        .routing
                         .forward_to_url(&ip, &port, resource_uri, data)
-                        .await?;
-                    Ok(())
+                        .await?)
                 } else {
                     trace!("Transmitting market packet to other node: {:?}", packet);
                     let (ip, port) = self.node_situation.get_parent_node_address().await.unwrap();
-                    self.routing.forward_to_routing(&ip, &port, packet).await?;
-                    Ok(())
+                    Ok(self.routing.forward_to_routing(&ip, &port, packet).await?)
                 }
             }
         }

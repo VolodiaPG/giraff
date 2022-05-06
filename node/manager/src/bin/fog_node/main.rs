@@ -1,6 +1,6 @@
+extern crate core;
 #[macro_use]
 extern crate log;
-extern crate core;
 
 use std::net::IpAddr;
 use std::{env, sync::Arc};
@@ -96,10 +96,6 @@ async fn rocket() -> _ {
         client.to_owned(),
         provisioned_repo.to_owned(),
     ));
-    let function_life_service = Arc::new(FunctionLifeImpl::new(
-        faas_service.to_owned(),
-        auction_service.to_owned(),
-    ));
     let router_service = Arc::new(RouterImpl::new(
         Arc::new(crate::repository::faas_routing::FaaSRoutingTableHashMap::new()),
         node_situation.to_owned(),
@@ -113,6 +109,13 @@ async fn rocket() -> _ {
         node_query.to_owned(),
     ));
     let neighbor_monitor_service = Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
+    let function_life_service = Arc::new(FunctionLifeImpl::new(
+        faas_service.to_owned(),
+        auction_service.to_owned(),
+        node_situation.to_owned(),
+        neighbor_monitor_service.to_owned(),
+        node_query.to_owned(),
+    ));
 
     if node_situation.is_market().await {
         info!("This node is a provider node located at the market node");

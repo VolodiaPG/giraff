@@ -104,7 +104,7 @@ impl LatencyEstimationImpl {
     ) -> Result<(Time, Time), IndividualError> {
         let desc = self
             .node_situation
-            .get(node_id)
+            .get_fog_node_neighbor(node_id)
             .await
             .ok_or_else(|| IndividualError::NodeNotFound(node_id.clone()))?;
 
@@ -132,7 +132,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
     async fn latency_to_neighbors(&self) -> Result<(), Error> {
         let mut handles = Vec::new();
         let mut tried_nodes = Vec::new(); // same order as handles
-        for node in self.node_situation.get_neighbor_nodes_iter().await {
+        for node in self.node_situation.get_neighbors().await {
             tried_nodes.push(node.clone());
             handles.push(async move {
                 let (incoming, outgoing) = self.make_latency_request_to(&node).await?;
@@ -148,17 +148,6 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .entry(node.clone())
                     .or_default()
                     .update(outgoing);
-
-                trace!(
-                    "Latency to {}: {:?}",
-                    node,
-                    self.get_latency_to_avg(&node).await.unwrap()
-                );
-                trace!(
-                    "Latency from {}: {:?}",
-                    node,
-                    self.get_latency_from_avg(&node).await.unwrap()
-                );
                 Ok(())
             });
         }

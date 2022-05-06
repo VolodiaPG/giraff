@@ -5,6 +5,7 @@ use async_trait::async_trait;
 
 use manager::model::domain::auction::{AuctionResult, AuctionStatus, AuctionSummary};
 use manager::model::dto::node::NodeRecord;
+use manager::model::view::auction::BidProposals;
 use manager::model::{domain::sla::Sla, NodeId};
 
 #[derive(thiserror::Error, Debug)]
@@ -26,7 +27,7 @@ pub enum Error {
 #[async_trait]
 pub trait Auction: Send + Sync {
     /// Call fog nodes for the bids. Will get their bid proposals
-    async fn call_for_bids(&self, leaf_node: NodeId, sla: &Sla) -> Result<(), Error>;
+    async fn call_for_bids(&self, leaf_node: NodeId, sla: Sla) -> Result<BidProposals, Error>;
 
     /// Execute the auction process and find the winner among the bid proposal
     async fn do_auction(&self, summary: AuctionSummary) -> Result<AuctionResult, Error>;
@@ -53,7 +54,7 @@ impl AuctionImpl {
 }
 #[async_trait]
 impl Auction for AuctionImpl {
-    async fn call_for_bids(&self, leaf_node: NodeId, sla: &Sla) -> Result<(), Error> {
+    async fn call_for_bids(&self, leaf_node: NodeId, sla: Sla) -> Result<BidProposals, Error> {
         trace!("call for bids: {:?}", sla);
         let first_node_route_stack = self.fog_node.get_route_to_node(leaf_node.clone()).await;
         trace!(
@@ -61,29 +62,26 @@ impl Auction for AuctionImpl {
             first_node_route_stack
         );
 
-        let (ip, port) = match self
+        let NodeRecord { ip, port, .. } = self
             .fog_node
             .get(
                 first_node_route_stack
-                    .get(first_node_route_stack.len() - 1)
-                    .ok_or(Error::StackEmpty(leaf_node.clone()))?,
+                    .last()
+                    .ok_or_else(|| Error::StackEmpty(leaf_node.clone()))?,
             )
             .await
             .ok_or(Error::NodeIdNotFound(leaf_node))?
-            .data
-        {
-            NodeRecord { ip, port, .. } => {
-                let ip = ip.ok_or(Error::FirstNodeInStackIsNotRootNode)?.clone();
-                let port = port.ok_or(Error::FirstNodeInStackIsNotRootNode)?.clone();
-                (ip, port)
-            }
+            .data;
+        let (ip, port) = {
+            let ip = ip.ok_or(Error::FirstNodeInStackIsNotRootNode)?;
+            let port = port.ok_or(Error::FirstNodeInStackIsNotRootNode)?;
+            (ip, port)
         };
 
-        self.node_communication
-            .request_bid_from_node(ip, port, first_node_route_stack, sla)
-            .await?;
-
-        Ok(())
+        Ok(self
+            .node_communication
+            .request_bids_from_node(ip, port, first_node_route_stack, sla)
+            .await?)
     }
 
     async fn do_auction(&self, summary: AuctionSummary) -> Result<AuctionResult, Error> {
