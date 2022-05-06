@@ -6,9 +6,8 @@ use async_trait::async_trait;
 use reqwest::Response;
 use serde::Serialize;
 
-use manager::model::domain::sla::Sla;
 use manager::model::dto::node::NodeDescription;
-use manager::model::view::auction::BidProposals;
+use manager::model::view::auction::{BidProposals, BidRequest};
 use manager::model::view::node::RegisterNode;
 use manager::model::NodeId;
 
@@ -30,7 +29,11 @@ pub enum Error {
 pub trait NodeQuery: Debug + Sync + Send {
     /// Update the breadcrumb route to the [BidId] passing by the next [NodeId].
     async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error>;
-    async fn request_neighbor_bid(&self, sla: &Sla, node: NodeId) -> Result<BidProposals, Error>;
+    async fn request_neighbor_bid(
+        &self,
+        request: Arc<BidRequest>,
+        node: NodeId,
+    ) -> Result<BidProposals, Error>;
 }
 
 #[derive(Debug)]
@@ -97,7 +100,11 @@ impl NodeQuery for NodeQueryRESTImpl {
         Ok(())
     }
 
-    async fn request_neighbor_bid(&self, sla: &Sla, id: NodeId) -> Result<BidProposals, Error> {
+    async fn request_neighbor_bid(
+        &self,
+        request: Arc<BidRequest>,
+        id: NodeId,
+    ) -> Result<BidProposals, Error> {
         let NodeDescription { ip, port, .. } = self
             .node_situation
             .get_fog_node_neighbor(&id)
@@ -105,6 +112,6 @@ impl NodeQuery for NodeQueryRESTImpl {
             .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
         let (ip, port) = (ip, port);
 
-        Ok(self.post(&ip, &port, "bid", sla).await?.json().await?)
+        Ok(self.post(&ip, &port, "bid", &request).await?.json().await?)
     }
 }

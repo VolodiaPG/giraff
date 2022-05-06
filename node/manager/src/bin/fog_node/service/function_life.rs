@@ -3,9 +3,9 @@ use crate::service::faas::FaaSBackend;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
 use async_trait::async_trait;
-use futures::future::{join, join3, try_join_all};
+use futures::future::{join3, try_join_all};
 use manager::model::domain::sla::Sla;
-use manager::model::view::auction::{BidProposal, BidProposals};
+use manager::model::view::auction::{BidProposal, BidProposals, BidRequest};
 use manager::model::{BidId, NodeId};
 use std::sync::Arc;
 use uom::fmt::DisplayStyle::Abbreviation;
@@ -65,6 +65,12 @@ impl FunctionLifeImpl {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
     async fn follow_up_to_neighbors(&self, sla: Sla, from: NodeId) -> Result<BidProposals, Error> {
         let mut promises = vec![];
+
+        let request = Arc::new(BidRequest {
+            sla: sla.clone(),
+            node_origin: self.node_situation.get_my_id().await,
+        });
+
         for neighbor in self.node_situation.get_neighbors().await {
             if neighbor == from {
                 continue;
@@ -83,7 +89,10 @@ impl FunctionLifeImpl {
                 continue;
             }
 
-            promises.push(self.node_query.request_neighbor_bid(&sla, neighbor.clone()));
+            promises.push(
+                self.node_query
+                    .request_neighbor_bid(request.clone(), neighbor.clone()),
+            );
         }
 
         Ok(BidProposals {
@@ -103,15 +112,16 @@ impl FunctionLife for FunctionLifeImpl {
         sla: Sla,
         from: NodeId,
     ) -> Result<BidProposals, Error> {
-        let (my_id, result_bid) = join(
+        let (my_id, result_bid, proposals) = join3(
             self.node_situation.get_my_id(),
             self.auction.bid_on(sla.clone()),
-            // self.follow_up_to_neighbors(sla, from),
+            self.follow_up_to_neighbors(sla, from),
         )
         .await;
 
         let (bid, bid_record) = result_bid?;
-        let mut proposals = BidProposals { bids: vec![] };
+        let mut proposals = proposals?;
+
         proposals.bids.push(BidProposal {
             node_id: my_id,
             id: bid,
