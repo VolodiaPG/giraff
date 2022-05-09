@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use crate::model::dto::auction::ChosenBid;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
@@ -27,10 +28,10 @@ pub struct Bid {
 }
 
 /// The accepted bid
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct AcceptedBid {
-    pub sla: Sla,
-    pub bid: BidProposal,
+    pub chosen: ChosenBid,
+    pub proposals: BidProposals,
 }
 
 /// The bid proposal and the node who issued it

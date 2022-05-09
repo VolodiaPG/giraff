@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use manager::model::domain::auction::{AuctionResult, AuctionStatus, AuctionSummary};
+use manager::model::domain::auction::AuctionResult;
 use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::BidProposals;
 use manager::model::{domain::sla::Sla, NodeId};
@@ -12,8 +12,6 @@ use manager::model::{domain::sla::Sla, NodeId};
 pub enum Error {
     #[error("Node Id was not found: {0}.")]
     NodeIdNotFound(NodeId),
-    #[error("Auction status doesn't allow that action to take place.")]
-    AuctionNotInRightStatus,
     #[error("No winner were selected after the auction took place")]
     NoWinner,
     #[error("Stack to targeted node is empty: {0}.")]
@@ -30,7 +28,7 @@ pub trait Auction: Send + Sync {
     async fn call_for_bids(&self, leaf_node: NodeId, sla: Sla) -> Result<BidProposals, Error>;
 
     /// Execute the auction process and find the winner among the bid proposal
-    async fn do_auction(&self, summary: AuctionSummary) -> Result<AuctionResult, Error>;
+    async fn do_auction(&self, proposals: &BidProposals) -> Result<AuctionResult, Error>;
 }
 
 pub struct AuctionImpl {
@@ -84,15 +82,13 @@ impl Auction for AuctionImpl {
             .await?)
     }
 
-    async fn do_auction(&self, summary: AuctionSummary) -> Result<AuctionResult, Error> {
-        trace!("do auction: {:?}", summary);
-        let bids = match summary.status {
-            AuctionStatus::Active(bids) => bids,
-            _ => return Err(Error::AuctionNotInRightStatus),
-        };
-        let auction_result = self.auction_process.auction(&bids).ok_or(Error::NoWinner)?;
+    async fn do_auction(&self, proposals: &BidProposals) -> Result<AuctionResult, Error> {
+        trace!("do auction: {:?}", proposals);
+        let auction_result = self
+            .auction_process
+            .auction(&proposals.bids)
+            .ok_or(Error::NoWinner)?;
         Ok(AuctionResult {
-            bids,
             chosen_bid: auction_result,
         })
     }

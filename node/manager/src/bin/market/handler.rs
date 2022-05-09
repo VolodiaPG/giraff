@@ -5,7 +5,7 @@ use rocket::{post, put, State};
 use rocket_okapi::openapi;
 
 use manager::helper::handler::Resp;
-use manager::model::view::auction::BidProposals;
+use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
 use manager::respond;
@@ -18,7 +18,7 @@ use crate::controller;
 pub async fn put_function(
     payload: Json<PutSla>,
     auction_service: &State<Arc<dyn crate::service::auction::Auction>>,
-) -> Resp<BidProposals> {
+) -> Resp<AcceptedBid> {
     respond!(controller::start_auction(payload.0, auction_service.inner()).await)
 }
 

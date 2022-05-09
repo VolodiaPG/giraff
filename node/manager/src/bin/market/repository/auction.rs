@@ -18,17 +18,18 @@ impl Auction for SecondPriceAuction {
         let mut bids = bids.iter().collect::<Vec<_>>();
         bids.sort_unstable_by(|a, b| a.bid.partial_cmp(&b.bid).unwrap());
         bids.reverse();
-        match bids.get(0).cloned().cloned() {
-            Some(bid) => {
-                // TODO: this is not right !!!!
-                let price = if let Some(second_bid) = bids.get(1) {
-                    second_bid.bid
-                } else {
-                    bid.bid
-                };
-                Some(ChosenBid { bid, price })
-            }
-            None => None,
+        let first = bids.get(0);
+        let second = bids.get(1);
+        match (first.cloned().cloned(), second) {
+            (Some(first), Some(second)) => Some(ChosenBid {
+                price: second.bid,
+                bid: first,
+            }),
+            (Some(first), None) => Some(ChosenBid {
+                price: first.bid,
+                bid: first,
+            }),
+            _ => None,
         }
     }
 }

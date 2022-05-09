@@ -19,6 +19,5 @@ pub struct AuctionSummary {
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AuctionResult {
-    pub bids: Vec<BidProposal>,
     pub chosen_bid: ChosenBid,
 }

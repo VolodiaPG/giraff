@@ -1,5 +1,6 @@
 use anyhow::Result;
-use manager::model::view::auction::BidProposals;
+use manager::model::domain::auction::AuctionResult;
+use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
 use std::sync::Arc;
@@ -19,14 +20,18 @@ pub enum ControllerError {
 pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<dyn crate::service::auction::Auction>,
-) -> Result<BidProposals, ControllerError> {
+) -> Result<AcceptedBid, ControllerError> {
     trace!("put sla: {:?}", payload);
 
-    Ok(auction_service
+    let proposals = auction_service
         .call_for_bids(payload.target_node, payload.sla)
-        .await?)
-    // Ok(auction_service.do_auction(bids).await?)
-    // Todo: start cron job to then do the auction + end the auction when all bids have been studied : level 2
+        .await?;
+    let AuctionResult { chosen_bid } = auction_service.do_auction(&proposals).await?;
+
+    Ok(AcceptedBid {
+        chosen: chosen_bid,
+        proposals,
+    })
 }
 
 /// Register a new node in the network
