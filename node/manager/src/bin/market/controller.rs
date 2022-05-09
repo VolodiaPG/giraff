@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::convert::Infallible;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -6,6 +8,7 @@ use manager::model::domain::auction::AuctionResult;
 use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
+use manager::model::NodeId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
@@ -34,12 +37,14 @@ pub async fn start_auction(
 
     let AuctionResult { chosen_bid } = auction_service.do_auction(&proposals).await?;
 
-    faas_service.provision_function(&chosen_bid).await?;
-
-    Ok(AcceptedBid {
+    let accepted = AcceptedBid {
         chosen: chosen_bid,
         proposals,
-    })
+    };
+
+    faas_service.provision_function(accepted.clone()).await?;
+
+    Ok(accepted)
 }
 
 /// Register a new node in the network
@@ -50,4 +55,12 @@ pub async fn register_node(
     trace!("registering new node: {:?}", payload);
     fog_net.register_node(payload).await?;
     Ok(())
+}
+
+/// Get all the provisioned functions from the database
+pub async fn get_functions(
+    faas_service: &Arc<dyn crate::service::faas::FogNodeFaaS>,
+) -> Result<HashMap<NodeId, Vec<AcceptedBid>>, Infallible> {
+    trace!("getting functions");
+    Ok(faas_service.get_functions().await)
 }

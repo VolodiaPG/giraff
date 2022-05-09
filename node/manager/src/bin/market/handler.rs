@@ -1,13 +1,15 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use rocket::serde::json::Json;
-use rocket::{post, put, State};
+use rocket::{get, post, put, State};
 use rocket_okapi::openapi;
 
 use manager::helper::handler::Resp;
 use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
+use manager::model::NodeId;
 use manager::respond;
 
 use crate::controller;
@@ -33,4 +35,13 @@ pub async fn post_register_node(
     node_net: &State<Arc<dyn crate::service::fog_node_network::FogNodeNetwork>>,
 ) -> Resp {
     respond!(controller::register_node(payload.0, node_net.inner()).await)
+}
+
+/// Get all the successfull transactions (function provisioned) done by the market since its boot.
+#[openapi]
+#[get("/functions")]
+pub async fn get_functions(
+    faas_service: &State<Arc<dyn crate::service::faas::FogNodeFaaS>>,
+) -> Resp<HashMap<NodeId, Vec<AcceptedBid>>> {
+    respond!(controller::get_functions(faas_service.inner()).await)
 }
