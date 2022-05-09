@@ -23,10 +23,10 @@ pub struct PodMetrics {
 }
 
 impl k8s_openapi::Resource for PodMetrics {
+    const API_VERSION: &'static str = "metrics.k8s.io/v1beta1";
     const GROUP: &'static str = "metrics.k8s.io";
     const KIND: &'static str = "pod";
     const VERSION: &'static str = "v1beta1";
-    const API_VERSION: &'static str = "metrics.k8s.io/v1beta1";
     const URL_PATH_SEGMENT: &'static str = "pods";
     type Scope = k8s_openapi::NamespaceResourceScope;
 }
