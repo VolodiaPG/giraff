@@ -1,10 +1,12 @@
-use async_trait::async_trait;
-use bytes::Bytes;
-use manager::model::domain::routing::Packet;
-use reqwest::StatusCode;
-use serde::Serialize;
 use std::fmt::Debug;
 use std::net::IpAddr;
+
+use async_trait::async_trait;
+use bytes::Bytes;
+use reqwest::StatusCode;
+use serde::Serialize;
+
+use manager::model::domain::routing::Packet;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -42,6 +44,26 @@ pub trait Routing: Debug + Sync + Send {
 #[derive(Debug, Default)]
 pub struct RoutingImpl;
 
+impl RoutingImpl {
+    async fn forward_to<'a, T>(&self, data: &'a T, full_url: &'a str) -> Result<Bytes, Error>
+    where
+        T: Serialize + Send + Sync,
+    {
+        let client = reqwest::Client::new();
+        let res = client.post(full_url).json(data).send().await?;
+
+        if res.status().is_success() {
+            Ok(res.bytes().await?)
+        } else {
+            Err(Error::ForwardingResponse(
+                full_url.to_string(),
+                res.status(),
+                res.text().await.unwrap(),
+            ))
+        }
+    }
+}
+
 #[async_trait]
 impl Routing for RoutingImpl {
     async fn forward_to_routing(
@@ -52,8 +74,7 @@ impl Routing for RoutingImpl {
     ) -> Result<Bytes, Error> {
         let url = format!("http://{}:{}/api/routing", ip, port);
         trace!("Posting to routing on: {}", &url);
-        let client = reqwest::Client::new();
-        Ok(client.post(url).json(packet).send().await?.bytes().await?)
+        self.forward_to(&packet, &url).await
     }
 
     async fn forward_to_url<'a, 'b, T>(
@@ -68,22 +89,6 @@ impl Routing for RoutingImpl {
     {
         let url = format!("http://{}:{}/api/{}", node_ip, node_port, resource_uri);
         trace!("Posting (forward) to {}", &url);
-        let client = reqwest::Client::new();
-        let res = client
-            .post(url.to_owned())
-            .json(data)
-            .send()
-            .await
-            .map_err(Error::from)?;
-
-        if res.status().is_success() {
-            Ok(res.bytes().await?)
-        } else {
-            Err(Error::ForwardingResponse(
-                url,
-                res.status(),
-                res.text().await.unwrap(),
-            ))
-        }
+        self.forward_to(data, &url).await
     }
 }

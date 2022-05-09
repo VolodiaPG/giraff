@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+
 use manager::model::domain::auction::AuctionResult;
 use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::RegisterNode;
 use manager::model::view::sla::PutSla;
-use std::sync::Arc;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
@@ -11,6 +13,8 @@ pub enum ControllerError {
     Auction(#[from] crate::service::auction::Error),
     #[error(transparent)]
     FogNodeNetwork(#[from] crate::service::fog_node_network::Error),
+    #[error(transparent)]
+    FaaS(#[from] crate::service::faas::Error),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }
@@ -20,13 +24,17 @@ pub enum ControllerError {
 pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<dyn crate::service::auction::Auction>,
+    faas_service: &Arc<dyn crate::service::faas::FogNodeFaaS>,
 ) -> Result<AcceptedBid, ControllerError> {
     trace!("put sla: {:?}", payload);
 
     let proposals = auction_service
         .call_for_bids(payload.target_node, payload.sla)
         .await?;
+
     let AuctionResult { chosen_bid } = auction_service.do_auction(&proposals).await?;
+
+    faas_service.provision_function(&chosen_bid).await?;
 
     Ok(AcceptedBid {
         chosen: chosen_bid,

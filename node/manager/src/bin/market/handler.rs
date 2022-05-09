@@ -18,8 +18,11 @@ use crate::controller;
 pub async fn put_function(
     payload: Json<PutSla>,
     auction_service: &State<Arc<dyn crate::service::auction::Auction>>,
+    faas_service: &State<Arc<dyn crate::service::faas::FogNodeFaaS>>,
 ) -> Resp<AcceptedBid> {
-    respond!(controller::start_auction(payload.0, auction_service.inner()).await)
+    respond!(
+        controller::start_auction(payload.0, auction_service.inner(), faas_service.inner()).await
+    )
 }
 
 /// Register a new node in the network
