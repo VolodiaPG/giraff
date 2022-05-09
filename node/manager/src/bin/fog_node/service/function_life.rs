@@ -9,6 +9,7 @@ use manager::model::view::auction::{BidProposal, BidProposals, BidRequest};
 use manager::model::{BidId, NodeId};
 use std::sync::Arc;
 use uom::fmt::DisplayStyle::Abbreviation;
+use uom::si::f64::Time;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -32,6 +33,7 @@ pub trait FunctionLife: Send + Sync {
         &self,
         sla: Sla,
         from: NodeId,
+        accumulated_latency: Time,
     ) -> Result<BidProposals, Error>;
 
     async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error>;
@@ -63,13 +65,13 @@ impl FunctionLifeImpl {
     }
 
     /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
-    async fn follow_up_to_neighbors(&self, sla: Sla, from: NodeId) -> Result<BidProposals, Error> {
+    async fn follow_up_to_neighbors(
+        &self,
+        sla: Sla,
+        from: NodeId,
+        accumulated_latency: Time,
+    ) -> Result<BidProposals, Error> {
         let mut promises = vec![];
-
-        let request = Arc::new(BidRequest {
-            sla: sla.clone(),
-            node_origin: self.node_situation.get_my_id().await,
-        });
 
         for neighbor in self.node_situation.get_neighbors().await {
             if neighbor == from {
@@ -80,7 +82,7 @@ impl FunctionLifeImpl {
                 .get_latency_to_avg(&neighbor)
                 .await
                 .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
-            if latency_outbound > sla.latency_max {
+            if latency_outbound + accumulated_latency > sla.latency_max {
                 trace!(
                     "Skipping neighbor {} because latency is too high ({}).",
                     neighbor,
@@ -89,10 +91,14 @@ impl FunctionLifeImpl {
                 continue;
             }
 
-            promises.push(
-                self.node_query
-                    .request_neighbor_bid(request.clone(), neighbor.clone()),
-            );
+            promises.push(self.node_query.request_neighbor_bid(
+                BidRequest {
+                    sla: sla.clone(),
+                    node_origin: self.node_situation.get_my_id().await,
+                    accumulated_latency: accumulated_latency + latency_outbound,
+                },
+                neighbor.clone(),
+            ));
         }
 
         Ok(BidProposals {
@@ -111,11 +117,12 @@ impl FunctionLife for FunctionLifeImpl {
         &self,
         sla: Sla,
         from: NodeId,
+        accumulated_latency: Time,
     ) -> Result<BidProposals, Error> {
         let (my_id, result_bid, proposals) = join3(
             self.node_situation.get_my_id(),
             self.auction.bid_on(sla.clone()),
-            self.follow_up_to_neighbors(sla, from),
+            self.follow_up_to_neighbors(sla, from, accumulated_latency),
         )
         .await;
 

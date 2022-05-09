@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use bytes::Bytes;
 use std::net::IpAddr;
+use uom::si::f64::Time;
+use uom::si::time::second;
 
 use manager::model::domain::routing::Packet;
 use manager::model::domain::sla::Sla;
@@ -80,6 +82,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
                     .first()
                     .ok_or(Error::EmptyRoutingStack)?
                     .clone(),
+                accumulated_latency: Time::new::<second>(0.0),
             })?,
             route_to_stack,
         };

@@ -13,7 +13,11 @@ pub async fn bid_on(
 ) -> Result<BidProposals, ControllerError> {
     trace!("bidding on... {:?}", bid_request);
     function
-        .bid_on_new_function_and_transmit(bid_request.sla, bid_request.node_origin)
+        .bid_on_new_function_and_transmit(
+            bid_request.sla,
+            bid_request.node_origin,
+            bid_request.accumulated_latency,
+        )
         .await
         .map_err(ControllerError::from)
 }

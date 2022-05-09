@@ -31,7 +31,7 @@ pub trait NodeQuery: Debug + Sync + Send {
     async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error>;
     async fn request_neighbor_bid(
         &self,
-        request: Arc<BidRequest>,
+        request: BidRequest,
         node: NodeId,
     ) -> Result<BidProposals, Error>;
 }
@@ -102,7 +102,7 @@ impl NodeQuery for NodeQueryRESTImpl {
 
     async fn request_neighbor_bid(
         &self,
-        request: Arc<BidRequest>,
+        request: BidRequest,
         id: NodeId,
     ) -> Result<BidProposals, Error> {
         let NodeDescription { ip, port, .. } = self

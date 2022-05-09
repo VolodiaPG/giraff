@@ -2,15 +2,20 @@ use std::cmp::Ordering;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use uom::si::f64::Time;
 
 use super::super::domain::sla::Sla;
 use super::super::{BidId, NodeId};
 
-/// Request for a bid over the [Sla] coming from the [NodeId].
+#[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BidRequest {
     pub node_origin: NodeId,
     pub sla: Sla,
+    #[schemars(schema_with = "crate::helper::uom::time::schema_function")]
+    #[serde_as(as = "crate::helper::uom::time::Helper")]
+    pub accumulated_latency: Time,
 }
 
 /// A bid
