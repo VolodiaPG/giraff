@@ -56,7 +56,7 @@ multipass delete --all --purge
 
 `$USER` represents your grid'5000 account name
 ```sh
-ssh $USER@acccess.grid500.fr
+ssh $USER@access.grid5000.fr
 ssh rennes
 ```
 
