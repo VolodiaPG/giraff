@@ -2,8 +2,9 @@ extern crate core;
 #[macro_use]
 extern crate log;
 
+use std::io::Read;
 use std::net::IpAddr;
-use std::{env, sync::Arc};
+use std::{env, io, sync::Arc};
 
 use reqwest::Client;
 use rocket::fairing::AdHoc;
@@ -66,7 +67,12 @@ async fn rocket() -> _ {
         client: Client::new(),
         basic_auth: auth,
     }));
-    let disk_data = NodeSituationDisk::new(path_node_situation);
+    let mut buffer = String::new();
+    if let Err(err) = io::stdin().read_to_string(&mut buffer) {
+        error!("Error reading stdin: {}", err);
+        std::process::exit(1);
+    }
+    let disk_data = NodeSituationDisk::new(buffer);
     if let Err(e) = disk_data {
         error!("Error loading node situation from disk: {}", e);
         std::process::exit(1);

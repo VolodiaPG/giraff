@@ -97,10 +97,8 @@ pub enum NodeSituationDisk {
 /// )
 /// ```
 impl NodeSituationDisk {
-    pub fn new(path: String) -> anyhow::Result<Self> {
-        let content = fs::read_to_string(path.clone())?;
+    pub fn new(content: String) -> anyhow::Result<Self> {
         let situation = ron::from_str::<NodeSituationDisk>(&content)?;
-        trace!("Loading nodes from disk, path: {}", path);
         Ok(situation)
     }
 }
