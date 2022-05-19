@@ -49,10 +49,8 @@ async fn rocket() -> _ {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .unwrap_or(8080);
-    debug!("OpenFaaS port: {}", port_openfaas);
-    let path_node_situation =
-        env::var("NODE_SITUATION_PATH").unwrap_or_else(|_| "node_situation.ron".to_string());
-    debug!("Loading node situation from: {}", path_node_situation);
+    let ip_openfaas = env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    debug!("OpenFaaS uri: {}:{}", ip_openfaas, port_openfaas);
 
     let username = env::var("OPENFAAS_USERNAME").ok();
     let password = env::var("OPENFAAS_PASSWORD").ok();
@@ -63,7 +61,7 @@ async fn rocket() -> _ {
 
     // Repositories
     let client = Arc::new(DefaultApiClient::new(Configuration {
-        base_path: format!("http://localhost:{}", port_openfaas),
+        base_path: format!("http://{}:{}", ip_openfaas, port_openfaas),
         client: Client::new(),
         basic_auth: auth,
     }));

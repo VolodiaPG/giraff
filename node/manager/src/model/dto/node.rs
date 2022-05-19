@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
 use std::net::IpAddr;
 
-use log::trace;
 use serde::{Deserialize, Serialize};
 
 use crate::model::view::auction::AcceptedBid;

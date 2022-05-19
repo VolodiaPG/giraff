@@ -17,6 +17,8 @@ CREATE_PROXY = "kubectl proxy --address='0.0.0.0' --accept-hosts='.*'"
 KEY = "kubectl proxy"
 GUARD_PROXY = f"ps aux | grep '{KEY}' | grep -v '{KEY}'"
 
+# Where to find  the `manager` folder
+PATH = ".." + "/"
 
 def log_cmd(results):
     for res in results.data:
@@ -81,13 +83,13 @@ def init():
 @click.option("--force", is_flag=True, help="destroy and up")
 @enostask(new=True)
 def up(force, env=None, **kwargs):
-    network = en.G5kNetworkConf(type="prod", roles=["my_network"], site="rennes")
+    network = en.G5kNetworkConf(type="prod", roles=["my_network"], site="lyon")
 
     conf = (
-        en.G5kConf.from_settings(job_type="allow_classic_ssh", job_name="EnosLib FTW")
+        en.G5kConf.from_settings(job_type="exotic", job_name="EnosLib FTW")
             .add_network_conf(network)
             .add_machine(
-            roles=["builder"], cluster="parasilo", nodes=1, primary_network=network
+            roles=["builder"], cluster="neowise", nodes=1, primary_network=network
         )
             .finalize()
     )
@@ -126,11 +128,11 @@ def upload(env=None, **kwargs):
     log_cmd(res)
 
     address = roles['builder'][0].address
-    subprocess.run(["scp", "../manager/Cargo.toml", f"{address}:/tmp/manager/"])
-    subprocess.run(["scp", "../manager/Cargo.lock", f"{address}:/tmp/manager/"])
-    subprocess.run(["scp", "-r", "../manager/src", f"{address}:/tmp/manager/"])
-    subprocess.run(["scp", "../manager/Dockerfile", f"{address}:/tmp/manager/"])
-    subprocess.run(["scp", "../manager/.dockerignore", f"{address}:/tmp/manager/"])
+    subprocess.run(["scp", PATH + "manager/Cargo.toml", f"{address}:/tmp/manager/"])
+    subprocess.run(["scp", PATH + "manager/Cargo.lock", f"{address}:/tmp/manager/"])
+    subprocess.run(["scp", "-r", PATH + "manager/src", f"{address}:/tmp/manager/"])
+    subprocess.run(["scp", PATH + "manager/Dockerfile", f"{address}:/tmp/manager/"])
+    subprocess.run(["scp", PATH + "manager/.dockerignore", f"{address}:/tmp/manager/"])
 
 
 @cli.command()
@@ -142,7 +144,11 @@ def build(env=None, **kwargs):
     with en.Docker(agent=roles["builder"]):
         try:
             res = en.run_command(
-                'cd /tmp/manager && docker build -t fog_node:latest . && docker save fog_node:latest > gzip > /tmp/fog_node_latest.tar.gz',
+                'cd /tmp/manager '
+                ' && docker build -t fog_node:latest --target fog_node .'
+                ' && docker build -t market:latest --target market .'
+                ' && docker save fog_node:latest > gzip > /tmp/fog_node_latest.tar.gz'
+                ' && docker save market:latest > gzip > /tmp/market_latest.tar.gz',
                 roles=roles["builder"])
             log_cmd(res)
         except EnosFailedHostsError as err:
@@ -162,6 +168,21 @@ def download(env=None, **kwargs):
 
     address = roles['builder'][0].address
     subprocess.run(["scp", f"{address}:/tmp/fog_node_latest.tar.gz", "./"])
+    subprocess.run(["scp", f"{address}:/tmp/market_latest.tar.gz", "./"])
+
+
+@cli.command()
+@click.option("--user", help="The Github user to upload the image to", required=True)
+@enostask()
+def ghcr(user=None, env=None, **kwargs):
+    """Upload to ghcr.io"""
+    def do_it(image_name):
+        subprocess.run(["bash", "-c", f"docker load < ./{image_name}_latest.tar.gz"])
+        subprocess.run(["docker", "tag", f"{image_name}:latest", f"ghcr.io/{user}/{image_name}:latest"])
+        subprocess.run(["docker", "push", f"ghcr.io/{user}/{image_name}:latest"])
+
+    do_it("market")
+    do_it("fog_node")
 
 
 @cli.command()
