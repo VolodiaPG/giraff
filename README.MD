@@ -20,6 +20,8 @@ And to reserve the cluster to then execute use the verb: `up` (respectively `cle
 
 Another script that builds the docker images used in k8s is available under `/build`.
 
+> When installing locally, the project is behaving like a standard Rust project, and follows the Clean Web Architecture: (REST API talks to services implementing behaviors that talks to repositories translating the calls to specific instructions to OpenFaaS, etc.)
+
 ## Install Locally (with multipass) (deprecated)
 
 ### Requirements
