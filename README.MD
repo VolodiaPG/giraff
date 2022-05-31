@@ -2,13 +2,25 @@
 
 1. This repository contains a collection of functions ready to be deployed on an OpenFaaS Fog infrastructure.
 
-2. It also hosts a WiP framework to host functions in a Fog network.
+2. It also is home to a framework that can be used on Fog networks (simple ones for now) to allocate functions using auctions and Service Level Agreements as a way to describe the functions requirements (CPU, RAM, latency, etc.).
 
-> Due to a current bug, one may have to compile (`faas up`) once, then `touch` the file and redo it, why? Idk
+> Please consider this project does not have reached alpha version yet and is still under heavy development
 
 # Installation
 
-## Install Locally (with multipass)
+## Use Grid5000
+
+Most of the deployment process has now been streamlined to Grid5000 using [EnosLib](https://gitlab.inria.fr/discovery/enoslib) as the simplification vector.
+
+As this section is deeply linked with the evaluation process, documentation changes often. Most of the process can be described by reading the CLI help of the scripts living in `node/manager/experiments/`.
+
+Then to create a Grid5000 profile consider using the `init` verb
+
+And to reserve the cluster to then execute use the verb: `up` (respectively `clean` to deallocate and free the nodes).
+
+Another script that builds the docker images used in k8s is available under `/build`.
+
+## Install Locally (with multipass) (deprecated)
 
 ### Requirements
 
@@ -50,7 +62,7 @@ This is the *__nuke__* option, __finer grained could be better if you have other
 multipass delete --all --purge  
 ```
 
-## Install on Grid'5000 (interactive)
+## Install on Grid'5000 (interactive) (deprecated)
 
 ### Connection
 
@@ -99,8 +111,6 @@ Killing the provisioned computing space is done via the CLI-frontend
 ```sh
 oardel $OAR_JOB_ID
 ```
-
-## Install on Grid'500 ([EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/index.html))
 
 # Usage
 
@@ -158,5 +168,5 @@ flowchart TD
 ```
 # Acknowledgments
 
-Inspiration taken from [BeFaaS](https://github.com/Be-FaaS/BeFaaS-framework)
+Inspiration for the functions taken from [BeFaaS](https://github.com/Be-FaaS/BeFaaS-framework)
 
