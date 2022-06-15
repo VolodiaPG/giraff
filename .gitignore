@@ -1,5 +1,9 @@
 build
 out
+cachedir/
+.idea/
+out.*
+tmp*
 
 # template
 
