@@ -1,5 +1,7 @@
 import base64
 import logging
+import subprocess
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -16,7 +18,58 @@ log = logging.getLogger("rich")
 
 KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
 
-FOG_NODE_DEPLOYMENT = """apiVersion: apps/v1
+FOG_NODE_DEPLOYMENT = """apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fog-node
+  namespace: openfaas
+  labels:
+    app: fog-node
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fog-node
+  namespace: openfaas
+  labels:
+    app: fog-node
+rules:
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list", "watch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fog-node
+  namespace: openfaas
+subjects:
+- kind: ServiceAccount
+  name: fog-node
+  # namespace: openfaas
+roleRef:
+  kind: ClusterRole
+  name: fog-node
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fog-node
+  namespace: openfaas
+  labels:
+    app: fog-node
+spec:
+  type: LoadBalancer
+  ports:
+    - name: proxied-fog-node-3000
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: fog-node
+---
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fog-node
@@ -33,6 +86,8 @@ spec:
       labels:
         app: fog-node
     spec:
+      serviceAccountName: fog-node
+      automountServiceAccountToken: false
       containers:
       - name: fog-node
         image: ghcr.io/volodiapg/fog_node:latest
@@ -53,17 +108,37 @@ spec:
           value: "8080"
         - name: ROCKET_PORT
           value: "3000"
+        - name: ROCKET_ADDRESS
+          value: "0.0.0.0"
         - name: CONFIG
           value: "{conf}"
         ports:
         - containerPort: 3000
-        command: ["sh"]
-        args: ["-c", "fog_node <(echo \$CONFIG | base64 -d | cat)"]
+        command: ["/bin/sh"]
+        # args: ["-c", "( echo \$( echo \$CONFIG | base64 -d ); cat - ) | fog_node"]
+        args: ["-c", "echo \$CONFIG | base64 -d | fog_node"]
 """
 
-MARKET_DEPLOYMENT = """apiVersion: apps/v1
+MARKET_DEPLOYMENT = """apiVersion: v1
+kind: Service
+metadata:
+  name: market
+  namespace: openfaas
+  labels:
+    app: market
+spec:
+  type: LoadBalancer
+  ports:
+    - name: proxied-market-8000
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    app: market
+---
+apiVersion: apps/v1
 kind: Deployment
-metadata
+metadata:
   name: market
   namespace: openfaas
   labels:
@@ -83,36 +158,84 @@ spec:
         image: ghcr.io/volodiapg/market:latest
         ports:
         - containerPort: 8000
+        env:
+        - name: ROCKET_ADDRESS
+          value: "0.0.0.0"
 """
 
 MARKET_CONNECTED_NODE = """MarketConnected (
     market_ip: "{market_ip}",
     market_port: 8000,
-    my_id: "{my_id}"
+    my_id: "{my_id}",
+    my_public_ip: "{my_public_ip}",
+    my_public_port: 3000
 )
+
 """
 
 NODE_CONNECTED_NODE = """NodeConnected (
     parent_id: "{parent_id}",
     parent_node_ip: "{parent_ip}",
     parent_node_port: 3000,
-    my_id: "{my_id}"
+    my_id: "{my_id}",
+    my_public_ip: "{my_public_ip}",
+    my_public_port: 3000
 )
+
 """
+
+# NETWORK = {
+#     "name": "market",
+#     "children": [
+#         {
+#             "name": "london",
+#             "latency": 150
+#         }
+#     ]
+# }
+
 
 NETWORK = {
     "name": "market",
     "children": [
         {
             "name": "london",
+            "latency": 150,
             "children": [
                 {
                     "name": "berlin",
+                    "latency": 100
+                }
+            ]
+        },
+        {
+            "name": "rennes",
+            "latency": 10,
+            "children": [
+                {
+                    "name": "vannes",
+                    "latency": 500,
+                    "children": [
+                        {
+                            "name": "brest",
+                            "latency": 20
+                        },
+                        {
+                            "name": "caveirac",
+                            "latency": 50
+                        }
+                    ]
+                },
+                {
+                    "name": "nantes",
+                    "latency": 250
                 }
             ]
         }
     ]
 }
+
+CLUSTER = "paravance"
 
 
 def flatten(container):
@@ -135,7 +258,18 @@ def gen_fog_nodes_names(node):
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
 
 
-def log_cmd(results):
+def get_aliases(env):
+    roles = env["roles"]
+    ret = {}
+    for node in FOG_NODES:
+        role = roles[node]
+        alias = role[0].alias
+        ret[alias] = node
+
+    return ret
+
+
+def log_cmd(env, results):
     if results.filter(status=STATUS_FAILED):
         for data in results.filter(status=STATUS_FAILED).data:
             data = data.payload
@@ -146,9 +280,19 @@ def log_cmd(results):
 
     if results.filter(status=STATUS_OK):
         for data in results.filter(status=STATUS_OK).data:
+            host = data.host
             data = data.payload
             if data['stdout']:
-                log.info(data['stdout'])
+                print(data['stdout'])
+                try:
+                    with tempfile.NamedTemporaryFile(dir="/tmp", delete=False) as tmpfile:
+                        with open(tmpfile.name, "w") as file:
+                            file.write(data["stdout"])
+                        alias_name = get_aliases(env).get(host, host)
+                        subprocess.run(["mprocs", "--server", "127.0.0.1:4050", "--ctl",
+                                        f'{{c: add-proc, cmd: "echo {alias_name} && cat {tmpfile.name}"}}'])
+                except:
+                    log.warning("Cannot use mprocs to output nice things organized.")
             if data['stderr']:
                 log.error(data['stderr'])
 
@@ -199,19 +343,22 @@ def up(force, env=None, **kwargs):
     conf = (
         en
             .VMonG5kConf
-            .from_settings(job_name="En0SLib FTW")
+            .from_settings(job_name="En0SLib FTW", walltime="1:00:00")
+            # s the best-in-class speed and safety of Rust, to make your prompt as quick and reliable as possible.
             .add_machine(
             roles=["master", "market"],
-            cluster="paravance",
+            cluster=CLUSTER,
             number=1,
             flavour="large"
         )
     )
 
+    print(FOG_NODES)
+
     for node_name in FOG_NODES:
         conf.add_machine(
             roles=["master", "fog_node", node_name],
-            cluster="paravance",
+            cluster=CLUSTER,
             number=1,
             flavour="large")
 
@@ -253,6 +400,21 @@ def up(force, env=None, **kwargs):
     env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
 
 
+def gen_net(node, netem, roles):
+    children = node["children"] if "children" in node else []
+
+    for child in children:
+        print(f"Setting lat of {child['latency']} btw {node['name']} and {child['name']}")
+        netem.add_constraints(
+            src=roles[node["name"]],
+            dest=roles[child["name"]],
+            delay=child["latency"],
+            rate="1gbit",
+            symetric=True,
+        )
+        gen_net(child, netem, roles)
+
+
 @cli.command()
 @enostask()
 def add_net_constraints(env=None, **kwargs):
@@ -265,22 +427,7 @@ def add_net_constraints(env=None, **kwargs):
 
     env['netem'] = netem
 
-    (
-        netem.add_constraints(
-            src=roles["cloud"],
-            dest=roles["london"],
-            delay="50ms",
-            rate="1gbit",
-            symetric=True,
-        )
-            .add_constraints(
-            src=roles["cloud"],
-            dest=roles["berlin"],
-            delay="100ms",
-            rate="1mbit",
-            symetric=True,
-        )
-    )
+    gen_net(NETWORK, netem, roles)
 
     netem.deploy()
 
@@ -303,7 +450,7 @@ def k3s_config(env=None, **kwargs):
 
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
-    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_ip)
+    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_id, my_public_ip=my_ip)
 
     children = node["children"] if "children" in node else []
 
@@ -326,7 +473,8 @@ def k3s_deploy(env=None, **kwargs):
     ids = {node_name: (uuid.uuid4(), roles[node_name][0].address) for node_name in FOG_NODES}
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
-    confs = [(NETWORK["name"], MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id))]
+    confs = [
+        (NETWORK["name"], MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id, my_public_ip=market_ip))]
     confs = list(flatten([*confs, *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]]]))
 
     for (name, conf) in confs:
@@ -343,7 +491,7 @@ def k3s_deploy(env=None, **kwargs):
             'k3s kubectl create -f /tmp/node_conf.yaml',
             roles=roles["master"],
             task_name="Deploying fog_node software")
-        log_cmd(res)
+        log_cmd(env, res)
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
@@ -360,7 +508,7 @@ def k3s_deploy(env=None, **kwargs):
             'k3s kubectl create -f /tmp/market.yaml',
             roles=roles["market"],
             task_name="Deploying market software")
-        log_cmd(res)
+        log_cmd(env, res)
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
@@ -371,13 +519,39 @@ def k3s_deploy(env=None, **kwargs):
 
 
 @cli.command()
+@click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
-def health(env=None, **kwargs):
+def health(env=None,all=False, **kwargs):
     roles = env['roles']
     res = en.run_command(
-        'kubectl get deployments --all-namespaces',
+        'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
         roles=roles["master"])
-    log_cmd(res)
+    log_cmd(env, res)
+
+
+@cli.command()
+@enostask()
+def functions(env=None, **kwargs):
+    roles = env['roles']
+    res = en.run_command(
+        'kubectl get deployments -n openfaas-fn',
+        roles=roles["master"])
+    log_cmd(env, res)
+
+
+@cli.command()
+@enostask()
+def logs(env=None, **kwargs):
+    roles = env['roles']
+    res = en.run_command(
+        'kubectl logs deployment/fog-node -n openfaas',
+        roles=roles["master"])
+    log_cmd(env, res)
+
+    res = en.run_command(
+        'kubectl logs deployment/market -n openfaas',
+        roles=roles["market"])
+    log_cmd(env, res)
 
 
 @cli.command()
@@ -392,7 +566,7 @@ def openfaas_login(env=None, file=None, **kwargs):
     res = en.run_command(
         'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo)',
         roles=roles["master"])
-    log_cmd(res)
+    log_cmd(env, res)
     if file:
         with open(file, 'w') as f:
             f.write(str(res.filter(status=STATUS_OK).data[0].payload['stdout']) + "\n")
@@ -405,10 +579,14 @@ def tunnels(env=None, **kwargs):
     roles = env['roles']
     for role in roles['master']:
         address = role.address
-
         open_tunnel(address, 31112)  # OpenFaas
         open_tunnel(address, 8001,
                     "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
+
+    for role in roles['market']:
+        address = role.address
+
+        open_tunnel(address, 8000)  # Market
 
     print("Press Enter to kill.")
     input()

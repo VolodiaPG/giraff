@@ -1,1 +1,0 @@
-[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "kubectl logs deployment/fog-node -n openfaas", "shell": "kubectl logs deployment/fog-node -n openfaas", "args": {}}]}]

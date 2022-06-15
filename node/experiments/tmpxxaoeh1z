@@ -1,1 +1,0 @@
-[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "Deploying market software", "shell": "cat << EOF > /tmp/market.yaml\n{{ market_deployment }}\nEOF\nk3s kubectl create -f /tmp/market.yaml", "args": {}}]}]

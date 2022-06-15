@@ -1,1 +1,0 @@
-[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "Deploying fog_node software", "shell": "cat << EOF > /tmp/node_conf.yaml\n{{ fog_node_deployment }}\nEOF\nk3s kubectl create -f /tmp/node_conf.yaml", "args": {}}]}]

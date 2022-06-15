@@ -1,1 +1,0 @@
-[{"hosts": "all", "tasks": [{"name": "Waiting for connection", "raw": "hostname", "args": {}}], "gather_facts": false, "strategy": "linear"}]

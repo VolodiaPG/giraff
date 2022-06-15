@@ -1,26 +1,29 @@
 config:
-  target: "http://localhost:46729/api"
+  target: "http://127.0.0.1:40489"
   phases:
+    - duration: 600
+      arrivalRate: 10
+      name: "Test"
     - duration: 60
-      arrivalRate: 5
-      name: Warm up
+      arrivalRate: 0
+      name: "Calm"
 scenarios:
   - name: "Provision new function on the Fog"
     flow:
-      - post:
-          url: "/function"
+      - put:
+          url: "/api/function"
           json:
             sla:
-              storage: 100 MB
-              memory: 100 MB
-              cpu: 100 millicpu
-              latencyMax: 100 ms
+              storage: 10 MB
+              memory: 10 MB
+              cpu: 1 millicpu
+              latencyMax: 5000 ms
               dataInputMaxSize: 1 GB
               dataOutputMaxSize: 1 GB
               maxTimeBeforeHot: 10 s
               reevaluationPeriod: 1 hour
-              functionImage: volodiapg/roadcondition:latest
+              functionImage: "volodiapg/roadcondition:latest"
               functionLiveName: toto
-            targetNode: ede7ae03-9fa4-44c8-b2d6-b09d94c04744
+            targetNode: 04033a3d-ae2f-4eb4-b2cc-b9188caeecdd
             requestDestinations: []
             requestSources: []
