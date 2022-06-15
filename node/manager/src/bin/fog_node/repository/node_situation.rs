@@ -22,6 +22,10 @@ pub trait NodeSituation: Debug + Sync + Send {
     /// Return iter over both the parent and the children node...
     /// Aka all the nodes interesting that can accommodate a function
     async fn get_neighbors(&self) -> Vec<NodeId>;
+    /// Get the public ip associated with this server
+    async fn get_my_public_ip(&self) -> IpAddr;
+    /// Get the public port associated with this server
+    async fn get_my_public_port(&self) -> u16;
 }
 
 #[derive(Debug)]
@@ -119,6 +123,22 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 .into_iter()
                 .chain(children.keys().cloned())
                 .collect(),
+        }
+    }
+
+    async fn get_my_public_ip(&self) -> IpAddr {
+        *match &*self.database.read().await {
+            MarketConnected { my_public_ip, .. } | NodeConnected { my_public_ip, .. } => {
+                my_public_ip
+            }
+        }
+    }
+
+    async fn get_my_public_port(&self) -> u16 {
+        *match &*self.database.read().await {
+            MarketConnected { my_public_port, .. } | NodeConnected { my_public_port, .. } => {
+                my_public_port
+            }
         }
     }
 }

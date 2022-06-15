@@ -1,4 +1,4 @@
-FROM rustdocker/rust:nightly as cargo-build
+FROM ghcr.io/volodiapg/rust:nightly as cargo-build
 
 RUN apt-get update &&\
     apt-get install musl-tools -y
@@ -19,7 +19,7 @@ RUN RUSTFLAGS=-Clinker=musl-gcc /root/.cargo/bin/cargo build --release --target=
 RUN rm -f target/x86_64-unknown-linux-musl/release/deps/fog_node*  \
     && rm -f target/x86_64-unknown-linux-musl/release/deps/manager* \
     && rm -f target/x86_64-unknown-linux-musl/release/deps/market*
-RUN rm src/*.rs 
+RUN rm src/*.rs
 
 COPY ./src ./src
 
@@ -30,10 +30,10 @@ RUN /root/.cargo/bin/cargo build --release --target=x86_64-unknown-linux-musl --
 
 RUN /root/.cargo/bin/cargo build --release --target=x86_64-unknown-linux-musl --package manager --bin market
 
-FROM alpine:latest as market
+FROM ghcr.io/volodiapg/alpine:latest as market
 COPY --from=cargo-build /manager/target/x86_64-unknown-linux-musl/release/market /usr/bin
 CMD ["market"]
 
-FROM alpine:latest as fog_node
+FROM ghcr.io/volodiapg/alpine:latest as fog_node
 COPY --from=cargo-build /manager/target/x86_64-unknown-linux-musl/release/fog_node /usr/bin
 CMD ["fog_node"]

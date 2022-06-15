@@ -8,7 +8,7 @@ use manager::model::view::node::RegisterNode;
 use manager::model::view::ping::{Ping, PingResponse};
 use manager::model::BidId;
 use manager::respond;
-use rocket::{post, put, serde::json::Json, State};
+use rocket::{get, post, put, serde::json::Json, State};
 use rocket_okapi::openapi;
 use std::sync::Arc;
 
@@ -68,3 +68,7 @@ pub async fn post_register_child_node(
 pub async fn post_ping(payload: Json<Ping>) -> Json<PingResponse> {
     controller::ping::ping(payload.0).await.into()
 }
+
+#[openapi]
+#[get("/health")]
+pub async fn health() {}

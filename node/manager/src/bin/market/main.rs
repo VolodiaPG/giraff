@@ -49,7 +49,7 @@ async fn rocket() -> _ {
         )
         .manage(faas_service as Arc<dyn crate::service::faas::FogNodeFaaS>)
         .mount(
-            "/swagger-ui/",
+            "/",
             make_swagger_ui(&SwaggerUIConfig {
                 url: "/api/openapi.json".to_owned(),
                 ..Default::default()
@@ -57,6 +57,6 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/",
-            openapi_get_routes![put_function, post_register_node, get_functions],
+            openapi_get_routes![put_function, post_register_node, get_functions, health],
         )
 }

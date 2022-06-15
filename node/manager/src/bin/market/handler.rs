@@ -45,3 +45,7 @@ pub async fn get_functions(
 ) -> Resp<HashMap<NodeId, Vec<AcceptedBid>>> {
     respond!(controller::get_functions(faas_service.inner()).await)
 }
+
+#[openapi]
+#[get("/health")]
+pub async fn health() {}

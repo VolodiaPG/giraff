@@ -1,0 +1,1 @@
+[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "Removing existing market software", "shell": "k3s kubectl delete -f /tmp/market.yaml || true", "args": {}}]}]

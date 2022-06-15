@@ -1,0 +1,1 @@
+[{"hosts": "all", "tasks": [{"name": "[master] Deploying K3s", "shell": "curl -sfL https://get.k3s.io | sh", "args": {}}], "gather_facts": false, "strategy": "linear"}]

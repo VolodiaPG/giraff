@@ -1,0 +1,1 @@
+[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "kubectl get deployments -n openfaas-fn", "shell": "kubectl get deployments -n openfaas-fn", "args": {}}]}]

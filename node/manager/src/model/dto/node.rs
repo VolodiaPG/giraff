@@ -54,6 +54,8 @@ pub enum NodeSituationData {
         market_ip: IpAddr,
         market_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
     NodeConnected {
         children: HashMap<NodeId, NodeDescription>,
@@ -61,6 +63,8 @@ pub enum NodeSituationData {
         parent_node_ip: IpAddr,
         parent_node_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
 }
 
@@ -70,12 +74,16 @@ pub enum NodeSituationDisk {
         market_ip: IpAddr,
         market_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
     NodeConnected {
         parent_id: NodeId,
         parent_node_ip: IpAddr,
         parent_node_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
 }
 
@@ -108,23 +116,31 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 market_port,
                 market_ip,
                 my_id,
+                my_public_ip,
+                my_public_port,
             } => NodeSituationData::MarketConnected {
                 children: HashMap::new(),
                 market_ip,
                 market_port,
                 my_id,
+                my_public_ip,
+                my_public_port,
             },
             NodeSituationDisk::NodeConnected {
                 parent_id,
                 parent_node_port,
                 parent_node_ip,
                 my_id,
+                my_public_ip,
+                my_public_port,
             } => NodeSituationData::NodeConnected {
                 children: HashMap::new(),
                 parent_id,
                 parent_node_ip,
                 parent_node_port,
                 my_id,
+                my_public_ip,
+                my_public_port,
             },
         }
     }

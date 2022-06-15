@@ -1,0 +1,1 @@
+[{"hosts": "all", "gather_facts": false, "tasks": [{"name": "Removing existing fog_node software", "shell": "k3s kubectl delete -f /tmp/node_conf.yaml || true", "args": {}}]}]

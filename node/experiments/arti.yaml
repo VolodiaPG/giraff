@@ -1,0 +1,26 @@
+config:
+  target: "http://localhost:46729/api"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: Warm up
+scenarios:
+  - name: "Provision new function on the Fog"
+    flow:
+      - post:
+          url: "/function"
+          json:
+            sla:
+              storage: 100 MB
+              memory: 100 MB
+              cpu: 100 millicpu
+              latencyMax: 100 ms
+              dataInputMaxSize: 1 GB
+              dataOutputMaxSize: 1 GB
+              maxTimeBeforeHot: 10 s
+              reevaluationPeriod: 1 hour
+              functionImage: volodiapg/roadcondition:latest
+              functionLiveName: toto
+            targetNode: ede7ae03-9fa4-44c8-b2d6-b09d94c04744
+            requestDestinations: []
+            requestSources: []
