@@ -1,3 +1,6 @@
 .python-grid5000.yaml
 current/
 enos_*/
+cachedir
+tmp*
+out.*
