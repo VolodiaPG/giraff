@@ -9,6 +9,7 @@ use reqwest::Client;
 use rocket::fairing::AdHoc;
 use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
+use rocket_prometheus::PrometheusMetrics;
 
 use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
 use manager::openfaas::{Configuration, DefaultApiClient};
@@ -118,7 +119,10 @@ async fn rocket() -> _ {
         info!("This node is a provider node");
     }
 
+    let prometheus = PrometheusMetrics::new();
+
     rocket::build()
+        .attach(prometheus.clone())
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
         .manage(function_life_service as Arc<dyn crate::service::function_life::FunctionLife>)
@@ -133,6 +137,7 @@ async fn rocket() -> _ {
                 ..Default::default()
             }),
         )
+        // .mount("/metrics", prometheus)
         .mount(
             "/api/",
             openapi_get_routes![
