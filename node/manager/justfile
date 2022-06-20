@@ -1,0 +1,31 @@
+PROMETHEUS_VERSION := "2.36.1"
+
+# Default command when no verb specified
+default:
+	just --list
+
+# Build all the project
+build: market fog_node
+
+# Build the market
+market:
+  cargo build --package manager --bin market
+
+# Build the node
+fog_node:
+  cargo build --package manager --bin fog_node	
+
+# Start prometheus locally
+prometheus:
+  if ! test -d "./prometheus"; then just install-prometheus; fi
+  ./prometheus/prometheus --config.file=prometheus.yaml
+	
+# Install prometheus locally
+install-prometheus:
+  mkdir -p prometheus
+  curl -L https://github.com/prometheus/prometheus/releases/download/v{{PROMETHEUS_VERSION}}/prometheus-{{PROMETHEUS_VERSION}}.linux-amd64.tar.gz | tar -xvz -C prometheus --strip-components=1
+  echo "Installed prometheus version {{PROMETHEUS_VERSION}} locally"
+
+# Cleans
+clean:
+  rm -rf ./prometheus

@@ -1,0 +1,17 @@
+RUN := "poetry run python integration.py"
+
+default:
+  just --list
+
+deploy:
+  {{RUN}} up
+  {{RUN}} k3s-deploy
+  {{RUN}} add-net-constraints
+  {{RUN}} monitoring
+
+tunnels:
+  {{RUN}} tunnels
+
+clean:
+  {{RUN}} clean
+  rm -rf enos_* current cachedir __enos*

@@ -137,7 +137,7 @@ async fn rocket() -> _ {
                 ..Default::default()
             }),
         )
-        // .mount("/metrics", prometheus)
+        .mount("/metrics", prometheus)
         .mount(
             "/api/",
             openapi_get_routes![

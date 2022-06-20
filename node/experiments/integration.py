@@ -14,9 +14,15 @@ from enoslib.errors import EnosFailedHostsError
 from grid5000 import Grid5000
 from grid5000.cli import auth
 
+from monitoring import monitoring as mon
+
 log = logging.getLogger("rich")
 
 KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
+
+TELEGRAF_IMAGE = "ghcr.io/volodiapg/telegraf:latest"
+PROMETHEUS_IMAGE = "ghcr.io/volodiapg/prometheus:latest"
+GRAFANA_IMAGE = "ghcr.io/volodiapg/grafana:latest"
 
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
 kind: ServiceAccount
@@ -62,9 +68,9 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxied-fog-node-3000
-      port: 3000
-      targetPort: 3000
+    - name: proxied-fog-node-3030
+      port: 3030
+      targetPort: 3030
       protocol: TCP
   selector:
     app: fog-node
@@ -107,13 +113,13 @@ spec:
         - name: OPENFAAS_PORT
           value: "8080"
         - name: ROCKET_PORT
-          value: "3000"
+          value: "3030"
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
         - name: CONFIG
           value: "{conf}"
         ports:
-        - containerPort: 3000
+        - containerPort: 3030
         command: ["/bin/sh"]
         # args: ["-c", "( echo \$( echo \$CONFIG | base64 -d ); cat - ) | fog_node"]
         args: ["-c", "echo \$CONFIG | base64 -d | fog_node"]
@@ -168,7 +174,7 @@ MARKET_CONNECTED_NODE = """MarketConnected (
     market_port: 8000,
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3000
+    my_public_port: 3030
 )
 
 """
@@ -176,10 +182,10 @@ MARKET_CONNECTED_NODE = """MarketConnected (
 NODE_CONNECTED_NODE = """NodeConnected (
     parent_id: "{parent_id}",
     parent_node_ip: "{parent_ip}",
-    parent_node_port: 3000,
+    parent_node_port: 3030,
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3000
+    my_public_port: 3030
 )
 
 """
@@ -439,6 +445,14 @@ def rm_net_constraints(env=None, **kwargs):
     netem = env['netem']
     netem.destroy()
 
+@cli.command()
+@enostask()
+def monitoring(env=None, **kwargs):
+    """Remove the constraints on the network links"""
+    roles = env['roles']
+    monitor = mon.TPGMonitoring(collector=roles["market"][0], agent=roles["fog_node"], ui=roles["market"][0], telegraf_image=TELEGRAF_IMAGE, prometheus_image=PROMETHEUS_IMAGE, grafana_image=GRAFANA_IMAGE)
+    monitor.deploy()
+    env['monitor'] = monitor
 
 @cli.command()
 @enostask()
@@ -524,8 +538,11 @@ def k3s_deploy(env=None, **kwargs):
 def health(env=None,all=False, **kwargs):
     roles = env['roles']
     res = en.run_command(
-        'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
-        roles=roles["master"])
+        # 'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
+        'docker ps -a',
+        # 'docker logs b9550c4084a1',
+        # 'cat /prometheus/prometheus.yml',
+        roles=roles["market"])
     log_cmd(env, res)
 
 
@@ -573,20 +590,25 @@ def openfaas_login(env=None, file=None, **kwargs):
 
 
 @cli.command()
+@click.option('--fog-nodes', required=False, is_flag=True, help="Also tunnel fog nodes")
 @enostask()
-def tunnels(env=None, **kwargs):
+def tunnels(env=None, fog_nodes=False, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
     roles = env['roles']
-    for role in roles['master']:
-        address = role.address
-        open_tunnel(address, 31112)  # OpenFaas
-        open_tunnel(address, 8001,
-                    "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
+    if fog_nodes:
+        for role in roles['master']:
+            address = role.address
+            open_tunnel(address, 31112)  # OpenFaas
+            open_tunnel(address, 8001,
+                        "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
 
     for role in roles['market']:
         address = role.address
 
         open_tunnel(address, 8000)  # Market
+
+    open_tunnel(env['monitor'].ui.address, 3000)
+    open_tunnel(env['roles']['market'][0].address, 9090)
 
     print("Press Enter to kill.")
     input()
