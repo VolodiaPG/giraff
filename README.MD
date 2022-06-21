@@ -1,6 +1,6 @@
 
 <!-- <h1 align="center">
-  <a href="https://github.com/volodiapg/fog_application_samples">
+  <a href="https://github.com/volodiapg/faas_fog">
     <img src="{{cookiecutter.repo_slug}}/docs/images/logo.svg" alt="Logo" width="125" height="125">
   </a>
 </h1> -->
@@ -217,8 +217,8 @@ curl -sSL https://cli.openfaas.com | sudo -E sh
 # mv ~/kubeconfig ~/.kube/kubeconfig
 # export KUBECONFIG=~/.kube/kubeconfig
 
-# curl -SLS https://raw.githubusercontent.com/VolodiaPG/fog_application_samples/main/longhorn.sh | bash
-# svn export https://github.com/volodiapg/fog_application_samples/trunk/redis redis
+# curl -SLS https://raw.githubusercontent.com/VolodiaPG/faas_fog/main/longhorn.sh | bash
+# svn export https://github.com/volodiapg/faas_fog/trunk/redis redis
 # kubectl apply -f redis
 ```
 
@@ -232,7 +232,7 @@ oardel $OAR_JOB_ID
 #### One-liner install
 
 ```sh
-curl -SLS https://raw.githubusercontent.com/VolodiaPG/fog_application_samples/stub-backends/scripts/grid5000.sh | bash
+curl -SLS https://raw.githubusercontent.com/VolodiaPG/faas_fog/stub-backends/scripts/grid5000.sh | bash
 ```
 
 </details>
