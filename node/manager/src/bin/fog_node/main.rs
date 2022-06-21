@@ -82,7 +82,7 @@ async fn rocket() -> _ {
     info!("Current node ID is {}", node_situation.get_my_id().await);
     let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
-    let k8s_repo = Arc::new(K8sFakeImpl::new());
+    let k8s_repo = Arc::new(K8sImpl::new());
     let auction_repo = Arc::new(crate::repository::auction::AuctionImpl::new());
     let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
 

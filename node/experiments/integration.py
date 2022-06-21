@@ -29,22 +29,18 @@ kind: ServiceAccount
 metadata:
   name: fog-node
   namespace: openfaas
-  labels:
-    app: fog-node
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: fog-node
   namespace: openfaas
-  labels:
-    app: fog-node
 rules:
-  - apiGroups: ["metrics.k8s.io"]
+  - apiGroups: ["metrics.k8s.io", ""]
     resources: ["pods", "nodes"]
     verbs: ["get", "list", "watch"]
 ---
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: fog-node
@@ -52,7 +48,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: fog-node
-  # namespace: openfaas
+  namespace: openfaas
 roleRef:
   kind: ClusterRole
   name: fog-node
@@ -93,7 +89,7 @@ spec:
         app: fog-node
     spec:
       serviceAccountName: fog-node
-      automountServiceAccountToken: false
+      automountServiceAccountToken: true
       containers:
       - name: fog-node
         image: ghcr.io/volodiapg/fog_node:latest
@@ -190,20 +186,20 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-# NETWORK = {
-#     "name": "market",
-#     "children": [
-#         {
-#             "name": "london",
-#             "latency": 150
-#         }
-#     ]
-# }
+NETWORK = {
+    "name": "market",
+    "children": [
+        # {
+        #     "name": "london",
+        #     "latency": 150
+        # }
+    ]
+}
 
 
 # NETWORK = {
 #     "name": "market",
-#     "children": [
+#     "children": [home/voparolguarino/.ssh/known_hosts
 #         {
 #             "name": "london",
 #             "latency": 150,
@@ -241,27 +237,27 @@ NODE_CONNECTED_NODE = """NodeConnected (
 #     ]
 # }
 
-NETWORK = {
-    "name": "market",
-    "children": [
-        {
-            "name": "rennes",
-            "latency": 500,
-            "children": [
-                {
-                    "name": "vannes",
-                    "latency": 200,
-                    "children": [
-                        {
-                            "name": "brest",
-                            "latency": 20
-                        },
-                    ]
-                },
-            ]
-        }
-    ]
-}
+# NETWORK = {
+#     "name": "market",
+#     "children": [
+#         {
+#             "name": "rennes",
+#             "latency": 500,
+#             "children": [
+#                 {
+#                     "name": "vannes",
+#                     "latency": 200,
+#                     "children": [
+#                         {
+#                             "name": "brest",
+#                             "latency": 20
+#                         },
+#                     ]
+#                 },
+#             ]
+#         }
+#     ]
+# }
 
 CLUSTER = "paravance"
 
@@ -560,8 +556,8 @@ def k3s_deploy(env=None, **kwargs):
 def health(env=None,all=False, **kwargs):
     roles = env['roles']
     res = en.run_command(
-        # 'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
-        'docker ps -a',
+        'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
+        # 'docker ps -a',
         # 'docker logs b9550c4084a1',
         # 'cat /prometheus/prometheus.yml',
         roles=roles["market"])
@@ -620,17 +616,18 @@ def tunnels(env=None, fog_nodes=False, **kwargs):
     if fog_nodes:
         for role in roles['master']:
             address = role.address
-            open_tunnel(address, 31112)  # OpenFaas
-            open_tunnel(address, 8001,
-                        "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
+            # open_tunnel(address, 31112)  # OpenFaas
+            open_tunnel(address, 3030)  # Fog Node
+            # open_tunnel(address, 8001,
+            #             "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
 
     for role in roles['market']:
         address = role.address
 
         open_tunnel(address, 8000)  # Market
 
-    open_tunnel(env['monitor'].ui.address, 3000)
-    open_tunnel(env['roles']['market'][0].address, 9090)
+    # open_tunnel(env['monitor'].ui.address, 3000)
+    # open_tunnel(env['roles']['market'][0].address, 9090)
 
     print("Press Enter to kill.")
     input()
