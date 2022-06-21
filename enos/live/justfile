@@ -1,0 +1,21 @@
+RUN := "poetry run python integration.py"
+
+# Entrypoint, run deploy and then tunnels
+_default:
+  @just --choose
+
+# Deploy the stack to redy the eperiment on grid'5000
+deploy:
+  {{RUN}} up
+  {{RUN}} k3s-deploy
+  {{RUN}} add-net-constraints
+  {{RUN}} monitoring
+
+# Open SSH tunnels
+tunnels:
+  {{RUN}} tunnels
+
+# Delete the Job on grid'5000 and local EnosLib files
+clean:
+  {{RUN}} clean
+  rm -rf enos_* current cachedir __enos*

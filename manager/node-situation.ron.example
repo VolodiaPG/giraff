@@ -1,0 +1,7 @@
+MarketConnected (
+    market_ip: "127.0.0.1",
+    market_port: 8000,
+    my_id: "55a25598-6829-41a5-a63c-bd0e2fd29a43",
+    my_public_ip: "127.0.0.1",
+    my_public_port: 3001
+)

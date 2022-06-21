@@ -1,0 +1,8 @@
+target/
+*.ron
+*.MD
+Dockerfile
+*.sh
+*.yaml
+justfile
+*.example

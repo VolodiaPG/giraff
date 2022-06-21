@@ -1,0 +1,29 @@
+config:
+  target: "http://127.0.0.1:40489"
+  phases:
+    - duration: 600
+      arrivalRate: 10
+      name: "Test"
+    - duration: 60
+      arrivalRate: 0
+      name: "Calm"
+scenarios:
+  - name: "Provision new function on the Fog"
+    flow:
+      - put:
+          url: "/api/function"
+          json:
+            sla:
+              storage: 10 MB
+              memory: 10 MB
+              cpu: 1 millicpu
+              latencyMax: 5000 ms
+              dataInputMaxSize: 1 GB
+              dataOutputMaxSize: 1 GB
+              maxTimeBeforeHot: 10 s
+              reevaluationPeriod: 1 hour
+              functionImage: "volodiapg/roadcondition:latest"
+              functionLiveName: toto
+            targetNode: 04033a3d-ae2f-4eb4-b2cc-b9188caeecdd
+            requestDestinations: []
+            requestSources: []
