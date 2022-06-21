@@ -201,41 +201,63 @@ NODE_CONNECTED_NODE = """NodeConnected (
 # }
 
 
+# NETWORK = {
+#     "name": "market",
+#     "children": [
+#         {
+#             "name": "london",
+#             "latency": 150,
+#             "children": [
+#                 {
+#                     "name": "berlin",
+#                     "latency": 100
+#                 }
+#             ]
+#         },
+#         {
+#             "name": "rennes",
+#             "latency": 10,
+#             "children": [
+#                 {
+#                     "name": "vannes",
+#                     "latency": 500,
+#                     "children": [
+#                         {
+#                             "name": "brest",
+#                             "latency": 20
+#                         },
+#                         {
+#                             "name": "caveirac",
+#                             "latency": 50
+#                         }
+#                     ]
+#                 },
+#                 {
+#                     "name": "nantes",
+#                     "latency": 250
+#                 }
+#             ]
+#         }
+#     ]
+# }
+
 NETWORK = {
     "name": "market",
     "children": [
         {
-            "name": "london",
-            "latency": 150,
-            "children": [
-                {
-                    "name": "berlin",
-                    "latency": 100
-                }
-            ]
-        },
-        {
             "name": "rennes",
-            "latency": 10,
+            "latency": 500,
             "children": [
                 {
                     "name": "vannes",
-                    "latency": 500,
+                    "latency": 200,
                     "children": [
                         {
                             "name": "brest",
                             "latency": 20
                         },
-                        {
-                            "name": "caveirac",
-                            "latency": 50
-                        }
                     ]
                 },
-                {
-                    "name": "nantes",
-                    "latency": 250
-                }
             ]
         }
     ]
