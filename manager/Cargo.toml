@@ -32,7 +32,7 @@ schemars = "0.8"
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger", "uuid"] }
 #rocket_okapi = { git = "https://github.com/GREsau/okapi.git", branch = "ddb07a7091" ,features = ["swagger", "rapidoc"]}
-rocket_prometheus = "0.10.0-rc.1"
+rocket_prometheus = "0.10.0-rc.2"
 reqwest = { version = "0.11", default-features=false, features = ["json", "rustls-tls"] }
 async-trait = "0.1"
 log = "0.4"
