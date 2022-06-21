@@ -275,16 +275,13 @@ where
                     return Err(Error::MalformedRoutingStack);
                 }
 
-                if route_to.len() == 1 {
-                    let next = route_to.pop().unwrap();
-                    let next = self
-                        .node_situation
-                        .get_fog_node_neighbor(&next)
-                        .await
-                        .ok_or(Error::NextNodeDoesntExist(next))?;
+                if route_to.is_empty() {
+                    let my_ip = self.node_situation.get_my_public_ip().await;
+                    let my_port = self.node_situation.get_my_public_port().await;
+
                     Ok(self
                         .routing
-                        .forward_to_url(&next.ip, &next.port, resource_uri, data)
+                        .forward_to_url(&my_ip, &my_port, resource_uri, data)
                         .await?)
                 } else {
                     let next = route_to.last().unwrap();

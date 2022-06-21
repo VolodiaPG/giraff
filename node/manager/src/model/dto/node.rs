@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
 use std::net::IpAddr;
 
-use log::trace;
 use serde::{Deserialize, Serialize};
 
 use crate::model::view::auction::AcceptedBid;
@@ -56,6 +54,8 @@ pub enum NodeSituationData {
         market_ip: IpAddr,
         market_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
     NodeConnected {
         children: HashMap<NodeId, NodeDescription>,
@@ -63,6 +63,8 @@ pub enum NodeSituationData {
         parent_node_ip: IpAddr,
         parent_node_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
 }
 
@@ -72,12 +74,16 @@ pub enum NodeSituationDisk {
         market_ip: IpAddr,
         market_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
     NodeConnected {
         parent_id: NodeId,
         parent_node_ip: IpAddr,
         parent_node_port: u16,
         my_id: NodeId,
+        my_public_ip: IpAddr,
+        my_public_port: u16,
     },
 }
 
@@ -97,10 +103,8 @@ pub enum NodeSituationDisk {
 /// )
 /// ```
 impl NodeSituationDisk {
-    pub fn new(path: String) -> anyhow::Result<Self> {
-        let content = fs::read_to_string(path.clone())?;
+    pub fn new(content: String) -> anyhow::Result<Self> {
         let situation = ron::from_str::<NodeSituationDisk>(&content)?;
-        trace!("Loading nodes from disk, path: {}", path);
         Ok(situation)
     }
 }
@@ -112,23 +116,31 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 market_port,
                 market_ip,
                 my_id,
+                my_public_ip,
+                my_public_port,
             } => NodeSituationData::MarketConnected {
                 children: HashMap::new(),
                 market_ip,
                 market_port,
                 my_id,
+                my_public_ip,
+                my_public_port,
             },
             NodeSituationDisk::NodeConnected {
                 parent_id,
                 parent_node_port,
                 parent_node_ip,
                 my_id,
+                my_public_ip,
+                my_public_port,
             } => NodeSituationData::NodeConnected {
                 children: HashMap::new(),
                 parent_id,
                 parent_node_ip,
                 parent_node_port,
                 my_id,
+                my_public_ip,
+                my_public_port,
             },
         }
     }

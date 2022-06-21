@@ -78,21 +78,36 @@ impl LatencyEstimationImpl {
         response: &PingResponse,
         received_at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(Time, Time), IndividualError> {
-        let latency: f64 =
-            (response.received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as f64;
-        if latency < 0.0 {
-            warn!("Got negative latency: {}", latency);
-            return Err(IndividualError::NegativeTimeInterval);
-        }
-        let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency);
+        // let latency =
+        //     (response.received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as i64;
+        // if latency < 0 {
+        //     warn!("Got negative outbound latency: {}", latency);
+        //     return Err(IndividualError::NegativeTimeInterval);
+        // }
+        // let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency as f64);
+        //
+        // let latency =
+        //     (received_at.timestamp_millis() - response.received_at.timestamp_millis()) as i64;
+        // if latency < 0 {
+        //     warn!("Got negative inbound latency: {}", latency);
+        //     return Err(IndividualError::NegativeTimeInterval);
+        // }
+        // let incoming_latency = Time::new::<uom::si::time::millisecond>(latency as f64);
 
-        let latency: f64 =
-            (received_at.timestamp_millis() - response.received_at.timestamp_millis()) as f64;
-        if latency < 0.0 {
-            warn!("Got negative latency: {}", latency);
+        // TODO fix that simplistic estimation with somthing considering the real values instead of symetric ones!!
+
+        let latency_round =
+            (received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as i64;
+
+        if latency_round < 0 {
+            warn!("Got negative latency: {}", latency_round);
             return Err(IndividualError::NegativeTimeInterval);
         }
-        let incoming_latency = Time::new::<uom::si::time::millisecond>(latency);
+
+        let outgoing_latency =
+            Time::new::<uom::si::time::millisecond>((latency_round as f64) / 2.0);
+        let incoming_latency =
+            Time::new::<uom::si::time::millisecond>((latency_round as f64) / 2.0);
 
         Ok((outgoing_latency, incoming_latency))
     }
