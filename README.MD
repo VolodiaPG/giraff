@@ -26,7 +26,7 @@
 
 [![license](https://img.shields.io/badge/License-MIT-success?style=flat-square)](LICENSE)
 
-[![made with hearth by VolodiaPG](https://img.shields.io/badge/Made%20with%20%E2%99%A5%20by-VolodiaPG-%23ff0000?style=flat-square)](https://github.com/dec0dOS)
+[![made with hearth by VolodiaPG](https://img.shields.io/badge/Made%20with%20%E2%99%A5%20by-VolodiaPG-%23ff0000?style=flat-square)](https://github.com/volodiapg)
 
 </div>
 
