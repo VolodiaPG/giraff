@@ -15,6 +15,21 @@ market:
 fog_node:
   cargo build --package manager --bin fog_node	
 
+# Build the project as a docker image
+docker:
+  docker build -t fog_node:latest --target fog_node .
+  docker build -t market:latest --target market .
+
+# Push an image to ghcr
+_push image user:
+  docker tag {{image}} ghcr.io/{{user}}/{{image}}
+  docker push ghcr.io/{{user}}/{{image}}
+  
+# Push docker images to ghcr
+ghcr user: docker
+  just _push fog_node:latest {{user}}
+  just _push market:latest {{user}}
+  
 # Start prometheus locally
 prometheus:
   if ! test -d "./prometheus"; then just install-prometheus; fi
