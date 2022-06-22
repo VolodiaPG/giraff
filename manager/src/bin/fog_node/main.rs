@@ -2,6 +2,7 @@ extern crate core;
 #[macro_use]
 extern crate log;
 
+use if_chain::if_chain;
 use std::io::Read;
 use std::{env, io, sync::Arc};
 
@@ -30,6 +31,7 @@ use crate::service::routing::{Router, RouterImpl};
 mod controller;
 mod cron;
 mod handler;
+mod prom_metrics;
 mod repository;
 mod service;
 
@@ -39,6 +41,15 @@ ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPE
 Simpler config only using kubeconfig-1
 ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="8081" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
 */
+
+/// Load the CONFIG env variable
+fn load_config_from_env() -> anyhow::Result<String> {
+    let config = env::var("CONFIG")?;
+    let config = base64::decode(config)?;
+    let config = String::from_utf8(config)?;
+
+    Ok(config)
+}
 
 #[launch]
 async fn rocket() -> _ {
@@ -57,6 +68,14 @@ async fn rocket() -> _ {
     debug!("username: {:?}", username);
     debug!("password?: {:?}", password.is_some());
 
+    let config = load_config_from_env()
+        .map_err(|err| {
+            error!("Error looking for the based64 CONFIG env variable: {}", err);
+            std::process::exit(1);
+        })
+        .unwrap();
+    info!("Loaded config from CONFIG env variable.");
+
     let auth = username.map(|username| (username, password));
 
     // Repositories
@@ -65,16 +84,8 @@ async fn rocket() -> _ {
         client: Client::new(),
         basic_auth: auth,
     }));
-    let mut buffer = String::new();
-    if let Err(err) = io::stdin().read_to_string(&mut buffer) {
-        error!("Error reading stdin: {}", err);
-        std::process::exit(1);
-    }
-    let disk_data = NodeSituationDisk::new(buffer);
-    if let Err(e) = disk_data {
-        error!("Error loading node situation from disk: {}", e);
-        std::process::exit(1);
-    }
+
+    let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituationHashSetImpl::new(NodeSituationData::from(
         disk_data.unwrap(),
     )));
