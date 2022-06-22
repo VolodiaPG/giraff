@@ -131,6 +131,10 @@ async fn rocket() -> _ {
     }
 
     let prometheus = PrometheusMetrics::new();
+    prometheus
+        .registry()
+        .register(Box::new(prom_metrics::BID_HISTOGRAM.clone()))
+        .unwrap();
 
     rocket::build()
         .attach(prometheus.clone())

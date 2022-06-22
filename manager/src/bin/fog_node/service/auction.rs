@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use if_chain::if_chain;
 
+use crate::prom_metrics::BID_HISTOGRAM;
 use manager::model::domain::sla::Sla;
 use manager::model::dto::auction::BidRecord;
 use manager::model::dto::k8s::Metrics;
@@ -58,6 +59,12 @@ impl AuctionImpl {
 
         trace!("price on {:?} is {:?}", name, price);
 
+        BID_HISTOGRAM
+            .with_label_values(&[sla
+                .function_live_name
+                .as_ref()
+                .unwrap_or(&"unnamed".to_string())])
+            .observe(price);
         Ok(price)
     }
 
