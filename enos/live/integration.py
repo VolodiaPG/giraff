@@ -116,9 +116,6 @@ spec:
           value: "{conf}"
         ports:
         - containerPort: 3030
-        command: ["/bin/sh"]
-        # args: ["-c", "( echo \$( echo \$CONFIG | base64 -d ); cat - ) | fog_node"]
-        args: ["-c", "echo \$CONFIG | base64 -d | fog_node"]
 """
 
 MARKET_DEPLOYMENT = """apiVersion: v1
@@ -186,15 +183,15 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-NETWORK = {
-    "name": "market",
-    "children": [
-        # {
-        #     "name": "london",
-        #     "latency": 150
-        # }
-    ]
-}
+# NETWORK = {
+#     "name": "market",
+#     "children": [
+#         # {
+#         #     "name": "london",
+#         #     "latency": 150
+#         # }
+#     ]
+# }
 
 
 # NETWORK = {
@@ -237,27 +234,27 @@ NETWORK = {
 #     ]
 # }
 
-# NETWORK = {
-#     "name": "market",
-#     "children": [
-#         {
-#             "name": "rennes",
-#             "latency": 500,
-#             "children": [
-#                 {
-#                     "name": "vannes",
-#                     "latency": 200,
-#                     "children": [
-#                         {
-#                             "name": "brest",
-#                             "latency": 20
-#                         },
-#                     ]
-#                 },
-#             ]
-#         }
-#     ]
-# }
+NETWORK = {
+    "name": "market",
+    "children": [
+        {
+            "name": "rennes",
+            "latency": 500,
+            "children": [
+                {
+                    "name": "vannes",
+                    "latency": 200,
+                    "children": [
+                        {
+                            "name": "brest",
+                            "latency": 20
+                        },
+                    ]
+                },
+            ]
+        }
+    ]
+}
 
 CLUSTER = "paravance"
 
@@ -367,7 +364,7 @@ def up(force, env=None, **kwargs):
     conf = (
         en
             .VMonG5kConf
-            .from_settings(job_name="En0SLib FTW", walltime="1:00:00")
+            .from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
             # s the best-in-class speed and safety of Rust, to make your prompt as quick and reliable as possible.
             .add_machine(
             roles=["master", "market"],
@@ -608,18 +605,18 @@ def openfaas_login(env=None, file=None, **kwargs):
 
 
 @cli.command()
-@click.option('--fog-nodes', required=False, is_flag=True, help="Also tunnel fog nodes")
+@click.option('--all', required=False, is_flag=True, help="Also tunnel fog nodes")
 @enostask()
-def tunnels(env=None, fog_nodes=False, **kwargs):
+def tunnels(env=None, all=False, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
     roles = env['roles']
-    if fog_nodes:
+    if all:
         for role in roles['master']:
             address = role.address
-            # open_tunnel(address, 31112)  # OpenFaas
+            open_tunnel(address, 31112)  # OpenFaas
             open_tunnel(address, 3030)  # Fog Node
-            # open_tunnel(address, 8001,
-            #             "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
+            open_tunnel(address, 8001,
+                        "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
 
     for role in roles['market']:
         address = role.address
