@@ -11,6 +11,10 @@ deploy:
   {{RUN}} add-net-constraints
   {{RUN}} monitoring
 
+# Refresh the container images hosted by k3s on all deployed nodes
+refresh:
+  {{RUN}} k3s-deploy
+
 # Open SSH tunnels
 tunnels:
   {{RUN}} tunnels
