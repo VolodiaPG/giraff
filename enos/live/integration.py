@@ -168,7 +168,7 @@ MARKET_CONNECTED_NODE = """MarketConnected (
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port: 3030,
-    tags: ["node_to_market", {name}],
+    tags: ["node_to_market", "{name}"],
 )
 
 """
@@ -180,7 +180,7 @@ NODE_CONNECTED_NODE = """NodeConnected (
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port: 3030,
-    tags: ["node_to_node", {name}],
+    tags: ["node_to_node", "{name}"],
 )
 
 """
@@ -624,8 +624,8 @@ def tunnels(env=None, all=False, **kwargs):
 
         open_tunnel(address, 8000)  # Market
 
+    open_tunnel(env['roles']['market'][0].address, 9090)
     open_tunnel(env['monitor'].ui.address, 3000)
-    # open_tunnel(env['roles']['market'][0].address, 9090)
 
     print("Press Enter to kill.")
     input()
