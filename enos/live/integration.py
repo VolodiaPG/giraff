@@ -167,7 +167,8 @@ MARKET_CONNECTED_NODE = """MarketConnected (
     market_port: 8000,
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030
+    my_public_port: 3030,
+    tags: ["node_to_market", {name}],
 )
 
 """
@@ -178,7 +179,8 @@ NODE_CONNECTED_NODE = """NodeConnected (
     parent_node_port: 3030,
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030
+    my_public_port: 3030,
+    tags: ["node_to_node", {name}],
 )
 
 """
@@ -194,67 +196,67 @@ NODE_CONNECTED_NODE = """NodeConnected (
 # }
 
 
-# NETWORK = {
-#     "name": "market",
-#     "children": [home/voparolguarino/.ssh/known_hosts
-#         {
-#             "name": "london",
-#             "latency": 150,
-#             "children": [
-#                 {
-#                     "name": "berlin",
-#                     "latency": 100
-#                 }
-#             ]
-#         },
-#         {
-#             "name": "rennes",
-#             "latency": 10,
-#             "children": [
-#                 {
-#                     "name": "vannes",
-#                     "latency": 500,
-#                     "children": [
-#                         {
-#                             "name": "brest",
-#                             "latency": 20
-#                         },
-#                         {
-#                             "name": "caveirac",
-#                             "latency": 50
-#                         }
-#                     ]
-#                 },
-#                 {
-#                     "name": "nantes",
-#                     "latency": 250
-#                 }
-#             ]
-#         }
-#     ]
-# }
-
 NETWORK = {
     "name": "market",
     "children": [
         {
+            "name": "london",
+            "latency": 150,
+            "children": [
+                {
+                    "name": "berlin",
+                    "latency": 100
+                }
+            ]
+        },
+        {
             "name": "rennes",
-            "latency": 500,
+            "latency": 10,
             "children": [
                 {
                     "name": "vannes",
-                    "latency": 200,
+                    "latency": 500,
                     "children": [
                         {
                             "name": "brest",
                             "latency": 20
                         },
+                        {
+                            "name": "caveirac",
+                            "latency": 50
+                        }
                     ]
                 },
+                {
+                    "name": "nantes",
+                    "latency": 250
+                }
             ]
         }
     ]
 }
+
+# NETWORK = {
+#     "name": "market",
+#     "children": [
+#         {
+#             "name": "rennes",
+#             "latency": 500,
+#             "children": [
+#                 {
+#                     "name": "vannes",
+#                     "latency": 200,
+#                     "children": [
+#                         {
+#                             "name": "brest",
+#                             "latency": 20
+#                         },
+#                     ]
+#                 },
+#             ]
+#         }
+#     ]
+# }
 
 CLUSTER = "paravance"
 
@@ -321,7 +323,7 @@ def log_cmd(env, results):
 def open_tunnel(address, port, rest_of_url=""):
     tunnel = en.G5kTunnel(address=address, port=port)
     local_address, local_port, _ = tunnel.start()
-    print(f"tunnel opened: http://localhost:{local_port}{rest_of_url}")
+    print(f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}")
     return local_address, local_port
 
 
@@ -365,7 +367,6 @@ def up(force, env=None, **kwargs):
         en
             .VMonG5kConf
             .from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
-            # s the best-in-class speed and safety of Rust, to make your prompt as quick and reliable as possible.
             .add_machine(
             roles=["master", "market"],
             cluster=CLUSTER,
@@ -479,7 +480,7 @@ def k3s_config(env=None, **kwargs):
 
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
-    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_id, my_public_ip=my_ip)
+    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_id, my_public_ip=my_ip, name=node["name"])
 
     children = node["children"] if "children" in node else []
 
@@ -503,7 +504,7 @@ def k3s_deploy(env=None, **kwargs):
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
     confs = [
-        (NETWORK["name"], MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id, my_public_ip=market_ip))]
+        (NETWORK["name"], MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id, my_public_ip=market_ip, name="cloud"))]
     confs = list(flatten([*confs, *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]]]))
 
     for (name, conf) in confs:
@@ -623,7 +624,7 @@ def tunnels(env=None, all=False, **kwargs):
 
         open_tunnel(address, 8000)  # Market
 
-    # open_tunnel(env['monitor'].ui.address, 3000)
+    open_tunnel(env['monitor'].ui.address, 3000)
     # open_tunnel(env['roles']['market'][0].address, 9090)
 
     print("Press Enter to kill.")
