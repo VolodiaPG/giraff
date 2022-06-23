@@ -2,45 +2,80 @@ PROMETHEUS_VERSION := "2.36.1"
 
 # Default command when no verb specified
 _default:
-  @just --choose
+    @just --choose
 
-# Build all the project
-build: market fog_node
+# Build a target (market or fog_node)
+build target:
+    cargo build --package manager --bin {{target}}
 
-# Build the market
-market:
-  cargo build --package manager --bin market
+# Run the market
+run_market:
+   export ROCKET_PORT=8000
+   cargo run --package manager --bin market
 
-# Build the node
-fog_node:
-  cargo build --package manager --bin fog_node	
+# Type is market or else (=fog_node)
+_run_fog_node_set_config_env_var type:
+
+# Run the node, type is market or else (generic fog_node)
+run_fog_node $node_type:
+    #!/usr/bin/python3
+    import os
+    import base64
+
+    MARKET_CONNECTED_NODE = """MarketConnected (
+        market_ip: "127.0.0.1",
+        market_port: 8000,
+        my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
+        my_public_ip: "127.0.0.1",
+        my_public_port: 3030,
+        tags: ["market connected"],
+    )
+
+    """
+
+    NODE_CONNECTED_NODE = """NodeConnected (
+        parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
+        parent_node_ip: "127.0.0.1",
+        parent_node_port: 3030,
+        my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
+        my_public_ip: "127.0.0.1",
+        my_public_port: 3031,
+        tags: ["node connected"],
+    )
+
+    """
+    node_type = os.environ["node_type"]
+    config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
+    os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
+    os.environ["ROCKET_PORT"] = "3030"
+    os.system("cargo run --package manager --bin fog_node")
 
 # Build the project as a docker image
 docker:
-  docker build -t fog_node:latest --target fog_node .
-  docker build -t market:latest --target market .
+    docker build -t fog_node:latest --target fog_node .
+    docker build -t market:latest --target market .
 
 # Push an image to ghcr
 _push image user:
-  docker tag {{image}} ghcr.io/{{user}}/{{image}}
-  docker push ghcr.io/{{user}}/{{image}}
+    docker tag {{image}} ghcr.io/{{user}}/{{image}}
+    docker push ghcr.io/{{user}}/{{image}}
   
 # Push docker images to ghcr
 ghcr user: docker
-  just _push fog_node:latest {{user}}
-  just _push market:latest {{user}}
+    just _push fog_node:latest {{user}}
+    just _push market:latest {{user}}
   
 # Start prometheus locally
 prometheus:
-  if ! test -d "./prometheus"; then just install-prometheus; fi
-  ./prometheus/prometheus --config.file=prometheus.yaml
+    if ! test -d "./prometheus"; then just install-prometheus; fi
+    ./prometheus/prometheus --config.file=prometheus.yaml
 	
 # Install prometheus locally
 install-prometheus:
-  mkdir -p prometheus
-  curl -L https://github.com/prometheus/prometheus/releases/download/v{{PROMETHEUS_VERSION}}/prometheus-{{PROMETHEUS_VERSION}}.linux-amd64.tar.gz | tar -xvz -C prometheus --strip-components=1
-  echo "Installed prometheus version {{PROMETHEUS_VERSION}} locally"
+    mkdir -p prometheus
+    curl -L https://github.com/prometheus/prometheus/releases/download/v{{PROMETHEUS_VERSION}}/prometheus-{{PROMETHEUS_VERSION}}.linux-amd64.tar.gz | tar -xvz -C prometheus --strip-components=1
+    @echo "Installed prometheus version {{PROMETHEUS_VERSION}} locally"
 
 # Cleans
 clean:
-  rm -rf ./prometheus
+    rm -rf ./prometheus

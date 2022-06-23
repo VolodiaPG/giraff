@@ -45,7 +45,7 @@ ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_P
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
-    let config = base64::decode(config)?;
+    let config = base64::decode_config(config, base64::STANDARD.decode_allow_trailing_bits(true))?;
     let config = String::from_utf8(config)?;
 
     Ok(config)
@@ -91,6 +91,7 @@ async fn rocket() -> _ {
     )));
 
     info!("Current node ID is {}", node_situation.get_my_id().await);
+    info!("Current node has been tagged {:?}", node_situation.get_my_tags().await);
     let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(K8sImpl::new());

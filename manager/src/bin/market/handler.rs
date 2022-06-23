@@ -6,8 +6,9 @@ use rocket::{get, post, put, State};
 use rocket_okapi::openapi;
 
 use manager::helper::handler::Resp;
+use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::AcceptedBid;
-use manager::model::view::node::RegisterNode;
+use manager::model::view::node::{GetFogNodes, RegisterNode};
 use manager::model::view::sla::PutSla;
 use manager::model::NodeId;
 use manager::respond;
@@ -44,6 +45,15 @@ pub async fn get_functions(
     faas_service: &State<Arc<dyn crate::service::faas::FogNodeFaaS>>,
 ) -> Resp<HashMap<NodeId, Vec<AcceptedBid>>> {
     respond!(controller::get_functions(faas_service.inner()).await)
+}
+
+/// Get all the connected nodes that have registered here
+#[openapi]
+#[get("/fog")]
+pub async fn get_fog(
+    fog_node_network: &State<Arc<dyn crate::service::fog_node_network::FogNodeNetwork>>,
+) -> Resp<Vec<GetFogNodes>> {
+    respond!(controller::get_fog(fog_node_network.inner()).await)
 }
 
 #[openapi]

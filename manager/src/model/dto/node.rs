@@ -21,6 +21,7 @@ pub struct NodeRecord {
     /// URI, only in the case of the market node
     pub ip: Option<IpAddr>,
     pub port: Option<u16>,
+    pub tags: Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
 
@@ -56,6 +57,7 @@ pub enum NodeSituationData {
         my_id: NodeId,
         my_public_ip: IpAddr,
         my_public_port: u16,
+        tags: Vec<String>,
     },
     NodeConnected {
         children: HashMap<NodeId, NodeDescription>,
@@ -65,6 +67,7 @@ pub enum NodeSituationData {
         my_id: NodeId,
         my_public_ip: IpAddr,
         my_public_port: u16,
+        tags: Vec<String>,
     },
 }
 
@@ -76,6 +79,7 @@ pub enum NodeSituationDisk {
         my_id: NodeId,
         my_public_ip: IpAddr,
         my_public_port: u16,
+        tags: Vec<String>,
     },
     NodeConnected {
         parent_id: NodeId,
@@ -84,6 +88,7 @@ pub enum NodeSituationDisk {
         my_id: NodeId,
         my_public_ip: IpAddr,
         my_public_port: u16,
+        tags: Vec<String>,
     },
 }
 
@@ -118,6 +123,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port,
+                tags,
             } => NodeSituationData::MarketConnected {
                 children: HashMap::new(),
                 market_ip,
@@ -125,6 +131,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port,
+                tags,
             },
             NodeSituationDisk::NodeConnected {
                 parent_id,
@@ -133,6 +140,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port,
+                tags,
             } => NodeSituationData::NodeConnected {
                 children: HashMap::new(),
                 parent_id,
@@ -141,6 +149,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port,
+                tags,
             },
         }
     }

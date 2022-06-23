@@ -63,6 +63,7 @@ impl NodeLife for NodeLifeImpl {
                 parent,
                 ip,
                 port,
+                ..
             } => {
                 if &self.node_situation.get_my_id().await != parent {
                     return Err(Error::NotTheParent);
@@ -99,6 +100,7 @@ impl NodeLife for NodeLifeImpl {
                 node_id: self.node_situation.get_my_id().await,
                 ip,
                 port,
+                tags: self.node_situation.get_my_tags().await.clone()
             }
         } else {
             RegisterNode::Node {
@@ -110,6 +112,7 @@ impl NodeLife for NodeLifeImpl {
                     .get_parent_id()
                     .await
                     .ok_or(Error::ParentDoesntExist)?,
+                tags: self.node_situation.get_my_tags().await.clone()
             }
         };
         self.node_query.register_to_parent(register).await?;

@@ -6,8 +6,8 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use manager::model::dto::node::{Node, NodeIdList, NodeRecord};
-use manager::model::view::auction::AcceptedBid;
 use manager::model::NodeId;
+use manager::model::view::auction::AcceptedBid;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -26,14 +26,17 @@ pub trait FogNode: Debug + Sync + Send {
     async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>>;
     async fn update(&self, id: &NodeId, node: NodeRecord);
     /// Append a new child to the current node, if fails, then doesn't append
-    async fn append_new_child(&self, parent: &NodeId, child: NodeId) -> Result<(), Error>;
+    async fn append_new_child(&self, parent: &NodeId, child: NodeId, tags: Vec<String>) -> Result<(), Error>;
     /// Append the root of the tree, i.e., will fail if not the first node in the whole tree, and will fail thereafter
-    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16) -> Result<(), Error>;
+    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16, tags: Vec<String>) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
     /// Return the stack, meaning the destination is at the bottom and the next node is at the top.
     async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
 
     async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>>;
+
+    /// Get all the connected nodes
+    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>;
 }
 
 #[derive(Debug)]
@@ -113,7 +116,7 @@ impl FogNode for FogNodeImpl {
         }
     }
 
-    async fn append_new_child(&self, parent: &NodeId, child: NodeId) -> Result<(), Error> {
+    async fn append_new_child(&self, parent: &NodeId, child: NodeId, tags: Vec<String>) -> Result<(), Error> {
         self.nodes
             .write()
             .await
@@ -126,7 +129,10 @@ impl FogNode for FogNodeImpl {
             Node {
                 parent: Some(parent.clone()),
                 children: vec![],
-                data: NodeRecord::default(),
+                data: NodeRecord {
+                    tags,
+                    ..NodeRecord::default()
+                },
             },
         );
         let result = self.check_tree().await;
@@ -157,7 +163,7 @@ impl FogNode for FogNodeImpl {
         Ok(())
     }
 
-    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16) -> Result<(), Error> {
+    async fn append_root(&self, root: NodeId, ip: IpAddr, port: u16, tags: Vec<String>) -> Result<(), Error> {
         self.nodes.write().await.insert(
             root.clone(),
             Node {
@@ -166,6 +172,7 @@ impl FogNode for FogNodeImpl {
                 data: NodeRecord {
                     ip: Some(ip),
                     port: Some(port),
+                    tags,
                     ..NodeRecord::default()
                 },
             },
@@ -199,5 +206,9 @@ impl FogNode for FogNodeImpl {
             );
         }
         records
+    }
+
+    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
+        return self.nodes.read().await.iter().map(|(id, record)|(id.clone(), record.data.clone())).collect()
     }
 }

@@ -3,10 +3,12 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use anyhow::Result;
+use futures::StreamExt;
 
 use manager::model::domain::auction::AuctionResult;
+use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::AcceptedBid;
-use manager::model::view::node::RegisterNode;
+use manager::model::view::node::{GetFogNodes, RegisterNode};
 use manager::model::view::sla::PutSla;
 use manager::model::NodeId;
 
@@ -63,4 +65,11 @@ pub async fn get_functions(
 ) -> Result<HashMap<NodeId, Vec<AcceptedBid>>, Infallible> {
     trace!("getting functions");
     Ok(faas_service.get_functions().await)
+}
+
+/// Get all the connected nodes that have registered here
+pub async fn get_fog(
+    fog_node_network: &Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
+) -> Result<Vec<GetFogNodes>> {
+    Ok(fog_node_network.get_nodes().await.into_iter().map(|val| val.into()).collect())
 }

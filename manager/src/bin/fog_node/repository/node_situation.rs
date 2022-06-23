@@ -15,6 +15,7 @@ pub trait NodeSituation: Debug + Sync + Send {
     async fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription>;
     async fn get_my_id(&self) -> NodeId;
     async fn get_parent_id(&self) -> Option<NodeId>;
+    async fn get_my_tags(&self) -> Vec<String>;
     /// Whether the node is connected to the market (i.e., doesn't have any parent = root of the network)
     async fn is_market(&self) -> bool;
     async fn get_parent_node_address(&self) -> Option<(IpAddr, u16)>;
@@ -83,6 +84,13 @@ impl NodeSituation for NodeSituationHashSetImpl {
         match &*self.database.read().await {
             NodeConnected { parent_id, .. } => Some(parent_id.clone()),
             _ => None,
+        }
+    }
+
+    async fn get_my_tags(&self) -> Vec<String> {
+        match &*self.database.read().await {
+            NodeConnected { tags, .. } |
+            MarketConnected { tags, .. } => tags.clone()
         }
     }
 
