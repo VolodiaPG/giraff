@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct BidRecord {
     pub bid: f64,
     pub sla: Sla,
+    pub node: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]

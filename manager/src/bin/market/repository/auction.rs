@@ -16,11 +16,10 @@ impl SecondPriceAuction {
 impl Auction for SecondPriceAuction {
     fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid> {
         let mut bids = bids.iter().collect::<Vec<_>>();
-        bids.sort_unstable_by(|a, b| a.bid.partial_cmp(&b.bid).unwrap());
-        bids.reverse();
-        let first = bids.get(0);
+        bids.sort_unstable_by(|a, b| a.bid.partial_cmp(&b.bid).unwrap()); // Sort asc
+        let first = bids.get(0).cloned().cloned();
         let second = bids.get(1);
-        match (first.cloned().cloned(), second) {
+        match (first, second) {
             (Some(first), Some(second)) => Some(ChosenBid {
                 price: second.bid,
                 bid: first,

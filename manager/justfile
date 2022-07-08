@@ -8,13 +8,14 @@ _default:
 build target:
     cargo build --package manager --bin {{target}}
 
+# Check the outdated deps (req. cargo-outdated crate)
+check_outdated:
+	cargo outdated -R
+
 # Run the market
 run_market:
    export ROCKET_PORT=8000
    cargo run --package manager --bin market
-
-# Type is market or else (=fog_node)
-_run_fog_node_set_config_env_var type:
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node $node_type:
@@ -48,7 +49,7 @@ run_fog_node $node_type:
     config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
     os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     os.environ["ROCKET_PORT"] = "3030"
-    os.system("cargo run --package manager --bin fog_node")
+    os.system("cargo run --package manager --bin fog_node --no-default-features --features fake_k8s")
 
 # Build the project as a docker image
 docker:

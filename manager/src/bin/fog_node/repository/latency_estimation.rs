@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use uom::si::f64::Time;
 
 use manager::model::domain::rolling_avg::RollingAvg;
-use manager::model::view::ping::{Ping, PingResponse};
+use manager::model::view::ping::Ping;
 use manager::model::NodeId;
 
 use crate::NodeSituation;
@@ -75,25 +75,8 @@ impl LatencyEstimationImpl {
     fn compute_latency(
         &self,
         ping: &Ping,
-        response: &PingResponse,
         received_at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(Time, Time), IndividualError> {
-        // let latency =
-        //     (response.received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as i64;
-        // if latency < 0 {
-        //     warn!("Got negative outbound latency: {}", latency);
-        //     return Err(IndividualError::NegativeTimeInterval);
-        // }
-        // let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency as f64);
-        //
-        // let latency =
-        //     (received_at.timestamp_millis() - response.received_at.timestamp_millis()) as i64;
-        // if latency < 0 {
-        //     warn!("Got negative inbound latency: {}", latency);
-        //     return Err(IndividualError::NegativeTimeInterval);
-        // }
-        // let incoming_latency = Time::new::<uom::si::time::millisecond>(latency as f64);
-
         // TODO fix that simplistic estimation with somthing considering the real values instead of symetric ones!!
 
         let latency_round =
@@ -104,10 +87,9 @@ impl LatencyEstimationImpl {
             return Err(IndividualError::NegativeTimeInterval);
         }
 
-        let outgoing_latency =
-            Time::new::<uom::si::time::millisecond>((latency_round as f64) / 2.0);
-        let incoming_latency =
-            Time::new::<uom::si::time::millisecond>((latency_round as f64) / 2.0);
+        let latency = latency_round as f64 / 2.0;
+        let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency);
+        let incoming_latency = outgoing_latency.clone();
 
         Ok((outgoing_latency, incoming_latency))
     }
@@ -130,15 +112,14 @@ impl LatencyEstimationImpl {
         let ping = Ping {
             sent_at: chrono::Utc::now(),
         };
-        let response = client
+        let _response = client
             .post(format!("http://{}:{}/api/ping", ip, port).as_str())
             .json(&ping)
             .send()
             .await?;
         let received_at = chrono::Utc::now();
-        let response: PingResponse = response.json().await?;
 
-        self.compute_latency(&ping, &response, &received_at)
+        self.compute_latency(&ping, &received_at)
     }
 }
 
@@ -162,7 +143,19 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .await
                     .entry(node.clone())
                     .or_default()
-                    .update(outgoing);
+                    .update(outgoing.clone());
+
+                let desc = self
+                    .node_situation
+                    .get_fog_node_neighbor(&node)
+                    .await
+                    .ok_or_else(|| IndividualError::NodeNotFound(node.clone()))?;
+
+                let ip = desc.ip;
+                let port = desc.port;
+                crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
+                    .with_label_values(&[&format!("{}:{}", ip, port)])
+                    .set(outgoing.value);
                 Ok(())
             });
         }

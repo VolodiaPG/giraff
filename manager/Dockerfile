@@ -1,5 +1,4 @@
-#FROM ghcr.io/volodiapg/rust:nightly as cargo-build
-FROM rustlang/rust@sha256:5d413e11424513d41549952517fed570d07b374fa3e2caec61340026de9bbbc7 as cargo-build
+FROM rustlang/rust@sha256:cbf8122e51e0b8beea34c0901d6cc347888ad8e274e8b0b7a358c7b9cdb34015 as cargo-build
 
 RUN apt-get update &&\
     apt-get install musl-tools musl-dev -y &&\

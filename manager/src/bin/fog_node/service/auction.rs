@@ -1,27 +1,28 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use if_chain::if_chain;
+use manager::helper::uom::cpu_ratio::cpu;
+use uom::si::f64::{Information, Ratio};
+use uom::si::information::gigabyte;
 
-use crate::prom_metrics::BID_HISTOGRAM;
+use crate::prom_metrics::{
+    BID_GAUGE, CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE, MEMORY_USED_GAUGE,
+};
 use manager::model::domain::sla::Sla;
 use manager::model::dto::auction::BidRecord;
-use manager::model::dto::k8s::Metrics;
 use manager::model::BidId;
 
 use crate::repository::auction::Auction as AuctionRepository;
-use crate::repository::k8s::K8s as K8sRepository;
+use crate::repository::resource_tracking::ResourceTracking;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Inherited an error when contacting the k8s API: {0}")]
-    Kube(#[from] kube::Error),
-    #[error(transparent)]
-    K8S(#[from] crate::repository::k8s::Error),
     #[error("BidId not found: {0}")]
     BidIdNotFound(BidId),
     #[error("The SLA is not satisfiable")]
     Unsatisfiable,
+    #[error(transparent)]
+    ResourceTracking(#[from] crate::repository::resource_tracking::Error),
 }
 
 #[async_trait]
@@ -34,65 +35,104 @@ pub trait Auction: Send + Sync {
 }
 
 pub struct AuctionImpl {
-    k8s: Arc<dyn K8sRepository>,
+    resource_tracking: Arc<dyn ResourceTracking>,
     db: Arc<dyn AuctionRepository>,
 }
 
 impl AuctionImpl {
-    pub fn new(k8s: Arc<dyn K8sRepository>, db: Arc<dyn AuctionRepository>) -> Self {
-        Self { k8s, db }
+    pub async fn new(
+        resource_tracking: Arc<dyn ResourceTracking>,
+        db: Arc<dyn AuctionRepository>,
+    ) -> Self {
+        Self {
+            resource_tracking,
+            db,
+        }
     }
 
-    async fn compute_bid(&self, sla: &Sla) -> Result<f64, Error> {
-        let aggregated_metrics = self.k8s.get_k8s_metrics().await?;
+    async fn get_a_node(
+        &self,
+        sla: &Sla,
+    ) -> Result<(String, Information, Ratio, Information, Ratio), Error> {
+        for node in self.resource_tracking.get_nodes() {
+            let (used_ram, used_cpu) = self.resource_tracking.get_used(node).await?;
+            let (available_ram, available_cpu) = self.resource_tracking.get_available(node).await?;
+            if self.satisfiability_check(&used_ram, &used_cpu, &available_ram, &available_cpu, sla)
+            {
+                return Ok((
+                    node.clone(),
+                    used_ram,
+                    used_cpu,
+                    available_ram,
+                    available_cpu,
+                ));
+            }
+        }
+        Err(Error::Unsatisfiable)
+    }
 
-        let (name, metrics) = aggregated_metrics
-            .iter()
-            .find(|(_key, metrics)| self.satisfiability_check(metrics, sla))
-            .ok_or(Error::Unsatisfiable)?;
+    async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
+        let (name, used_ram, used_cpu, available_ram, available_cpu) = self.get_a_node(sla).await?;
 
-        let allocatable = metrics.allocatable.as_ref().ok_or(Error::Unsatisfiable)?;
-        let usage = metrics.usage.as_ref().ok_or(Error::Unsatisfiable)?;
+        MEMORY_USED_GAUGE
+            .with_label_values(&[&name])
+            .set(used_ram.clone().value);
+        MEMORY_AVAILABLE_GAUGE
+            .with_label_values(&[&name])
+            .set(available_ram.clone().value);
+        CPU_USED_GAUGE
+            .with_label_values(&[&name])
+            .set(used_cpu.clone().value);
+        CPU_AVAILABLE_GAUGE
+            .with_label_values(&[&name])
+            .set(available_cpu.clone().value);
 
-        let price = (allocatable.memory - usage.memory) / sla.memory;
+        let cpu_left = available_cpu - used_cpu;
+        let ram_left = available_ram - used_ram;
+
+        let price = sla.memory / ram_left * (Information::new::<gigabyte>(1.0) / available_ram)
+            + sla.cpu / cpu_left * (Ratio::new::<cpu>(1.0) / available_cpu);
+
         let price: f64 = price.into();
 
         trace!("price on {:?} is {:?}", name, price);
 
-        BID_HISTOGRAM
-            .with_label_values(&[sla
-                .function_live_name
-                .as_ref()
-                .unwrap_or(&"unnamed".to_string())])
-            .observe(price);
-        Ok(price)
+        Ok((name, price))
     }
 
-    /// Check if the SLA is satisfiable by the current node.
-    fn satisfiability_check(&self, metrics: &Metrics, sla: &Sla) -> bool {
-        if_chain! {
-            if let Some(allocatable) = &metrics.allocatable;
-            if let Some(usage) = &metrics.usage;
-            if allocatable.memory - usage.memory > sla.memory;
-            then
-            {
-                trace!("{:?}", (allocatable.memory - usage.memory).into_format_args(uom::si::information::megabyte, uom::fmt::DisplayStyle::Description));
+    /// Check if the SLA is satisfiable by the current node (designated by name and metrics).
+    fn satisfiability_check(
+        &self,
+        used_ram: &Information,
+        used_cpu: &Ratio,
+        available_ram: &Information,
+        available_cpu: &Ratio,
+        sla: &Sla,
+    ) -> bool {
+        let would_be_used_ram = used_ram.clone() + sla.memory.clone();
+        let would_be_used_cpu = used_cpu.clone() + sla.cpu.clone();
 
-                return true
-            }
-        }
-
-        false
+        would_be_used_cpu < available_cpu.clone() && would_be_used_ram < available_ram.clone()
     }
 }
 
 #[async_trait]
 impl Auction for AuctionImpl {
     async fn bid_on(&self, sla: Sla) -> Result<(BidId, BidRecord), Error> {
-        let bid = self.compute_bid(&sla).await?;
-        let bid = BidRecord { bid, sla };
-        let id = self.db.insert(bid.to_owned()).await;
-        Ok((id, bid))
+        let (node, bid) = self.compute_bid(&sla).await?;
+        let record = BidRecord { bid, sla, node };
+        let id = self.db.insert(record.to_owned()).await;
+        BID_GAUGE
+            .with_label_values(&[
+                &record
+                    .sla
+                    .function_live_name
+                    .as_ref()
+                    .unwrap_or(&"unnamed".to_string()),
+                &format!("{}", id),
+            ])
+            .set(bid);
+        Ok((id, record))
     }
 
     async fn validate_bid(&self, id: &BidId) -> Result<BidRecord, Error> {
@@ -104,6 +144,13 @@ impl Auction for AuctionImpl {
             .clone();
 
         self.db.remove(id).await;
+
+        let (used_mem, used_cpu) = self.resource_tracking.get_used(&bid.node).await?;
+        let used_mem = used_mem + bid.sla.memory.clone();
+        let used_cpu = used_cpu + bid.sla.cpu.clone();
+        self.resource_tracking
+            .update_used(bid.node.clone(), used_mem, used_cpu)
+            .await?;
 
         Ok(bid)
     }

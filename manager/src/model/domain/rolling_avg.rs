@@ -9,10 +9,11 @@ pub struct RollingAvg {
     count: u32,
 }
 
+/// Cumulative avg
 impl RollingAvg {
     pub fn update(&mut self, latency: Time) {
         self.count += 1;
-        self.avg = (latency + self.avg * ((self.count - 1) as f64)) / self.count as f64;
+        self.avg += (latency - self.avg) / (self.count as f64);
     }
 
     pub fn get_avg(&self) -> Time {

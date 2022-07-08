@@ -1,14 +1,14 @@
-use uom::si::f64::Information;
+use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug)]
 pub struct Allocatable {
-    pub cpu: String,
+    pub cpu: Ratio,
     pub memory: Information,
 }
 
 #[derive(Debug)]
 pub struct Usage {
-    pub cpu: String,
+    pub cpu: Ratio,
     pub memory: Information,
 }
 

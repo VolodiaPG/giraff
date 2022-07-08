@@ -24,7 +24,7 @@ pub enum Error {
     #[error("The stack route is empty.")]
     EmptyRoutingStack,
     #[error("The status code errored out {0}.")]
-    ErrorStatus(reqwest::StatusCode),
+    ErrorStatus(reqwest::StatusCode, Option<String>),
     #[error("Packets can only be sent to fog nodes. (Wrong packet type)")]
     WrongPacketType,
     #[error("Cannot found the fog node with the id {0}.")]
@@ -80,7 +80,10 @@ impl NodeCommunicationThroughRoutingImpl {
         if response.status().is_success() {
             Ok(response.bytes().await?)
         } else {
-            Err(Error::ErrorStatus(response.status()))
+            Err(Error::ErrorStatus(
+                response.status(),
+                response.text().await.ok(),
+            ))
         }
     }
 }

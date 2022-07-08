@@ -7,8 +7,9 @@ use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
 use lazy_regex::regex;
-use uom::si::f64::Information;
-use uom::si::information::gibibyte;
+use manager::helper::uom::cpu_ratio::millicpu;
+use uom::si::f64::{Information, Ratio};
+use uom::si::information::{gibibyte, mebibyte};
 
 use manager::kube_metrics::node::NodeMetrics;
 use manager::model::dto::k8s::{Allocatable, Metrics, Usage};
@@ -31,6 +32,7 @@ pub trait K8s: Sync + Send {
 pub struct K8sImpl;
 
 impl K8sImpl {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
@@ -59,8 +61,14 @@ impl K8s for K8sImpl {
                 key,
                 Metrics {
                     usage: Some(Usage {
-                        cpu: metric.usage.cpu.0.to_owned(),
-                        memory: parse_quantity(&metric.usage.memory.0[..])?,
+                        cpu: parse_quantity(
+                            &metric.usage.cpu.0[..],
+                            &MissingUnitType::Complete("ppb"), //https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
+                        )?,
+                        memory: parse_quantity(
+                            &metric.usage.memory.0[..],
+                            &MissingUnitType::Suffix("B"), // Bytes
+                        )?,
                     }),
                     allocatable: None,
                 },
@@ -90,8 +98,8 @@ impl K8s for K8sImpl {
                 .get_mut(&key)
                 .ok_or(Error::MissingKey("metadata:name"))?
                 .allocatable = Some(Allocatable {
-                cpu: cpu.0.to_owned(),
-                memory: parse_quantity(&memory.0[..])?,
+                cpu: parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, // https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
+                memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, // Bytes
             });
         }
 
@@ -117,12 +125,12 @@ impl K8s for K8sFakeImpl {
             "toto".to_owned(),
             Metrics {
                 usage: Some(Usage {
-                    cpu: "900000000n".to_owned(),
-                    memory: Information::new::<gibibyte>(2.0),
+                    cpu: Ratio::new::<millicpu>(50.0),
+                    memory: Information::new::<mebibyte>(300.0),
                 }),
                 allocatable: Some(Allocatable {
-                    cpu: "900000000n".to_owned(),
-                    memory: Information::new::<gibibyte>(42.0),
+                    cpu: Ratio::new::<millicpu>(1000.0),
+                    memory: Information::new::<gibibyte>(2.3),
                 }),
             },
         );
@@ -130,11 +138,18 @@ impl K8s for K8sFakeImpl {
     }
 }
 
-fn parse_quantity<T>(quantity: &str) -> Result<T, Error>
+enum MissingUnitType<'a> {
+    /// Missing just the rightmost part, eg. B for Bytes
+    Suffix(&'a str),
+    /// the whole unit needs to be replaced, eg. received xxxxnano, replaced by xxxx nanocpu
+    Complete(&'a str),
+}
+
+fn parse_quantity<'a, T>(quantity: &str, missing_unit: &MissingUnitType<'a>) -> Result<T, Error>
 where
     T: FromStr,
 {
-    let re = regex!(r"^(\d+)(\w+)$");
+    let re = regex!(r"^(\d+)(\w*)$");
 
     let captures = re
         .captures(quantity)
@@ -142,13 +157,53 @@ where
     let measure = captures
         .get(1)
         .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let unit = captures
-        .get(2)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let prefix = captures.get(2).map(|cap| cap.as_str()).unwrap_or("");
+    //.ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
-    let qty = format!("{} {}B", measure.as_str(), unit.as_str())
+    let unit = match missing_unit {
+        MissingUnitType::Suffix(suffix) => format!("{}{}", prefix, suffix),
+        MissingUnitType::Complete(complete) => complete.to_string(),
+    };
+
+    let qty = format!("{} {}", measure.as_str(), unit)
         .parse::<T>()
         .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
 
     Ok(qty)
+}
+
+#[cfg(test)]
+mod tests {
+    use uom::fmt::DisplayStyle::Abbreviation;
+    use uom::si::information::byte;
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_ratio_cpu() -> Result<(), Error> {
+        assert_eq!(
+            format!(
+                "{}",
+                parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?
+                    .into_format_args(nanocpu, Abbreviation)
+            ),
+            "1023.9999999999999 nanocpu".to_owned()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_quantity_memory() -> Result<(), Error> {
+        assert_eq!(
+            format!(
+                "{}",
+                parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?
+                    .into_format_args(byte, Abbreviation)
+            ),
+            "1024 B".to_owned()
+        );
+
+        Ok(())
+    }
 }

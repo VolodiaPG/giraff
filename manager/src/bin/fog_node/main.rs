@@ -1,26 +1,32 @@
+#![feature(async_closure)]
+
 extern crate core;
 #[macro_use]
 extern crate log;
 
-use if_chain::if_chain;
-use std::io::Read;
-use std::{env, io, sync::Arc};
+use std::{env, sync::Arc};
 
 use reqwest::Client;
 use rocket::fairing::AdHoc;
 use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
+use rocket_prometheus::prometheus::GaugeVec;
 use rocket_prometheus::PrometheusMetrics;
 
 use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
 use manager::openfaas::{Configuration, DefaultApiClient};
 
 use crate::handler::*;
-use crate::repository::k8s::{K8sFakeImpl, K8sImpl};
+#[cfg(feature = "fake_k8s")]
+use crate::repository::k8s::K8sFakeImpl;
+#[cfg(feature = "k8s")]
+use crate::repository::k8s::K8sImpl;
+
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
 use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
 use crate::repository::provisioned::ProvisionedHashMapImpl;
+use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::auction::AuctionImpl;
 use crate::service::faas::OpenFaaSBackend;
 use crate::service::function_life::FunctionLifeImpl;
@@ -42,6 +48,9 @@ Simpler config only using kubeconfig-1
 ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="8081" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
 */
 
+#[cfg(all(feature = "k8s", feature = "fake_k8s"))]
+compile_error!("feature \"k8s\" and feature \"fake_k8s\" cannot be enabled at the same time");
+
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
@@ -50,6 +59,20 @@ fn load_config_from_env() -> anyhow::Result<String> {
 
     Ok(config)
 }
+
+#[cfg(feature = "fake_k8s")]
+fn k8s_factory() -> K8sFakeImpl {
+    info!("Using Fake k8s impl");
+    K8sFakeImpl::new()
+}
+
+#[cfg(feature = "k8s")]
+fn k8s_factory() -> K8sImpl {
+    debug!("Using default k8s impl");
+    K8sImpl::new()
+}
+
+// TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
 
 #[launch]
 async fn rocket() -> _ {
@@ -91,15 +114,29 @@ async fn rocket() -> _ {
     )));
 
     info!("Current node ID is {}", node_situation.get_my_id().await);
-    info!("Current node has been tagged {:?}", node_situation.get_my_tags().await);
+    info!(
+        "Current node has been tagged {:?}",
+        node_situation.get_my_tags().await
+    );
     let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
-    let k8s_repo = Arc::new(K8sImpl::new());
+    let k8s_repo = Arc::new(k8s_factory());
+    let resource_tracking_repo = Arc::new(
+        crate::repository::resource_tracking::ResourceTrackingImpl::new(k8s_repo.clone())
+            .await
+            .expect("Failed to instanciate the ResourceTrackingRepo"),
+    );
     let auction_repo = Arc::new(crate::repository::auction::AuctionImpl::new());
     let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
 
     // Services
-    let auction_service = Arc::new(AuctionImpl::new(k8s_repo.clone(), auction_repo.clone()));
+    let auction_service = Arc::new(
+        AuctionImpl::new(
+            resource_tracking_repo.clone() as Arc<dyn ResourceTracking>,
+            auction_repo.clone(),
+        )
+        .await,
+    );
     let faas_service = Arc::new(OpenFaaSBackend::new(
         client.clone(),
         provisioned_repo.clone(),
@@ -132,10 +169,25 @@ async fn rocket() -> _ {
     }
 
     let prometheus = PrometheusMetrics::new();
-    prometheus
-        .registry()
-        .register(Box::new(prom_metrics::BID_HISTOGRAM.clone()))
-        .unwrap();
+
+    let metrics: [&GaugeVec; 10] = [
+        &prom_metrics::BID_GAUGE,
+        &prom_metrics::MEMORY_USAGE_GAUGE,
+        &prom_metrics::MEMORY_ALLOCATABLE_GAUGE,
+        &prom_metrics::CPU_USAGE_GAUGE,
+        &prom_metrics::CPU_ALLOCATABLE_GAUGE,
+        &prom_metrics::MEMORY_USED_GAUGE,
+        &prom_metrics::MEMORY_AVAILABLE_GAUGE,
+        &prom_metrics::CPU_USED_GAUGE,
+        &prom_metrics::CPU_AVAILABLE_GAUGE,
+        &prom_metrics::LATENCY_NEIGHBORS_GAUGE,
+    ];
+    for metric in metrics {
+        prometheus
+            .registry()
+            .register(Box::new(metric.clone()))
+            .unwrap();
+    }
 
     rocket::build()
         .attach(prometheus.clone())
@@ -180,7 +232,7 @@ async fn rocket() -> _ {
         ))
         .attach(AdHoc::on_liftoff("Starting CRON jobs", |_rocket| {
             Box::pin(async {
-                cron::init(neighbor_monitor_service);
+                cron::init(neighbor_monitor_service, k8s_repo);
                 info!("Initialized CRON jobs.");
             })
         }))

@@ -6,7 +6,6 @@ use rocket::{get, post, put, State};
 use rocket_okapi::openapi;
 
 use manager::helper::handler::Resp;
-use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::AcceptedBid;
 use manager::model::view::node::{GetFogNodes, RegisterNode};
 use manager::model::view::sla::PutSla;
