@@ -185,78 +185,66 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
+
 # NETWORK = {
 #     "name": "market",
+#     "flavor": {"core": 10, "mem": 1024 * 16},
 #     "children": [
-#         # {
-#         #     "name": "london",
-#         #     "latency": 150
-#         # }
+#         {
+#             "name": "caveirac",
+#             "flavor": {"core": 4, "mem": 1024 * 4},
+#             "latency": 150
+#         },
 #     ]
 # }
 
-
 NETWORK = {
     "name": "market",
+    "flavor": {"core": 10, "mem": 1024 * 16},
     "children": [
         {
             "name": "london",
+            "flavor": {"core": 4, "mem": 1024 * 4},
             "latency": 150,
             "children": [
                 {
                     "name": "berlin",
+                    "flavor": {"core": 2, "mem": 1024 * 2},
                     "latency": 100
                 }
             ]
         },
         {
             "name": "rennes",
-            "latency": 10,
+            "flavor": {"core": 6, "mem": 1024 * 4},
+            "latency": 100,
             "children": [
                 {
                     "name": "vannes",
-                    "latency": 500,
+                    "flavor": {"core": 2, "mem": 1024 * 2},
+                    "latency": 100,
                     "children": [
                         {
                             "name": "brest",
-                            "latency": 20
+                            "flavor": {"core": 2, "mem": 1024 * 2},
+                            "latency": 50
                         },
                         {
                             "name": "caveirac",
-                            "latency": 50
+                            "flavor": {"core": 4, "mem": 1024 * 4},
+                            "latency": 100
                         }
                     ]
                 },
                 {
                     "name": "nantes",
+                    "flavor": {"core": 4, "mem": 1024 * 4},
                     "latency": 250
                 }
             ]
         }
     ]
 }
-
-# NETWORK = {
-#     "name": "market",
-#     "children": [
-#         {
-#             "name": "rennes",
-#             "latency": 500,
-#             "children": [
-#                 {
-#                     "name": "vannes",
-#                     "latency": 200,
-#                     "children": [
-#                         {
-#                             "name": "brest",
-#                             "latency": 20
-#                         },
-#                     ]
-#                 },
-#             ]
-#         }
-#     ]
-# }
 
 CLUSTER = "paravance"
 
@@ -278,7 +266,18 @@ def gen_fog_nodes_names(node):
     return [name, *[gen_fog_nodes_names(node) for node in children]]
 
 
+def adjacency(node):
+    children = node["children"] if "children" in node else []
+    ret = {}
+    ret[node['name']] = [(child['name'], child['latency']) for child in children]
+    for child in children:
+        ret = {**ret, **adjacency(child)}
+
+    return ret
+
+
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
+ADJACENCY = adjacency(NETWORK)
 
 
 def get_aliases(env):
@@ -288,6 +287,19 @@ def get_aliases(env):
         role = roles[node]
         alias = role[0].alias
         ret[alias] = node
+    ret["market"] = roles["market"][0].alias
+
+    return ret
+
+
+def get_aliases_from_ip(env):
+    roles = env["roles"]
+    ret = {}
+    for node in FOG_NODES:
+        role = roles[node]
+        alias = role[0].address + ":3030"
+        ret[alias] = node
+    ret[roles["market"][0].address + ":3030"] = "market"
 
     return ret
 
@@ -357,6 +369,17 @@ def init():
     en.check()
 
 
+def gen_vm_conf(node, conf):
+    children = node["children"] if "children" in node else []
+    for child in children:
+        conf.add_machine(
+            roles=["master", "fog_node", child["name"], "prom_agent"],
+            cluster=CLUSTER,
+            number=1,
+            flavour_desc=child["flavor"]
+        )
+        gen_vm_conf(child, conf)
+
 @cli.command()
 @click.option("--force", is_flag=True, help="destroy and up")
 @enostask(new=True)
@@ -365,10 +388,16 @@ def up(force, env=None, **kwargs):
 
     conf = (
         en
-            .VMonG5kConf
-            .from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
-            .add_machine(
-            roles=["master", "market"],
+        .VMonG5kConf
+        .from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
+        .add_machine(
+            roles=["master", "market", "prom_agent"],
+            cluster=CLUSTER,
+            number=1,
+            flavour_desc=NETWORK["flavor"]
+        )
+        .add_machine(
+            roles=["prom_master"],
             cluster=CLUSTER,
             number=1,
             flavour="large"
@@ -377,12 +406,7 @@ def up(force, env=None, **kwargs):
 
     print(FOG_NODES)
 
-    for node_name in FOG_NODES:
-        conf.add_machine(
-            roles=["master", "fog_node", node_name],
-            cluster=CLUSTER,
-            number=1,
-            flavour="large")
+    gen_vm_conf(NETWORK, conf)
 
     conf.finalize()
 
@@ -395,6 +419,17 @@ def up(force, env=None, **kwargs):
     env['networks'] = networks
 
     en.wait_for(roles)
+
+    roles = en.sync_info(roles, networks)
+
+    netem = en.NetemHTB()
+
+    env['netem'] = netem
+
+    gen_net(NETWORK, netem, roles)
+
+    netem.deploy()
+    netem.validate()
 
     k3s = en.K3s(master=roles['master'], agent=list())
 
@@ -430,7 +465,7 @@ def gen_net(node, netem, roles):
         netem.add_constraints(
             src=roles[node["name"]],
             dest=roles[child["name"]],
-            delay=child["latency"],
+            delay=str(child["latency"]) + "ms",
             rate="1gbit",
             symetric=True,
         )
@@ -439,36 +474,15 @@ def gen_net(node, netem, roles):
 
 @cli.command()
 @enostask()
-def add_net_constraints(env=None, **kwargs):
-    """Constraint the network links"""
-    roles = env['roles']
-    networks = env['networks']
-    roles = en.sync_info(roles, networks)
-
-    netem = en.NetemHTB()
-
-    env['netem'] = netem
-
-    gen_net(NETWORK, netem, roles)
-
-    netem.deploy()
-
-
-@cli.command()
-@enostask()
-def rm_net_constraints(env=None, **kwargs):
-    """Remove the constraints on the network links"""
-    netem = env['netem']
-    netem.destroy()
-
-@cli.command()
-@enostask()
 def monitoring(env=None, **kwargs):
     """Remove the constraints on the network links"""
     roles = env['roles']
-    monitor = mon.TPGMonitoring(collector=roles["market"][0], agent=roles["fog_node"], ui=roles["market"][0], telegraf_image=TELEGRAF_IMAGE, prometheus_image=PROMETHEUS_IMAGE, grafana_image=GRAFANA_IMAGE)
+    monitor = mon.TPGMonitoring(collector=roles["prom_master"][0], agent=roles["prom_agent"],
+                                ui=roles["prom_master"][0], telegraf_image=TELEGRAF_IMAGE,
+                                prometheus_image=PROMETHEUS_IMAGE, grafana_image=GRAFANA_IMAGE)
     monitor.deploy()
     env['monitor'] = monitor
+
 
 @cli.command()
 @enostask()
@@ -478,9 +492,16 @@ def k3s_config(env=None, **kwargs):
         print(out)
 
 
+@enostask()
+def aliases(env=None, **kwargs):
+    """Get aliases"""
+    return get_aliases_from_ip(env)
+
+
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
-    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_id, my_public_ip=my_ip, name=node["name"])
+    conf = NODE_CONNECTED_NODE.format(parent_id=parent_id, parent_ip=parent_ip, my_id=my_id, my_public_ip=my_ip,
+                                      name=node["name"])
 
     children = node["children"] if "children" in node else []
 
@@ -504,7 +525,8 @@ def k3s_deploy(env=None, **kwargs):
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
     confs = [
-        (NETWORK["name"], MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id, my_public_ip=market_ip, name="cloud"))]
+        (NETWORK["name"],
+         MARKET_CONNECTED_NODE.format(market_ip=market_ip, my_id=market_id, my_public_ip=market_ip, name="cloud"))]
     confs = list(flatten([*confs, *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]]]))
 
     for (name, conf) in confs:
@@ -551,14 +573,15 @@ def k3s_deploy(env=None, **kwargs):
 @cli.command()
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
-def health(env=None,all=False, **kwargs):
+def health(env=None, all=False, **kwargs):
     roles = env['roles']
+
+    command = "kubectl get deployments -n openfaas"
+    if all:
+        command = "kubectl get deployments --all-namespaces"
     res = en.run_command(
-        'kubectl get deployments --all-namespaces' if all else 'kubectl get deployments -n openfaas',
-        # 'docker ps -a',
-        # 'docker logs b9550c4084a1',
-        # 'cat /prometheus/prometheus.yml',
-        roles=roles["market"])
+        command,
+        roles=roles["master"])
     log_cmd(env, res)
 
 
@@ -574,12 +597,24 @@ def functions(env=None, **kwargs):
 
 @cli.command()
 @enostask()
-def logs(env=None, **kwargs):
+def toto(env=None, **kwargs):
     roles = env['roles']
     res = en.run_command(
-        'kubectl logs deployment/fog-node -n openfaas',
+        'kubectl logs deployment/primes -n openfaas-fn',
         roles=roles["master"])
     log_cmd(env, res)
+
+
+@cli.command()
+@click.option("--all", is_flag=True, help="all namespaces")
+@enostask()
+def logs(env=None, all=False, **kwargs):
+    roles = env['roles']
+    if all:
+        res = en.run_command(
+            'kubectl logs deployment/fog-node -n openfaas',
+            roles=roles["master"])
+        log_cmd(env, res)
 
     res = en.run_command(
         'kubectl logs deployment/market -n openfaas',
@@ -624,7 +659,7 @@ def tunnels(env=None, all=False, **kwargs):
 
         open_tunnel(address, 8000)  # Market
 
-    open_tunnel(env['roles']['market'][0].address, 9090)
+    open_tunnel(env['roles']['prom_master'][0].address, 9090)
     open_tunnel(env['monitor'].ui.address, 3000)
 
     print("Press Enter to kill.")
