@@ -1,0 +1,3 @@
+primes:
+	faas-cli build -f ./primes.yml
+	faas-cli push -f ./primes.yml

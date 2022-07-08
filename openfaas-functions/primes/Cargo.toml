@@ -1,0 +1,14 @@
+[package]
+name = "handler"
+version = "0.1.0"
+authors = ["Volodia PAROL-GUARINO <volodia.parol-guarino@protonmail.com>"]
+edition = "2021"
+
+# Requires Openssl devel ?
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = {version = "1.17", features=["full"]}
+warp = "0.3"
+primal = "0.3.0"
