@@ -246,7 +246,7 @@ NETWORK = {
     ]
 }
 
-CLUSTER = "paravance"
+CLUSTER = "gros"
 
 
 def flatten(container):
