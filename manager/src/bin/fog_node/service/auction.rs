@@ -5,9 +5,7 @@ use manager::helper::uom::cpu_ratio::cpu;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::gigabyte;
 
-use crate::prom_metrics::{
-    BID_GAUGE, CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE, MEMORY_USED_GAUGE,
-};
+use crate::prom_metrics::BID_GAUGE;
 use manager::model::domain::sla::Sla;
 use manager::model::dto::auction::BidRecord;
 use manager::model::BidId;
@@ -73,19 +71,6 @@ impl AuctionImpl {
 
     async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
         let (name, used_ram, used_cpu, available_ram, available_cpu) = self.get_a_node(sla).await?;
-
-        MEMORY_USED_GAUGE
-            .with_label_values(&[&name])
-            .set(used_ram.clone().value);
-        MEMORY_AVAILABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(available_ram.clone().value);
-        CPU_USED_GAUGE
-            .with_label_values(&[&name])
-            .set(used_cpu.clone().value);
-        CPU_AVAILABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(available_cpu.clone().value);
 
         let cpu_left = available_cpu - used_cpu;
         let ram_left = available_ram - used_ram;

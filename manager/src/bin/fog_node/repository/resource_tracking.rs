@@ -2,6 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use crate::prom_metrics::{
+    CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE, MEMORY_USED_GAUGE,
+};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use uom::si::f64::{Information, Ratio};
@@ -99,6 +102,40 @@ impl ResourceTrackingImpl {
         }
         Err(NonExistentName)
     }
+
+    /// Update the Prometheus metrics
+    async fn update_metrics(&self, name: &String) -> Result<(), Error> {
+        let (used_mem, used_cpu) = self
+            .resources_used
+            .read()
+            .await
+            .get(name)
+            .ok_or(Error::NonExistentName)?
+            .clone();
+
+        let (avail_mem, avail_cpu) = self
+            .resources_available
+            .read()
+            .await
+            .get(name)
+            .ok_or(Error::NonExistentName)?
+            .clone();
+
+        MEMORY_USED_GAUGE
+            .with_label_values(&[&name])
+            .set(used_mem.value);
+        MEMORY_AVAILABLE_GAUGE
+            .with_label_values(&[&name])
+            .set(avail_mem.value);
+        CPU_USED_GAUGE
+            .with_label_values(&[&name])
+            .set(used_cpu.value);
+        CPU_AVAILABLE_GAUGE
+            .with_label_values(&[&name])
+            .set(avail_cpu.value);
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -113,17 +150,20 @@ impl ResourceTracking for ResourceTrackingImpl {
         self.resources_used
             .write()
             .await
-            .insert(name, (memory, cpu));
+            .insert(name.clone(), (memory, cpu));
+        let _ = self.update_metrics(&name).await?;
         Ok(())
     }
 
     async fn get_used(&self, name: &String) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(&name).await?;
+        let _ = self.update_metrics(&name).await?;
         Ok(self.resources_used.read().await.get(name).unwrap().clone())
     }
 
     async fn get_available(&self, name: &String) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(&name).await?;
+        let _ = self.update_metrics(&name).await?;
         Ok(self
             .resources_available
             .read()
