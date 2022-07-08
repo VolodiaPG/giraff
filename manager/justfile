@@ -62,7 +62,7 @@ _push image user:
     docker push ghcr.io/{{user}}/{{image}}
   
 # Push docker images to ghcr
-ghcr user: docker
+ghcr user: _check_uncommited docker
     just _push fog_node:latest {{user}}
     just _push market:latest {{user}}
   
@@ -80,3 +80,12 @@ install-prometheus:
 # Cleans
 clean:
     rm -rf ./prometheus
+
+# Check for uncommited changes
+_check_uncommited:
+    #!/usr/bin/env bash
+    if [ -n "$(git status --porcelain)" ]
+    then
+        echo "ERROR: uncommitted changes"
+        exit 1
+    fi
