@@ -1,6 +1,8 @@
 # EnosLib
 current
 enos_*/
+_tmp_enos_/
+metrics*
 
 build
 out
