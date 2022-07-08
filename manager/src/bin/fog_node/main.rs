@@ -170,7 +170,7 @@ async fn rocket() -> _ {
 
     let prometheus = PrometheusMetrics::new();
 
-    let metrics: [&GaugeVec; 10] = [
+    let metrics: [&GaugeVec; 11] = [
         &prom_metrics::BID_GAUGE,
         &prom_metrics::MEMORY_USAGE_GAUGE,
         &prom_metrics::MEMORY_ALLOCATABLE_GAUGE,
@@ -181,6 +181,7 @@ async fn rocket() -> _ {
         &prom_metrics::CPU_USED_GAUGE,
         &prom_metrics::CPU_AVAILABLE_GAUGE,
         &prom_metrics::LATENCY_NEIGHBORS_GAUGE,
+        &prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE,
     ];
     for metric in metrics {
         prometheus

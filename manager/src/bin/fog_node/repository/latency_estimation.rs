@@ -156,6 +156,12 @@ impl LatencyEstimation for LatencyEstimationImpl {
                 crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
                     .with_label_values(&[&format!("{}:{}", ip, port)])
                     .set(outgoing.value);
+
+                if let Some(lat) = self.outgoing_latencies.read().await.get(&node) {
+                    crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
+                        .with_label_values(&[&format!("{}:{}", ip, port)])
+                        .set(lat.get_avg().value);
+                }
                 Ok(())
             });
         }

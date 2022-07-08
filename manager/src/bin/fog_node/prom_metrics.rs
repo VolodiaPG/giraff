@@ -96,4 +96,13 @@ lazy_static! {
         .unwrap()
     };
 
+    pub static ref LATENCY_NEIGHBORS_AVG_GAUGE: GaugeVec = {
+        GaugeVec::new(
+            opts!(concat!(PREFIX!(),"neighbors_latency_rolling_avg"), "Latency with neighbors (parent & children) average computed on the node"),
+                        &["instance_to"],
+
+        )
+        .unwrap()
+    };
+
 }
