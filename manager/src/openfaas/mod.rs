@@ -10,11 +10,11 @@ pub enum Error<T>
 where
     T: Display,
 {
-    #[error("Reqwest failed with error: {0}")]
+    #[error("OpenFaaS Reqwest failed with error: {0}")]
     Reqwest(reqwest::Error),
-    #[error("Serde failed with error: {0}")]
+    #[error("OpenFaas Serde request json conversion failed with error: {0}")]
     Serde(serde_json::Error),
-    #[error("The API request responded an unexpected payload: {0}")]
+    #[error("The OpenFaaS API request responded an unexpected payload: {0}")]
     Api(ApiError<T>),
 }
 
@@ -24,7 +24,7 @@ pub struct ApiError<T> {
     pub content: T,
 }
 
-impl<T> std::fmt::Display for ApiError<T>
+impl<T> Display for ApiError<T>
 where
     T: Display,
 {
