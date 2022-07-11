@@ -50,7 +50,9 @@ run_fog_node $node_type:
     config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
     os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     os.environ["ROCKET_PORT"] = "3030"
-    os.system("cargo run --package manager --bin fog_node --no-default-features --features fake_k8s")
+    os.system('''export ID=1 KUBECONFIG="../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
+    && cargo run --package manager --bin fog_node --no-default-features --features fake_k8s
+    ''')
 
 # Build the project as a docker image
 docker:
