@@ -34,12 +34,12 @@ impl serde_with::SerializeAs<Ratio> for RatioHelper {
     {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(
-            (&format!(
+            format!(
                 "{:?}",
                 value.into_format_args(crate::helper::uom::cpu_ratio::cpu, Abbreviation)
             )
             .split_whitespace()
-            .collect::<Vec<&str>>()[0])
+            .collect::<Vec<&str>>()[0]
                 .as_ref(),
         )
     }

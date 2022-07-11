@@ -177,7 +177,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use manager::helper::uom::cpu_ratio::nanocpu;
     use uom::fmt::DisplayStyle::Abbreviation;
+    use uom::si::f64::{Information, Ratio};
     use uom::si::information::byte;
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
