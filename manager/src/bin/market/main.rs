@@ -57,6 +57,12 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/",
-            openapi_get_routes![put_function, post_register_node, get_functions, get_fog, health],
+            openapi_get_routes![
+                put_function,
+                post_register_node,
+                get_functions,
+                get_fog,
+                health
+            ],
         )
 }

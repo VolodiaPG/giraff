@@ -1,18 +1,15 @@
 extern crate uom;
-
-use std::collections::HashMap;
-use std::str::FromStr;
-
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
 use lazy_regex::regex;
 use manager::helper::uom::cpu_ratio::millicpu;
-use uom::si::f64::{Information, Ratio};
-use uom::si::information::{gibibyte, mebibyte};
-
 use manager::kube_metrics::node::NodeMetrics;
 use manager::model::dto::k8s::{Allocatable, Metrics, Usage};
+use std::collections::HashMap;
+use std::str::FromStr;
+use uom::si::f64::{Information, Ratio};
+use uom::si::information::{gibibyte, mebibyte};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

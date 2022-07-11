@@ -7,4 +7,3 @@ functions:
     lang: rust-warp
     handler: ./redisdump
     image: volodiapg/redisdump:latest
-

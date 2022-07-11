@@ -27,6 +27,6 @@ do
 		"targetNode": "'$TARGET_NODE'",
 		"requestDestinations": [],
 		"requestSources": []
-	}'	
+	}'
 	sleep $DELAY
 done

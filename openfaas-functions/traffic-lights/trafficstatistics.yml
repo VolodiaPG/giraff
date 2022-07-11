@@ -7,4 +7,3 @@ functions:
     lang: rust-warp
     handler: ./trafficstatistics
     image: volodiapg/trafficstatistics:latest
-

@@ -7,4 +7,3 @@ functions:
     lang: rust-warp
     handler: ./primes
     image: ghcr.io/volodiapg/primes:latest
-

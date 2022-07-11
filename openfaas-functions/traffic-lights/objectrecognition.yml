@@ -7,4 +7,3 @@ functions:
     lang: rust-warp
     handler: ./objectrecognition
     image: volodiapg/objectrecognition:latest
-

@@ -89,8 +89,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
 
     async fn get_my_tags(&self) -> Vec<String> {
         match &*self.database.read().await {
-            NodeConnected { tags, .. } |
-            MarketConnected { tags, .. } => tags.clone()
+            NodeConnected { tags, .. } | MarketConnected { tags, .. } => tags.clone(),
         }
     }
 

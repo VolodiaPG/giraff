@@ -66,7 +66,7 @@ async fn handle(cars: Vec<Vehicule>) -> Result<Box<dyn Reply>, Box<dyn Error>> {
             cars_db.remove(index);
         }
         cars_db.push(car);
-        
+
     }
 
     let cars_db = cars_db

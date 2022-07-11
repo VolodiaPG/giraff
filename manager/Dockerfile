@@ -13,7 +13,7 @@ RUN mkdir -p src/bin/fog_node \
     && echo 'fn main() {println!("Hello, world!");}' > src/bin/fog_node/main.rs  \
     && echo 'fn main() {println!("Hello, world!");}' > src/bin/market/main.rs
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./Cargo.lock ./Cargo.lock 
+COPY ./Cargo.lock ./Cargo.lock
 
 RUN cargo build --release --target=x86_64-unknown-linux-musl
 

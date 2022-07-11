@@ -11,7 +11,7 @@ users:
 - name: ${USER}
   groups: sudo
   sudo: ALL=(ALL) NOPASSWD:ALL
-  ssh_authorized_keys: 
+  ssh_authorized_keys:
   - $(cat "${PUBLIC_SSH_KEY_PATH}")
 EOF
 }

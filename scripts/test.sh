@@ -12,4 +12,3 @@ done
 
 tmux select-layout -t my_session_name:0 tiled
 tmux attach-session -t my_session_name
-

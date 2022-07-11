@@ -7,4 +7,3 @@ functions:
     lang: rust-warp
     handler: ./movementplan
     image: volodiapg/movementplan:latest
-

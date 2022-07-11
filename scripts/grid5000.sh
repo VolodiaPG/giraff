@@ -1,7 +1,7 @@
 #!/bin/bash
-curl -sLS https://get.k3sup.dev | sh 
+curl -sLS https://get.k3sup.dev | sh
 sudo cp k3sup /usr/local/bin/k3sup
-export context="k3s-cluster" 
+export context="k3s-cluster"
 k3sup install --context $context --user $(whoami) --local
 export KUBECONFIG=/home/$(whoami)/kubeconfig
 kubectl config set-context $context
