@@ -14,9 +14,9 @@ do
 	  --data '{
 		"sla": {
 			"storage": "0 MB",
-			"memory": "500 MB",
-			"cpu": "300 millicpu",
-			"latencyMax": "600 ms",
+			"memory": "100 MB",
+			"cpu": "100 millicpu",
+			"latencyMax": "700 ms",
 			"dataInputMaxSize": "1 GB",
 			"dataOutputMaxSize": "1 GB",
 			"maxTimeBeforeHot": "10 s",
