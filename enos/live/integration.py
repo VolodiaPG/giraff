@@ -1,5 +1,6 @@
 import base64
 import logging
+import os
 import subprocess
 import tempfile
 import uuid
@@ -246,8 +247,7 @@ NETWORK = {
     ]
 }
 
-CLUSTER = "gros"
-
+CLUSTER = os.environ["CLUSTER"]
 
 def flatten(container):
     for i in container:
