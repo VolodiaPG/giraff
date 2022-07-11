@@ -13,6 +13,9 @@ build:
 check_outdated:
 	cargo outdated -R
 
+clippy:
+	cargo clippy -- -A clippy::let_unit_value -D warnings
+
 # Run the market
 run_market:
    export ROCKET_PORT=8000

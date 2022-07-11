@@ -96,10 +96,10 @@ impl AuctionImpl {
         available_cpu: &Ratio,
         sla: &Sla,
     ) -> bool {
-        let would_be_used_ram = used_ram.clone() + sla.memory.clone();
-        let would_be_used_cpu = used_cpu.clone() + sla.cpu.clone();
+        let would_be_used_ram = *used_ram + sla.memory;
+        let would_be_used_cpu = *used_cpu + sla.cpu;
 
-        would_be_used_cpu < available_cpu.clone() && would_be_used_ram < available_ram.clone()
+        would_be_used_cpu < *available_cpu && would_be_used_ram < *available_ram
     }
 }
 
@@ -111,12 +111,12 @@ impl Auction for AuctionImpl {
         let id = self.db.insert(record.to_owned()).await;
         BID_GAUGE
             .with_label_values(&[
-                &record
+                record
                     .sla
                     .function_live_name
                     .as_ref()
                     .unwrap_or(&"unnamed".to_string()),
-                &format!("{}", id),
+                &id.to_string(),
             ])
             .set(bid);
         Ok((id, record))
@@ -133,8 +133,8 @@ impl Auction for AuctionImpl {
         self.db.remove(id).await;
 
         let (used_mem, used_cpu) = self.resource_tracking.get_used(&bid.node).await?;
-        let used_mem = used_mem + bid.sla.memory.clone();
-        let used_cpu = used_cpu + bid.sla.cpu.clone();
+        let used_mem = used_mem + bid.sla.memory;
+        let used_cpu = used_cpu + bid.sla.cpu;
         self.resource_tracking
             .update_used(bid.node.clone(), used_mem, used_cpu)
             .await?;

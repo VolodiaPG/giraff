@@ -87,7 +87,7 @@ impl NodeLife for NodeLifeImpl {
         self.router
             .forward(&Packet::Market {
                 resource_uri: "register".to_string(),
-                data: &*serde_json::value::to_raw_value(&register).unwrap(),
+                data: &serde_json::value::to_raw_value(&register).unwrap(),
             })
             .await?;
         Ok(())
@@ -100,7 +100,7 @@ impl NodeLife for NodeLifeImpl {
                 node_id: self.node_situation.get_my_id().await,
                 ip,
                 port,
-                tags: self.node_situation.get_my_tags().await.clone(),
+                tags: self.node_situation.get_my_tags().await,
             }
         } else {
             RegisterNode::Node {
@@ -112,7 +112,7 @@ impl NodeLife for NodeLifeImpl {
                     .get_parent_id()
                     .await
                     .ok_or(Error::ParentDoesntExist)?,
-                tags: self.node_situation.get_my_tags().await.clone(),
+                tags: self.node_situation.get_my_tags().await,
             }
         };
         self.node_query.register_to_parent(register).await?;

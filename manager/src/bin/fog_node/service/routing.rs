@@ -253,7 +253,7 @@ where
                             .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
                         self.faas_api
                             .async_function_name_post(
-                                &*record.function_name,
+                                &record.function_name,
                                 serde_json::to_string(payload)?,
                             )
                             .await

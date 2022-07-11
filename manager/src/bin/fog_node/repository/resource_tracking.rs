@@ -32,12 +32,12 @@ pub trait ResourceTracking: Debug + Sync + Send {
         -> Result<(), Error>;
 
     /// Get the used (memory, cpu).
-    async fn get_used(&self, name: &String) -> Result<(Information, Ratio), Error>;
+    async fn get_used(&self, name: &'_ str) -> Result<(Information, Ratio), Error>;
 
     /// Get the available (memory, cpu).
     /// This value is the total available resources at the startup;
     /// it needs to be put in perspective with the usage values.
-    async fn get_available(&self, name: &String) -> Result<(Information, Ratio), Error>;
+    async fn get_available(&self, name: &'_ str) -> Result<(Information, Ratio), Error>;
 
     /// Get all the detected nodes connected
     fn get_nodes(&self) -> &Vec<String>;
@@ -104,34 +104,32 @@ impl ResourceTrackingImpl {
     }
 
     /// Update the Prometheus metrics
-    async fn update_metrics(&self, name: &String) -> Result<(), Error> {
-        let (used_mem, used_cpu) = self
+    async fn update_metrics(&self, name: &'_ str) -> Result<(), Error> {
+        let (used_mem, used_cpu) = *self
             .resources_used
             .read()
             .await
             .get(name)
-            .ok_or(Error::NonExistentName)?
-            .clone();
+            .ok_or(Error::NonExistentName)?;
 
-        let (avail_mem, avail_cpu) = self
+        let (avail_mem, avail_cpu) = *self
             .resources_available
             .read()
             .await
             .get(name)
-            .ok_or(Error::NonExistentName)?
-            .clone();
+            .ok_or(Error::NonExistentName)?;
 
         MEMORY_USED_GAUGE
-            .with_label_values(&[&name])
+            .with_label_values(&[name])
             .set(used_mem.value);
         MEMORY_AVAILABLE_GAUGE
-            .with_label_values(&[&name])
+            .with_label_values(&[name])
             .set(avail_mem.value);
         CPU_USED_GAUGE
-            .with_label_values(&[&name])
+            .with_label_values(&[name])
             .set(used_cpu.value);
         CPU_AVAILABLE_GAUGE
-            .with_label_values(&[&name])
+            .with_label_values(&[name])
             .set(avail_cpu.value);
 
         Ok(())
@@ -155,22 +153,16 @@ impl ResourceTracking for ResourceTrackingImpl {
         Ok(())
     }
 
-    async fn get_used(&self, name: &String) -> Result<(Information, Ratio), Error> {
-        let _ = self.key_exists(&name).await?;
-        let _ = self.update_metrics(&name).await?;
-        Ok(self.resources_used.read().await.get(name).unwrap().clone())
+    async fn get_used(&self, name: &'_ str) -> Result<(Information, Ratio), Error> {
+        let _ = self.key_exists(name).await?;
+        let _ = self.update_metrics(name).await?;
+        Ok(*self.resources_used.read().await.get(name).unwrap())
     }
 
-    async fn get_available(&self, name: &String) -> Result<(Information, Ratio), Error> {
-        let _ = self.key_exists(&name).await?;
-        let _ = self.update_metrics(&name).await?;
-        Ok(self
-            .resources_available
-            .read()
-            .await
-            .get(name)
-            .unwrap()
-            .clone())
+    async fn get_available(&self, name: &'_ str) -> Result<(Information, Ratio), Error> {
+        let _ = self.key_exists(name).await?;
+        let _ = self.update_metrics(name).await?;
+        Ok(*self.resources_available.read().await.get(name).unwrap())
     }
 
     fn get_nodes(&self) -> &Vec<String> {

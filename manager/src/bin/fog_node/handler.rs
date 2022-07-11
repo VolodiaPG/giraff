@@ -71,4 +71,4 @@ pub async fn post_ping(payload: Json<Ping>) -> Json<PingResponse> {
 
 #[openapi]
 #[get("/health")]
-pub async fn health() {}
+pub fn health() {}

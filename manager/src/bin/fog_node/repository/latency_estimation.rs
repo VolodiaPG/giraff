@@ -89,7 +89,7 @@ impl LatencyEstimationImpl {
 
         let latency = latency_round as f64 / 2.0;
         let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency);
-        let incoming_latency = outgoing_latency.clone();
+        let incoming_latency = outgoing_latency;
 
         Ok((outgoing_latency, incoming_latency))
     }
@@ -143,7 +143,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .await
                     .entry(node.clone())
                     .or_default()
-                    .update(outgoing.clone());
+                    .update(outgoing);
 
                 let desc = self
                     .node_situation
