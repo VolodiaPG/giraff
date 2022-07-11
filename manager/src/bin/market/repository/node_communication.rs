@@ -23,7 +23,7 @@ pub enum Error {
     Serialize(#[from] serde_json::Error),
     #[error("The stack route is empty.")]
     EmptyRoutingStack,
-    #[error("The status code errored out {0}.")]
+    #[error("Routing failed with status code {0}: {1:?}")]
     ErrorStatus(reqwest::StatusCode, Option<String>),
     #[error("Packets can only be sent to fog nodes. (Wrong packet type)")]
     WrongPacketType,
