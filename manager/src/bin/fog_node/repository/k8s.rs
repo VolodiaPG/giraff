@@ -3,13 +3,10 @@ use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
 use lazy_regex::regex;
-use manager::helper::uom::cpu_ratio::millicpu;
 use manager::kube_metrics::node::NodeMetrics;
 use manager::model::dto::k8s::{Allocatable, Metrics, Usage};
 use std::collections::HashMap;
 use std::str::FromStr;
-use uom::si::f64::{Information, Ratio};
-use uom::si::information::{gibibyte, mebibyte};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -26,114 +23,122 @@ pub trait K8s: Sync + Send {
     async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error>;
 }
 
-pub struct K8sImpl;
+cfg_if! {
+    if #[cfg(fake_k8s)] {
+        use manager::helper::uom::cpu_ratio::millicpu;
+        use uom::si::f64::{Information, Ratio};
+        use uom::si::information::{gibibyte, mebibyte};
 
-impl K8sImpl {
-    #[allow(dead_code)]
-    pub fn new() -> Self {
-        Self
-    }
-}
-#[async_trait]
-impl K8s for K8sImpl {
-    async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
-        let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
+        pub struct K8sFakeImpl;
 
-        let client = Client::try_default().await.map_err(Error::Kube)?;
-        let node_metrics: Api<NodeMetrics> = Api::all(client.clone());
-        let metrics = node_metrics
-            .list(&ListParams::default())
-            .await
-            .map_err(Error::Kube)?;
-
-        for metric in metrics {
-            // let memory = memory.into_format_args(gibibyte, Description);
-            let key = metric
-                .metadata
-                .name
-                .ok_or(Error::MissingKey("metadata:name"))?;
-
-            aggregated_metrics.insert(
-                key,
-                Metrics {
-                    usage: Some(Usage {
-                        cpu: parse_quantity(
-                            &metric.usage.cpu.0[..],
-                            &MissingUnitType::Complete("ppb"), //https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
-                        )?,
-                        memory: parse_quantity(
-                            &metric.usage.memory.0[..],
-                            &MissingUnitType::Suffix("B"), // Bytes
-                        )?,
-                    }),
-                    allocatable: None,
-                },
-            );
+        impl K8sFakeImpl {
+            pub fn new() -> Self {
+                Self
+            }
         }
 
-        let nodes: Api<Node> = Api::all(client.clone());
-        let nodes = nodes
-            .list(&ListParams::default())
-            .await
-            .map_err(Error::Kube)?;
+        #[async_trait]
+        impl K8s for K8sFakeImpl {
+            async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
+                let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
-        for node in nodes {
-            let status = node.status.ok_or(Error::MissingKey("status"))?;
-            let allocatable = status.allocatable.ok_or(Error::MissingKey("allocatable"))?;
-            let key = node
-                .metadata
-                .name
-                .ok_or(Error::MissingKey("metadata:name"))?;
-            let cpu = allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
-            let memory = allocatable
-                .get("memory")
-                .ok_or(Error::MissingKey("memory"))?;
-
-            // let memory = memory.into_format_args(gibibyte, Description);
-            aggregated_metrics
-                .get_mut(&key)
-                .ok_or(Error::MissingKey("metadata:name"))?
-                .allocatable = Some(Allocatable {
-                cpu: parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, // https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
-                memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, // Bytes
-            });
+                aggregated_metrics.insert(
+                    "toto".to_owned(),
+                    Metrics {
+                        usage: Some(Usage {
+                            cpu: Ratio::new::<millicpu>(50.0),
+                            memory: Information::new::<mebibyte>(300.0),
+                        }),
+                        allocatable: Some(Allocatable {
+                            cpu: Ratio::new::<millicpu>(1000.0),
+                            memory: Information::new::<gibibyte>(2.3),
+                        }),
+                    },
+                );
+                Ok(aggregated_metrics)
+            }
         }
 
-        Ok(aggregated_metrics)
-    }
-}
 
-pub struct K8sFakeImpl;
 
-impl K8sFakeImpl {
-    pub fn new() -> Self {
-        Self
-    }
-}
+    } else {
+        pub struct K8sImpl;
 
-#[async_trait]
-impl K8s for K8sFakeImpl {
-    async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
-        let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
+        impl K8sImpl {
+            #[allow(dead_code)]
+            pub fn new() -> Self {
+                Self
+            }
+        }
+        #[async_trait]
+        impl K8s for K8sImpl {
+            async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
+                let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
-        aggregated_metrics.insert(
-            "toto".to_owned(),
-            Metrics {
-                usage: Some(Usage {
-                    cpu: Ratio::new::<millicpu>(50.0),
-                    memory: Information::new::<mebibyte>(300.0),
-                }),
-                allocatable: Some(Allocatable {
-                    cpu: Ratio::new::<millicpu>(1000.0),
-                    memory: Information::new::<gibibyte>(2.3),
-                }),
-            },
-        );
-        Ok(aggregated_metrics)
-    }
-}
+                let client = Client::try_default().await.map_err(Error::Kube)?;
+                let node_metrics: Api<NodeMetrics> = Api::all(client.clone());
+                let metrics = node_metrics
+                    .list(&ListParams::default())
+                    .await
+                    .map_err(Error::Kube)?;
 
-enum MissingUnitType<'a> {
+                for metric in metrics {
+                    // let memory = memory.into_format_args(gibibyte, Description);
+                    let key = metric
+                        .metadata
+                        .name
+                        .ok_or(Error::MissingKey("metadata:name"))?;
+
+                    aggregated_metrics.insert(
+                        key,
+                        Metrics {
+                            usage: Some(Usage {
+                                cpu: parse_quantity(
+                                    &metric.usage.cpu.0[..],
+                                    &MissingUnitType::Complete("ppb"), //https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
+                                )?,
+                                memory: parse_quantity(
+                                    &metric.usage.memory.0[..],
+                                    &MissingUnitType::Suffix("B"), // Bytes
+                                )?,
+                            }),
+                            allocatable: None,
+                        },
+                    );
+                }
+
+                let nodes: Api<Node> = Api::all(client.clone());
+                let nodes = nodes
+                    .list(&ListParams::default())
+                    .await
+                    .map_err(Error::Kube)?;
+
+                for node in nodes {
+                    let status = node.status.ok_or(Error::MissingKey("status"))?;
+                    let allocatable = status.allocatable.ok_or(Error::MissingKey("allocatable"))?;
+                    let key = node
+                        .metadata
+                        .name
+                        .ok_or(Error::MissingKey("metadata:name"))?;
+                    let cpu = allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
+                    let memory = allocatable
+                        .get("memory")
+                        .ok_or(Error::MissingKey("memory"))?;
+
+                    // let memory = memory.into_format_args(gibibyte, Description);
+                    aggregated_metrics
+                        .get_mut(&key)
+                        .ok_or(Error::MissingKey("metadata:name"))?
+                        .allocatable = Some(Allocatable {
+                        cpu: parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, // https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
+                        memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, // Bytes
+                    });
+                }
+
+                Ok(aggregated_metrics)
+            }
+        }
+        enum MissingUnitType<'a> {
     /// Missing just the rightmost part, eg. B for Bytes
     Suffix(&'a str),
     /// the whole unit needs to be replaced, eg. received xxxxnano, replaced by xxxx nanocpu
@@ -165,6 +170,9 @@ where
         .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
 
     Ok(qty)
+}
+
+    }
 }
 
 #[cfg(test)]

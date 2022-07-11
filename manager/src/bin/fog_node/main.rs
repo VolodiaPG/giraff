@@ -3,25 +3,10 @@
 extern crate core;
 #[macro_use]
 extern crate log;
-
-use std::{env, sync::Arc};
-
-use reqwest::Client;
-use rocket::fairing::AdHoc;
-use rocket::launch;
-use rocket_okapi::{openapi_get_routes, swagger_ui::*};
-use rocket_prometheus::prometheus::GaugeVec;
-use rocket_prometheus::PrometheusMetrics;
-
-use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
-use manager::openfaas::{Configuration, DefaultApiClient};
+#[macro_use]
+extern crate cfg_if;
 
 use crate::handler::*;
-#[cfg(feature = "fake_k8s")]
-use crate::repository::k8s::K8sFakeImpl;
-#[cfg(feature = "k8s")]
-use crate::repository::k8s::K8sImpl;
-
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
 use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
@@ -33,6 +18,15 @@ use crate::service::function_life::FunctionLifeImpl;
 use crate::service::neighbor_monitor::NeighborMonitorImpl;
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
+use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
+use manager::openfaas::{Configuration, DefaultApiClient};
+use reqwest::Client;
+use rocket::fairing::AdHoc;
+use rocket::launch;
+use rocket_okapi::{openapi_get_routes, swagger_ui::*};
+use rocket_prometheus::prometheus::GaugeVec;
+use rocket_prometheus::PrometheusMetrics;
+use std::{env, sync::Arc};
 
 mod controller;
 mod cron;
@@ -48,9 +42,6 @@ Simpler config only using kubeconfig-1
 ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="8081" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
 */
 
-#[cfg(all(feature = "k8s", feature = "fake_k8s"))]
-compile_error!("feature \"k8s\" and feature \"fake_k8s\" cannot be enabled at the same time");
-
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
@@ -60,16 +51,20 @@ fn load_config_from_env() -> anyhow::Result<String> {
     Ok(config)
 }
 
-#[cfg(feature = "fake_k8s")]
-fn k8s_factory() -> K8sFakeImpl {
-    info!("Using Fake k8s impl");
-    K8sFakeImpl::new()
-}
-
-#[cfg(feature = "k8s")]
-fn k8s_factory() -> K8sImpl {
-    debug!("Using default k8s impl");
-    K8sImpl::new()
+cfg_if! {
+    if #[cfg(fake_k8s)]{
+        use crate::repository::k8s::K8sFakeImpl;
+        fn k8s_factory() -> K8sFakeImpl {
+            info!("Using Fake k8s impl");
+            K8sFakeImpl::new()
+        }
+    } else{
+        use crate::repository::k8s::K8sImpl;
+        fn k8s_factory() -> K8sImpl {
+            debug!("Using default k8s impl");
+            K8sImpl::new()
+        }
+    }
 }
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
