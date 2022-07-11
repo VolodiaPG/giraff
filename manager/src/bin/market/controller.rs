@@ -1,14 +1,16 @@
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::sync::Arc;
+use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use anyhow::Result;
 
-use manager::model::domain::auction::AuctionResult;
-use manager::model::view::auction::AcceptedBid;
-use manager::model::view::node::{GetFogNodes, RegisterNode};
-use manager::model::view::sla::PutSla;
-use manager::model::NodeId;
+use manager::model::{
+    domain::auction::AuctionResult,
+    view::{
+        auction::AcceptedBid,
+        node::{GetFogNodes, RegisterNode},
+        sla::PutSla,
+    },
+    NodeId,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
@@ -31,16 +33,11 @@ pub async fn start_auction(
 ) -> Result<AcceptedBid, ControllerError> {
     trace!("put sla: {:?}", payload);
 
-    let proposals = auction_service
-        .call_for_bids(payload.target_node, payload.sla)
-        .await?;
+    let proposals = auction_service.call_for_bids(payload.target_node, payload.sla).await?;
 
     let AuctionResult { chosen_bid } = auction_service.do_auction(&proposals).await?;
 
-    let accepted = AcceptedBid {
-        chosen: chosen_bid,
-        proposals,
-    };
+    let accepted = AcceptedBid { chosen: chosen_bid, proposals };
 
     faas_service.provision_function(accepted.clone()).await?;
 
@@ -69,10 +66,5 @@ pub async fn get_functions(
 pub async fn get_fog(
     fog_node_network: &Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
 ) -> Result<Vec<GetFogNodes>> {
-    Ok(fog_node_network
-        .get_nodes()
-        .await
-        .into_iter()
-        .map(|val| val.into())
-        .collect())
+    Ok(fog_node_network.get_nodes().await.into_iter().map(|val| val.into()).collect())
 }

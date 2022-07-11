@@ -14,15 +14,10 @@ where
 {
     let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
 
-    let captures = re
-        .captures(quantity)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let measure = captures
-        .get(1)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let unit = captures
-        .get(2)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let captures =
+        re.captures(quantity).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let measure = captures.get(1).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let unit = captures.get(2).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
     let qty = format!("{} {}", measure.as_str(), unit.as_str())
         .parse::<T>()
@@ -56,9 +51,7 @@ macro_rules! impl_serialize_as {
     };
     ($type:ty, $unit:ty, $format:expr, $parser:expr) => {
         use core::fmt;
-        use serde::de::Visitor;
-        use serde::Deserializer;
-        use serde::Serializer;
+        use serde::{de::Visitor, Deserializer, Serializer};
 
         use uom::fmt::DisplayStyle::Abbreviation;
 
@@ -124,8 +117,7 @@ pub mod time {
 pub mod ratio {
     use uom::si::f64::Ratio;
 
-    use crate::helper::uom::cpu_ratio::millicpu;
-    use crate::helper::uom::ratio_helper::parse;
+    use crate::helper::uom::{cpu_ratio::millicpu, ratio_helper::parse};
 
     impl_serialize_as!(Ratio, millicpu, millicpu, parse);
     impl_json_schema!(Ratio => String, "<value> <SI unit>");

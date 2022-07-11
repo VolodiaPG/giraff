@@ -1,12 +1,8 @@
 use bytes::Bytes;
 use log::error;
 use okapi::openapi3::Responses;
-use rocket::http::Status;
-use rocket::response::Responder;
-use rocket::serde::json::Json;
-use rocket::{Request, Response};
-use rocket_okapi::gen::OpenApiGenerator;
-use rocket_okapi::response::OpenApiResponderInner;
+use rocket::{http::Status, response::Responder, serde::json::Json, Request, Response};
+use rocket_okapi::{gen::OpenApiGenerator, response::OpenApiResponderInner};
 use std::io::Cursor;
 
 /// Shortcut type for the responses of this handler.
@@ -16,7 +12,7 @@ pub type Resp<T = ()> = std::result::Result<Json<T>, Error>;
 /// and mapping the error channel with `Into::into`.
 #[macro_export]
 macro_rules! respond {
-    ($call: expr) => {
+    ($call:expr) => {
         $call.map(Json).map_err(Into::into)
     };
 }
@@ -28,9 +24,7 @@ impl<E> From<E> for Error
 where
     E: Into<anyhow::Error>,
 {
-    fn from(error: E) -> Self {
-        Error(error.into())
-    }
+    fn from(error: E) -> Self { Error(error.into()) }
 }
 
 impl<'r> Responder<'r, 'static> for Error {
@@ -58,9 +52,7 @@ impl OpenApiResponderInner for Error {
 pub struct BytesResponse(pub Bytes);
 
 impl From<Bytes> for BytesResponse {
-    fn from(bytes: Bytes) -> Self {
-        Self(bytes)
-    }
+    fn from(bytes: Bytes) -> Self { Self(bytes) }
 }
 
 impl<'r> Responder<'r, 'static> for BytesResponse {

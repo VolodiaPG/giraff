@@ -5,7 +5,7 @@ use uom::si::f64::Time;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RollingAvg {
     #[serde_as(as = "crate::helper::uom::time::Helper")]
-    avg: Time,
+    avg:   Time,
     count: u32,
 }
 
@@ -16,16 +16,11 @@ impl RollingAvg {
         self.avg += (latency - self.avg) / (self.count as f64);
     }
 
-    pub fn get_avg(&self) -> Time {
-        self.avg
-    }
+    pub fn get_avg(&self) -> Time { self.avg }
 }
 
 impl Default for RollingAvg {
     fn default() -> Self {
-        RollingAvg {
-            avg: Time::new::<uom::si::time::millisecond>(0.0),
-            count: 0,
-        }
+        RollingAvg { avg: Time::new::<uom::si::time::millisecond>(0.0), count: 0 }
     }
 }

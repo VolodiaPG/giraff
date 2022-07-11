@@ -1,13 +1,21 @@
-use crate::service::function_life::FunctionLife;
-use crate::service::routing::Router;
-use crate::{controller, NodeLife};
-use manager::helper::handler::{BytesResponse, Resp};
-use manager::model::domain::routing::{FunctionRoutingStack, Packet};
-use manager::model::view::auction::{BidProposals, BidRequest};
-use manager::model::view::node::RegisterNode;
-use manager::model::view::ping::{Ping, PingResponse};
-use manager::model::BidId;
-use manager::respond;
+use crate::{
+    controller,
+    service::{function_life::FunctionLife, routing::Router},
+    NodeLife,
+};
+use manager::{
+    helper::handler::{BytesResponse, Resp},
+    model::{
+        domain::routing::{FunctionRoutingStack, Packet},
+        view::{
+            auction::{BidProposals, BidRequest},
+            node::RegisterNode,
+            ping::{Ping, PingResponse},
+        },
+        BidId,
+    },
+    respond,
+};
 use rocket::{get, post, put, serde::json::Json, State};
 use rocket_okapi::openapi;
 use std::sync::Arc;

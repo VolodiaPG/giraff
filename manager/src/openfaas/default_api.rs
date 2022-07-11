@@ -2,8 +2,11 @@ use async_trait::async_trait;
 use log::trace;
 use std::fmt::Debug;
 
-use super::models::FunctionListEntry;
-use super::{configuration, models::FunctionDefinition, Error};
+use super::{
+    configuration,
+    models::{FunctionDefinition, FunctionListEntry},
+    Error,
+};
 
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {
@@ -46,11 +49,8 @@ impl DefaultApi for DefaultApiClient {
         let uri_str = format!("{}/system/functions", self.configuration.base_path);
         trace!("Requesting {}", uri_str);
 
-        let mut builder = self
-            .configuration
-            .client
-            .post(&uri_str)
-            .body(serde_json::to_string(&body)?);
+        let mut builder =
+            self.configuration.client.post(&uri_str).body(serde_json::to_string(&body)?);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
@@ -71,10 +71,7 @@ impl DefaultApi for DefaultApiClient {
         function_name: &str,
         input: String,
     ) -> Result<(), Error<String>> {
-        let uri_str = format!(
-            "{}/async-function/{}",
-            self.configuration.base_path, function_name
-        );
+        let uri_str = format!("{}/async-function/{}", self.configuration.base_path, function_name);
         trace!("Requesting {}", uri_str);
 
         let mut builder = self.configuration.client.post(&uri_str).body(input);

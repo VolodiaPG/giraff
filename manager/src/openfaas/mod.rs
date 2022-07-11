@@ -2,8 +2,10 @@ use std::fmt::Display;
 
 use serde::{self, Deserialize};
 
-pub use self::configuration::Configuration;
-pub use self::default_api::{DefaultApi, DefaultApiClient};
+pub use self::{
+    configuration::Configuration,
+    default_api::{DefaultApi, DefaultApiClient},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T>
@@ -20,7 +22,7 @@ where
 
 #[derive(Debug)]
 pub struct ApiError<T> {
-    pub code: reqwest::StatusCode,
+    pub code:    reqwest::StatusCode,
     pub content: T,
 }
 
@@ -39,10 +41,7 @@ where
 {
     fn from(err: (reqwest::StatusCode, Result<T, reqwest::Error>)) -> Self {
         match err.1 {
-            Ok(content) => Error::Api(ApiError {
-                code: err.0,
-                content,
-            }),
+            Ok(content) => Error::Api(ApiError { code: err.0, content }),
             Err(err) => Error::from(err),
         }
     }
@@ -52,18 +51,14 @@ impl<T> From<reqwest::Error> for Error<T>
 where
     T: Display,
 {
-    fn from(e: reqwest::Error) -> Self {
-        Error::Reqwest(e)
-    }
+    fn from(e: reqwest::Error) -> Self { Error::Reqwest(e) }
 }
 
 impl<T> From<serde_json::Error> for Error<T>
 where
     T: Display,
 {
-    fn from(e: serde_json::Error) -> Self {
-        Error::Serde(e)
-    }
+    fn from(e: serde_json::Error) -> Self { Error::Serde(e) }
 }
 
 pub mod models;

@@ -11,10 +11,7 @@ pub async fn register_route(
     stack: FunctionRoutingStack,
 ) -> anyhow::Result<()> {
     trace!("put routing {:?}", stack.function);
-    router
-        .register_function_route(stack)
-        .await
-        .map_err(|e| anyhow::anyhow!(e))
+    router.register_function_route(stack).await.map_err(|e| anyhow::anyhow!(e))
 }
 
 pub async fn post_forward_function_routing(

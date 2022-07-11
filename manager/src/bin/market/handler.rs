@@ -1,20 +1,25 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use rocket::serde::json::Json;
-use rocket::{get, post, put, State};
+use rocket::{get, post, put, serde::json::Json, State};
 use rocket_okapi::openapi;
 
-use manager::helper::handler::Resp;
-use manager::model::view::auction::AcceptedBid;
-use manager::model::view::node::{GetFogNodes, RegisterNode};
-use manager::model::view::sla::PutSla;
-use manager::model::NodeId;
-use manager::respond;
+use manager::{
+    helper::handler::Resp,
+    model::{
+        view::{
+            auction::AcceptedBid,
+            node::{GetFogNodes, RegisterNode},
+            sla::PutSla,
+        },
+        NodeId,
+    },
+    respond,
+};
 
 use crate::controller;
 
-/// Register a SLA and starts the auctioning process, as well as establishing the routing once the auction is completed
+/// Register a SLA and starts the auctioning process, as well as establishing the routing once the
+/// auction is completed
 #[openapi]
 #[put("/function", data = "<payload>")]
 pub async fn put_function(

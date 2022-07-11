@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::net::IpAddr;
+use std::{collections::HashMap, fmt::Debug, net::IpAddr};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::dto::node::{Node, NodeIdList, NodeRecord};
-use manager::model::view::auction::AcceptedBid;
-use manager::model::NodeId;
+use manager::model::{
+    dto::node::{Node, NodeIdList, NodeRecord},
+    view::auction::AcceptedBid,
+    NodeId,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -32,7 +32,8 @@ pub trait FogNode: Debug + Sync + Send {
         child: NodeId,
         tags: Vec<String>,
     ) -> Result<(), Error>;
-    /// Append the root of the tree, i.e., will fail if not the first node in the whole tree, and will fail thereafter
+    /// Append the root of the tree, i.e., will fail if not the first node in the whole tree, and
+    /// will fail thereafter
     async fn append_root(
         &self,
         root: NodeId,
@@ -56,11 +57,8 @@ pub struct FogNodeImpl {
 }
 
 impl FogNodeImpl {
-    pub fn new() -> Self {
-        FogNodeImpl {
-            nodes: RwLock::new(HashMap::new()),
-        }
-    }
+    pub fn new() -> Self { FogNodeImpl { nodes: RwLock::new(HashMap::new()) } }
+
     async fn check_tree(&self) -> Result<(), Error> {
         let mut roots = self
             .nodes
@@ -82,13 +80,8 @@ impl FogNodeImpl {
         let root = roots.pop().unwrap();
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
-            let node_children = self
-                .nodes
-                .read()
-                .await
-                .get(&id)
-                .map(|node| node.children.clone())
-                .unwrap();
+            let node_children =
+                self.nodes.read().await.get(&id).map(|node| node.children.clone()).unwrap();
             for child in node_children.iter() {
                 if !self.nodes.read().await.contains_key(child) {
                     return Err(Error::ChildDoesntExist(id.clone(), child.clone()));
@@ -143,12 +136,9 @@ impl FogNode for FogNodeImpl {
         self.nodes.write().await.insert(
             child.clone(),
             Node {
-                parent: Some(parent.clone()),
+                parent:   Some(parent.clone()),
                 children: vec![],
-                data: NodeRecord {
-                    tags,
-                    ..NodeRecord::default()
-                },
+                data:     NodeRecord { tags, ..NodeRecord::default() },
             },
         );
         let result = self.check_tree().await;
@@ -189,9 +179,9 @@ impl FogNode for FogNodeImpl {
         self.nodes.write().await.insert(
             root.clone(),
             Node {
-                parent: None,
+                parent:   None,
                 children: vec![],
-                data: NodeRecord {
+                data:     NodeRecord {
                     ip: Some(ip),
                     port: Some(port),
                     tags,
@@ -222,10 +212,7 @@ impl FogNode for FogNodeImpl {
     async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>> {
         let mut records: HashMap<NodeId, Vec<AcceptedBid>> = HashMap::new();
         for (node, data) in &*self.nodes.read().await {
-            records.insert(
-                node.clone(),
-                data.data.accepted_bids.values().cloned().collect(),
-            );
+            records.insert(node.clone(), data.data.accepted_bids.values().cloned().collect());
         }
         records
     }

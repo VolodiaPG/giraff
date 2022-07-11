@@ -8,8 +8,7 @@ use std::{env, sync::Arc};
 use rocket::launch;
 use rocket_okapi::{openapi_get_routes, swagger_ui::*};
 
-use crate::handler::*;
-use crate::repository::fog_node::FogNodeImpl;
+use crate::{handler::*, repository::fog_node::FogNodeImpl};
 
 mod controller;
 mod handler;
@@ -22,11 +21,10 @@ async fn rocket() -> _ {
     env_logger::init();
 
     let fog_node = Arc::new(FogNodeImpl::new());
-    let fog_node_communication = Arc::new(
-        crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
+    let fog_node_communication =
+        Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
             fog_node.clone(),
-        ),
-    );
+        ));
     let auction_process = Arc::new(crate::repository::auction::SecondPriceAuction::new());
 
     // Services
@@ -34,13 +32,10 @@ async fn rocket() -> _ {
         auction_process,
         fog_node_communication.clone(),
     ));
-    let fog_node_network_service = Arc::new(
-        service::fog_node_network::FogNodeNetworkHashTreeImpl::new(fog_node.clone()),
-    );
-    let faas_service = Arc::new(service::faas::FogNodeFaaSImpl::new(
-        fog_node,
-        fog_node_communication,
-    ));
+    let fog_node_network_service =
+        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(fog_node.clone()));
+    let faas_service =
+        Arc::new(service::faas::FogNodeFaaSImpl::new(fog_node, fog_node_communication));
 
     rocket::build()
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
@@ -57,12 +52,6 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/",
-            openapi_get_routes![
-                put_function,
-                post_register_node,
-                get_functions,
-                get_fog,
-                health
-            ],
+            openapi_get_routes![put_function, post_register_node, get_functions, get_fog, health],
         )
 }

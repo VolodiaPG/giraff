@@ -1,5 +1,4 @@
-use std::fmt::Debug;
-use std::net::IpAddr;
+use std::{fmt::Debug, net::IpAddr};
 
 use async_trait::async_trait;
 use bytes::Bytes;

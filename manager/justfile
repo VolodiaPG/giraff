@@ -14,7 +14,7 @@ check_outdated:
 	cargo outdated -R
 
 clippy:
-	cargo clippy -- -A clippy::let_unit_value -D warnings
+	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
 run_market:

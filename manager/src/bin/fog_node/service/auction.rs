@@ -2,16 +2,17 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use manager::helper::uom::cpu_ratio::cpu;
-use uom::si::f64::{Information, Ratio};
-use uom::si::information::gigabyte;
+use uom::si::{
+    f64::{Information, Ratio},
+    information::gigabyte,
+};
 
 use crate::prom_metrics::BID_GAUGE;
-use manager::model::domain::sla::Sla;
-use manager::model::dto::auction::BidRecord;
-use manager::model::BidId;
+use manager::model::{domain::sla::Sla, dto::auction::BidRecord, BidId};
 
-use crate::repository::auction::Auction as AuctionRepository;
-use crate::repository::resource_tracking::ResourceTracking;
+use crate::repository::{
+    auction::Auction as AuctionRepository, resource_tracking::ResourceTracking,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -34,7 +35,7 @@ pub trait Auction: Send + Sync {
 
 pub struct AuctionImpl {
     resource_tracking: Arc<dyn ResourceTracking>,
-    db: Arc<dyn AuctionRepository>,
+    db:                Arc<dyn AuctionRepository>,
 }
 
 impl AuctionImpl {
@@ -42,10 +43,7 @@ impl AuctionImpl {
         resource_tracking: Arc<dyn ResourceTracking>,
         db: Arc<dyn AuctionRepository>,
     ) -> Self {
-        Self {
-            resource_tracking,
-            db,
-        }
+        Self { resource_tracking, db }
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
@@ -58,13 +56,7 @@ impl AuctionImpl {
             let (available_ram, available_cpu) = self.resource_tracking.get_available(node).await?;
             if self.satisfiability_check(&used_ram, &used_cpu, &available_ram, &available_cpu, sla)
             {
-                return Ok((
-                    node.clone(),
-                    used_ram,
-                    used_cpu,
-                    available_ram,
-                    available_cpu,
-                ));
+                return Ok((node.clone(), used_ram, used_cpu, available_ram, available_cpu));
             }
         }
         Err(Error::Unsatisfiable)
@@ -111,11 +103,7 @@ impl Auction for AuctionImpl {
         let id = self.db.insert(record.to_owned()).await;
         BID_GAUGE
             .with_label_values(&[
-                record
-                    .sla
-                    .function_live_name
-                    .as_ref()
-                    .unwrap_or(&"unnamed".to_string()),
+                record.sla.function_live_name.as_ref().unwrap_or(&"unnamed".to_string()),
                 &id.to_string(),
             ])
             .set(bid);
@@ -123,21 +111,14 @@ impl Auction for AuctionImpl {
     }
 
     async fn validate_bid(&self, id: &BidId) -> Result<BidRecord, Error> {
-        let bid = self
-            .db
-            .get(id)
-            .await
-            .ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?
-            .clone();
+        let bid = self.db.get(id).await.ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?.clone();
 
         self.db.remove(id).await;
 
         let (used_mem, used_cpu) = self.resource_tracking.get_used(&bid.node).await?;
         let used_mem = used_mem + bid.sla.memory;
         let used_cpu = used_cpu + bid.sla.cpu;
-        self.resource_tracking
-            .update_used(bid.node.clone(), used_mem, used_cpu)
-            .await?;
+        self.resource_tracking.update_used(bid.node.clone(), used_mem, used_cpu).await?;
 
         Ok(bid)
     }

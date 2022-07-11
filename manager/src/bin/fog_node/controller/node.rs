@@ -6,8 +6,5 @@ pub async fn register_child_node(
     register: RegisterNode,
     router: &Arc<dyn NodeLife>,
 ) -> anyhow::Result<()> {
-    router
-        .register_child_node(register)
-        .await
-        .map_err(|e| anyhow::anyhow!(e))
+    router.register_child_node(register).await.map_err(|e| anyhow::anyhow!(e))
 }

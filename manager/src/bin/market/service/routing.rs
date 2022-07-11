@@ -72,9 +72,10 @@
 //     nodes_db: Arc<Mutex<NodesDataBase>>,
 // ) -> BoxFuture<'static, Result<RouteStack>> {
 //     async move {
-//         let route_stack = nodes_db.lock().await.get_path(&from, &to).ok_or(anyhow!("No path found"))?;
-//         let mut route_stack = route_stack.iter();
-//         route_stack.next(); // ignore the destination node, as it is useless to register a route in it
+//         let route_stack = nodes_db.lock().await.get_path(&from, &to).ok_or(anyhow!("No path
+// found"))?;         let mut route_stack = route_stack.iter();
+//         route_stack.next(); // ignore the destination node, as it is useless to register a route
+// in it
 
 //         let mut ret = RouteStack {
 //             ..Default::default()
@@ -89,21 +90,22 @@
 //                 then
 //                 {
 //                     if &parent != next_id {
-//                         ret.routes.insert(0, RouteAction::Assign{node: node_id.to_owned(),next: next_id.to_owned()});
-//                     }else{
+//                         ret.routes.insert(0, RouteAction::Assign{node: node_id.to_owned(),next:
+// next_id.to_owned()});                     }else{
 //                         // we are on a "^" in the tree, meaning the parent is not in the path
 //                         ret = RouteStack {
-//                             routes: vec![RouteAction::Divide{node: node_id.to_owned(),next_from_side: Box::new(do_route(from, node_id.to_owned(), nodes_db.to_owned()).await?),next_to_side: Box::new(ret)}],
-//                             ..Default::default()
-//                         };
+//                             routes: vec![RouteAction::Divide{node:
+// node_id.to_owned(),next_from_side: Box::new(do_route(from, node_id.to_owned(),
+// nodes_db.to_owned()).await?),next_to_side: Box::new(ret)}],
+// ..Default::default()                         };
 //                         break;
 //                     }
 
 //                 }
 //                 else
 //                 {
-//                     return Err(anyhow!("Cannot keep goign because the topology of the tree doesn't correspond to  the found path"));
-//                 }
+//                     return Err(anyhow!("Cannot keep goign because the topology of the tree
+// doesn't correspond to  the found path"));                 }
 //             }
 //         }
 

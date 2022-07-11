@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{collections::HashMap, fmt, fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use uom::si::f64::Time;
 
-use manager::model::domain::rolling_avg::RollingAvg;
-use manager::model::view::ping::Ping;
-use manager::model::NodeId;
+use manager::model::{domain::rolling_avg::RollingAvg, view::ping::Ping, NodeId};
 
 use crate::NodeSituation;
 
@@ -35,15 +30,11 @@ pub struct IndividualErrorList {
 }
 
 impl fmt::Display for IndividualErrorList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.list)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:?}", self.list) }
 }
 
 impl From<Vec<(NodeId, IndividualError)>> for IndividualErrorList {
-    fn from(list: Vec<(NodeId, IndividualError)>) -> Self {
-        IndividualErrorList { list }
-    }
+    fn from(list: Vec<(NodeId, IndividualError)>) -> Self { IndividualErrorList { list } }
 }
 
 #[async_trait]
@@ -56,7 +47,7 @@ pub trait LatencyEstimation: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct LatencyEstimationImpl {
-    node_situation: Arc<dyn NodeSituation>,
+    node_situation:     Arc<dyn NodeSituation>,
     outgoing_latencies: Arc<RwLock<HashMap<NodeId, RollingAvg>>>,
     incoming_latencies: Arc<RwLock<HashMap<NodeId, RollingAvg>>>,
 }
@@ -77,7 +68,8 @@ impl LatencyEstimationImpl {
         ping: &Ping,
         received_at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(Time, Time), IndividualError> {
-        // TODO fix that simplistic estimation with somthing considering the real values instead of symetric ones!!
+        // TODO fix that simplistic estimation with somthing considering the real values instead of
+        // symetric ones!!
 
         let latency_round =
             (received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as i64;
@@ -109,9 +101,7 @@ impl LatencyEstimationImpl {
         let port = desc.port;
 
         let client = reqwest::Client::new();
-        let ping = Ping {
-            sent_at: chrono::Utc::now(),
-        };
+        let ping = Ping { sent_at: chrono::Utc::now() };
         let _response = client
             .post(format!("http://{}:{}/api/ping", ip, port).as_str())
             .json(&ping)
@@ -186,18 +176,10 @@ impl LatencyEstimation for LatencyEstimationImpl {
     }
 
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies
-            .read()
-            .await
-            .get(id)
-            .map(|avg| avg.get_avg())
+        self.outgoing_latencies.read().await.get(id).map(|avg| avg.get_avg())
     }
 
     async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time> {
-        self.incoming_latencies
-            .read()
-            .await
-            .get(id)
-            .map(|avg| avg.get_avg())
+        self.incoming_latencies.read().await.get(id).map(|avg| avg.get_avg())
     }
 }

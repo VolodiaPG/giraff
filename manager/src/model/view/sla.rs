@@ -7,8 +7,8 @@ use super::super::{domain::sla::Sla, NodeId};
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct PutSla {
-    pub sla: Sla,
-    pub target_node: NodeId,
-    pub request_sources: Vec<NodeId>,
+    pub sla:                  Sla,
+    pub target_node:          NodeId,
+    pub request_sources:      Vec<NodeId>,
     pub request_destinations: Vec<NodeId>,
 }

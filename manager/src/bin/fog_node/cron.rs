@@ -1,8 +1,10 @@
-use crate::prom_metrics::{
-    CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE, MEMORY_USAGE_GAUGE,
+use crate::{
+    prom_metrics::{
+        CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE, MEMORY_USAGE_GAUGE,
+    },
+    repository::k8s::K8s,
+    service::neighbor_monitor::NeighborMonitor,
 };
-use crate::repository::k8s::K8s;
-use crate::service::neighbor_monitor::NeighborMonitor;
 use std::sync::Arc;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
@@ -55,18 +57,10 @@ async fn measure(k8s_repo: Arc<dyn K8s>) -> anyhow::Result<()> {
             .usage
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Usage resource key not found in retrieved metrics"))?;
-        MEMORY_ALLOCATABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(allocatable.memory.value);
-        MEMORY_USAGE_GAUGE
-            .with_label_values(&[&name])
-            .set(usage.memory.value);
-        CPU_ALLOCATABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(allocatable.cpu.value);
-        CPU_USAGE_GAUGE
-            .with_label_values(&[&name])
-            .set(usage.cpu.value);
+        MEMORY_ALLOCATABLE_GAUGE.with_label_values(&[&name]).set(allocatable.memory.value);
+        MEMORY_USAGE_GAUGE.with_label_values(&[&name]).set(usage.memory.value);
+        CPU_ALLOCATABLE_GAUGE.with_label_values(&[&name]).set(allocatable.cpu.value);
+        CPU_USAGE_GAUGE.with_label_values(&[&name]).set(usage.cpu.value);
     }
 
     Ok(())

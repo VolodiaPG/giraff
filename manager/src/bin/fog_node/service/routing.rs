@@ -1,18 +1,22 @@
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 use bytes::Bytes;
 
-use manager::model::domain::routing::Packet;
-use manager::model::dto::routing::Direction;
-use manager::model::{domain::routing::FunctionRoutingStack, BidId, NodeId};
-use manager::openfaas::DefaultApi;
+use manager::{
+    model::{
+        domain::routing::{FunctionRoutingStack, Packet},
+        dto::routing::Direction,
+        BidId, NodeId,
+    },
+    openfaas::DefaultApi,
+};
 
-use crate::repository::faas_routing_table::FaaSRoutingTable;
-use crate::repository::routing::Routing as RoutingRepository;
-use crate::service::faas::FaaSBackend;
-use crate::NodeSituation;
+use crate::{
+    repository::{faas_routing_table::FaaSRoutingTable, routing::Routing as RoutingRepository},
+    service::faas::FaaSBackend,
+    NodeSituation,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -33,7 +37,8 @@ pub enum Error {
 /// Service to manage the behaviour of the routing
 #[async_trait]
 pub trait Router: Debug + Send + Sync {
-    /// Register a new route, from a [RoutingStack], making the follow up requests left to do in the chain
+    /// Register a new route, from a [RoutingStack], making the follow up requests left to do in the
+    /// chain
     async fn register_function_route(&self, stack: FunctionRoutingStack) -> Result<(), Error>;
     /// Forward payloads to a neighbour node
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error>;
@@ -45,10 +50,10 @@ where
     R: RoutingRepository,
 {
     faas_routing_table: Arc<dyn FaaSRoutingTable>,
-    node_situation: Arc<dyn NodeSituation>,
-    routing: Arc<R>,
-    faas: Arc<dyn FaaSBackend>,
-    faas_api: Arc<dyn DefaultApi>,
+    node_situation:     Arc<dyn NodeSituation>,
+    routing:            Arc<R>,
+    faas:               Arc<dyn FaaSBackend>,
+    faas_api:           Arc<dyn DefaultApi>,
 }
 
 impl<R> RouterImpl<R>
@@ -62,13 +67,7 @@ where
         faas: Arc<dyn FaaSBackend>,
         faas_api: Arc<dyn DefaultApi>,
     ) -> Self {
-        Self {
-            faas_routing_table,
-            node_situation,
-            routing,
-            faas,
-            faas_api,
-        }
+        Self { faas_routing_table, node_situation, routing, faas, faas_api }
     }
 
     async fn forward_register_to_node(
@@ -96,16 +95,10 @@ where
     async fn register_function_route(&self, mut stack: FunctionRoutingStack) -> Result<(), Error> {
         // At least 1 more stop
         if stack.route_to_first.len() > 1
-            && stack
-                .route_to_first
-                .starts_with(&[self.node_situation.get_my_id().await])
+            && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
         {
             stack.route_to_first.pop();
-            let next = stack
-                .route_to_first
-                .last()
-                .ok_or(Error::MalformedRoutingStack)?
-                .to_owned();
+            let next = stack.route_to_first.last().ok_or(Error::MalformedRoutingStack)?.to_owned();
             self.forward_register_to_node(&next, stack).await?;
             return Ok(());
         }
@@ -113,9 +106,7 @@ where
         // No more stop, we need to start registering routes
         if stack.route_to_first.is_empty() {
             if stack.route_to_first.len() == 1
-                && stack
-                    .route_to_first
-                    .starts_with(&[self.node_situation.get_my_id().await])
+                && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
             {
                 let my_id = self.node_situation.get_my_id().await;
                 stack.route_to_first.pop();
@@ -129,10 +120,7 @@ where
                 let (left, right) = stack.routes.split_at(mid);
 
                 self.faas_routing_table
-                    .update(
-                        stack.function.to_owned(),
-                        Direction::NextNode(right[0].to_owned()),
-                    )
+                    .update(stack.function.to_owned(), Direction::NextNode(right[0].to_owned()))
                     .await;
 
                 if !left.is_empty() {
@@ -140,9 +128,9 @@ where
                     self.forward_register_to_node(
                         next,
                         FunctionRoutingStack {
-                            function: stack.function.to_owned(),
+                            function:       stack.function.to_owned(),
                             route_to_first: vec![],
-                            routes: left.to_vec(),
+                            routes:         left.to_vec(),
                         },
                     )
                     .await?;
@@ -153,9 +141,9 @@ where
                     self.forward_register_to_node(
                         next,
                         FunctionRoutingStack {
-                            function: stack.function.to_owned(),
+                            function:       stack.function.to_owned(),
                             route_to_first: vec![],
-                            routes: right.to_vec(),
+                            routes:         right.to_vec(),
                         },
                     )
                     .await?;
@@ -166,16 +154,10 @@ where
 
             if stack.routes.len() > 1 {
                 let next;
-                if stack
-                    .routes
-                    .starts_with(&[self.node_situation.get_my_id().await])
-                {
+                if stack.routes.starts_with(&[self.node_situation.get_my_id().await]) {
                     stack.routes.remove(0);
                     next = Some(&stack.routes[0]);
-                } else if stack
-                    .routes
-                    .ends_with(&[self.node_situation.get_my_id().await])
-                {
+                } else if stack.routes.ends_with(&[self.node_situation.get_my_id().await]) {
                     stack.routes.remove(stack.routes.len() - 1);
                     next = Some(&stack.routes[stack.routes.len() - 1]);
                 } else {
@@ -186,9 +168,9 @@ where
                     self.forward_register_to_node(
                         next,
                         FunctionRoutingStack {
-                            function: stack.function.to_owned(),
+                            function:       stack.function.to_owned(),
                             route_to_first: vec![],
-                            routes: stack.routes.to_vec(),
+                            routes:         stack.routes.to_vec(),
                         },
                     )
                     .await?;
@@ -200,9 +182,7 @@ where
                 let last_node = stack.routes.pop().unwrap();
                 return if last_node == self.node_situation.get_my_id().await {
                     trace!("Routing table is complete, I am the arrival point");
-                    self.faas_routing_table
-                        .update(stack.function, Direction::CurrentNode)
-                        .await;
+                    self.faas_routing_table.update(stack.function, Direction::CurrentNode).await;
                     Ok(())
                 } else {
                     trace!("Routing table is complete, I am the departure point");
@@ -226,7 +206,8 @@ where
                     .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
-                    // TODO: optimization: is it possible to send the packet directly to the node? w/o redoing the same structure, what impact?
+                    // TODO: optimization: is it possible to send the packet directly to the node?
+                    // w/o redoing the same structure, what impact?
                     Direction::NextNode(next) => {
                         let next = self
                             .node_situation
@@ -238,10 +219,7 @@ where
                             .forward_to_routing(
                                 &next.ip,
                                 &next.port,
-                                &Packet::FaaSFunction {
-                                    to: to.to_owned(),
-                                    data: payload,
-                                },
+                                &Packet::FaaSFunction { to: to.to_owned(), data: payload },
                             )
                             .await?)
                     }
@@ -263,11 +241,7 @@ where
                     }
                 }
             }
-            Packet::FogNode {
-                route_to_stack: route_to,
-                resource_uri,
-                data,
-            } => {
+            Packet::FogNode { route_to_stack: route_to, resource_uri, data } => {
                 let mut route_to = route_to.clone();
                 let current_node = route_to.pop().ok_or(Error::MalformedRoutingStack)?;
 
@@ -279,10 +253,7 @@ where
                     let my_ip = self.node_situation.get_my_public_ip().await;
                     let my_port = self.node_situation.get_my_public_port().await;
 
-                    Ok(self
-                        .routing
-                        .forward_to_url(&my_ip, &my_port, resource_uri, data)
-                        .await?)
+                    Ok(self.routing.forward_to_url(&my_ip, &my_port, resource_uri, data).await?)
                 } else {
                     let next = route_to.last().unwrap();
                     let next = self
@@ -308,10 +279,7 @@ where
                 if self.node_situation.is_market().await {
                     trace!("Transmitting market packet to market: {:?}", packet);
                     let (ip, port) = self.node_situation.get_market_node_address().await.unwrap();
-                    Ok(self
-                        .routing
-                        .forward_to_url(&ip, &port, resource_uri, data)
-                        .await?)
+                    Ok(self.routing.forward_to_url(&ip, &port, resource_uri, data).await?)
                 } else {
                     trace!("Transmitting market packet to other node: {:?}", packet);
                     let (ip, port) = self.node_situation.get_parent_node_address().await.unwrap();

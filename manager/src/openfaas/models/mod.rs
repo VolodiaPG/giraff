@@ -1,5 +1,10 @@
-use uom::si::f64::{Information, Ratio};
-use uom::{fmt::DisplayStyle::Abbreviation, si::information};
+use uom::{
+    fmt::DisplayStyle::Abbreviation,
+    si::{
+        f64::{Information, Ratio},
+        information,
+    },
+};
 
 pub use function_definition::{FunctionDefinition, Limits};
 
@@ -15,12 +20,9 @@ impl serde_with::SerializeAs<Information> for InformationHelper {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(&format!(
             "{}M",
-            &format!(
-                "{:?}",
-                value.into_format_args(information::megabyte, Abbreviation)
-            )
-            .split_whitespace()
-            .collect::<Vec<&str>>()[0]
+            &format!("{:?}", value.into_format_args(information::megabyte, Abbreviation))
+                .split_whitespace()
+                .collect::<Vec<&str>>()[0]
         ))
     }
 }

@@ -3,9 +3,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use manager::model::domain::auction::AuctionResult;
-use manager::model::view::auction::BidProposals;
-use manager::model::{domain::sla::Sla, NodeId};
+use manager::model::{
+    domain::{auction::AuctionResult, sla::Sla},
+    view::auction::BidProposals,
+    NodeId,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -25,7 +27,7 @@ pub trait Auction: Send + Sync {
 }
 
 pub struct AuctionImpl {
-    auction_process: Arc<dyn crate::repository::auction::Auction>,
+    auction_process:    Arc<dyn crate::repository::auction::Auction>,
     node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>,
 }
 
@@ -34,10 +36,7 @@ impl AuctionImpl {
         auction_process: Arc<dyn crate::repository::auction::Auction>,
         node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>,
     ) -> Self {
-        AuctionImpl {
-            auction_process,
-            node_communication,
-        }
+        AuctionImpl { auction_process, node_communication }
     }
 }
 #[async_trait]
@@ -45,20 +44,13 @@ impl Auction for AuctionImpl {
     async fn call_for_bids(&self, leaf_node: NodeId, sla: Sla) -> Result<BidProposals, Error> {
         trace!("call for bids: {:?}", sla);
 
-        Ok(self
-            .node_communication
-            .request_bids_from_node(leaf_node, sla)
-            .await?)
+        Ok(self.node_communication.request_bids_from_node(leaf_node, sla).await?)
     }
 
     async fn do_auction(&self, proposals: &BidProposals) -> Result<AuctionResult, Error> {
         trace!("do auction: {:?}", proposals);
-        let auction_result = self
-            .auction_process
-            .auction(&proposals.bids)
-            .ok_or(Error::NoWinner)?;
-        Ok(AuctionResult {
-            chosen_bid: auction_result,
-        })
+        let auction_result =
+            self.auction_process.auction(&proposals.bids).ok_or(Error::NoWinner)?;
+        Ok(AuctionResult { chosen_bid: auction_result })
     }
 }

@@ -33,10 +33,7 @@ impl<'de> Visitor<'de> for CustomVisitor {
     type Value = DateTime<Utc>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            formatter,
-            "a date and time following the RFC3339 / ISO 8601 format"
-        )
+        write!(formatter, "a date and time following the RFC3339 / ISO 8601 format")
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>

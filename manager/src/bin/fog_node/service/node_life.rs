@@ -1,11 +1,10 @@
-use std::net::IpAddr;
-use std::sync::Arc;
+use std::{net::IpAddr, sync::Arc};
 
 use async_trait::async_trait;
 
-use manager::model::domain::routing::Packet;
-use manager::model::dto::node::NodeDescription;
-use manager::model::view::node::RegisterNode;
+use manager::model::{
+    domain::routing::Packet, dto::node::NodeDescription, view::node::RegisterNode,
+};
 
 use crate::{NodeQuery, NodeSituation, Router};
 
@@ -19,14 +18,18 @@ pub enum Error {
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error(transparent)]
     Routing(#[from] crate::service::routing::Error),
-    #[error("Trying to register/pass a register message for a market node,but it should not happen since the market node is always on top of the tree network.")]
+    #[error(
+        "Trying to register/pass a register message for a market node,but it should not happen \
+         since the market node is always on top of the tree network."
+    )]
     CannotRegisterMarketOnRegularNode,
 }
 
 /// Service to manage the behaviour of the routing
 #[async_trait]
 pub trait NodeLife: Send + Sync {
-    /// Register locally the child node, but also send the packet towards the market to register it there, also.
+    /// Register locally the child node, but also send the packet towards the market to register it
+    /// there, also.
     async fn register_child_node(&self, register: RegisterNode) -> Result<(), Error>;
     /// Initialize the negotiating process to get connected to the parent node
     async fn init_registration(&self, my_ip: IpAddr, my_port: u16) -> Result<(), Error>;
@@ -34,9 +37,9 @@ pub trait NodeLife: Send + Sync {
 
 #[derive(Debug)]
 pub struct NodeLifeImpl {
-    router: Arc<dyn Router>,
+    router:         Arc<dyn Router>,
     node_situation: Arc<dyn NodeSituation>,
-    node_query: Arc<dyn NodeQuery>,
+    node_query:     Arc<dyn NodeQuery>,
 }
 
 impl NodeLifeImpl {
@@ -45,11 +48,7 @@ impl NodeLifeImpl {
         node_situation: Arc<dyn NodeSituation>,
         node_query: Arc<dyn NodeQuery>,
     ) -> Self {
-        Self {
-            router,
-            node_situation,
-            node_query,
-        }
+        Self { router, node_situation, node_query }
     }
 }
 
@@ -58,25 +57,13 @@ impl NodeLife for NodeLifeImpl {
     async fn register_child_node(&self, register: RegisterNode) -> Result<(), Error> {
         trace!("Registering child node");
         match &register {
-            RegisterNode::Node {
-                node_id,
-                parent,
-                ip,
-                port,
-                ..
-            } => {
+            RegisterNode::Node { node_id, parent, ip, port, .. } => {
                 if &self.node_situation.get_my_id().await != parent {
                     return Err(Error::NotTheParent);
                 }
 
                 self.node_situation
-                    .register(
-                        node_id.clone(),
-                        NodeDescription {
-                            ip: *ip,
-                            port: *port,
-                        },
-                    )
+                    .register(node_id.clone(), NodeDescription { ip: *ip, port: *port })
                     .await;
             }
             RegisterNode::MarketNode { .. } => {
@@ -87,7 +74,7 @@ impl NodeLife for NodeLifeImpl {
         self.router
             .forward(&Packet::Market {
                 resource_uri: "register".to_string(),
-                data: &serde_json::value::to_raw_value(&register).unwrap(),
+                data:         &serde_json::value::to_raw_value(&register).unwrap(),
             })
             .await?;
         Ok(())

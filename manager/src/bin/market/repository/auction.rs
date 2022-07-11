@@ -1,5 +1,4 @@
-use manager::model::dto::auction::ChosenBid;
-use manager::model::view::auction::BidProposal;
+use manager::model::{dto::auction::ChosenBid, view::auction::BidProposal};
 
 pub trait Auction: Sync + Send {
     fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid>;
@@ -8,9 +7,7 @@ pub trait Auction: Sync + Send {
 pub struct SecondPriceAuction;
 
 impl SecondPriceAuction {
-    pub fn new() -> Self {
-        Self {}
-    }
+    pub fn new() -> Self { Self {} }
 }
 
 impl Auction for SecondPriceAuction {
@@ -20,14 +17,8 @@ impl Auction for SecondPriceAuction {
         let first = bids.get(0).cloned().cloned();
         let second = bids.get(1);
         match (first, second) {
-            (Some(first), Some(second)) => Some(ChosenBid {
-                price: second.bid,
-                bid: first,
-            }),
-            (Some(first), None) => Some(ChosenBid {
-                price: first.bid,
-                bid: first,
-            }),
+            (Some(first), Some(second)) => Some(ChosenBid { price: second.bid, bid: first }),
+            (Some(first), None) => Some(ChosenBid { price: first.bid, bid: first }),
             _ => None,
         }
     }

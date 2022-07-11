@@ -1,15 +1,12 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::net::IpAddr;
+use std::{collections::HashMap, fmt, net::IpAddr};
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::view::auction::AcceptedBid;
-use crate::model::{BidId, NodeId};
+use crate::model::{view::auction::AcceptedBid, BidId, NodeId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
-    pub parent: Option<NodeId>,
+    pub parent:   Option<NodeId>,
     pub children: Vec<NodeId>,
 
     /// The actual data which will be stored within the tree
@@ -19,9 +16,9 @@ pub struct Node<T> {
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct NodeRecord {
     /// URI, only in the case of the market node
-    pub ip: Option<IpAddr>,
-    pub port: Option<u16>,
-    pub tags: Vec<String>,
+    pub ip:            Option<IpAddr>,
+    pub port:          Option<u16>,
+    pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
 
@@ -31,64 +28,60 @@ pub struct NodeIdList {
 }
 
 impl fmt::Display for NodeIdList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.list)
-    }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:?}", self.list) }
 }
 
 impl From<Vec<NodeId>> for NodeIdList {
-    fn from(list: Vec<NodeId>) -> Self {
-        NodeIdList { list }
-    }
+    fn from(list: Vec<NodeId>) -> Self { NodeIdList { list } }
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeDescription {
-    pub ip: IpAddr,
+    pub ip:   IpAddr,
     pub port: u16,
 }
 
 #[derive(Debug)]
 pub enum NodeSituationData {
     MarketConnected {
-        children: HashMap<NodeId, NodeDescription>,
-        market_ip: IpAddr,
-        market_port: u16,
-        my_id: NodeId,
-        my_public_ip: IpAddr,
+        children:       HashMap<NodeId, NodeDescription>,
+        market_ip:      IpAddr,
+        market_port:    u16,
+        my_id:          NodeId,
+        my_public_ip:   IpAddr,
         my_public_port: u16,
-        tags: Vec<String>,
+        tags:           Vec<String>,
     },
     NodeConnected {
-        children: HashMap<NodeId, NodeDescription>,
-        parent_id: NodeId,
-        parent_node_ip: IpAddr,
+        children:         HashMap<NodeId, NodeDescription>,
+        parent_id:        NodeId,
+        parent_node_ip:   IpAddr,
         parent_node_port: u16,
-        my_id: NodeId,
-        my_public_ip: IpAddr,
-        my_public_port: u16,
-        tags: Vec<String>,
+        my_id:            NodeId,
+        my_public_ip:     IpAddr,
+        my_public_port:   u16,
+        tags:             Vec<String>,
     },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeSituationDisk {
     MarketConnected {
-        market_ip: IpAddr,
-        market_port: u16,
-        my_id: NodeId,
-        my_public_ip: IpAddr,
+        market_ip:      IpAddr,
+        market_port:    u16,
+        my_id:          NodeId,
+        my_public_ip:   IpAddr,
         my_public_port: u16,
-        tags: Vec<String>,
+        tags:           Vec<String>,
     },
     NodeConnected {
-        parent_id: NodeId,
-        parent_node_ip: IpAddr,
+        parent_id:        NodeId,
+        parent_node_ip:   IpAddr,
         parent_node_port: u16,
-        my_id: NodeId,
-        my_public_ip: IpAddr,
-        my_public_port: u16,
-        tags: Vec<String>,
+        my_id:            NodeId,
+        my_public_ip:     IpAddr,
+        my_public_port:   u16,
+        tags:             Vec<String>,
     },
 }
 

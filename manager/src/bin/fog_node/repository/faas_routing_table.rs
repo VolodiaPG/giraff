@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::dto::routing::Direction;
-use manager::model::BidId;
+use manager::model::{dto::routing::Direction, BidId};
 
 #[async_trait]
 pub trait FaaSRoutingTable: Debug + Sync + Send {
@@ -21,11 +19,7 @@ pub struct FaaSRoutingTableHashMap {
 }
 
 impl FaaSRoutingTableHashMap {
-    pub fn new() -> Self {
-        Self {
-            table: RwLock::new(HashMap::new()),
-        }
-    }
+    pub fn new() -> Self { Self { table: RwLock::new(HashMap::new()) } }
 }
 
 #[async_trait]

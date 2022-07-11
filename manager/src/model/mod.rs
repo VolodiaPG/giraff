@@ -3,15 +3,13 @@ use std::fmt;
 
 use lazy_static::lazy_static;
 use rocket::request::FromParam;
-use schemars::gen::SchemaGenerator;
-use schemars::schema::*;
-use schemars::JsonSchema;
+use schemars::{gen::SchemaGenerator, schema::*, JsonSchema};
 use serde::{de::Visitor, Deserialize, Serialize};
 use uuid::Uuid;
 
 /// encapsulate the UUIDs in custom struct to let the compiler differentiate them
 macro_rules! impl_id_encapsulation {
-    ($name: ident) => {
+    ($name:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $name {
             id: Uuid,
@@ -19,17 +17,13 @@ macro_rules! impl_id_encapsulation {
 
         impl Default for $name {
             fn default() -> Self {
-                $name {
-                    id: Uuid::from_str("10000000-0000-0000-0000-000000000000").unwrap(),
-                }
+                $name { id: Uuid::from_str("10000000-0000-0000-0000-000000000000").unwrap() }
             }
         }
 
         impl From<Uuid> for $name {
             #[inline(always)]
-            fn from(id: Uuid) -> Self {
-                $name { id }
-            }
+            fn from(id: Uuid) -> Self { $name { id } }
         }
 
         impl FromStr for $name {
@@ -43,9 +37,7 @@ macro_rules! impl_id_encapsulation {
 
         impl fmt::Display for $name {
             #[inline(always)]
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "{}", self.id)
-            }
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.id) }
         }
 
         impl Serialize for $name {
@@ -76,9 +68,7 @@ macro_rules! impl_id_encapsulation {
                     where
                         E: serde::de::Error,
                     {
-                        Ok($name {
-                            id: Uuid::parse_str(value).map_err(E::custom)?,
-                        })
+                        Ok($name { id: Uuid::parse_str(value).map_err(E::custom)? })
                     }
                 }
 
@@ -92,15 +82,11 @@ macro_rules! impl_id_encapsulation {
             /// A value is successfully parsed if `param` is a properly formatted Uuid.
             /// Otherwise, an error is returned.
             #[inline(always)]
-            fn from_param(param: &'a str) -> Result<$name, Self::Error> {
-                param.parse()
-            }
+            fn from_param(param: &'a str) -> Result<$name, Self::Error> { param.parse() }
         }
 
         impl JsonSchema for $name {
-            fn schema_name() -> String {
-                String::from(stringify!($name))
-            }
+            fn schema_name() -> String { String::from(stringify!($name)) }
 
             fn json_schema(_: &mut SchemaGenerator) -> Schema {
                 SchemaObject {

@@ -1,8 +1,7 @@
 use crate::repository::latency_estimation::LatencyEstimation;
 use async_trait::async_trait;
 use manager::model::NodeId;
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 use uom::si::f64::Time;
 
 #[derive(Debug, thiserror::Error)]
@@ -25,9 +24,7 @@ pub struct NeighborMonitorImpl {
 
 impl NeighborMonitorImpl {
     pub fn new(latency_estimation: Arc<dyn LatencyEstimation>) -> Self {
-        Self {
-            rtt_estimation: latency_estimation,
-        }
+        Self { rtt_estimation: latency_estimation }
     }
 }
 

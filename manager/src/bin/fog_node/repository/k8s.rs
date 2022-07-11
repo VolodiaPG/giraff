@@ -3,10 +3,11 @@ use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
 use lazy_regex::regex;
-use manager::kube_metrics::node::NodeMetrics;
-use manager::model::dto::k8s::{Allocatable, Metrics, Usage};
-use std::collections::HashMap;
-use std::str::FromStr;
+use manager::{
+    kube_metrics::node::NodeMetrics,
+    model::dto::k8s::{Allocatable, Metrics, Usage},
+};
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -178,9 +179,13 @@ where
 #[cfg(test)]
 mod tests {
     use manager::helper::uom::cpu_ratio::nanocpu;
-    use uom::fmt::DisplayStyle::Abbreviation;
-    use uom::si::f64::{Information, Ratio};
-    use uom::si::information::byte;
+    use uom::{
+        fmt::DisplayStyle::Abbreviation,
+        si::{
+            f64::{Information, Ratio},
+            information::byte,
+        },
+    };
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 

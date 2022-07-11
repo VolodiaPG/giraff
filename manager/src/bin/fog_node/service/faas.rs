@@ -1,13 +1,17 @@
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 
-use manager::model::dto::auction::BidRecord;
-use manager::model::dto::faas::ProvisionedRecord;
-use manager::model::BidId;
-use manager::openfaas::models::{FunctionDefinition, Limits};
-use manager::openfaas::{DefaultApi, DefaultApiClient};
+use manager::{
+    model::{
+        dto::{auction::BidRecord, faas::ProvisionedRecord},
+        BidId,
+    },
+    openfaas::{
+        models::{FunctionDefinition, Limits},
+        DefaultApi, DefaultApiClient,
+    },
+};
 
 use crate::repository::provisioned::Provisioned as ProvisionedRepository;
 
@@ -27,7 +31,7 @@ pub trait FaaSBackend: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct OpenFaaSBackend {
-    client: Arc<DefaultApiClient>,
+    client:                Arc<DefaultApiClient>,
     provisioned_functions: Arc<dyn ProvisionedRepository>,
 }
 
@@ -36,44 +40,28 @@ impl OpenFaaSBackend {
         client: Arc<DefaultApiClient>,
         provisioned_functions: Arc<dyn ProvisionedRepository>,
     ) -> Self {
-        Self {
-            client,
-            provisioned_functions,
-        }
+        Self { client, provisioned_functions }
     }
 }
 
 #[async_trait]
 impl FaaSBackend for OpenFaaSBackend {
     async fn provision_function(&self, id: BidId, bid: BidRecord) -> Result<String, Error> {
-        let function_name = bid
-            .sla
-            .function_live_name
-            .to_owned()
-            .unwrap_or_else(|| "".to_string())
+        let function_name = bid.sla.function_live_name.to_owned().unwrap_or_else(|| "".to_string())
             + "-"
             + id.to_string().as_str();
 
         let definition = FunctionDefinition {
             image: bid.sla.function_image.to_owned(),
             service: function_name.to_owned(),
-            limits: Some(Limits {
-                memory: bid.sla.memory,
-                cpu: bid.sla.cpu,
-            }),
+            limits: Some(Limits { memory: bid.sla.memory, cpu: bid.sla.cpu }),
             ..Default::default()
         };
 
         self.client.system_functions_post(definition).await?;
 
         self.provisioned_functions
-            .insert(
-                id,
-                ProvisionedRecord {
-                    bid,
-                    function_name: function_name.to_owned(),
-                },
-            )
+            .insert(id, ProvisionedRecord { bid, function_name: function_name.to_owned() })
             .await;
 
         Ok(function_name)

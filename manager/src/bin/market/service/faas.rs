@@ -1,19 +1,17 @@
 use async_trait::async_trait;
-use manager::model::dto::node::NodeRecord;
-use manager::model::view::auction::AcceptedBid;
-use manager::model::NodeId;
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::sync::Arc;
+use manager::model::{dto::node::NodeRecord, view::auction::AcceptedBid, NodeId};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
-use crate::repository::fog_node::FogNode;
-use crate::repository::node_communication::NodeCommunication;
+use crate::repository::{fog_node::FogNode, node_communication::NodeCommunication};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     NodeCommunication(#[from] crate::repository::node_communication::Error),
-    #[error("No trace of the node {0} has been found. It should have been registered as a record though.")]
+    #[error(
+        "No trace of the node {0} has been found. It should have been registered as a record \
+         though."
+    )]
     NodeNotFound(NodeId),
 }
 
@@ -25,16 +23,13 @@ pub trait FogNodeFaaS: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct FogNodeFaaSImpl {
-    fog_node: Arc<dyn FogNode>,
+    fog_node:           Arc<dyn FogNode>,
     node_communication: Arc<dyn NodeCommunication>,
 }
 
 impl FogNodeFaaSImpl {
     pub fn new(fog_node: Arc<dyn FogNode>, node_communication: Arc<dyn NodeCommunication>) -> Self {
-        Self {
-            fog_node,
-            node_communication,
-        }
+        Self { fog_node, node_communication }
     }
 }
 
@@ -42,10 +37,7 @@ impl FogNodeFaaSImpl {
 impl FogNodeFaaS for FogNodeFaaSImpl {
     async fn provision_function(&self, bid: AcceptedBid) -> Result<(), Error> {
         let node = bid.chosen.bid.node_id.clone();
-        let res = self
-            .node_communication
-            .take_offer(node.clone(), &bid.chosen.bid)
-            .await?;
+        let res = self.node_communication.take_offer(node.clone(), &bid.chosen.bid).await?;
 
         let mut record: NodeRecord = self
             .fog_node

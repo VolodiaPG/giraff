@@ -1,9 +1,7 @@
-use std::fmt::Debug;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
-use manager::model::dto::node::NodeRecord;
-use manager::model::NodeId;
+use manager::model::{dto::node::NodeRecord, NodeId};
 
 use manager::model::view::node::RegisterNode;
 
@@ -28,39 +26,23 @@ pub struct FogNodeNetworkHashTreeImpl {
 }
 
 impl FogNodeNetworkHashTreeImpl {
-    pub fn new(fog_node: Arc<dyn FogNode>) -> Self {
-        FogNodeNetworkHashTreeImpl { fog_node }
-    }
+    pub fn new(fog_node: Arc<dyn FogNode>) -> Self { FogNodeNetworkHashTreeImpl { fog_node } }
 }
 
 #[async_trait]
 impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
     async fn register_node(&self, node: RegisterNode) -> Result<(), Error> {
         match node {
-            RegisterNode::MarketNode {
-                node_id,
-                ip,
-                port,
-                tags,
-            } => {
+            RegisterNode::MarketNode { node_id, ip, port, tags } => {
                 self.fog_node.append_root(node_id, ip, port, tags).await?;
             }
-            RegisterNode::Node {
-                node_id,
-                parent,
-                tags,
-                ..
-            } => {
-                self.fog_node
-                    .append_new_child(&parent, node_id, tags)
-                    .await?;
+            RegisterNode::Node { node_id, parent, tags, .. } => {
+                self.fog_node.append_new_child(&parent, node_id, tags).await?;
             }
         }
 
         Ok(())
     }
 
-    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
-        self.fog_node.get_nodes().await
-    }
+    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> { self.fog_node.get_nodes().await }
 }

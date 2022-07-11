@@ -17,19 +17,16 @@ where
 pub fn parse(quantity: &str) -> Result<Ratio, super::Error> {
     let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
 
-    let captures = re
-        .captures(quantity)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let captures =
+        re.captures(quantity).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
     let measure = captures
         .get(1)
         .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
         .as_str()
         .parse::<f64>()
         .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
-    let unit = captures
-        .get(2)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
-        .as_str();
+    let unit =
+        captures.get(2).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?.as_str();
 
     if match_unit::<cpu_ratio::cpu>(unit) {
         Ok(Ratio::new::<cpu_ratio::cpu>(measure))

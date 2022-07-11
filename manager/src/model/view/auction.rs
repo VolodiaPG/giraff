@@ -5,15 +5,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
 
-use super::super::domain::sla::Sla;
-use super::super::{BidId, NodeId};
+use super::super::{domain::sla::Sla, BidId, NodeId};
 
 #[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BidRequest {
-    pub node_origin: NodeId,
-    pub sla: Sla,
+    pub node_origin:         NodeId,
+    pub sla:                 Sla,
     #[schemars(schema_with = "crate::helper::uom::time::schema_function")]
     #[serde_as(as = "crate::helper::uom::time::Helper")]
     pub accumulated_latency: Time,
@@ -24,13 +23,13 @@ pub struct BidRequest {
 pub struct Bid {
     pub bid: f64,
     pub sla: Sla,
-    pub id: BidId,
+    pub id:  BidId,
 }
 
 /// The accepted bid
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct AcceptedBid {
-    pub chosen: ChosenBid,
+    pub chosen:    ChosenBid,
     pub proposals: BidProposals,
 }
 
@@ -39,8 +38,8 @@ pub struct AcceptedBid {
 #[serde(rename_all = "camelCase")]
 pub struct BidProposal {
     pub node_id: NodeId,
-    pub id: BidId,
-    pub bid: f64,
+    pub id:      BidId,
+    pub bid:     f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -49,15 +48,11 @@ pub struct BidProposals {
 }
 
 impl PartialOrd for BidProposal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.bid.partial_cmp(&other.bid)
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.bid.partial_cmp(&other.bid) }
 }
 
 impl PartialEq for BidProposal {
-    fn eq(&self, other: &Self) -> bool {
-        self.bid == other.bid
-    }
+    fn eq(&self, other: &Self) -> bool { self.bid == other.bid }
 }
 
 impl Eq for BidProposal {}
