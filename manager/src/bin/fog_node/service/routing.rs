@@ -9,7 +9,7 @@ use manager::model::dto::routing::Direction;
 use manager::model::{domain::routing::FunctionRoutingStack, BidId, NodeId};
 use manager::openfaas::DefaultApi;
 
-use crate::repository::faas_routing::FaaSRoutingTable;
+use crate::repository::faas_routing_table::FaaSRoutingTable;
 use crate::repository::routing::Routing as RoutingRepository;
 use crate::service::faas::FaaSBackend;
 use crate::NodeSituation;

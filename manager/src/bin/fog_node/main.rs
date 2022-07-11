@@ -142,7 +142,7 @@ async fn rocket() -> _ {
         provisioned_repo.clone(),
     ));
     let router_service = Arc::new(RouterImpl::new(
-        Arc::new(crate::repository::faas_routing::FaaSRoutingTableHashMap::new()),
+        Arc::new(crate::repository::faas_routing_table::FaaSRoutingTableHashMap::new()),
         node_situation.clone(),
         Arc::new(crate::repository::routing::RoutingImpl),
         faas_service.clone(),

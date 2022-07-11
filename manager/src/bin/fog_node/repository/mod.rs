@@ -1,5 +1,5 @@
 pub(crate) mod auction;
-pub(crate) mod faas_routing;
+pub(crate) mod faas_routing_table;
 pub(crate) mod k8s;
 pub(crate) mod latency_estimation;
 pub(crate) mod node_query;
