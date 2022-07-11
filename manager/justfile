@@ -5,8 +5,9 @@ _default:
     @just --choose
 
 # Build a target (market or fog_node)
-build target:
-    cargo build --package manager --bin {{target}}
+build:
+    cargo build --package manager --bin market
+    cargo build --package manager --bin fog_node
 
 # Check the outdated deps (req. cargo-outdated crate)
 check_outdated:
@@ -60,17 +61,17 @@ docker:
 _push image user:
     docker tag {{image}} ghcr.io/{{user}}/{{image}}
     docker push ghcr.io/{{user}}/{{image}}
-  
+
 # Push docker images to ghcr
 ghcr user: _check_uncommited docker
     just _push fog_node:latest {{user}}
     just _push market:latest {{user}}
-  
+
 # Start prometheus locally
 prometheus:
     if ! test -d "./prometheus"; then just install-prometheus; fi
     ./prometheus/prometheus --config.file=prometheus.yaml
-	
+
 # Install prometheus locally
 install-prometheus:
     mkdir -p prometheus

@@ -113,6 +113,11 @@ Use your favorite IDE (CLion, etc.) supporting Rust.
 
 Once up and running, the REST API is viewable as the root of the webserver ("127.0.0.1:3030/index.html") thanks to openAPI v3.
 
+We use pre-commit as a way to run checks before commiting any changes. It is done as follows:
+- Install pre-commit
+- `pre-commit install`
+- Done.
+
 ### Usage with Grid'5000
 
 Most of the deployment process has now been streamlined to Grid5000 using [EnosLib](https://gitlab.inria.fr/discovery/enoslib) as the simplification vector.
@@ -170,7 +175,7 @@ kubectl apply -f redis
 #### Removal
 This is the *__nuke__* option, __finer grained could be better if you have other VMs running__
 ```sh
-multipass delete --all --purge  
+multipass delete --all --purge
 ```
 
 ### Install on Grid'5000 (interactive) (deprecated)
@@ -199,9 +204,9 @@ sudo-g5k
 
 Install all the good stuff
 ```sh
-curl -sLS https://get.k3sup.dev | sh 
+curl -sLS https://get.k3sup.dev | sh
 sudo cp k3sup /usr/local/bin/k3sup
-export context="k3s-cluster" 
+export context="k3s-cluster"
 k3sup install --context $context --user $(whoami) --local
 export KUBECONFIG=/home/$(whoami)/kubeconfig
 kubectl config set-context $context
