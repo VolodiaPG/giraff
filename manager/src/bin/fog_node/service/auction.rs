@@ -48,6 +48,7 @@ impl AuctionImpl {
         }
     }
 
+    /// Get a suitable (free enough) node to potentially run the designated SLA
     async fn get_a_node(
         &self,
         sla: &Sla,
@@ -69,6 +70,7 @@ impl AuctionImpl {
         Err(Error::Unsatisfiable)
     }
 
+    /// Compute the bid value from the node environment
     async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
         let (name, used_ram, used_cpu, available_ram, available_cpu) = self.get_a_node(sla).await?;
 
