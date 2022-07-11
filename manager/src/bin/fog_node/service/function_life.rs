@@ -43,6 +43,7 @@ pub trait FunctionLife: Send + Sync {
     async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error>;
 }
 
+#[cfg(not(bottom_up_placement))]
 mod auction_placement {
     use super::*;
     pub struct FunctionLifeImpl {
@@ -146,6 +147,7 @@ mod auction_placement {
     }
 }
 
+#[cfg(bottom_up_placement)]
 mod bottom_up_placement {
     use super::*;
 
@@ -158,7 +160,6 @@ mod bottom_up_placement {
     }
 
     impl FunctionLifeBottomUpImpl {
-        #[allow(dead_code)]
         pub fn new(
             function: Arc<dyn FaaSBackend>,
             auction: Arc<dyn Auction>,
