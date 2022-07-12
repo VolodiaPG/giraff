@@ -2,7 +2,7 @@ PROMETHEUS_VERSION := "2.36.1"
 
 # Default command when no verb specified
 _default:
-    @just --choose
+    @just --list
 
 # Build a target (market or fog_node)
 build:
@@ -22,7 +22,7 @@ run_market:
    cargo run --package manager --bin market
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node $node_type:
+run_fog_node $node_type *FLAGS:
     #!/usr/bin/python3
     import os
     import base64
@@ -52,9 +52,12 @@ run_fog_node $node_type:
     node_type = os.environ["node_type"]
     config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
     os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
-    os.environ["ROCKET_PORT"] = "3030"
-    os.system('''export ID=1 KUBECONFIG="../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
-    && cargo run --package manager --bin fog_node --no-default-features --features fake_k8s
+    os.environ["ROCKET_PORT"] = "3030" if (node_type=="market") else "3031"
+    os.system('''export ID=1 \
+    && export KUBECONFIG="../kubeconfig-master-${ID}" \
+    OPENFAAS_USERNAME="admin" \
+    OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
+    && cargo run {{FLAGS}} --package manager --bin fog_node
     ''')
 
 # Build the project as a docker image
@@ -86,6 +89,7 @@ install-prometheus:
 # Cleans
 clean:
     rm -rf ./prometheus
+    rm -rf target
 
 # Check for uncommited changes
 _check_uncommited:
