@@ -2,13 +2,16 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use manager::helper::uom::cpu_ratio::cpu;
-use uom::si::{f64::{Information, Ratio},
-              information::gigabyte};
+use uom::si::f64::{Information, Ratio};
+use uom::si::information::gigabyte;
 
 use crate::prom_metrics::BID_GAUGE;
-use manager::model::{domain::sla::Sla, dto::auction::BidRecord, BidId};
+use manager::model::domain::sla::Sla;
+use manager::model::dto::auction::BidRecord;
+use manager::model::BidId;
 
-use crate::repository::{auction::Auction as AuctionRepository, resource_tracking::ResourceTracking};
+use crate::repository::auction::Auction as AuctionRepository;
+use crate::repository::resource_tracking::ResourceTracking;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

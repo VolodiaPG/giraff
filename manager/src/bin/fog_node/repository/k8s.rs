@@ -1,14 +1,16 @@
 extern crate uom;
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use k8s_openapi::api::core::v1::Node;
-use kube::{api::ListParams, Api, Client};
+use kube::api::ListParams;
+use kube::{Api, Client};
 use lazy_regex::regex;
 
-use manager::{kube_metrics::node::NodeMetrics,
-              model::dto::k8s::{Allocatable, Metrics, Usage}};
+use manager::kube_metrics::node::NodeMetrics;
+use manager::model::dto::k8s::{Allocatable, Metrics, Usage};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -95,8 +97,8 @@ mod k8s_impl {
 mod fake_impl {
     use super::*;
     use manager::helper::uom::cpu_ratio::millicpu;
-    use uom::si::{f64::{Information, Ratio},
-                  information::{gibibyte, mebibyte}};
+    use uom::si::f64::{Information, Ratio};
+    use uom::si::information::{gibibyte, mebibyte};
 
     pub struct K8sFakeImpl;
 
@@ -168,9 +170,9 @@ fn parse_quantity<'a, T>(quantity: &str, missing_unit: &MissingUnitType<'a>) -> 
 #[cfg(test)]
 mod tests {
     use manager::helper::uom::cpu_ratio::nanocpu;
-    use uom::{fmt::DisplayStyle::Abbreviation,
-              si::{f64::{Information, Ratio},
-                   information::byte}};
+    use uom::fmt::DisplayStyle::Abbreviation;
+    use uom::si::f64::{Information, Ratio};
+    use uom::si::information::byte;
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 

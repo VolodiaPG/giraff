@@ -3,8 +3,11 @@ use std::fmt;
 
 use lazy_static::lazy_static;
 use rocket::request::FromParam;
-use schemars::{gen::SchemaGenerator, schema::*, JsonSchema};
-use serde::{de::Visitor, Deserialize, Serialize};
+use schemars::gen::SchemaGenerator;
+use schemars::schema::*;
+use schemars::JsonSchema;
+use serde::de::Visitor;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// encapsulate the UUIDs in custom struct to let the compiler differentiate them

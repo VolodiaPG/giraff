@@ -1,4 +1,5 @@
-use manager::model::{dto::auction::ChosenBid, view::auction::BidProposal};
+use manager::model::dto::auction::ChosenBid;
+use manager::model::view::auction::BidProposal;
 
 pub trait Auction: Sync + Send {
     fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid>;

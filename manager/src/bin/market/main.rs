@@ -3,12 +3,15 @@
 extern crate log;
 extern crate rocket;
 
-use std::{env, sync::Arc};
+use std::env;
+use std::sync::Arc;
 
 use rocket::launch;
-use rocket_okapi::{openapi_get_routes, swagger_ui::*};
+use rocket_okapi::openapi_get_routes;
+use rocket_okapi::swagger_ui::*;
 
-use crate::{handler::*, repository::fog_node::FogNodeImpl};
+use crate::handler::*;
+use crate::repository::fog_node::FogNodeImpl;
 
 mod controller;
 mod handler;

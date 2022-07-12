@@ -1,11 +1,13 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use manager::{model::{dto::{auction::BidRecord, faas::ProvisionedRecord},
-                      BidId},
-              openfaas::{models::{FunctionDefinition, Limits},
-                         DefaultApi, DefaultApiClient}};
+use manager::model::dto::auction::BidRecord;
+use manager::model::dto::faas::ProvisionedRecord;
+use manager::model::BidId;
+use manager::openfaas::models::{FunctionDefinition, Limits};
+use manager::openfaas::{DefaultApi, DefaultApiClient};
 
 use crate::repository::provisioned::Provisioned as ProvisionedRepository;
 

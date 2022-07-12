@@ -1,8 +1,11 @@
-use std::{collections::HashMap, fmt, net::IpAddr};
+use std::collections::HashMap;
+use std::fmt;
+use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::{view::auction::AcceptedBid, BidId, NodeId};
+use crate::model::view::auction::AcceptedBid;
+use crate::model::{BidId, NodeId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {

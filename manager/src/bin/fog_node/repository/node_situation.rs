@@ -1,11 +1,12 @@
-use std::{fmt::Debug, net::IpAddr};
+use std::fmt::Debug;
+use std::net::IpAddr;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::{dto::node::{NodeDescription, NodeSituationData,
-                                 NodeSituationData::{MarketConnected, NodeConnected}},
-                     NodeId};
+use manager::model::dto::node::NodeSituationData::{MarketConnected, NodeConnected};
+use manager::model::dto::node::{NodeDescription, NodeSituationData};
+use manager::model::NodeId;
 
 #[async_trait]
 pub trait NodeSituation: Debug + Sync + Send {

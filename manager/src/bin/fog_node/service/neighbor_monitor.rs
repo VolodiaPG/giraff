@@ -1,7 +1,8 @@
 use crate::repository::latency_estimation::LatencyEstimation;
 use async_trait::async_trait;
 use manager::model::NodeId;
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 use uom::si::f64::Time;
 
 #[derive(Debug, thiserror::Error)]

@@ -5,7 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
 
-use super::super::{domain::sla::Sla, BidId, NodeId};
+use super::super::domain::sla::Sla;
+use super::super::{BidId, NodeId};
 
 #[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]

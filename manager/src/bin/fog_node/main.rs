@@ -6,25 +6,29 @@ extern crate log;
 #[macro_use]
 extern crate cfg_if;
 
-use crate::{handler::*,
-            repository::{latency_estimation::LatencyEstimationImpl,
-                         node_query::{NodeQuery, NodeQueryRESTImpl},
-                         node_situation::{NodeSituation, NodeSituationHashSetImpl},
-                         provisioned::ProvisionedHashMapImpl,
-                         resource_tracking::ResourceTracking},
-            service::{auction::AuctionImpl,
-                      faas::OpenFaaSBackend,
-                      function_life::FunctionLifeImpl,
-                      neighbor_monitor::NeighborMonitorImpl,
-                      node_life::{NodeLife, NodeLifeImpl},
-                      routing::{Router, RouterImpl}}};
-use manager::{model::dto::node::{NodeSituationData, NodeSituationDisk},
-              openfaas::{Configuration, DefaultApiClient}};
+use crate::handler::*;
+use crate::repository::latency_estimation::LatencyEstimationImpl;
+use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
+use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
+use crate::repository::provisioned::ProvisionedHashMapImpl;
+use crate::repository::resource_tracking::ResourceTracking;
+use crate::service::auction::AuctionImpl;
+use crate::service::faas::OpenFaaSBackend;
+use crate::service::function_life::FunctionLifeImpl;
+use crate::service::neighbor_monitor::NeighborMonitorImpl;
+use crate::service::node_life::{NodeLife, NodeLifeImpl};
+use crate::service::routing::{Router, RouterImpl};
+use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
+use manager::openfaas::{Configuration, DefaultApiClient};
 use reqwest::Client;
-use rocket::{fairing::AdHoc, launch};
-use rocket_okapi::{openapi_get_routes, swagger_ui::*};
-use rocket_prometheus::{prometheus::GaugeVec, PrometheusMetrics};
-use std::{env, sync::Arc};
+use rocket::fairing::AdHoc;
+use rocket::launch;
+use rocket_okapi::openapi_get_routes;
+use rocket_okapi::swagger_ui::*;
+use rocket_prometheus::prometheus::GaugeVec;
+use rocket_prometheus::PrometheusMetrics;
+use std::env;
+use std::sync::Arc;
 
 mod controller;
 mod cron;

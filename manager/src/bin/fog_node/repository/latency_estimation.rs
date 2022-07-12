@@ -1,10 +1,15 @@
-use std::{collections::HashMap, fmt, fmt::Debug, sync::Arc};
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use uom::si::f64::Time;
 
-use manager::model::{domain::rolling_avg::RollingAvg, view::ping::Ping, NodeId};
+use manager::model::domain::rolling_avg::RollingAvg;
+use manager::model::view::ping::Ping;
+use manager::model::NodeId;
 
 use crate::NodeSituation;
 

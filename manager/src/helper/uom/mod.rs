@@ -95,14 +95,16 @@ macro_rules! impl_serialize_as {
 }
 
 pub mod information {
-    use uom::si::{f64::Information, information::megabyte};
+    use uom::si::f64::Information;
+    use uom::si::information::megabyte;
 
     impl_serialize_as!(Information, megabyte, megabyte);
     impl_json_schema!(Information => String, "<value> <SI unit>");
 }
 
 pub mod time {
-    use uom::si::{f64::Time, time::second};
+    use uom::si::f64::Time;
+    use uom::si::time::second;
 
     impl_serialize_as!(Time, second, second);
     impl_json_schema!(Time => String, "<value> <SI unit>");
@@ -111,7 +113,8 @@ pub mod time {
 pub mod ratio {
     use uom::si::f64::Ratio;
 
-    use crate::helper::uom::{cpu_ratio::millicpu, ratio_helper::parse};
+    use crate::helper::uom::cpu_ratio::millicpu;
+    use crate::helper::uom::ratio_helper::parse;
 
     impl_serialize_as!(Ratio, millicpu, millicpu, parse);
     impl_json_schema!(Ratio => String, "<value> <SI unit>");

@@ -1,14 +1,16 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use rocket::{get, post, put, serde::json::Json, State};
+use rocket::serde::json::Json;
+use rocket::{get, post, put, State};
 use rocket_okapi::openapi;
 
-use manager::{helper::handler::Resp,
-              model::{view::{auction::AcceptedBid,
-                             node::{GetFogNodes, RegisterNode},
-                             sla::PutSla},
-                      NodeId},
-              respond};
+use manager::helper::handler::Resp;
+use manager::model::view::auction::AcceptedBid;
+use manager::model::view::node::{GetFogNodes, RegisterNode};
+use manager::model::view::sla::PutSla;
+use manager::model::NodeId;
+use manager::respond;
 
 use crate::controller;
 

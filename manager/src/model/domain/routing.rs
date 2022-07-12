@@ -1,6 +1,6 @@
-use schemars::{gen::SchemaGenerator,
-               schema::{InstanceType, Schema, SchemaObject},
-               JsonSchema};
+use schemars::gen::SchemaGenerator;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 

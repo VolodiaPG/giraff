@@ -1,9 +1,11 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::{dto::faas::ProvisionedRecord, BidId};
+use manager::model::dto::faas::ProvisionedRecord;
+use manager::model::BidId;
 
 #[async_trait]
 pub trait Provisioned: Debug + Sync + Send {

@@ -1,17 +1,18 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
 
-use manager::{model::{domain::routing::{FunctionRoutingStack, Packet},
-                      dto::routing::Direction,
-                      BidId, NodeId},
-              openfaas::DefaultApi};
+use manager::model::domain::routing::{FunctionRoutingStack, Packet};
+use manager::model::dto::routing::Direction;
+use manager::model::{BidId, NodeId};
+use manager::openfaas::DefaultApi;
 
-use crate::{repository::{faas_routing_table::FaaSRoutingTable,
-                         routing::Routing as RoutingRepository},
-            service::faas::FaaSBackend,
-            NodeSituation};
+use crate::repository::faas_routing_table::FaaSRoutingTable;
+use crate::repository::routing::Routing as RoutingRepository;
+use crate::service::faas::FaaSBackend;
+use crate::NodeSituation;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

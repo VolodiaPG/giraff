@@ -1,13 +1,17 @@
-use std::{fmt::Debug, net::IpAddr, sync::Arc};
+use std::fmt::Debug;
+use std::net::IpAddr;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use uom::si::{f64::Time, time::second};
+use uom::si::f64::Time;
+use uom::si::time::second;
 
-use manager::model::{domain::{routing::Packet, sla::Sla},
-                     dto::node::NodeRecord,
-                     view::auction::{BidProposal, BidProposals, BidRequest},
-                     NodeId};
+use manager::model::domain::routing::Packet;
+use manager::model::domain::sla::Sla;
+use manager::model::dto::node::NodeRecord;
+use manager::model::view::auction::{BidProposal, BidProposals, BidRequest};
+use manager::model::NodeId;
 
 use crate::repository::fog_node::FogNode;
 

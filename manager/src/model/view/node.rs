@@ -2,10 +2,13 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use std::{collections::HashMap, net::IpAddr};
+use std::collections::HashMap;
+use std::net::IpAddr;
 
-use crate::{helper::chrono as chrono_helper,
-            model::{dto::node::NodeRecord, view::auction::AcceptedBid, BidId}};
+use crate::helper::chrono as chrono_helper;
+use crate::model::dto::node::NodeRecord;
+use crate::model::view::auction::AcceptedBid;
+use crate::model::BidId;
 
 use super::super::NodeId;
 

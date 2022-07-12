@@ -2,9 +2,8 @@ use async_trait::async_trait;
 use log::trace;
 use std::fmt::Debug;
 
-use super::{configuration,
-            models::{FunctionDefinition, FunctionListEntry},
-            Error};
+use super::models::{FunctionDefinition, FunctionListEntry};
+use super::{configuration, Error};
 
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {

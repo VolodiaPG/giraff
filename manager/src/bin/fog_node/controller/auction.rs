@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use manager::model::{view::auction::{BidProposals, BidRequest},
-                     BidId};
+use manager::model::view::auction::{BidProposals, BidRequest};
+use manager::model::BidId;
 
-use crate::{controller::ControllerError, service::function_life::FunctionLife};
+use crate::controller::ControllerError;
+use crate::service::function_life::FunctionLife;
 
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for their bids.
 pub async fn bid_on(bid_request: BidRequest,

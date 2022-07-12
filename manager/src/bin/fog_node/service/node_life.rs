@@ -1,8 +1,11 @@
-use std::{net::IpAddr, sync::Arc};
+use std::net::IpAddr;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use manager::model::{domain::routing::Packet, dto::node::NodeDescription, view::node::RegisterNode};
+use manager::model::domain::routing::Packet;
+use manager::model::dto::node::NodeDescription;
+use manager::model::view::node::RegisterNode;
 
 use crate::{NodeQuery, NodeSituation, Router};
 

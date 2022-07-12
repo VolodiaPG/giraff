@@ -1,8 +1,8 @@
 use core::fmt;
 
 use chrono::{DateTime, Utc};
-use schemars::{gen::SchemaGenerator,
-               schema::{InstanceType, Schema, SchemaObject}};
+use schemars::gen::SchemaGenerator;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
 use serde::de::Visitor;
 
 pub struct DateTimeHelper;

@@ -1,12 +1,14 @@
-use std::{collections::HashMap, convert::Infallible, sync::Arc};
+use std::collections::HashMap;
+use std::convert::Infallible;
+use std::sync::Arc;
 
 use anyhow::Result;
 
-use manager::model::{domain::auction::AuctionResult,
-                     view::{auction::AcceptedBid,
-                            node::{GetFogNodes, RegisterNode},
-                            sla::PutSla},
-                     NodeId};
+use manager::model::domain::auction::AuctionResult;
+use manager::model::view::auction::AcceptedBid;
+use manager::model::view::node::{GetFogNodes, RegisterNode};
+use manager::model::view::sla::PutSla;
+use manager::model::NodeId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {

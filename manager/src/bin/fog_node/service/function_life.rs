@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::future::{join3, try_join_all};
-use uom::{fmt::DisplayStyle::Abbreviation, si::f64::Time};
+use uom::fmt::DisplayStyle::Abbreviation;
+use uom::si::f64::Time;
 
-use manager::model::{domain::sla::Sla,
-                     view::auction::{BidProposal, BidProposals, BidRequest},
-                     BidId, NodeId};
+use manager::model::domain::sla::Sla;
+use manager::model::view::auction::{BidProposal, BidProposals, BidRequest};
+use manager::model::{BidId, NodeId};
 
-use crate::{service::{auction::Auction, faas::FaaSBackend, neighbor_monitor::NeighborMonitor},
-            NodeQuery, NodeSituation};
+use crate::service::auction::Auction;
+use crate::service::faas::FaaSBackend;
+use crate::service::neighbor_monitor::NeighborMonitor;
+use crate::{NodeQuery, NodeSituation};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

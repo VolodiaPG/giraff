@@ -1,11 +1,13 @@
-use std::{collections::HashMap, fmt::Debug, net::IpAddr};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::net::IpAddr;
 
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::{dto::node::{Node, NodeIdList, NodeRecord},
-                     view::auction::AcceptedBid,
-                     NodeId};
+use manager::model::dto::node::{Node, NodeIdList, NodeRecord};
+use manager::model::view::auction::AcceptedBid;
+use manager::model::NodeId;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

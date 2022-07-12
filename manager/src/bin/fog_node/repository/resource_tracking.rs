@@ -1,14 +1,17 @@
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use crate::prom_metrics::{CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
                           MEMORY_USED_GAUGE};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
-use uom::si::{f64::{Information, Ratio},
-              information::byte,
-              ratio::part_per_billion};
+use uom::si::f64::{Information, Ratio};
+use uom::si::information::byte;
+use uom::si::ratio::part_per_billion;
 
-use crate::repository::{k8s::K8s, resource_tracking::Error::NonExistentName};
+use crate::repository::k8s::K8s;
+use crate::repository::resource_tracking::Error::NonExistentName;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

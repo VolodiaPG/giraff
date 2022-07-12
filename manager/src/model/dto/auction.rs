@@ -1,4 +1,5 @@
-use crate::model::{domain::sla::Sla, view::auction::BidProposal};
+use crate::model::domain::sla::Sla;
+use crate::model::view::auction::BidProposal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

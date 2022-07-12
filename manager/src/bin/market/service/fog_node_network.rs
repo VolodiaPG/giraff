@@ -1,7 +1,9 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
+use std::sync::Arc;
 
 use async_trait::async_trait;
-use manager::model::{dto::node::NodeRecord, NodeId};
+use manager::model::dto::node::NodeRecord;
+use manager::model::NodeId;
 
 use manager::model::view::node::RegisterNode;
 

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::model::{dto::auction::ChosenBid, view::auction::BidProposal};
+use crate::model::dto::auction::ChosenBid;
+use crate::model::view::auction::BidProposal;
 use schemars::JsonSchema;
 
 #[derive(Debug)]

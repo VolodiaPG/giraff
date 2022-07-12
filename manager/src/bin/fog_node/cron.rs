@@ -1,7 +1,7 @@
-use crate::{prom_metrics::{CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE,
-                           MEMORY_USAGE_GAUGE},
-            repository::k8s::K8s,
-            service::neighbor_monitor::NeighborMonitor};
+use crate::prom_metrics::{CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE,
+                          MEMORY_USAGE_GAUGE};
+use crate::repository::k8s::K8s;
+use crate::service::neighbor_monitor::NeighborMonitor;
 use std::sync::Arc;
 use tokio_cron_scheduler::{Job, JobScheduler};
 

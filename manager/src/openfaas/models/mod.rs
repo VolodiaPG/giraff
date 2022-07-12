@@ -1,6 +1,6 @@
-use uom::{fmt::DisplayStyle::Abbreviation,
-          si::{f64::{Information, Ratio},
-               information}};
+use uom::fmt::DisplayStyle::Abbreviation;
+use uom::si::f64::{Information, Ratio};
+use uom::si::information;
 
 pub use function_definition::{FunctionDefinition, Limits};
 

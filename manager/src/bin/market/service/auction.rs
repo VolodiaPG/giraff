@@ -3,9 +3,10 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use manager::model::{domain::{auction::AuctionResult, sla::Sla},
-                     view::auction::BidProposals,
-                     NodeId};
+use manager::model::domain::auction::AuctionResult;
+use manager::model::domain::sla::Sla;
+use manager::model::view::auction::BidProposals;
+use manager::model::NodeId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

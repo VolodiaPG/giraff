@@ -1,13 +1,15 @@
-use std::{fmt::Debug, net::IpAddr, sync::Arc};
+use std::fmt::Debug;
+use std::net::IpAddr;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use reqwest::Response;
 use serde::Serialize;
 
-use manager::model::{dto::node::NodeDescription,
-                     view::{auction::{BidProposals, BidRequest},
-                            node::RegisterNode},
-                     NodeId};
+use manager::model::dto::node::NodeDescription;
+use manager::model::view::auction::{BidProposals, BidRequest};
+use manager::model::view::node::RegisterNode;
+use manager::model::NodeId;
 
 use crate::NodeSituation;
 

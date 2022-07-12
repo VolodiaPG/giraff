@@ -2,8 +2,8 @@ use std::fmt::Display;
 
 use serde::{self, Deserialize};
 
-pub use self::{configuration::Configuration,
-               default_api::{DefaultApi, DefaultApiClient}};
+pub use self::configuration::Configuration;
+pub use self::default_api::{DefaultApi, DefaultApiClient};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T>
