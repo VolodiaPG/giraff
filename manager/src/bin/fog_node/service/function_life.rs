@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::future::{join3, try_join_all};
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::Time;
 
@@ -24,6 +23,8 @@ pub enum Error {
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error("Cannot get latency of node {0}")]
     CannotGetLatency(NodeId),
+    #[error("No candidates were found or returned an Ok result")]
+    NoCandidatesRetained,
 }
 
 #[async_trait]
@@ -41,9 +42,15 @@ pub trait FunctionLife: Send + Sync {
     async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error>;
 }
 
-#[cfg(not(bottom_up_placement))]
+#[cfg(not(feature = "bottom_up_placement"))]
+pub use auction_placement::*;
+
+#[cfg(not(feature = "bottom_up_placement"))]
 mod auction_placement {
     use super::*;
+
+    use futures::future::{join3, try_join_all};
+
     pub struct FunctionLifeImpl {
         function:         Arc<dyn FaaSBackend>,
         auction:          Arc<dyn Auction>,
@@ -59,6 +66,7 @@ mod auction_placement {
                    neighbor_monitor: Arc<dyn NeighborMonitor>,
                    node_query: Arc<dyn NodeQuery>)
                    -> Self {
+            debug!("Built using FunctionLifeImpl service");
             Self { function, auction, node_situation, neighbor_monitor, node_query }
         }
 
@@ -138,9 +146,13 @@ mod auction_placement {
     }
 }
 
-#[cfg(bottom_up_placement)]
+#[cfg(feature = "bottom_up_placement")]
+pub use bottom_up_placement::*;
+
+#[cfg(feature = "bottom_up_placement")]
 mod bottom_up_placement {
     use super::*;
+    use if_chain::if_chain;
 
     pub struct FunctionLifeBottomUpImpl {
         function:         Arc<dyn FaaSBackend>,
@@ -157,6 +169,7 @@ mod bottom_up_placement {
                    neighbor_monitor: Arc<dyn NeighborMonitor>,
                    node_query: Arc<dyn NodeQuery>)
                    -> Self {
+            debug!("Built using FunctionLifeBottomUpImpl service");
             Self { function, auction, node_situation, neighbor_monitor, node_query }
         }
 
@@ -166,8 +179,6 @@ mod bottom_up_placement {
                                         from: NodeId,
                                         accumulated_latency: Time)
                                         -> Result<BidProposals, Error> {
-            let mut promises = vec![];
-
             for neighbor in self.node_situation.get_neighbors().await {
                 if neighbor == from {
                     continue;
@@ -185,25 +196,23 @@ mod bottom_up_placement {
                     continue;
                 }
 
-                promises.push(self.node_query
-                                  .request_neighbor_bid(BidRequest { sla:
-                                                                         sla.clone(),
-                                                                     node_origin:
-                                                                         self.node_situation
-                                                                             .get_my_id()
-                                                                             .await,
-                                                                     accumulated_latency:
-                                                                         accumulated_latency
-                                                                         + latency_outbound, },
-                                                        neighbor.clone()));
+                let bid = self.node_query
+                              .request_neighbor_bid(BidRequest { sla:                 sla.clone(),
+                                                                 node_origin:
+                                                                     self.node_situation
+                                                                         .get_my_id()
+                                                                         .await,
+                                                                 accumulated_latency:
+                                                                     accumulated_latency
+                                                                     + latency_outbound, },
+                                                    neighbor.clone())
+                              .await?;
+                if !bid.bids.is_empty() {
+                    return Ok(bid);
+                }
             }
 
-            Ok(BidProposals { bids: try_join_all(promises).await?
-                                                          .into_iter()
-                                                          .flat_map(|proposals: BidProposals| {
-                                                              proposals.bids
-                                                          })
-                                                          .collect(), })
+            Err(Error::NoCandidatesRetained)
         }
     }
 
@@ -216,18 +225,19 @@ mod bottom_up_placement {
                                                   from: NodeId,
                                                   accumulated_latency: Time)
                                                   -> Result<BidProposals, Error> {
-            self.node_situation.get_my_id().await?;
-            let (my_id, result_bid, proposals) =
-                join3(self.auction.bid_on(sla.clone()),
-                      self.follow_up_to_neighbors(sla, from, accumulated_latency)).await;
+            let bid = if_chain!(
+                if let Ok(mut follow_up) = self.follow_up_to_neighbors(sla.clone(), from, accumulated_latency).await;
+                if let Some(bid) = follow_up.bids.pop();
+                then{
+                    bid
+                } else {
+                    let (id, record) = self.auction.bid_on(sla.clone()).await?;
+                    BidProposal{node_id: self.node_situation.get_my_id().await,
+                    id, bid: record.bid}
+                }
+            );
 
-            let (bid, bid_record) = result_bid?;
-            let mut proposals = proposals?;
-
-            proposals.bids
-                     .push(BidProposal { node_id: my_id, id: bid, bid: bid_record.bid });
-
-            Ok(proposals)
+            Ok(BidProposals { bids: vec![bid] })
         }
 
         async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error> {
@@ -235,13 +245,5 @@ mod bottom_up_placement {
             self.function.provision_function(id, record).await?;
             Ok(())
         }
-    }
-}
-
-cfg_if! {
-    if #[cfg(bottom_up_placement)] {
-        pub use bottom_up_placement::*;
-    } else {
-        pub use auction_placement::*;
     }
 }

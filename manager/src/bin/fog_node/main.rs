@@ -3,8 +3,6 @@
 extern crate core;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate cfg_if;
 
 use crate::handler::*;
 use crate::repository::latency_estimation::LatencyEstimationImpl;
@@ -12,10 +10,9 @@ use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
 use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
 use crate::repository::provisioned::ProvisionedHashMapImpl;
 use crate::repository::resource_tracking::ResourceTracking;
-use crate::service::auction::AuctionImpl;
-use crate::service::faas::OpenFaaSBackend;
-use crate::service::function_life::FunctionLifeImpl;
-use crate::service::neighbor_monitor::NeighborMonitorImpl;
+use crate::service::auction::{Auction, AuctionImpl};
+use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
+use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
 use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
@@ -53,20 +50,48 @@ fn load_config_from_env() -> anyhow::Result<String> {
     Ok(config)
 }
 
-cfg_if! {
-    if #[cfg(fake_k8s)]{
-        use crate::repository::k8s::K8sFakeImpl;
-        fn k8s_factory() -> K8sFakeImpl {
-            info!("Using Fake k8s impl");
-            K8sFakeImpl::new()
-        }
-    } else{
-        use crate::repository::k8s::K8sImpl;
-        fn k8s_factory() -> K8sImpl {
-            debug!("Using default k8s impl");
-            K8sImpl::new()
-        }
+#[cfg(feature = "fake_k8s")]
+use crate::repository::k8s::K8sFakeImpl as k8s;
+#[cfg(not(feature = "fake_k8s"))]
+use crate::repository::k8s::K8sImpl as k8s;
+fn k8s_factory() -> k8s {
+    #[cfg(feature = "fake_k8s")]
+    {
+        info!("Using Fake k8s impl");
     }
+    #[cfg(not(feature = "fake_k8s"))]
+    {
+        debug!("Using default k8s impl");
+    }
+    k8s::new()
+}
+
+#[cfg(feature = "bottom_up_placement")]
+use crate::service::function_life::FunctionLifeBottomUpImpl as FunctionLifeService;
+#[cfg(not(feature = "bottom_up_placement"))]
+use crate::service::function_life::FunctionLifeImpl as FunctionLifeService;
+
+fn function_life_factory(faas_service: Arc<dyn FaaSBackend>,
+                         auction_service: Arc<dyn Auction>,
+                         node_situation: Arc<dyn NodeSituation>,
+                         neighbor_monitor_service: Arc<dyn NeighborMonitor>,
+                         node_query: Arc<dyn NodeQuery>)
+                         -> FunctionLifeService {
+    #[cfg(feature = "bottom_up_placement")]
+    {
+        debug!("Using bottom-up placement");
+    }
+
+    #[cfg(not(feature = "bottom_up_placement"))]
+    {
+        info!("Using default placement");
+    }
+
+    FunctionLifeService::new(faas_service,
+                             auction_service,
+                             node_situation,
+                             neighbor_monitor_service,
+                             node_query)
 }
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
@@ -138,7 +163,7 @@ async fn rocket() -> _ {
                                                        node_situation.clone(),
                                                        node_query.clone()));
     let neighbor_monitor_service = Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
-    let function_life_service = Arc::new(FunctionLifeImpl::new(faas_service.clone(),
+    let function_life_service = Arc::new(function_life_factory(faas_service.clone(),
                                                                auction_service.clone(),
                                                                node_situation.clone(),
                                                                neighbor_monitor_service.clone(),
