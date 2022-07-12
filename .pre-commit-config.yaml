@@ -21,7 +21,7 @@ repos:
   hooks:
     - id: check-compilation
       name: check-compile-manager
-      entry: bash -c 'cd manager && just build'
+      entry: bash -c 'cd manager && just docker'
       language: system
       types: [rust]
       pass_filenames: false
