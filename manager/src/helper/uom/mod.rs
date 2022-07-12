@@ -9,8 +9,7 @@ pub enum Error {
 }
 
 pub fn parse_quantity<T>(quantity: &str) -> Result<T, Error>
-where
-    T: FromStr,
+    where T: FromStr
 {
     let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
 
@@ -59,19 +58,17 @@ macro_rules! impl_serialize_as {
 
         impl serde_with::SerializeAs<$type> for Helper {
             fn serialize_as<S>(value: &$type, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer,
+                where S: Serializer
             {
                 serializer.serialize_str(
-                    format!("{:?}", value.into_format_args($format, Abbreviation)).as_str(),
-                )
+                            format!("{:?}", value.into_format_args($format, Abbreviation)).as_str(),
+                        )
             }
         }
 
         impl<'de> serde_with::DeserializeAs<'de, $type> for Helper {
             fn deserialize_as<D>(deserializer: D) -> Result<$type, D::Error>
-            where
-                D: Deserializer<'de>,
+                where D: Deserializer<'de>
             {
                 deserializer.deserialize_any(CustomVisitor)
             }
@@ -83,16 +80,13 @@ macro_rules! impl_serialize_as {
             type Value = $type;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(
-                    formatter,
-                    "a quantity resembling '<value> <unit>' like '{:?}'",
-                    <$type>::new::<$unit>(1.5).into_format_args($format, Abbreviation)
-                )
+                write!(formatter,
+                       "a quantity resembling '<value> <unit>' like '{:?}'",
+                       <$type>::new::<$unit>(1.5).into_format_args($format, Abbreviation))
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
+                where E: serde::de::Error
             {
                 $parser(v).map_err(|e| E::custom(e.to_string()))
             }

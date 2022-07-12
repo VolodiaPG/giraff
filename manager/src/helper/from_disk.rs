@@ -15,6 +15,5 @@ pub enum Error {
 #[async_trait::async_trait]
 pub trait FromDisk {
     async fn from_disk(path: &Path) -> Result<Self, Error>
-    where
-        Self: Sized;
+        where Self: Sized;
 }

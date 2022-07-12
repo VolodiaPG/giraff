@@ -4,10 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::{collections::HashMap, net::IpAddr};
 
-use crate::{
-    helper::chrono as chrono_helper,
-    model::{dto::node::NodeRecord, view::auction::AcceptedBid, BidId},
-};
+use crate::{helper::chrono as chrono_helper,
+            model::{dto::node::NodeRecord, view::auction::AcceptedBid, BidId}};
 
 use super::super::NodeId;
 

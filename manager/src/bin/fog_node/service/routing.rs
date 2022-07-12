@@ -3,20 +3,15 @@ use std::{fmt::Debug, sync::Arc};
 use async_trait::async_trait;
 use bytes::Bytes;
 
-use manager::{
-    model::{
-        domain::routing::{FunctionRoutingStack, Packet},
-        dto::routing::Direction,
-        BidId, NodeId,
-    },
-    openfaas::DefaultApi,
-};
+use manager::{model::{domain::routing::{FunctionRoutingStack, Packet},
+                      dto::routing::Direction,
+                      BidId, NodeId},
+              openfaas::DefaultApi};
 
-use crate::{
-    repository::{faas_routing_table::FaaSRoutingTable, routing::Routing as RoutingRepository},
-    service::faas::FaaSBackend,
-    NodeSituation,
-};
+use crate::{repository::{faas_routing_table::FaaSRoutingTable,
+                         routing::Routing as RoutingRepository},
+            service::faas::FaaSBackend,
+            NodeSituation};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -46,8 +41,7 @@ pub trait Router: Debug + Send + Sync {
 
 #[derive(Debug)]
 pub struct RouterImpl<R>
-where
-    R: RoutingRepository,
+    where R: RoutingRepository
 {
     faas_routing_table: Arc<dyn FaaSRoutingTable>,
     node_situation:     Arc<dyn NodeSituation>,
@@ -56,30 +50,25 @@ where
     faas_api:           Arc<dyn DefaultApi>,
 }
 
-impl<R> RouterImpl<R>
-where
-    R: RoutingRepository,
+impl<R> RouterImpl<R> where R: RoutingRepository
 {
-    pub fn new(
-        faas_routing_table: Arc<dyn FaaSRoutingTable>,
-        node_situation: Arc<dyn NodeSituation>,
-        routing: Arc<R>,
-        faas: Arc<dyn FaaSBackend>,
-        faas_api: Arc<dyn DefaultApi>,
-    ) -> Self {
+    pub fn new(faas_routing_table: Arc<dyn FaaSRoutingTable>,
+               node_situation: Arc<dyn NodeSituation>,
+               routing: Arc<R>,
+               faas: Arc<dyn FaaSBackend>,
+               faas_api: Arc<dyn DefaultApi>)
+               -> Self {
         Self { faas_routing_table, node_situation, routing, faas, faas_api }
     }
 
-    async fn forward_register_to_node(
-        &self,
-        to: &NodeId,
-        stack: FunctionRoutingStack,
-    ) -> Result<Bytes, Error> {
-        let next = self
-            .node_situation
-            .get_fog_node_neighbor(to)
-            .await
-            .ok_or_else(|| Error::NextNodeDoesntExist(to.to_owned()))?;
+    async fn forward_register_to_node(&self,
+                                      to: &NodeId,
+                                      stack: FunctionRoutingStack)
+                                      -> Result<Bytes, Error> {
+        let next = self.node_situation
+                       .get_fog_node_neighbor(to)
+                       .await
+                       .ok_or_else(|| Error::NextNodeDoesntExist(to.to_owned()))?;
         self.routing
             .forward_to_url(&next.ip, &next.port, "register", &stack)
             .await
@@ -88,14 +77,12 @@ where
 }
 
 #[async_trait]
-impl<R> Router for RouterImpl<R>
-where
-    R: RoutingRepository,
+impl<R> Router for RouterImpl<R> where R: RoutingRepository
 {
     async fn register_function_route(&self, mut stack: FunctionRoutingStack) -> Result<(), Error> {
         // At least 1 more stop
         if stack.route_to_first.len() > 1
-            && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
+           && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
         {
             stack.route_to_first.pop();
             let next = stack.route_to_first.last().ok_or(Error::MalformedRoutingStack)?.to_owned();
@@ -106,15 +93,14 @@ where
         // No more stop, we need to start registering routes
         if stack.route_to_first.is_empty() {
             if stack.route_to_first.len() == 1
-                && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
+               && stack.route_to_first.starts_with(&[self.node_situation.get_my_id().await])
             {
                 let my_id = self.node_situation.get_my_id().await;
                 stack.route_to_first.pop();
-                let mid = stack
-                    .routes
-                    .iter()
-                    .position(|node| node == &my_id)
-                    .ok_or(Error::MalformedRoutingStack)?;
+                let mid = stack.routes
+                               .iter()
+                               .position(|node| node == &my_id)
+                               .ok_or(Error::MalformedRoutingStack)?;
 
                 // left: from, right: to
                 let (left, right) = stack.routes.split_at(mid);
@@ -125,28 +111,26 @@ where
 
                 if !left.is_empty() {
                     let next = &left[0];
-                    self.forward_register_to_node(
-                        next,
-                        FunctionRoutingStack {
-                            function:       stack.function.to_owned(),
-                            route_to_first: vec![],
-                            routes:         left.to_vec(),
-                        },
-                    )
-                    .await?;
+                    self.forward_register_to_node(next,
+                                                  FunctionRoutingStack { function:
+                                                                             stack.function
+                                                                                  .to_owned(),
+                                                                         route_to_first: vec![],
+                                                                         routes:
+                                                                             left.to_vec(), })
+                        .await?;
                 }
 
                 if right.len() > 1 {
                     let next = &right[1];
-                    self.forward_register_to_node(
-                        next,
-                        FunctionRoutingStack {
-                            function:       stack.function.to_owned(),
-                            route_to_first: vec![],
-                            routes:         right.to_vec(),
-                        },
-                    )
-                    .await?;
+                    self.forward_register_to_node(next,
+                                                  FunctionRoutingStack { function:
+                                                                             stack.function
+                                                                                  .to_owned(),
+                                                                         route_to_first: vec![],
+                                                                         routes:
+                                                                             right.to_vec(), })
+                        .await?;
                 }
 
                 return Ok(());
@@ -199,41 +183,34 @@ where
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error> {
         match packet {
             Packet::FaaSFunction { to, data: payload } => {
-                let node_to = self
-                    .faas_routing_table
-                    .get(to)
-                    .await
-                    .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
+                let node_to = self.faas_routing_table
+                                  .get(to)
+                                  .await
+                                  .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
                     // TODO: optimization: is it possible to send the packet directly to the node?
                     // w/o redoing the same structure, what impact?
                     Direction::NextNode(next) => {
-                        let next = self
-                            .node_situation
-                            .get_fog_node_neighbor(&next)
-                            .await
-                            .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
-                        Ok(self
-                            .routing
-                            .forward_to_routing(
-                                &next.ip,
-                                &next.port,
-                                &Packet::FaaSFunction { to: to.to_owned(), data: payload },
-                            )
-                            .await?)
+                        let next = self.node_situation
+                                       .get_fog_node_neighbor(&next)
+                                       .await
+                                       .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
+                        Ok(self.routing
+                               .forward_to_routing(&next.ip,
+                                                   &next.port,
+                                                   &Packet::FaaSFunction { to:   to.to_owned(),
+                                                                           data: payload, })
+                               .await?)
                     }
                     Direction::CurrentNode => {
-                        let record = self
-                            .faas
-                            .get_provisioned_function(to)
-                            .await
-                            .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
+                        let record = self.faas
+                                         .get_provisioned_function(to)
+                                         .await
+                                         .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
                         self.faas_api
-                            .async_function_name_post(
-                                &record.function_name,
-                                serde_json::to_string(payload)?,
-                            )
+                            .async_function_name_post(&record.function_name,
+                                                      serde_json::to_string(payload)?)
                             .await
                             .map_err(Error::from)?;
                         // TODO check if that doesn't cause any harm
@@ -256,23 +233,18 @@ where
                     Ok(self.routing.forward_to_url(&my_ip, &my_port, resource_uri, data).await?)
                 } else {
                     let next = route_to.last().unwrap();
-                    let next = self
-                        .node_situation
-                        .get_fog_node_neighbor(next)
-                        .await
-                        .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
-                    Ok(self
-                        .routing
-                        .forward_to_routing(
-                            &next.ip,
-                            &next.port,
-                            &Packet::FogNode {
-                                route_to_stack: route_to,
-                                resource_uri: resource_uri.to_owned(),
-                                data,
-                            },
-                        )
-                        .await?)
+                    let next = self.node_situation
+                                   .get_fog_node_neighbor(next)
+                                   .await
+                                   .ok_or_else(|| Error::NextNodeDoesntExist(next.to_owned()))?;
+                    Ok(self.routing
+                           .forward_to_routing(&next.ip,
+                                               &next.port,
+                                               &Packet::FogNode { route_to_stack: route_to,
+                                                                  resource_uri:
+                                                                      resource_uri.to_owned(),
+                                                                  data })
+                           .await?)
                 }
             }
             Packet::Market { resource_uri, data } => {

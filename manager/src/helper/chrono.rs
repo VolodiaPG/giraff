@@ -1,18 +1,15 @@
 use core::fmt;
 
 use chrono::{DateTime, Utc};
-use schemars::{
-    gen::SchemaGenerator,
-    schema::{InstanceType, Schema, SchemaObject},
-};
+use schemars::{gen::SchemaGenerator,
+               schema::{InstanceType, Schema, SchemaObject}};
 use serde::de::Visitor;
 
 pub struct DateTimeHelper;
 
 impl serde_with::SerializeAs<DateTime<Utc>> for DateTimeHelper {
     fn serialize_as<S>(value: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
+        where S: serde::Serializer
     {
         serializer.serialize_str(&value.to_rfc3339())
     }
@@ -20,8 +17,7 @@ impl serde_with::SerializeAs<DateTime<Utc>> for DateTimeHelper {
 
 impl<'de> serde_with::DeserializeAs<'de, DateTime<Utc>> for DateTimeHelper {
     fn deserialize_as<D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
-    where
-        D: serde::Deserializer<'de>,
+        where D: serde::Deserializer<'de>
     {
         deserializer.deserialize_any(CustomVisitor)
     }
@@ -37,20 +33,15 @@ impl<'de> Visitor<'de> for CustomVisitor {
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
+        where E: serde::de::Error
     {
-        Ok(DateTime::parse_from_rfc3339(v)
-            .map_err(|e| E::custom(e.to_string()))?
-            .with_timezone(&Utc))
+        Ok(DateTime::parse_from_rfc3339(v).map_err(|e| E::custom(e.to_string()))?
+                                          .with_timezone(&Utc))
     }
 }
 
 pub fn schema_function(_: &mut SchemaGenerator) -> Schema {
-    SchemaObject {
-        instance_type: Some(InstanceType::String.into()),
-        format: Some("date-time".to_owned()),
-        ..Default::default()
-    }
-    .into()
+    SchemaObject { instance_type: Some(InstanceType::String.into()),
+                   format: Some("date-time".to_owned()),
+                   ..Default::default() }.into()
 }

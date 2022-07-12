@@ -4,16 +4,12 @@ use async_trait::async_trait;
 use futures::future::{join3, try_join_all};
 use uom::{fmt::DisplayStyle::Abbreviation, si::f64::Time};
 
-use manager::model::{
-    domain::sla::Sla,
-    view::auction::{BidProposal, BidProposals, BidRequest},
-    BidId, NodeId,
-};
+use manager::model::{domain::sla::Sla,
+                     view::auction::{BidProposal, BidProposals, BidRequest},
+                     BidId, NodeId};
 
-use crate::{
-    service::{auction::Auction, faas::FaaSBackend, neighbor_monitor::NeighborMonitor},
-    NodeQuery, NodeSituation,
-};
+use crate::{service::{auction::Auction, faas::FaaSBackend, neighbor_monitor::NeighborMonitor},
+            NodeQuery, NodeSituation};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -33,12 +29,11 @@ pub trait FunctionLife: Send + Sync {
     /// Will save the function in the database for later use
     ///
     /// [from] is the last node that passed the request
-    async fn bid_on_new_function_and_transmit(
-        &self,
-        sla: Sla,
-        from: NodeId,
-        accumulated_latency: Time,
-    ) -> Result<BidProposals, Error>;
+    async fn bid_on_new_function_and_transmit(&self,
+                                              sla: Sla,
+                                              from: NodeId,
+                                              accumulated_latency: Time)
+                                              -> Result<BidProposals, Error>;
 
     async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error>;
 }
@@ -55,86 +50,79 @@ mod auction_placement {
     }
 
     impl FunctionLifeImpl {
-        pub fn new(
-            function: Arc<dyn FaaSBackend>,
-            auction: Arc<dyn Auction>,
-            node_situation: Arc<dyn NodeSituation>,
-            neighbor_monitor: Arc<dyn NeighborMonitor>,
-            node_query: Arc<dyn NodeQuery>,
-        ) -> Self {
+        pub fn new(function: Arc<dyn FaaSBackend>,
+                   auction: Arc<dyn Auction>,
+                   node_situation: Arc<dyn NodeSituation>,
+                   neighbor_monitor: Arc<dyn NeighborMonitor>,
+                   node_query: Arc<dyn NodeQuery>)
+                   -> Self {
             Self { function, auction, node_situation, neighbor_monitor, node_query }
         }
 
         /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
-        async fn follow_up_to_neighbors(
-            &self,
-            sla: Sla,
-            from: NodeId,
-            accumulated_latency: Time,
-        ) -> Result<BidProposals, Error> {
+        async fn follow_up_to_neighbors(&self,
+                                        sla: Sla,
+                                        from: NodeId,
+                                        accumulated_latency: Time)
+                                        -> Result<BidProposals, Error> {
             let mut promises = vec![];
 
             for neighbor in self.node_situation.get_neighbors().await {
                 if neighbor == from {
                     continue;
                 }
-                let latency_outbound = self
-                    .neighbor_monitor
-                    .get_latency_to_avg(&neighbor)
-                    .await
-                    .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
+                let latency_outbound =
+                    self.neighbor_monitor
+                        .get_latency_to_avg(&neighbor)
+                        .await
+                        .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
                 if latency_outbound + accumulated_latency > sla.latency_max {
-                    trace!(
-                        "Skipping neighbor {} because latency is too high ({}).",
-                        neighbor,
-                        latency_outbound.into_format_args(uom::si::time::millisecond, Abbreviation)
-                    );
+                    trace!("Skipping neighbor {} because latency is too high ({}).",
+                           neighbor,
+                           latency_outbound.into_format_args(uom::si::time::millisecond,
+                                                             Abbreviation));
                     continue;
                 }
 
-                promises.push(self.node_query.request_neighbor_bid(
-                    BidRequest {
-                        sla:                 sla.clone(),
-                        node_origin:         self.node_situation.get_my_id().await,
-                        accumulated_latency: accumulated_latency + latency_outbound,
-                    },
-                    neighbor.clone(),
-                ));
+                promises.push(self.node_query
+                                  .request_neighbor_bid(BidRequest { sla:
+                                                                         sla.clone(),
+                                                                     node_origin:
+                                                                         self.node_situation
+                                                                             .get_my_id()
+                                                                             .await,
+                                                                     accumulated_latency:
+                                                                         accumulated_latency
+                                                                         + latency_outbound, },
+                                                        neighbor.clone()));
             }
 
-            Ok(BidProposals {
-                bids: try_join_all(promises)
-                    .await?
-                    .into_iter()
-                    .flat_map(|proposals: BidProposals| proposals.bids)
-                    .collect(),
-            })
+            Ok(BidProposals { bids: try_join_all(promises).await?
+                                                          .into_iter()
+                                                          .flat_map(|proposals: BidProposals| {
+                                                              proposals.bids
+                                                          })
+                                                          .collect(), })
         }
     }
 
     #[async_trait]
     impl FunctionLife for FunctionLifeImpl {
-        async fn bid_on_new_function_and_transmit(
-            &self,
-            sla: Sla,
-            from: NodeId,
-            accumulated_latency: Time,
-        ) -> Result<BidProposals, Error> {
-            let (my_id, result_bid, proposals) = join3(
-                self.node_situation.get_my_id(),
-                self.auction.bid_on(sla.clone()),
-                self.follow_up_to_neighbors(sla, from, accumulated_latency),
-            )
-            .await;
+        async fn bid_on_new_function_and_transmit(&self,
+                                                  sla: Sla,
+                                                  from: NodeId,
+                                                  accumulated_latency: Time)
+                                                  -> Result<BidProposals, Error> {
+            let (my_id, result_bid, proposals) =
+                join3(self.node_situation.get_my_id(),
+                      self.auction.bid_on(sla.clone()),
+                      self.follow_up_to_neighbors(sla, from, accumulated_latency)).await;
 
             let (bid, bid_record) = result_bid?;
             let mut proposals = proposals?;
 
-            proposals.bids.push(BidProposal {
-                node_id: my_id,
-                id:      bid,
-                bid:     bid_record.bid,
-            });
+            proposals.bids
+                     .push(BidProposal { node_id: my_id, id: bid, bid: bid_record.bid });
 
             Ok(proposals)
         }
@@ -160,86 +148,81 @@ mod bottom_up_placement {
     }
 
     impl FunctionLifeBottomUpImpl {
-        pub fn new(
-            function: Arc<dyn FaaSBackend>,
-            auction: Arc<dyn Auction>,
-            node_situation: Arc<dyn NodeSituation>,
-            neighbor_monitor: Arc<dyn NeighborMonitor>,
-            node_query: Arc<dyn NodeQuery>,
-        ) -> Self {
+        pub fn new(function: Arc<dyn FaaSBackend>,
+                   auction: Arc<dyn Auction>,
+                   node_situation: Arc<dyn NodeSituation>,
+                   neighbor_monitor: Arc<dyn NeighborMonitor>,
+                   node_query: Arc<dyn NodeQuery>)
+                   -> Self {
             Self { function, auction, node_situation, neighbor_monitor, node_query }
         }
 
         /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
-        async fn follow_up_to_neighbors(
-            &self,
-            sla: Sla,
-            from: NodeId,
-            accumulated_latency: Time,
-        ) -> Result<BidProposals, Error> {
+        async fn follow_up_to_neighbors(&self,
+                                        sla: Sla,
+                                        from: NodeId,
+                                        accumulated_latency: Time)
+                                        -> Result<BidProposals, Error> {
             let mut promises = vec![];
 
             for neighbor in self.node_situation.get_neighbors().await {
                 if neighbor == from {
                     continue;
                 }
-                let latency_outbound = self
-                    .neighbor_monitor
-                    .get_latency_to_avg(&neighbor)
-                    .await
-                    .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
+                let latency_outbound =
+                    self.neighbor_monitor
+                        .get_latency_to_avg(&neighbor)
+                        .await
+                        .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
                 if latency_outbound + accumulated_latency > sla.latency_max {
-                    trace!(
-                        "Skipping neighbor {} because latency is too high ({}).",
-                        neighbor,
-                        latency_outbound.into_format_args(uom::si::time::millisecond, Abbreviation)
-                    );
+                    trace!("Skipping neighbor {} because latency is too high ({}).",
+                           neighbor,
+                           latency_outbound.into_format_args(uom::si::time::millisecond,
+                                                             Abbreviation));
                     continue;
                 }
 
-                promises.push(self.node_query.request_neighbor_bid(
-                    BidRequest {
-                        sla:                 sla.clone(),
-                        node_origin:         self.node_situation.get_my_id().await,
-                        accumulated_latency: accumulated_latency + latency_outbound,
-                    },
-                    neighbor.clone(),
-                ));
+                promises.push(self.node_query
+                                  .request_neighbor_bid(BidRequest { sla:
+                                                                         sla.clone(),
+                                                                     node_origin:
+                                                                         self.node_situation
+                                                                             .get_my_id()
+                                                                             .await,
+                                                                     accumulated_latency:
+                                                                         accumulated_latency
+                                                                         + latency_outbound, },
+                                                        neighbor.clone()));
             }
 
-            Ok(BidProposals {
-                bids: try_join_all(promises)
-                    .await?
-                    .into_iter()
-                    .flat_map(|proposals: BidProposals| proposals.bids)
-                    .collect(),
-            })
+            Ok(BidProposals { bids: try_join_all(promises).await?
+                                                          .into_iter()
+                                                          .flat_map(|proposals: BidProposals| {
+                                                              proposals.bids
+                                                          })
+                                                          .collect(), })
         }
     }
 
     #[async_trait]
     impl FunctionLife for FunctionLifeBottomUpImpl {
-        async fn bid_on_new_function_and_transmit(
-            &self,
-            sla: Sla,
-            from: NodeId,
-            accumulated_latency: Time,
-        ) -> Result<BidProposals, Error> {
-            let (my_id, result_bid, proposals) = join3(
-                self.node_situation.get_my_id(),
-                self.auction.bid_on(sla.clone()),
-                self.follow_up_to_neighbors(sla, from, accumulated_latency),
-            )
-            .await;
+        /// Here the operation will be sequential, first looking to place on a bottom node, or a
+        /// child at least, and only then to consider itself as a candidate
+        async fn bid_on_new_function_and_transmit(&self,
+                                                  sla: Sla,
+                                                  from: NodeId,
+                                                  accumulated_latency: Time)
+                                                  -> Result<BidProposals, Error> {
+            self.node_situation.get_my_id().await?;
+            let (my_id, result_bid, proposals) =
+                join3(self.auction.bid_on(sla.clone()),
+                      self.follow_up_to_neighbors(sla, from, accumulated_latency)).await;
 
             let (bid, bid_record) = result_bid?;
             let mut proposals = proposals?;
 
-            proposals.bids.push(BidProposal {
-                node_id: my_id,
-                id:      bid,
-                bid:     bid_record.bid,
-            });
+            proposals.bids
+                     .push(BidProposal { node_id: my_id, id: bid, bid: bid_record.bid });
 
             Ok(proposals)
         }

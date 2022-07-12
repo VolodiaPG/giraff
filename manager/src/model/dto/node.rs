@@ -110,40 +110,36 @@ impl NodeSituationDisk {
 impl From<NodeSituationDisk> for NodeSituationData {
     fn from(disk: NodeSituationDisk) -> Self {
         match disk {
-            NodeSituationDisk::MarketConnected {
-                market_port,
-                market_ip,
-                my_id,
-                my_public_ip,
-                my_public_port,
-                tags,
-            } => NodeSituationData::MarketConnected {
-                children: HashMap::new(),
-                market_ip,
-                market_port,
-                my_id,
-                my_public_ip,
-                my_public_port,
-                tags,
-            },
-            NodeSituationDisk::NodeConnected {
-                parent_id,
-                parent_node_port,
-                parent_node_ip,
-                my_id,
-                my_public_ip,
-                my_public_port,
-                tags,
-            } => NodeSituationData::NodeConnected {
-                children: HashMap::new(),
-                parent_id,
-                parent_node_ip,
-                parent_node_port,
-                my_id,
-                my_public_ip,
-                my_public_port,
-                tags,
-            },
+            NodeSituationDisk::MarketConnected { market_port,
+                                                 market_ip,
+                                                 my_id,
+                                                 my_public_ip,
+                                                 my_public_port,
+                                                 tags, } => {
+                NodeSituationData::MarketConnected { children: HashMap::new(),
+                                                     market_ip,
+                                                     market_port,
+                                                     my_id,
+                                                     my_public_ip,
+                                                     my_public_port,
+                                                     tags }
+            }
+            NodeSituationDisk::NodeConnected { parent_id,
+                                               parent_node_port,
+                                               parent_node_ip,
+                                               my_id,
+                                               my_public_ip,
+                                               my_public_port,
+                                               tags, } => {
+                NodeSituationData::NodeConnected { children: HashMap::new(),
+                                                   parent_id,
+                                                   parent_node_ip,
+                                                   parent_node_port,
+                                                   my_id,
+                                                   my_public_ip,
+                                                   my_public_port,
+                                                   tags }
+            }
         }
     }
 }

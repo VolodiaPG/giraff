@@ -43,8 +43,7 @@ macro_rules! impl_id_encapsulation {
         impl Serialize for $name {
             #[inline(always)]
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: serde::Serializer,
+                where S: serde::Serializer
             {
                 serializer.serialize_str(&self.id.to_string())
             }
@@ -52,8 +51,7 @@ macro_rules! impl_id_encapsulation {
 
         impl<'de> Deserialize<'de> for $name {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
+                where D: serde::Deserializer<'de>
             {
                 struct MyVisitor;
 
@@ -65,8 +63,7 @@ macro_rules! impl_id_encapsulation {
                     }
 
                     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                    where
-                        E: serde::de::Error,
+                        where E: serde::de::Error
                     {
                         Ok($name { id: Uuid::parse_str(value).map_err(E::custom)? })
                     }
@@ -89,12 +86,9 @@ macro_rules! impl_id_encapsulation {
             fn schema_name() -> String { String::from(stringify!($name)) }
 
             fn json_schema(_: &mut SchemaGenerator) -> Schema {
-                SchemaObject {
-                    instance_type: Some(InstanceType::String.into()),
-                    format: Some("uuid".to_string()),
-                    ..Default::default()
-                }
-                .into()
+                SchemaObject { instance_type: Some(InstanceType::String.into()),
+                               format: Some("uuid".to_string()),
+                               ..Default::default() }.into()
             }
         }
     };

@@ -8,10 +8,8 @@ use crate::repository::{fog_node::FogNode, node_communication::NodeCommunication
 pub enum Error {
     #[error(transparent)]
     NodeCommunication(#[from] crate::repository::node_communication::Error),
-    #[error(
-        "No trace of the node {0} has been found. It should have been registered as a record \
-         though."
-    )]
+    #[error("No trace of the node {0} has been found. It should have been registered as a \
+             record though.")]
     NodeNotFound(NodeId),
 }
 
@@ -39,12 +37,11 @@ impl FogNodeFaaS for FogNodeFaaSImpl {
         let node = bid.chosen.bid.node_id.clone();
         let res = self.node_communication.take_offer(node.clone(), &bid.chosen.bid).await?;
 
-        let mut record: NodeRecord = self
-            .fog_node
-            .get(&node)
-            .await
-            .map(|node| node.data)
-            .ok_or_else(|| Error::NodeNotFound(node.clone()))?;
+        let mut record: NodeRecord = self.fog_node
+                                         .get(&node)
+                                         .await
+                                         .map(|node| node.data)
+                                         .ok_or_else(|| Error::NodeNotFound(node.clone()))?;
         record.accepted_bids.insert(bid.chosen.bid.id.clone(), bid);
         self.fog_node.update(&node, record).await;
 

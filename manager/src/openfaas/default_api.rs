@@ -2,11 +2,9 @@ use async_trait::async_trait;
 use log::trace;
 use std::fmt::Debug;
 
-use super::{
-    configuration,
-    models::{FunctionDefinition, FunctionListEntry},
-    Error,
-};
+use super::{configuration,
+            models::{FunctionDefinition, FunctionListEntry},
+            Error};
 
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {
@@ -23,11 +21,10 @@ impl DefaultApiClient {
 pub trait DefaultApi: Debug + Sync + Send {
     async fn system_functions_get(&self) -> Result<Vec<FunctionListEntry>, Error<String>>;
     async fn system_functions_post(&self, body: FunctionDefinition) -> Result<(), Error<String>>;
-    async fn async_function_name_post(
-        &self,
-        function_name: &str,
-        input: String,
-    ) -> Result<(), Error<String>>;
+    async fn async_function_name_post(&self,
+                                      function_name: &str,
+                                      input: String)
+                                      -> Result<(), Error<String>>;
 }
 
 #[async_trait]
@@ -66,11 +63,10 @@ impl DefaultApi for DefaultApiClient {
         }
     }
 
-    async fn async_function_name_post(
-        &self,
-        function_name: &str,
-        input: String,
-    ) -> Result<(), Error<String>> {
+    async fn async_function_name_post(&self,
+                                      function_name: &str,
+                                      input: String)
+                                      -> Result<(), Error<String>> {
         let uri_str = format!("{}/async-function/{}", self.configuration.base_path, function_name);
         trace!("Requesting {}", uri_str);
 

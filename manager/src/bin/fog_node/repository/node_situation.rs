@@ -3,13 +3,9 @@ use std::{fmt::Debug, net::IpAddr};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use manager::model::{
-    dto::node::{
-        NodeDescription, NodeSituationData,
-        NodeSituationData::{MarketConnected, NodeConnected},
-    },
-    NodeId,
-};
+use manager::model::{dto::node::{NodeDescription, NodeSituationData,
+                                 NodeSituationData::{MarketConnected, NodeConnected}},
+                     NodeId};
 
 #[async_trait]
 pub trait NodeSituation: Debug + Sync + Send {
@@ -58,10 +54,8 @@ impl NodeSituation for NodeSituationHashSetImpl {
             NodeConnected { children, parent_node_ip, parent_node_port, parent_id, .. } => {
                 let ret = children.get(id).cloned();
                 if ret.is_none() && parent_id == id {
-                    return Some(NodeDescription {
-                        ip:   *parent_node_ip,
-                        port: *parent_node_port,
-                    });
+                    return Some(NodeDescription { ip:   *parent_node_ip,
+                                                  port: *parent_node_port, });
                 }
                 ret
             }

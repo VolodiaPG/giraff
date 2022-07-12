@@ -2,17 +2,13 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use manager::helper::uom::cpu_ratio::cpu;
-use uom::si::{
-    f64::{Information, Ratio},
-    information::gigabyte,
-};
+use uom::si::{f64::{Information, Ratio},
+              information::gigabyte};
 
 use crate::prom_metrics::BID_GAUGE;
 use manager::model::{domain::sla::Sla, dto::auction::BidRecord, BidId};
 
-use crate::repository::{
-    auction::Auction as AuctionRepository, resource_tracking::ResourceTracking,
-};
+use crate::repository::{auction::Auction as AuctionRepository, resource_tracking::ResourceTracking};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -39,18 +35,16 @@ pub struct AuctionImpl {
 }
 
 impl AuctionImpl {
-    pub async fn new(
-        resource_tracking: Arc<dyn ResourceTracking>,
-        db: Arc<dyn AuctionRepository>,
-    ) -> Self {
+    pub async fn new(resource_tracking: Arc<dyn ResourceTracking>,
+                     db: Arc<dyn AuctionRepository>)
+                     -> Self {
         Self { resource_tracking, db }
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
-    async fn get_a_node(
-        &self,
-        sla: &Sla,
-    ) -> Result<(String, Information, Ratio, Information, Ratio), Error> {
+    async fn get_a_node(&self,
+                        sla: &Sla)
+                        -> Result<(String, Information, Ratio, Information, Ratio), Error> {
         for node in self.resource_tracking.get_nodes() {
             let (used_ram, used_cpu) = self.resource_tracking.get_used(node).await?;
             let (available_ram, available_cpu) = self.resource_tracking.get_available(node).await?;
@@ -70,7 +64,7 @@ impl AuctionImpl {
         let ram_left = available_ram - used_ram;
 
         let price = sla.memory / ram_left * (Information::new::<gigabyte>(1.0) / available_ram)
-            + sla.cpu / cpu_left * (Ratio::new::<cpu>(1.0) / available_cpu);
+                    + sla.cpu / cpu_left * (Ratio::new::<cpu>(1.0) / available_cpu);
 
         let price: f64 = price.into();
 
@@ -80,14 +74,13 @@ impl AuctionImpl {
     }
 
     /// Check if the SLA is satisfiable by the current node (designated by name and metrics).
-    fn satisfiability_check(
-        &self,
-        used_ram: &Information,
-        used_cpu: &Ratio,
-        available_ram: &Information,
-        available_cpu: &Ratio,
-        sla: &Sla,
-    ) -> bool {
+    fn satisfiability_check(&self,
+                            used_ram: &Information,
+                            used_cpu: &Ratio,
+                            available_ram: &Information,
+                            available_cpu: &Ratio,
+                            sla: &Sla)
+                            -> bool {
         let would_be_used_ram = *used_ram + sla.memory;
         let would_be_used_cpu = *used_cpu + sla.cpu;
 
@@ -101,12 +94,12 @@ impl Auction for AuctionImpl {
         let (node, bid) = self.compute_bid(&sla).await?;
         let record = BidRecord { bid, sla, node };
         let id = self.db.insert(record.to_owned()).await;
-        BID_GAUGE
-            .with_label_values(&[
-                record.sla.function_live_name.as_ref().unwrap_or(&"unnamed".to_string()),
-                &id.to_string(),
-            ])
-            .set(bid);
+        BID_GAUGE.with_label_values(&[record.sla
+                                            .function_live_name
+                                            .as_ref()
+                                            .unwrap_or(&"unnamed".to_string()),
+                                      &id.to_string()])
+                 .set(bid);
         Ok((id, record))
     }
 

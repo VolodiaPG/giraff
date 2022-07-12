@@ -1,10 +1,6 @@
-use uom::{
-    fmt::DisplayStyle::Abbreviation,
-    si::{
-        f64::{Information, Ratio},
-        information,
-    },
-};
+use uom::{fmt::DisplayStyle::Abbreviation,
+          si::{f64::{Information, Ratio},
+               information}};
 
 pub use function_definition::{FunctionDefinition, Limits};
 
@@ -14,8 +10,7 @@ pub struct InformationHelper;
 
 impl serde_with::SerializeAs<Information> for InformationHelper {
     fn serialize_as<S>(value: &Information, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
+        where S: serde::Serializer
     {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(&format!(
@@ -31,18 +26,16 @@ pub struct RatioHelper;
 
 impl serde_with::SerializeAs<Ratio> for RatioHelper {
     fn serialize_as<S>(value: &Ratio, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
+        where S: serde::Serializer
     {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(
-            format!(
-                "{:?}",
-                value.into_format_args(crate::helper::uom::cpu_ratio::cpu, Abbreviation)
-            )
-            .split_whitespace()
-            .collect::<Vec<&str>>()[0]
-                .as_ref(),
+                                 format!(
+            "{:?}",
+            value.into_format_args(crate::helper::uom::cpu_ratio::cpu, Abbreviation)
+        ).split_whitespace()
+                                 .collect::<Vec<&str>>()[0]
+                                                           .as_ref(),
         )
     }
 }

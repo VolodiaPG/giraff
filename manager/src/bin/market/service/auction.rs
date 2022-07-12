@@ -3,11 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 
-use manager::model::{
-    domain::{auction::AuctionResult, sla::Sla},
-    view::auction::BidProposals,
-    NodeId,
-};
+use manager::model::{domain::{auction::AuctionResult, sla::Sla},
+                     view::auction::BidProposals,
+                     NodeId};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -32,10 +30,9 @@ pub struct AuctionImpl {
 }
 
 impl AuctionImpl {
-    pub fn new(
-        auction_process: Arc<dyn crate::repository::auction::Auction>,
-        node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>,
-    ) -> Self {
+    pub fn new(auction_process: Arc<dyn crate::repository::auction::Auction>,
+               node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>)
+               -> Self {
         AuctionImpl { auction_process, node_communication }
     }
 }

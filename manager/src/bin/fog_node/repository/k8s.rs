@@ -7,10 +7,8 @@ use k8s_openapi::api::core::v1::Node;
 use kube::{api::ListParams, Api, Client};
 use lazy_regex::regex;
 
-use manager::{
-    kube_metrics::node::NodeMetrics,
-    model::dto::k8s::{Allocatable, Metrics, Usage},
-};
+use manager::{kube_metrics::node::NodeMetrics,
+              model::dto::k8s::{Allocatable, Metrics, Usage}};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -79,13 +77,13 @@ mod k8s_impl {
                 let memory = allocatable.get("memory").ok_or(Error::MissingKey("memory"))?;
 
                 // let memory = memory.into_format_args(gibibyte, Description);
-                aggregated_metrics
-                    .get_mut(&key)
-                    .ok_or(Error::MissingKey("metadata:name"))?
-                    .allocatable = Some(Allocatable {
-                    cpu:    parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
-                    memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, // Bytes
-                });
+                aggregated_metrics.get_mut(&key)
+                                  .ok_or(Error::MissingKey("metadata:name"))?
+                                  .allocatable =
+                    Some(Allocatable { cpu:    parse_quantity(&cpu.0[..],
+                                                              &MissingUnitType::Complete(""))?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
+                                       memory: parse_quantity(&memory.0[..],
+                                                              &MissingUnitType::Suffix("B"))?, /* Bytes */ });
             }
 
             Ok(aggregated_metrics)
@@ -97,10 +95,8 @@ mod k8s_impl {
 mod fake_impl {
     use super::*;
     use manager::helper::uom::cpu_ratio::millicpu;
-    use uom::si::{
-        f64::{Information, Ratio},
-        information::{gibibyte, mebibyte},
-    };
+    use uom::si::{f64::{Information, Ratio},
+                  information::{gibibyte, mebibyte}};
 
     pub struct K8sFakeImpl;
 
@@ -147,8 +143,7 @@ enum MissingUnitType<'a> {
 }
 
 fn parse_quantity<'a, T>(quantity: &str, missing_unit: &MissingUnitType<'a>) -> Result<T, Error>
-where
-    T: FromStr,
+    where T: FromStr
 {
     let re = regex!(r"^(\d+)(\w*)$");
 
@@ -173,25 +168,23 @@ where
 #[cfg(test)]
 mod tests {
     use manager::helper::uom::cpu_ratio::nanocpu;
-    use uom::{
-        fmt::DisplayStyle::Abbreviation,
-        si::{
-            f64::{Information, Ratio},
-            information::byte,
-        },
-    };
+    use uom::{fmt::DisplayStyle::Abbreviation,
+              si::{f64::{Information, Ratio},
+                   information::byte}};
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
     #[test]
     fn test_ratio_cpu() -> Result<(), Error> {
         assert_eq!(
-            format!(
-                "{}",
-                parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?
-                    .into_format_args(nanocpu, Abbreviation)
-            ),
-            "1023.9999999999999 nanocpu".to_owned()
+                   format!(
+            "{}",
+            parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?.into_format_args(
+                nanocpu,
+                Abbreviation
+            )
+        ),
+                   "1023.9999999999999 nanocpu".to_owned()
         );
 
         Ok(())
@@ -200,12 +193,14 @@ mod tests {
     #[test]
     fn test_quantity_memory() -> Result<(), Error> {
         assert_eq!(
-            format!(
-                "{}",
-                parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?
-                    .into_format_args(byte, Abbreviation)
-            ),
-            "1024 B".to_owned()
+                   format!(
+            "{}",
+            parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?.into_format_args(
+                byte,
+                Abbreviation
+            )
+        ),
+                   "1024 B".to_owned()
         );
 
         Ok(())

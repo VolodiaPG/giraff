@@ -2,16 +2,10 @@ use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 
-use manager::{
-    model::{
-        dto::{auction::BidRecord, faas::ProvisionedRecord},
-        BidId,
-    },
-    openfaas::{
-        models::{FunctionDefinition, Limits},
-        DefaultApi, DefaultApiClient,
-    },
-};
+use manager::{model::{dto::{auction::BidRecord, faas::ProvisionedRecord},
+                      BidId},
+              openfaas::{models::{FunctionDefinition, Limits},
+                         DefaultApi, DefaultApiClient}};
 
 use crate::repository::provisioned::Provisioned as ProvisionedRepository;
 
@@ -36,10 +30,9 @@ pub struct OpenFaaSBackend {
 }
 
 impl OpenFaaSBackend {
-    pub fn new(
-        client: Arc<DefaultApiClient>,
-        provisioned_functions: Arc<dyn ProvisionedRepository>,
-    ) -> Self {
+    pub fn new(client: Arc<DefaultApiClient>,
+               provisioned_functions: Arc<dyn ProvisionedRepository>)
+               -> Self {
         Self { client, provisioned_functions }
     }
 }
@@ -48,15 +41,14 @@ impl OpenFaaSBackend {
 impl FaaSBackend for OpenFaaSBackend {
     async fn provision_function(&self, id: BidId, bid: BidRecord) -> Result<String, Error> {
         let function_name = bid.sla.function_live_name.to_owned().unwrap_or_else(|| "".to_string())
-            + "-"
-            + id.to_string().as_str();
+                            + "-"
+                            + id.to_string().as_str();
 
-        let definition = FunctionDefinition {
-            image: bid.sla.function_image.to_owned(),
-            service: function_name.to_owned(),
-            limits: Some(Limits { memory: bid.sla.memory, cpu: bid.sla.cpu }),
-            ..Default::default()
-        };
+        let definition = FunctionDefinition { image: bid.sla.function_image.to_owned(),
+                                              service: function_name.to_owned(),
+                                              limits: Some(Limits { memory: bid.sla.memory,
+                                                                    cpu:    bid.sla.cpu, }),
+                                              ..Default::default() };
 
         self.client.system_functions_post(definition).await?;
 
