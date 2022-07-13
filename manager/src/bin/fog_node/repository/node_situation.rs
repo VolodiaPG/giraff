@@ -55,8 +55,10 @@ impl NodeSituation for NodeSituationHashSetImpl {
             NodeConnected { children, parent_node_ip, parent_node_port, parent_id, .. } => {
                 let ret = children.get(id).cloned();
                 if ret.is_none() && parent_id == id {
-                    return Some(NodeDescription { ip:   *parent_node_ip,
-                                                  port: *parent_node_port, });
+                    return Some(NodeDescription {
+                        ip:   *parent_node_ip,
+                        port: *parent_node_port,
+                    });
                 }
                 ret
             }

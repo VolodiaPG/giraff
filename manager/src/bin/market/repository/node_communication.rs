@@ -47,16 +47,17 @@ pub struct NodeCommunicationThroughRoutingImpl {
 impl NodeCommunicationThroughRoutingImpl {
     pub fn new(network: Arc<dyn FogNode>) -> Self { Self { network } }
 
-    async fn get_address_of_first_node(&self,
-                                       route_stack: &[NodeId])
-                                       -> Result<(IpAddr, u16), Error> {
+    async fn get_address_of_first_node(
+        &self,
+        route_stack: &[NodeId],
+    ) -> Result<(IpAddr, u16), Error> {
         let node = route_stack.first().ok_or(Error::EmptyRoutingStack)?;
-        let NodeRecord { ip, port, .. } =
-            self.network
-                .get(route_stack.last().ok_or(Error::EmptyRoutingStack)?)
-                .await
-                .ok_or_else(|| Error::NodeIdNotFound(node.clone()))?
-                .data;
+        let NodeRecord { ip, port, .. } = self
+            .network
+            .get(route_stack.last().ok_or(Error::EmptyRoutingStack)?)
+            .await
+            .ok_or_else(|| Error::NodeIdNotFound(node.clone()))?
+            .data;
 
         let ip = ip.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
         let port = port.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
@@ -100,9 +101,11 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
     }
 
     async fn take_offer(&self, to: NodeId, bid: &BidProposal) -> Result<(), Error> {
-        let data = Packet::FogNode { route_to_stack: self.network.get_route_to_node(to).await,
-                                     resource_uri:   format!("bid/{}", bid.id),
-                                     data:           &serde_json::value::to_raw_value(&())?, };
+        let data = Packet::FogNode {
+            route_to_stack: self.network.get_route_to_node(to).await,
+            resource_uri:   format!("bid/{}", bid.id),
+            data:           &serde_json::value::to_raw_value(&())?,
+        };
 
         self.call_routing(data).await?;
         Ok(())

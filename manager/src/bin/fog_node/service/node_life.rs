@@ -19,8 +19,10 @@ pub enum Error {
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error(transparent)]
     Routing(#[from] crate::service::routing::Error),
-    #[error("Trying to register/pass a register message for a market node,but it should not \
-             happen since the market node is always on top of the tree network.")]
+    #[error(
+        "Trying to register/pass a register message for a market node,but it should not happen \
+         since the market node is always on top of the tree network."
+    )]
     CannotRegisterMarketOnRegularNode,
 }
 
@@ -42,10 +44,11 @@ pub struct NodeLifeImpl {
 }
 
 impl NodeLifeImpl {
-    pub fn new(router: Arc<dyn Router>,
-               node_situation: Arc<dyn NodeSituation>,
-               node_query: Arc<dyn NodeQuery>)
-               -> Self {
+    pub fn new(
+        router: Arc<dyn Router>,
+        node_situation: Arc<dyn NodeSituation>,
+        node_query: Arc<dyn NodeQuery>,
+    ) -> Self {
         Self { router, node_situation, node_query }
     }
 }
@@ -70,9 +73,10 @@ impl NodeLife for NodeLifeImpl {
         }
 
         self.router
-            .forward(&Packet::Market { resource_uri: "register".to_string(),
-                                       data:
-                                           &serde_json::value::to_raw_value(&register).unwrap(), })
+            .forward(&Packet::Market {
+                resource_uri: "register".to_string(),
+                data:         &serde_json::value::to_raw_value(&register).unwrap(),
+            })
             .await?;
         Ok(())
     }
@@ -80,19 +84,24 @@ impl NodeLife for NodeLifeImpl {
     async fn init_registration(&self, ip: IpAddr, port: u16) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market().await {
-            RegisterNode::MarketNode { node_id: self.node_situation.get_my_id().await,
-                                       ip,
-                                       port,
-                                       tags: self.node_situation.get_my_tags().await }
+            RegisterNode::MarketNode {
+                node_id: self.node_situation.get_my_id().await,
+                ip,
+                port,
+                tags: self.node_situation.get_my_tags().await,
+            }
         } else {
-            RegisterNode::Node { ip,
-                                 port,
-                                 node_id: self.node_situation.get_my_id().await,
-                                 parent: self.node_situation
-                                             .get_parent_id()
-                                             .await
-                                             .ok_or(Error::ParentDoesntExist)?,
-                                 tags: self.node_situation.get_my_tags().await }
+            RegisterNode::Node {
+                ip,
+                port,
+                node_id: self.node_situation.get_my_id().await,
+                parent: self
+                    .node_situation
+                    .get_parent_id()
+                    .await
+                    .ok_or(Error::ParentDoesntExist)?,
+                tags: self.node_situation.get_my_tags().await,
+            }
         };
         self.node_query.register_to_parent(register).await?;
         Ok(())

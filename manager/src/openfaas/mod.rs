@@ -7,7 +7,8 @@ pub use self::default_api::{DefaultApi, DefaultApiClient};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error<T>
-    where T: Display
+where
+    T: Display,
 {
     #[error("OpenFaaS Reqwest failed with error: {0}")]
     Reqwest(reqwest::Error),
@@ -23,7 +24,9 @@ pub struct ApiError<T> {
     pub content: T,
 }
 
-impl<T> Display for ApiError<T> where T: Display
+impl<T> Display for ApiError<T>
+where
+    T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "http code {}, content: {}", self.code, self.content)
@@ -31,7 +34,8 @@ impl<T> Display for ApiError<T> where T: Display
 }
 
 impl<'de, T> From<(reqwest::StatusCode, Result<T, reqwest::Error>)> for Error<T>
-    where T: Deserialize<'de> + Display
+where
+    T: Deserialize<'de> + Display,
 {
     fn from(err: (reqwest::StatusCode, Result<T, reqwest::Error>)) -> Self {
         match err.1 {
@@ -41,12 +45,16 @@ impl<'de, T> From<(reqwest::StatusCode, Result<T, reqwest::Error>)> for Error<T>
     }
 }
 
-impl<T> From<reqwest::Error> for Error<T> where T: Display
+impl<T> From<reqwest::Error> for Error<T>
+where
+    T: Display,
 {
     fn from(e: reqwest::Error) -> Self { Error::Reqwest(e) }
 }
 
-impl<T> From<serde_json::Error> for Error<T> where T: Display
+impl<T> From<serde_json::Error> for Error<T>
+where
+    T: Display,
 {
     fn from(e: serde_json::Error) -> Self { Error::Serde(e) }
 }

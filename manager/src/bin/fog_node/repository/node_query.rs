@@ -29,10 +29,11 @@ pub enum Error {
 pub trait NodeQuery: Debug + Sync + Send {
     /// Update the breadcrumb route to the [BidId] passing by the next [NodeId].
     async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error>;
-    async fn request_neighbor_bid(&self,
-                                  request: BidRequest,
-                                  node: NodeId)
-                                  -> Result<BidProposals, Error>;
+    async fn request_neighbor_bid(
+        &self,
+        request: BidRequest,
+        node: NodeId,
+    ) -> Result<BidProposals, Error>;
 }
 
 #[derive(Debug)]
@@ -43,17 +44,19 @@ pub struct NodeQueryRESTImpl {
 impl NodeQueryRESTImpl {
     pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self { Self { node_situation } }
 
-    async fn post<T: Serialize>(&self,
-                                ip: &IpAddr,
-                                port: &u16,
-                                uri: &str,
-                                data: &T)
-                                -> Result<Response, Error> {
+    async fn post<T: Serialize>(
+        &self,
+        ip: &IpAddr,
+        port: &u16,
+        uri: &str,
+        data: &T,
+    ) -> Result<Response, Error> {
         let client = reqwest::Client::new();
-        let response = client.post(format!("http://{}:{}/api/{}", ip, port, uri).as_str())
-                             .json(data)
-                             .send()
-                             .await?;
+        let response = client
+            .post(format!("http://{}:{}/api/{}", ip, port, uri).as_str())
+            .json(data)
+            .send()
+            .await?;
         if response.status().is_success() {
             trace!("Node has been registered to parent or market node");
             Ok(response)
@@ -79,15 +82,16 @@ impl NodeQuery for NodeQueryRESTImpl {
         Ok(())
     }
 
-    async fn request_neighbor_bid(&self,
-                                  request: BidRequest,
-                                  id: NodeId)
-                                  -> Result<BidProposals, Error> {
-        let NodeDescription { ip, port, .. } =
-            self.node_situation
-                .get_fog_node_neighbor(&id)
-                .await
-                .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
+    async fn request_neighbor_bid(
+        &self,
+        request: BidRequest,
+        id: NodeId,
+    ) -> Result<BidProposals, Error> {
+        let NodeDescription { ip, port, .. } = self
+            .node_situation
+            .get_fog_node_neighbor(&id)
+            .await
+            .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
         let (ip, port) = (ip, port);
 
         Ok(self.post(&ip, &port, "bid", &request).await?.json().await?)

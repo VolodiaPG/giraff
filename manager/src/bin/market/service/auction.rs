@@ -31,9 +31,10 @@ pub struct AuctionImpl {
 }
 
 impl AuctionImpl {
-    pub fn new(auction_process: Arc<dyn crate::repository::auction::Auction>,
-               node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>)
-               -> Self {
+    pub fn new(
+        auction_process: Arc<dyn crate::repository::auction::Auction>,
+        node_communication: Arc<dyn crate::repository::node_communication::NodeCommunication>,
+    ) -> Self {
         AuctionImpl { auction_process, node_communication }
     }
 }

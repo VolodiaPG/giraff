@@ -54,22 +54,12 @@ mod k8s_impl {
                 // let memory = memory.into_format_args(gibibyte, Description);
                 let key = metric.metadata.name.ok_or(Error::MissingKey("metadata:name"))?;
 
-                aggregated_metrics.insert(
-                        key,
-                        Metrics {
-                            usage: Some(Usage {
-                                cpu: parse_quantity(
-                                    &metric.usage.cpu.0[..],
-                                    &MissingUnitType::Complete("ppb"), //https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497
-                                )?,
-                                memory: parse_quantity(
-                                    &metric.usage.memory.0[..],
-                                    &MissingUnitType::Suffix("B"), // Bytes
-                                )?,
-                            }),
-                            allocatable: None,
-                        },
-                    );
+                aggregated_metrics.insert(key,
+                                          Metrics { usage:       Some(Usage { cpu:    parse_quantity(&metric.usage.cpu.0[..],
+                                                                                                     &MissingUnitType::Complete("ppb") /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */)?,
+                                                                              memory: parse_quantity(&metric.usage.memory.0[..],
+                                                                                                     &MissingUnitType::Suffix("B") /* Bytes */)?, }),
+                                                    allocatable: None, });
             }
 
             let nodes: Api<Node> = Api::all(client.clone());
@@ -83,13 +73,13 @@ mod k8s_impl {
                 let memory = allocatable.get("memory").ok_or(Error::MissingKey("memory"))?;
 
                 // let memory = memory.into_format_args(gibibyte, Description);
-                aggregated_metrics.get_mut(&key)
-                                  .ok_or(Error::MissingKey("metadata:name"))?
-                                  .allocatable =
-                    Some(Allocatable { cpu:    parse_quantity(&cpu.0[..],
-                                                              &MissingUnitType::Complete(""))?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
-                                       memory: parse_quantity(&memory.0[..],
-                                                              &MissingUnitType::Suffix("B"))?, /* Bytes */ });
+                aggregated_metrics
+                    .get_mut(&key)
+                    .ok_or(Error::MissingKey("metadata:name"))?
+                    .allocatable = Some(Allocatable {
+                    cpu:    parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
+                    memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, /* Bytes */
+                });
             }
 
             Ok(aggregated_metrics)
@@ -103,7 +93,8 @@ mod k8s_impl {
     }
 
     fn parse_quantity<'a, T>(quantity: &str, missing_unit: &MissingUnitType<'a>) -> Result<T, Error>
-        where T: FromStr
+    where
+        T: FromStr,
     {
         let re = regex!(r"^(\d+)(\w*)$");
 
@@ -140,10 +131,8 @@ mod k8s_impl {
             assert_eq!(
                 format!(
                     "{}",
-                    parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?.into_format_args(
-                        nanocpu,
-                        Abbreviation
-                    )
+                    parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?
+                        .into_format_args(nanocpu, Abbreviation)
                 ),
                 "1023.9999999999999 nanocpu".to_owned()
             );
@@ -156,10 +145,8 @@ mod k8s_impl {
             assert_eq!(
                 format!(
                     "{}",
-                    parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?.into_format_args(
-                        byte,
-                        Abbreviation
-                    )
+                    parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?
+                        .into_format_args(byte, Abbreviation)
                 ),
                 "1024 B".to_owned()
             );

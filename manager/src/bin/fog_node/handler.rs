@@ -16,9 +16,10 @@ use std::sync::Arc;
 /// Return a bid for the SLA.
 #[openapi]
 #[post("/bid", data = "<payload>")]
-pub async fn post_bid(payload: Json<BidRequest>,
-                      function: &State<Arc<dyn FunctionLife>>)
-                      -> Resp<BidProposals> {
+pub async fn post_bid(
+    payload: Json<BidRequest>,
+    function: &State<Arc<dyn FunctionLife>>,
+) -> Resp<BidProposals> {
     respond!(controller::auction::bid_on(payload.0, function.inner()).await)
 }
 
@@ -33,9 +34,10 @@ pub async fn post_bid_accept(id: BidId, function: &State<Arc<dyn FunctionLife>>)
 /// Routes the request to the correct URL and node.
 #[openapi]
 #[post("/routing", data = "<packet>")]
-pub async fn post_routing(packet: Json<Packet<'_>>,
-                          router: &State<Arc<dyn Router>>)
-                          -> Result<BytesResponse, manager::helper::handler::Error> {
+pub async fn post_routing(
+    packet: Json<Packet<'_>>,
+    router: &State<Arc<dyn Router>>,
+) -> Result<BytesResponse, manager::helper::handler::Error> {
     Ok(BytesResponse::from(
         controller::routing::post_forward_function_routing(&packet.0, router.inner()).await?,
     ))
@@ -44,18 +46,20 @@ pub async fn post_routing(packet: Json<Packet<'_>>,
 /// Register a route.
 #[openapi]
 #[put("/routing", data = "<stack>")]
-pub async fn put_routing(router: &State<Arc<dyn Router>>,
-                         stack: Json<FunctionRoutingStack>)
-                         -> Resp {
+pub async fn put_routing(
+    router: &State<Arc<dyn Router>>,
+    stack: Json<FunctionRoutingStack>,
+) -> Resp {
     respond!(controller::routing::register_route(router.inner(), stack.0).await)
 }
 
 /// Register a child node to this one
 #[openapi]
 #[post("/register", data = "<payload>")]
-pub async fn post_register_child_node(payload: Json<RegisterNode>,
-                                      router: &State<Arc<dyn NodeLife>>)
-                                      -> Resp {
+pub async fn post_register_child_node(
+    payload: Json<RegisterNode>,
+    router: &State<Arc<dyn NodeLife>>,
+) -> Resp {
     respond!(controller::node::register_child_node(payload.0, router.inner()).await)
 }
 

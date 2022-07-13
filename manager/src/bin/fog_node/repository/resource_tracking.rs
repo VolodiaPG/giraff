@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use crate::prom_metrics::{CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
-                          MEMORY_USED_GAUGE};
+use crate::prom_metrics::{
+    CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE, MEMORY_USED_GAUGE,
+};
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use uom::si::f64::{Information, Ratio};
@@ -28,7 +29,7 @@ pub enum Error {
 pub trait ResourceTracking: Debug + Sync + Send {
     /// Update a node given its name with said resource usage
     async fn update_used(&self, name: String, memory: Information, cpu: Ratio)
-                         -> Result<(), Error>;
+        -> Result<(), Error>;
 
     /// Get the used (memory, cpu).
     async fn get_used(&self, name: &'_ str) -> Result<(Information, Ratio), Error>;
@@ -65,13 +66,12 @@ impl ResourceTrackingImpl {
             .collect();
         let resources_available = resources_available?;
 
-        let resources_used: HashMap<_, _> = aggregated_metrics.iter()
-                                                              .map(|(name, _)| {
-                                                                  (name.clone(),
-                                   (Information::new::<byte>(0.0),
-                                    Ratio::new::<part_per_billion>(0.0)))
-                                                              })
-                                                              .collect();
+        let resources_used: HashMap<_, _> = aggregated_metrics
+            .iter()
+            .map(|(name, _)| {
+                (name.clone(), (Information::new::<byte>(0.0), Ratio::new::<part_per_billion>(0.0)))
+            })
+            .collect();
         let resources_used = RwLock::new(resources_used);
 
         let nodes = resources_available.keys().cloned().collect();
@@ -84,7 +84,7 @@ impl ResourceTrackingImpl {
     /// Check if the key exists in all storages
     async fn key_exists(&self, name: &str) -> Result<(), Error> {
         if self.resources_used.read().await.contains_key(name)
-           && self.resources_available.read().await.contains_key(name)
+            && self.resources_available.read().await.contains_key(name)
         {
             return Ok(());
         }
@@ -110,11 +110,12 @@ impl ResourceTrackingImpl {
 
 #[async_trait]
 impl ResourceTracking for ResourceTrackingImpl {
-    async fn update_used(&self,
-                         name: String,
-                         memory: Information,
-                         cpu: Ratio)
-                         -> Result<(), Error> {
+    async fn update_used(
+        &self,
+        name: String,
+        memory: Information,
+        cpu: Ratio,
+    ) -> Result<(), Error> {
         let _ = self.key_exists(&name).await?;
         self.resources_used.write().await.insert(name.clone(), (memory, cpu));
         let _ = self.update_metrics(&name).await?;
