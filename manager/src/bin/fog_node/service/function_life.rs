@@ -40,7 +40,10 @@ pub trait FunctionLife: Send + Sync {
         accumulated_latency: Time,
     ) -> Result<BidProposals, Error>;
 
-    async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error>;
+    async fn validate_bid_and_provision_function(
+        &self,
+        id: BidId,
+    ) -> Result<(), Error>;
 }
 
 #[cfg(not(feature = "bottom_up_placement"))]
@@ -69,10 +72,17 @@ mod auction_placement {
             node_query: Arc<dyn NodeQuery>,
         ) -> Self {
             debug!("Built using FunctionLifeImpl service");
-            Self { function, auction, node_situation, neighbor_monitor, node_query }
+            Self {
+                function,
+                auction,
+                node_situation,
+                neighbor_monitor,
+                node_query,
+            }
         }
 
-        /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
+        /// Follow up the [Sla] to the neighbors, and ignore the path where it
+        /// came from.
         async fn follow_up_to_neighbors(
             &self,
             sla: Sla,
@@ -89,12 +99,18 @@ mod auction_placement {
                     .neighbor_monitor
                     .get_latency_to_avg(&neighbor)
                     .await
-                    .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
+                    .ok_or_else(|| {
+                        Error::CannotGetLatency(neighbor.clone())
+                    })?;
                 if latency_outbound + accumulated_latency > sla.latency_max {
                     trace!(
-                        "Skipping neighbor {} because latency is too high ({}).",
+                        "Skipping neighbor {} because latency is too high \
+                         ({}).",
                         neighbor,
-                        latency_outbound.into_format_args(uom::si::time::millisecond, Abbreviation)
+                        latency_outbound.into_format_args(
+                            uom::si::time::millisecond,
+                            Abbreviation
+                        )
                     );
                     continue;
                 }
@@ -102,8 +118,10 @@ mod auction_placement {
                 promises.push(self.node_query.request_neighbor_bid(
                     BidRequest {
                         sla:                 sla.clone(),
-                        node_origin:         self.node_situation.get_my_id().await,
-                        accumulated_latency: accumulated_latency + latency_outbound,
+                        node_origin:
+                            self.node_situation.get_my_id().await,
+                        accumulated_latency: accumulated_latency
+                            + latency_outbound,
                     },
                     neighbor.clone(),
                 ));
@@ -146,7 +164,10 @@ mod auction_placement {
             Ok(proposals)
         }
 
-        async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error> {
+        async fn validate_bid_and_provision_function(
+            &self,
+            id: BidId,
+        ) -> Result<(), Error> {
             let record = self.auction.validate_bid(&id).await?;
             self.function.provision_function(id, record).await?;
             Ok(())
@@ -179,10 +200,17 @@ mod bottom_up_placement {
             node_query: Arc<dyn NodeQuery>,
         ) -> Self {
             debug!("Built using FunctionLifeBottomUpImpl service");
-            Self { function, auction, node_situation, neighbor_monitor, node_query }
+            Self {
+                function,
+                auction,
+                node_situation,
+                neighbor_monitor,
+                node_query,
+            }
         }
 
-        /// Follow up the [Sla] to the neighbors, and ignore the path where it came from.
+        /// Follow up the [Sla] to the neighbors, and ignore the path where it
+        /// came from.
         async fn follow_up_to_neighbors(
             &self,
             sla: Sla,
@@ -197,12 +225,18 @@ mod bottom_up_placement {
                     .neighbor_monitor
                     .get_latency_to_avg(&neighbor)
                     .await
-                    .ok_or_else(|| Error::CannotGetLatency(neighbor.clone()))?;
+                    .ok_or_else(|| {
+                        Error::CannotGetLatency(neighbor.clone())
+                    })?;
                 if latency_outbound + accumulated_latency > sla.latency_max {
                     trace!(
-                        "Skipping neighbor {} because latency is too high ({}).",
+                        "Skipping neighbor {} because latency is too high \
+                         ({}).",
                         neighbor,
-                        latency_outbound.into_format_args(uom::si::time::millisecond, Abbreviation)
+                        latency_outbound.into_format_args(
+                            uom::si::time::millisecond,
+                            Abbreviation
+                        )
                     );
                     continue;
                 }
@@ -212,8 +246,12 @@ mod bottom_up_placement {
                     .request_neighbor_bid(
                         BidRequest {
                             sla:                 sla.clone(),
-                            node_origin:         self.node_situation.get_my_id().await,
-                            accumulated_latency: accumulated_latency + latency_outbound,
+                            node_origin:         self
+                                .node_situation
+                                .get_my_id()
+                                .await,
+                            accumulated_latency: accumulated_latency
+                                + latency_outbound,
                         },
                         neighbor.clone(),
                     )
@@ -229,8 +267,9 @@ mod bottom_up_placement {
 
     #[async_trait]
     impl FunctionLife for FunctionLifeBottomUpImpl {
-        /// Here the operation will be sequential, first looking to place on a bottom node, or a
-        /// child at least, and only then to consider itself as a candidate
+        /// Here the operation will be sequential, first looking to place on a
+        /// bottom node, or a child at least, and only then to consider
+        /// itself as a candidate
         async fn bid_on_new_function_and_transmit(
             &self,
             sla: Sla,
@@ -252,7 +291,10 @@ mod bottom_up_placement {
             Ok(BidProposals { bids: vec![bid] })
         }
 
-        async fn validate_bid_and_provision_function(&self, id: BidId) -> Result<(), Error> {
+        async fn validate_bid_and_provision_function(
+            &self,
+            id: BidId,
+        ) -> Result<(), Error> {
             let record = self.auction.validate_bid(&id).await?;
             self.function.provision_function(id, record).await?;
             Ok(())

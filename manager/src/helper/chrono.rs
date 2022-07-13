@@ -8,7 +8,10 @@ use serde::de::Visitor;
 pub struct DateTimeHelper;
 
 impl serde_with::SerializeAs<DateTime<Utc>> for DateTimeHelper {
-    fn serialize_as<S>(value: &DateTime<Utc>, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize_as<S>(
+        value: &DateTime<Utc>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -31,7 +34,10 @@ impl<'de> Visitor<'de> for CustomVisitor {
     type Value = DateTime<Utc>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a date and time following the RFC3339 / ISO 8601 format")
+        write!(
+            formatter,
+            "a date and time following the RFC3339 / ISO 8601 format"
+        )
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>

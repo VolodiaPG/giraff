@@ -14,10 +14,15 @@ where
 {
     let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
 
-    let captures =
-        re.captures(quantity).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let measure = captures.get(1).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let unit = captures.get(2).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let captures = re
+        .captures(quantity)
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let measure = captures
+        .get(1)
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+    let unit = captures
+        .get(2)
+        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
     let qty = format!("{} {}", measure.as_str(), unit.as_str())
         .parse::<T>()
@@ -59,12 +64,19 @@ macro_rules! impl_serialize_as {
         pub struct Helper;
 
         impl serde_with::SerializeAs<$type> for Helper {
-            fn serialize_as<S>(value: &$type, serializer: S) -> Result<S::Ok, S::Error>
+            fn serialize_as<S>(
+                value: &$type,
+                serializer: S,
+            ) -> Result<S::Ok, S::Error>
             where
                 S: Serializer,
             {
                 serializer.serialize_str(
-                    format!("{:?}", value.into_format_args($format, Abbreviation)).as_str(),
+                    format!(
+                        "{:?}",
+                        value.into_format_args($format, Abbreviation)
+                    )
+                    .as_str(),
                 )
             }
         }
@@ -83,11 +95,15 @@ macro_rules! impl_serialize_as {
         impl<'de> Visitor<'de> for CustomVisitor {
             type Value = $type;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(
+                &self,
+                formatter: &mut fmt::Formatter,
+            ) -> fmt::Result {
                 write!(
                     formatter,
                     "a quantity resembling '<value> <unit>' like '{:?}'",
-                    <$type>::new::<$unit>(1.5).into_format_args($format, Abbreviation)
+                    <$type>::new::<$unit>(1.5)
+                        .into_format_args($format, Abbreviation)
                 )
             }
 

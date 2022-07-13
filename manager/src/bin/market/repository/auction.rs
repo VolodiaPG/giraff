@@ -18,8 +18,12 @@ impl Auction for SecondPriceAuction {
         let first = bids.get(0).cloned().cloned();
         let second = bids.get(1);
         match (first, second) {
-            (Some(first), Some(second)) => Some(ChosenBid { price: second.bid, bid: first }),
-            (Some(first), None) => Some(ChosenBid { price: first.bid, bid: first }),
+            (Some(first), Some(second)) => {
+                Some(ChosenBid { price: second.bid, bid: first })
+            }
+            (Some(first), None) => {
+                Some(ChosenBid { price: first.bid, bid: first })
+            }
             _ => None,
         }
     }

@@ -18,18 +18,20 @@ pub struct FunctionDefinition {
     pub env_process:               String,
     /// Overrides to environmental variables
     #[serde(rename = "envVars")]
-    pub env_vars:                  Option<::std::collections::HashMap<String, String>>,
+    pub env_vars: Option<::std::collections::HashMap<String, String>>,
     #[serde(rename = "constraints")]
     pub constraints:               Option<Vec<String>>,
     /// A map of labels for making scheduling or routing decisions
     #[serde(rename = "labels")]
-    pub labels:                    Option<::std::collections::HashMap<String, String>>,
-    /// A map of annotations for management, orchestration, events and build tasks
+    pub labels: Option<::std::collections::HashMap<String, String>>,
+    /// A map of annotations for management, orchestration, events and build
+    /// tasks
     #[serde(rename = "annotations")]
-    pub annotations:               Option<::std::collections::HashMap<String, String>>,
+    pub annotations: Option<::std::collections::HashMap<String, String>>,
     #[serde(rename = "secrets")]
     pub secrets:                   Option<Vec<String>>,
-    /// Private registry base64-encoded basic auth (as present in ~/.docker/config.json)
+    /// Private registry base64-encoded basic auth (as present in
+    /// ~/.docker/config.json)
     #[serde(rename = "registryAuth")]
     pub registry_auth:             Option<String>,
     #[serde(rename = "limits")]

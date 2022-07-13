@@ -21,8 +21,15 @@ pub enum Error {
 pub trait FaaSBackend: Debug + Sync + Send {
     /// Provision the function from the bid description
     /// Return the function's name
-    async fn provision_function(&self, id: BidId, bid: BidRecord) -> Result<String, Error>;
-    async fn get_provisioned_function(&self, id: &BidId) -> Option<ProvisionedRecord>;
+    async fn provision_function(
+        &self,
+        id: BidId,
+        bid: BidRecord,
+    ) -> Result<String, Error>;
+    async fn get_provisioned_function(
+        &self,
+        id: &BidId,
+    ) -> Option<ProvisionedRecord>;
 }
 
 #[derive(Debug)]
@@ -42,28 +49,48 @@ impl OpenFaaSBackend {
 
 #[async_trait]
 impl FaaSBackend for OpenFaaSBackend {
-    async fn provision_function(&self, id: BidId, bid: BidRecord) -> Result<String, Error> {
-        let function_name = bid.sla.function_live_name.to_owned().unwrap_or_else(|| "".to_string())
+    async fn provision_function(
+        &self,
+        id: BidId,
+        bid: BidRecord,
+    ) -> Result<String, Error> {
+        let function_name = bid
+            .sla
+            .function_live_name
+            .to_owned()
+            .unwrap_or_else(|| "".to_string())
             + "-"
             + id.to_string().as_str();
 
         let definition = FunctionDefinition {
             image: bid.sla.function_image.to_owned(),
             service: function_name.to_owned(),
-            limits: Some(Limits { memory: bid.sla.memory, cpu: bid.sla.cpu }),
+            limits: Some(Limits {
+                memory: bid.sla.memory,
+                cpu:    bid.sla.cpu,
+            }),
             ..Default::default()
         };
 
         self.client.system_functions_post(definition).await?;
 
         self.provisioned_functions
-            .insert(id, ProvisionedRecord { bid, function_name: function_name.to_owned() })
+            .insert(
+                id,
+                ProvisionedRecord {
+                    bid,
+                    function_name: function_name.to_owned(),
+                },
+            )
             .await;
 
         Ok(function_name)
     }
 
-    async fn get_provisioned_function(&self, id: &BidId) -> Option<ProvisionedRecord> {
+    async fn get_provisioned_function(
+        &self,
+        id: &BidId,
+    ) -> Option<ProvisionedRecord> {
         self.provisioned_functions.get(id).await
     }
 }

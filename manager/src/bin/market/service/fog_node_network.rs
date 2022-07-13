@@ -28,7 +28,9 @@ pub struct FogNodeNetworkHashTreeImpl {
 }
 
 impl FogNodeNetworkHashTreeImpl {
-    pub fn new(fog_node: Arc<dyn FogNode>) -> Self { FogNodeNetworkHashTreeImpl { fog_node } }
+    pub fn new(fog_node: Arc<dyn FogNode>) -> Self {
+        FogNodeNetworkHashTreeImpl { fog_node }
+    }
 }
 
 #[async_trait]
@@ -46,5 +48,7 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         Ok(())
     }
 
-    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> { self.fog_node.get_nodes().await }
+    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
+        self.fog_node.get_nodes().await
+    }
 }

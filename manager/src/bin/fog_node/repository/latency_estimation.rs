@@ -35,16 +35,21 @@ pub struct IndividualErrorList {
 }
 
 impl fmt::Display for IndividualErrorList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:?}", self.list) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.list)
+    }
 }
 
 impl From<Vec<(NodeId, IndividualError)>> for IndividualErrorList {
-    fn from(list: Vec<(NodeId, IndividualError)>) -> Self { IndividualErrorList { list } }
+    fn from(list: Vec<(NodeId, IndividualError)>) -> Self {
+        IndividualErrorList { list }
+    }
 }
 
 #[async_trait]
 pub trait LatencyEstimation: Debug + Sync + Send {
-    /// Make the requests to the neighbors to get the Latency to our children + parent.
+    /// Make the requests to the neighbors to get the Latency to our children +
+    /// parent.
     async fn latency_to_neighbors(&self) -> Result<(), Error>;
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time>;
     async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time>;
@@ -73,11 +78,12 @@ impl LatencyEstimationImpl {
         ping: &Ping,
         received_at: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(Time, Time), IndividualError> {
-        // TODO fix that simplistic estimation with somthing considering the real values instead of
-        // symetric ones!!
+        // TODO fix that simplistic estimation with somthing considering the
+        // real values instead of symetric ones!!
 
-        let latency_round =
-            (received_at.timestamp_millis() - ping.sent_at.timestamp_millis()) as i64;
+        let latency_round = (received_at.timestamp_millis()
+            - ping.sent_at.timestamp_millis())
+            as i64;
 
         if latency_round < 0 {
             warn!("Got negative latency: {}", latency_round);
@@ -85,13 +91,15 @@ impl LatencyEstimationImpl {
         }
 
         let latency = latency_round as f64 / 2.0;
-        let outgoing_latency = Time::new::<uom::si::time::millisecond>(latency);
+        let outgoing_latency =
+            Time::new::<uom::si::time::millisecond>(latency);
         let incoming_latency = outgoing_latency;
 
         Ok((outgoing_latency, incoming_latency))
     }
 
-    /// Do the packet exchanges to get the latencies and return (outgoing, incoming)
+    /// Do the packet exchanges to get the latencies and return (outgoing,
+    /// incoming)
     async fn make_latency_request_to(
         &self,
         node_id: &NodeId,
@@ -126,7 +134,8 @@ impl LatencyEstimation for LatencyEstimationImpl {
         for node in self.node_situation.get_neighbors().await {
             tried_nodes.push(node.clone());
             handles.push(async move {
-                let (incoming, outgoing) = self.make_latency_request_to(&node).await?;
+                let (incoming, outgoing) =
+                    self.make_latency_request_to(&node).await?;
                 self.incoming_latencies
                     .write()
                     .await
@@ -144,7 +153,9 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .node_situation
                     .get_fog_node_neighbor(&node)
                     .await
-                    .ok_or_else(|| IndividualError::NodeNotFound(node.clone()))?;
+                    .ok_or_else(|| {
+                        IndividualError::NodeNotFound(node.clone())
+                    })?;
 
                 let ip = desc.ip;
                 let port = desc.port;
@@ -152,7 +163,9 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .with_label_values(&[&format!("{}:{}", ip, port)])
                     .set(outgoing.value);
 
-                if let Some(lat) = self.outgoing_latencies.read().await.get(&node) {
+                if let Some(lat) =
+                    self.outgoing_latencies.read().await.get(&node)
+                {
                     crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
                         .with_label_values(&[&format!("{}:{}", ip, port)])
                         .set(lat.get_avg().value);
@@ -162,13 +175,14 @@ impl LatencyEstimation for LatencyEstimationImpl {
         }
 
         let attempts = handles.len();
-        let errors: Vec<(NodeId, IndividualError)> = futures::future::join_all(handles)
-            .await
-            .into_iter()
-            .zip(tried_nodes.into_iter())
-            .filter(|(result, _id)| result.is_err())
-            .map(|(result, id)| (id, result.err().unwrap()))
-            .collect();
+        let errors: Vec<(NodeId, IndividualError)> =
+            futures::future::join_all(handles)
+                .await
+                .into_iter()
+                .zip(tried_nodes.into_iter())
+                .filter(|(result, _id)| result.is_err())
+                .map(|(result, id)| (id, result.err().unwrap()))
+                .collect();
 
         if !errors.is_empty() {
             return Err(Error::FailedPing(

@@ -29,14 +29,25 @@ pub enum Error {
     WrongPacketType,
     #[error("Cannot found the fog node with the id {0}.")]
     NodeIdNotFound(NodeId),
-    #[error("The fog node with the id {0} doesn't have a valid ip address and/or port.")]
+    #[error(
+        "The fog node with the id {0} doesn't have a valid ip address and/or \
+         port."
+    )]
     NodeIpNotFound(NodeId),
 }
 #[async_trait]
 pub trait NodeCommunication: Debug + Sync + Send {
-    async fn request_bids_from_node(&self, to: NodeId, sla: Sla) -> Result<BidProposals, Error>;
+    async fn request_bids_from_node(
+        &self,
+        to: NodeId,
+        sla: Sla,
+    ) -> Result<BidProposals, Error>;
 
-    async fn take_offer(&self, to: NodeId, bid: &BidProposal) -> Result<(), Error>;
+    async fn take_offer(
+        &self,
+        to: NodeId,
+        bid: &BidProposal,
+    ) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -79,14 +90,21 @@ impl NodeCommunicationThroughRoutingImpl {
         if response.status().is_success() {
             Ok(response.bytes().await?)
         } else {
-            Err(Error::ErrorStatus(response.status(), response.text().await.ok()))
+            Err(Error::ErrorStatus(
+                response.status(),
+                response.text().await.ok(),
+            ))
         }
     }
 }
 
 #[async_trait]
 impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
-    async fn request_bids_from_node(&self, to: NodeId, sla: Sla) -> Result<BidProposals, Error> {
+    async fn request_bids_from_node(
+        &self,
+        to: NodeId,
+        sla: Sla,
+    ) -> Result<BidProposals, Error> {
         let data = Packet::FogNode {
             resource_uri:   "bid".to_string(),
             data:           &serde_json::value::to_raw_value(&BidRequest {
@@ -100,7 +118,11 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
         Ok(serde_json::from_slice(&self.call_routing(data).await?)?)
     }
 
-    async fn take_offer(&self, to: NodeId, bid: &BidProposal) -> Result<(), Error> {
+    async fn take_offer(
+        &self,
+        to: NodeId,
+        bid: &BidProposal,
+    ) -> Result<(), Error> {
         let data = Packet::FogNode {
             route_to_stack: self.network.get_route_to_node(to).await,
             resource_uri:   format!("bid/{}", bid.id),

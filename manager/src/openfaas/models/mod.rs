@@ -9,16 +9,22 @@ pub use self::function_list_entry::FunctionListEntry;
 pub struct InformationHelper;
 
 impl serde_with::SerializeAs<Information> for InformationHelper {
-    fn serialize_as<S>(value: &Information, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize_as<S>(
+        value: &Information,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(&format!(
             "{}M",
-            &format!("{:?}", value.into_format_args(information::megabyte, Abbreviation))
-                .split_whitespace()
-                .collect::<Vec<&str>>()[0]
+            &format!(
+                "{:?}",
+                value.into_format_args(information::megabyte, Abbreviation)
+            )
+            .split_whitespace()
+            .collect::<Vec<&str>>()[0]
         ))
     }
 }
@@ -34,7 +40,10 @@ impl serde_with::SerializeAs<Ratio> for RatioHelper {
         serializer.serialize_str(
             format!(
                 "{:?}",
-                value.into_format_args(crate::helper::uom::cpu_ratio::cpu, Abbreviation)
+                value.into_format_args(
+                    crate::helper::uom::cpu_ratio::cpu,
+                    Abbreviation
+                )
             )
             .split_whitespace()
             .collect::<Vec<&str>>()[0]

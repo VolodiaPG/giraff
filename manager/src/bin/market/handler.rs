@@ -14,8 +14,8 @@ use manager::respond;
 
 use crate::controller;
 
-/// Register a SLA and starts the auctioning process, as well as establishing the routing once the
-/// auction is completed
+/// Register a SLA and starts the auctioning process, as well as establishing
+/// the routing once the auction is completed
 #[openapi]
 #[put("/function", data = "<payload>")]
 pub async fn put_function(
@@ -24,7 +24,12 @@ pub async fn put_function(
     faas_service: &State<Arc<dyn crate::service::faas::FogNodeFaaS>>,
 ) -> Resp<AcceptedBid> {
     respond!(
-        controller::start_auction(payload.0, auction_service.inner(), faas_service.inner()).await
+        controller::start_auction(
+            payload.0,
+            auction_service.inner(),
+            faas_service.inner()
+        )
+        .await
     )
 }
 
@@ -33,12 +38,15 @@ pub async fn put_function(
 #[post("/register", data = "<payload>")]
 pub async fn post_register_node(
     payload: Json<RegisterNode>,
-    node_net: &State<Arc<dyn crate::service::fog_node_network::FogNodeNetwork>>,
+    node_net: &State<
+        Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
+    >,
 ) -> Resp {
     respond!(controller::register_node(payload.0, node_net.inner()).await)
 }
 
-/// Get all the successfull transactions (function provisioned) done by the market since its boot.
+/// Get all the successfull transactions (function provisioned) done by the
+/// market since its boot.
 #[openapi]
 #[get("/functions")]
 pub async fn get_functions(
@@ -51,7 +59,9 @@ pub async fn get_functions(
 #[openapi]
 #[get("/fog")]
 pub async fn get_fog(
-    fog_node_network: &State<Arc<dyn crate::service::fog_node_network::FogNodeNetwork>>,
+    fog_node_network: &State<
+        Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
+    >,
 ) -> Resp<Vec<GetFogNodes>> {
     respond!(controller::get_fog(fog_node_network.inner()).await)
 }

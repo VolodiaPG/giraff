@@ -14,8 +14,8 @@ pub enum Error {
     #[error(transparent)]
     NodeCommunication(#[from] crate::repository::node_communication::Error),
     #[error(
-        "No trace of the node {0} has been found. It should have been registered as a record \
-         though."
+        "No trace of the node {0} has been found. It should have been \
+         registered as a record though."
     )]
     NodeNotFound(NodeId),
 }
@@ -33,7 +33,10 @@ pub struct FogNodeFaaSImpl {
 }
 
 impl FogNodeFaaSImpl {
-    pub fn new(fog_node: Arc<dyn FogNode>, node_communication: Arc<dyn NodeCommunication>) -> Self {
+    pub fn new(
+        fog_node: Arc<dyn FogNode>,
+        node_communication: Arc<dyn NodeCommunication>,
+    ) -> Self {
         Self { fog_node, node_communication }
     }
 }
@@ -42,7 +45,10 @@ impl FogNodeFaaSImpl {
 impl FogNodeFaaS for FogNodeFaaSImpl {
     async fn provision_function(&self, bid: AcceptedBid) -> Result<(), Error> {
         let node = bid.chosen.bid.node_id.clone();
-        let res = self.node_communication.take_offer(node.clone(), &bid.chosen.bid).await?;
+        let res = self
+            .node_communication
+            .take_offer(node.clone(), &bid.chosen.bid)
+            .await?;
 
         let mut record: NodeRecord = self
             .fog_node

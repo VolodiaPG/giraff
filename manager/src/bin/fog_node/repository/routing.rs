@@ -45,7 +45,11 @@ pub trait Routing: Debug + Sync + Send {
 pub struct RoutingImpl;
 
 impl RoutingImpl {
-    async fn forward_to<'a, T>(&self, data: &'a T, full_url: &'a str) -> Result<Bytes, Error>
+    async fn forward_to<'a, T>(
+        &self,
+        data: &'a T,
+        full_url: &'a str,
+    ) -> Result<Bytes, Error>
     where
         T: Serialize + Send + Sync,
     {
@@ -87,7 +91,8 @@ impl Routing for RoutingImpl {
     where
         T: Serialize + Send + Sync,
     {
-        let url = format!("http://{}:{}/api/{}", node_ip, node_port, resource_uri);
+        let url =
+            format!("http://{}:{}/api/{}", node_ip, node_port, resource_uri);
         trace!("Posting (forward) to {}", &url);
         self.forward_to(data, &url).await
     }

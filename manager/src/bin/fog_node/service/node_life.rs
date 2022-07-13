@@ -20,8 +20,9 @@ pub enum Error {
     #[error(transparent)]
     Routing(#[from] crate::service::routing::Error),
     #[error(
-        "Trying to register/pass a register message for a market node,but it should not happen \
-         since the market node is always on top of the tree network."
+        "Trying to register/pass a register message for a market node,but it \
+         should not happen since the market node is always on top of the \
+         tree network."
     )]
     CannotRegisterMarketOnRegularNode,
 }
@@ -29,11 +30,18 @@ pub enum Error {
 /// Service to manage the behaviour of the routing
 #[async_trait]
 pub trait NodeLife: Send + Sync {
-    /// Register locally the child node, but also send the packet towards the market to register it
-    /// there, also.
-    async fn register_child_node(&self, register: RegisterNode) -> Result<(), Error>;
+    /// Register locally the child node, but also send the packet towards the
+    /// market to register it there, also.
+    async fn register_child_node(
+        &self,
+        register: RegisterNode,
+    ) -> Result<(), Error>;
     /// Initialize the negotiating process to get connected to the parent node
-    async fn init_registration(&self, my_ip: IpAddr, my_port: u16) -> Result<(), Error>;
+    async fn init_registration(
+        &self,
+        my_ip: IpAddr,
+        my_port: u16,
+    ) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
@@ -55,7 +63,10 @@ impl NodeLifeImpl {
 
 #[async_trait]
 impl NodeLife for NodeLifeImpl {
-    async fn register_child_node(&self, register: RegisterNode) -> Result<(), Error> {
+    async fn register_child_node(
+        &self,
+        register: RegisterNode,
+    ) -> Result<(), Error> {
         trace!("Registering child node");
         match &register {
             RegisterNode::Node { node_id, parent, ip, port, .. } => {
@@ -64,7 +75,10 @@ impl NodeLife for NodeLifeImpl {
                 }
 
                 self.node_situation
-                    .register(node_id.clone(), NodeDescription { ip: *ip, port: *port })
+                    .register(
+                        node_id.clone(),
+                        NodeDescription { ip: *ip, port: *port },
+                    )
                     .await;
             }
             RegisterNode::MarketNode { .. } => {
@@ -75,13 +89,18 @@ impl NodeLife for NodeLifeImpl {
         self.router
             .forward(&Packet::Market {
                 resource_uri: "register".to_string(),
-                data:         &serde_json::value::to_raw_value(&register).unwrap(),
+                data:         &serde_json::value::to_raw_value(&register)
+                    .unwrap(),
             })
             .await?;
         Ok(())
     }
 
-    async fn init_registration(&self, ip: IpAddr, port: u16) -> Result<(), Error> {
+    async fn init_registration(
+        &self,
+        ip: IpAddr,
+        port: u16,
+    ) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market().await {
             RegisterNode::MarketNode {

@@ -9,7 +9,8 @@ use manager::model::BidId;
 
 #[async_trait]
 pub trait FaaSRoutingTable: Debug + Sync + Send {
-    /// Update the breadcrumb route to the [BidId] passing by the next [NodeId].
+    /// Update the breadcrumb route to the [BidId] passing by the next
+    /// [NodeId].
     async fn update(&self, source: BidId, target: Direction);
 
     async fn get(&self, bid_id: &BidId) -> Option<Direction>;

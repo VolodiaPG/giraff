@@ -19,7 +19,9 @@ pub struct AuctionImpl {
 }
 
 impl AuctionImpl {
-    pub fn new() -> AuctionImpl { AuctionImpl { database: RwLock::new(HashMap::new()) } }
+    pub fn new() -> AuctionImpl {
+        AuctionImpl { database: RwLock::new(HashMap::new()) }
+    }
 }
 
 #[async_trait]
@@ -34,5 +36,7 @@ impl Auction for AuctionImpl {
         self.database.read().await.get(id).cloned()
     }
 
-    async fn remove(&self, id: &BidId) { self.database.write().await.remove(id); }
+    async fn remove(&self, id: &BidId) {
+        self.database.write().await.remove(id);
+    }
 }

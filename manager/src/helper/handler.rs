@@ -32,7 +32,10 @@ where
 }
 
 impl<'r> Responder<'r, 'static> for Error {
-    fn respond_to(self, _request: &Request<'_>) -> rocket::response::Result<'static> {
+    fn respond_to(
+        self,
+        _request: &Request<'_>,
+    ) -> rocket::response::Result<'static> {
         let body = self.0.to_string();
         error!("Responder will answer: {}", body);
         Ok(Response::build()
@@ -60,7 +63,10 @@ impl From<Bytes> for BytesResponse {
 }
 
 impl<'r> Responder<'r, 'static> for BytesResponse {
-    fn respond_to(self, _request: &Request<'_>) -> rocket::response::Result<'static> {
+    fn respond_to(
+        self,
+        _request: &Request<'_>,
+    ) -> rocket::response::Result<'static> {
         let body = self.0;
         Ok(Response::build()
             .header(rocket::http::ContentType::JSON)
@@ -71,7 +77,9 @@ impl<'r> Responder<'r, 'static> for BytesResponse {
 }
 
 impl OpenApiResponderInner for BytesResponse {
-    fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
+    fn responses(
+        _gen: &mut OpenApiGenerator,
+    ) -> rocket_okapi::Result<Responses> {
         let mut responses = Responses::default();
         rocket_okapi::util::add_content_response(
             &mut responses,

@@ -18,7 +18,8 @@ pub enum Error {
 
 #[async_trait]
 pub trait K8s: Sync + Send {
-    async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error>;
+    async fn get_k8s_metrics(&self)
+        -> Result<HashMap<String, Metrics>, Error>;
 }
 
 #[cfg(not(feature = "fake_k8s"))]
@@ -43,16 +44,25 @@ mod k8s_impl {
     }
     #[async_trait]
     impl K8s for K8sImpl {
-        async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
-            let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
+        async fn get_k8s_metrics(
+            &self,
+        ) -> Result<HashMap<String, Metrics>, Error> {
+            let mut aggregated_metrics: HashMap<String, Metrics> =
+                HashMap::new();
 
             let client = Client::try_default().await.map_err(Error::Kube)?;
             let node_metrics: Api<NodeMetrics> = Api::all(client.clone());
-            let metrics = node_metrics.list(&ListParams::default()).await.map_err(Error::Kube)?;
+            let metrics = node_metrics
+                .list(&ListParams::default())
+                .await
+                .map_err(Error::Kube)?;
 
             for metric in metrics {
                 // let memory = memory.into_format_args(gibibyte, Description);
-                let key = metric.metadata.name.ok_or(Error::MissingKey("metadata:name"))?;
+                let key = metric
+                    .metadata
+                    .name
+                    .ok_or(Error::MissingKey("metadata:name"))?;
 
                 aggregated_metrics.insert(key,
                                           Metrics { usage:       Some(Usage { cpu:    parse_quantity(&metric.usage.cpu.0[..],
@@ -63,22 +73,39 @@ mod k8s_impl {
             }
 
             let nodes: Api<Node> = Api::all(client.clone());
-            let nodes = nodes.list(&ListParams::default()).await.map_err(Error::Kube)?;
+            let nodes = nodes
+                .list(&ListParams::default())
+                .await
+                .map_err(Error::Kube)?;
 
             for node in nodes {
                 let status = node.status.ok_or(Error::MissingKey("status"))?;
-                let allocatable = status.allocatable.ok_or(Error::MissingKey("allocatable"))?;
-                let key = node.metadata.name.ok_or(Error::MissingKey("metadata:name"))?;
-                let cpu = allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
-                let memory = allocatable.get("memory").ok_or(Error::MissingKey("memory"))?;
+                let allocatable = status
+                    .allocatable
+                    .ok_or(Error::MissingKey("allocatable"))?;
+                let key = node
+                    .metadata
+                    .name
+                    .ok_or(Error::MissingKey("metadata:name"))?;
+                let cpu =
+                    allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
+                let memory = allocatable
+                    .get("memory")
+                    .ok_or(Error::MissingKey("memory"))?;
 
                 // let memory = memory.into_format_args(gibibyte, Description);
                 aggregated_metrics
                     .get_mut(&key)
                     .ok_or(Error::MissingKey("metadata:name"))?
                     .allocatable = Some(Allocatable {
-                    cpu:    parse_quantity(&cpu.0[..], &MissingUnitType::Complete(""))?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
-                    memory: parse_quantity(&memory.0[..], &MissingUnitType::Suffix("B"))?, /* Bytes */
+                    cpu:    parse_quantity(
+                        &cpu.0[..],
+                        &MissingUnitType::Complete(""),
+                    )?, /* https://discuss.kubernetes.io/t/metric-server-cpu-and-memory-units/7497 */
+                    memory: parse_quantity(
+                        &memory.0[..],
+                        &MissingUnitType::Suffix("B"),
+                    )?, /* Bytes */
                 });
             }
 
@@ -88,20 +115,26 @@ mod k8s_impl {
     enum MissingUnitType<'a> {
         /// Missing just the rightmost part, eg. B for Bytes
         Suffix(&'a str),
-        /// the whole unit needs to be replaced, eg. received xxxxnano, replaced by xxxx nanocpu
+        /// the whole unit needs to be replaced, eg. received xxxxnano,
+        /// replaced by xxxx nanocpu
         Complete(&'a str),
     }
 
-    fn parse_quantity<'a, T>(quantity: &str, missing_unit: &MissingUnitType<'a>) -> Result<T, Error>
+    fn parse_quantity<'a, T>(
+        quantity: &str,
+        missing_unit: &MissingUnitType<'a>,
+    ) -> Result<T, Error>
     where
         T: FromStr,
     {
         let re = regex!(r"^(\d+)(\w*)$");
 
-        let captures =
-            re.captures(quantity).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-        let measure =
-            captures.get(1).ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+        let captures = re
+            .captures(quantity)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+        let measure = captures
+            .get(1)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
         let prefix = captures.get(2).map(|cap| cap.as_str()).unwrap_or("");
         //.ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
@@ -123,7 +156,8 @@ mod k8s_impl {
         use uom::fmt::DisplayStyle::Abbreviation;
         use uom::si::f64::{Information, Ratio};
         use uom::si::information::byte;
-        // Note this useful idiom: importing names from outer (for mod tests) scope.
+        // Note this useful idiom: importing names from outer (for mod tests)
+        // scope.
         use super::*;
 
         #[test]
@@ -131,8 +165,11 @@ mod k8s_impl {
             assert_eq!(
                 format!(
                     "{}",
-                    parse_quantity::<Ratio>("1024n", &MissingUnitType::Complete("ppb"))?
-                        .into_format_args(nanocpu, Abbreviation)
+                    parse_quantity::<Ratio>(
+                        "1024n",
+                        &MissingUnitType::Complete("ppb")
+                    )?
+                    .into_format_args(nanocpu, Abbreviation)
                 ),
                 "1023.9999999999999 nanocpu".to_owned()
             );
@@ -145,8 +182,11 @@ mod k8s_impl {
             assert_eq!(
                 format!(
                     "{}",
-                    parse_quantity::<Information>("1024", &MissingUnitType::Suffix("B"))?
-                        .into_format_args(byte, Abbreviation)
+                    parse_quantity::<Information>(
+                        "1024",
+                        &MissingUnitType::Suffix("B")
+                    )?
+                    .into_format_args(byte, Abbreviation)
                 ),
                 "1024 B".to_owned()
             );
@@ -174,8 +214,11 @@ mod fake_impl {
 
     #[async_trait]
     impl K8s for K8sFakeImpl {
-        async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>, Error> {
-            let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
+        async fn get_k8s_metrics(
+            &self,
+        ) -> Result<HashMap<String, Metrics>, Error> {
+            let mut aggregated_metrics: HashMap<String, Metrics> =
+                HashMap::new();
 
             aggregated_metrics.insert(
                 "toto".to_owned(),

@@ -7,7 +7,9 @@ extern crate log;
 use crate::handler::*;
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
-use crate::repository::node_situation::{NodeSituation, NodeSituationHashSetImpl};
+use crate::repository::node_situation::{
+    NodeSituation, NodeSituationHashSetImpl,
+};
 use crate::repository::provisioned::ProvisionedHashMapImpl;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::auction::{Auction, AuctionImpl};
@@ -44,7 +46,10 @@ ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_P
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
-    let config = base64::decode_config(config, base64::STANDARD.decode_allow_trailing_bits(true))?;
+    let config = base64::decode_config(
+        config,
+        base64::STANDARD.decode_allow_trailing_bits(true),
+    )?;
     let config = String::from_utf8(config)?;
 
     Ok(config)
@@ -108,7 +113,8 @@ async fn rocket() -> _ {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .unwrap_or(8080);
-    let ip_openfaas = env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let ip_openfaas =
+        env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     debug!("OpenFaaS uri: {}:{}", ip_openfaas, port_openfaas);
 
     let username = env::var("OPENFAAS_USERNAME").ok();
@@ -118,7 +124,10 @@ async fn rocket() -> _ {
 
     let config = load_config_from_env()
         .map_err(|err| {
-            error!("Error looking for the based64 CONFIG env variable: {}", err);
+            error!(
+                "Error looking for the based64 CONFIG env variable: {}",
+                err
+            );
             std::process::exit(1);
         })
         .unwrap();
@@ -134,21 +143,29 @@ async fn rocket() -> _ {
     }));
 
     let disk_data = NodeSituationDisk::new(config);
-    let node_situation =
-        Arc::new(NodeSituationHashSetImpl::new(NodeSituationData::from(disk_data.unwrap())));
+    let node_situation = Arc::new(NodeSituationHashSetImpl::new(
+        NodeSituationData::from(disk_data.unwrap()),
+    ));
 
     info!("Current node ID is {}", node_situation.get_my_id().await);
-    info!("Current node has been tagged {:?}", node_situation.get_my_tags().await);
+    info!(
+        "Current node has been tagged {:?}",
+        node_situation.get_my_tags().await
+    );
     let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(k8s_factory());
     let resource_tracking_repo = Arc::new(
-        crate::repository::resource_tracking::ResourceTrackingImpl::new(k8s_repo.clone())
-            .await
-            .expect("Failed to instanciate the ResourceTrackingRepo"),
+        crate::repository::resource_tracking::ResourceTrackingImpl::new(
+            k8s_repo.clone(),
+        )
+        .await
+        .expect("Failed to instanciate the ResourceTrackingRepo"),
     );
-    let auction_repo = Arc::new(crate::repository::auction::AuctionImpl::new());
-    let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
+    let auction_repo =
+        Arc::new(crate::repository::auction::AuctionImpl::new());
+    let latency_estimation_repo =
+        Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
 
     // Services
     let auction_service = Arc::new(
@@ -158,9 +175,15 @@ async fn rocket() -> _ {
         )
         .await,
     );
-    let faas_service = Arc::new(OpenFaaSBackend::new(client.clone(), provisioned_repo.clone()));
+    let faas_service = Arc::new(OpenFaaSBackend::new(
+        client.clone(),
+        provisioned_repo.clone(),
+    ));
     let router_service = Arc::new(RouterImpl::new(
-        Arc::new(crate::repository::faas_routing_table::FaaSRoutingTableHashMap::new()),
+        Arc::new(
+            crate::repository::faas_routing_table::FaaSRoutingTableHashMap::new(
+            ),
+        ),
         node_situation.clone(),
         Arc::new(crate::repository::routing::RoutingImpl),
         faas_service.clone(),
@@ -171,7 +194,8 @@ async fn rocket() -> _ {
         node_situation.clone(),
         node_query.clone(),
     ));
-    let neighbor_monitor_service = Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
+    let neighbor_monitor_service =
+        Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
     let function_life_service = Arc::new(function_life_factory(
         faas_service.clone(),
         auction_service.clone(),
@@ -209,9 +233,13 @@ async fn rocket() -> _ {
         .attach(prometheus.clone())
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
-        .manage(function_life_service as Arc<dyn crate::service::function_life::FunctionLife>)
+        .manage(
+            function_life_service
+                as Arc<dyn crate::service::function_life::FunctionLife>,
+        )
         .manage(router_service as Arc<dyn crate::service::routing::Router>)
-        .manage(node_life_service.clone() as Arc<dyn crate::service::node_life::NodeLife>)
+        .manage(node_life_service.clone()
+            as Arc<dyn crate::service::node_life::NodeLife>)
         .manage(neighbor_monitor_service.clone()
             as Arc<dyn crate::service::neighbor_monitor::NeighborMonitor>)
         .mount(
@@ -234,15 +262,19 @@ async fn rocket() -> _ {
                 health
             ],
         )
-        .attach(AdHoc::on_liftoff("Registration to the parent & market", |_rocket| {
-            Box::pin(async {
-                info!("Registering to market and parent...");
-                // let address = address.clone();
-                // trace!("Register using address: {}:{}", address, port);
-                register_to_market(node_life_service, node_situation).await;
-                info!("Registered to market and parent.");
-            })
-        }))
+        .attach(AdHoc::on_liftoff(
+            "Registration to the parent & market",
+            |_rocket| {
+                Box::pin(async {
+                    info!("Registering to market and parent...");
+                    // let address = address.clone();
+                    // trace!("Register using address: {}:{}", address, port);
+                    register_to_market(node_life_service, node_situation)
+                        .await;
+                    info!("Registered to market and parent.");
+                })
+            },
+        ))
         .attach(AdHoc::on_liftoff("Starting CRON jobs", |_rocket| {
             Box::pin(async {
                 cron::init(neighbor_monitor_service, k8s_repo);
@@ -251,7 +283,10 @@ async fn rocket() -> _ {
         }))
 }
 
-async fn register_to_market(node_life: Arc<dyn NodeLife>, node_situation: Arc<dyn NodeSituation>) {
+async fn register_to_market(
+    node_life: Arc<dyn NodeLife>,
+    node_situation: Arc<dyn NodeSituation>,
+) {
     let my_ip = node_situation.get_my_public_ip().await;
     let my_port = node_situation.get_my_public_port().await;
     if let Err(err) = node_life.init_registration(my_ip, my_port).await {

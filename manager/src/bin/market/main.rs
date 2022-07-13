@@ -28,7 +28,8 @@ async fn rocket() -> _ {
         Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
             fog_node.clone(),
         ));
-    let auction_process = Arc::new(crate::repository::auction::SecondPriceAuction::new());
+    let auction_process =
+        Arc::new(crate::repository::auction::SecondPriceAuction::new());
 
     // Services
     let auction_service = Arc::new(service::auction::AuctionImpl::new(
@@ -36,14 +37,19 @@ async fn rocket() -> _ {
         fog_node_communication.clone(),
     ));
     let fog_node_network_service =
-        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(fog_node.clone()));
-    let faas_service =
-        Arc::new(service::faas::FogNodeFaaSImpl::new(fog_node, fog_node_communication));
+        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(
+            fog_node.clone(),
+        ));
+    let faas_service = Arc::new(service::faas::FogNodeFaaSImpl::new(
+        fog_node,
+        fog_node_communication,
+    ));
 
     rocket::build()
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(
-            fog_node_network_service as Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
+            fog_node_network_service
+                as Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
         )
         .manage(faas_service as Arc<dyn crate::service::faas::FogNodeFaaS>)
         .mount(
@@ -55,6 +61,12 @@ async fn rocket() -> _ {
         )
         .mount(
             "/api/",
-            openapi_get_routes![put_function, post_register_node, get_functions, get_fog, health],
+            openapi_get_routes![
+                put_function,
+                post_register_node,
+                get_functions,
+                get_fog,
+                health
+            ],
         )
 }

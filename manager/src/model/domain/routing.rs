@@ -6,7 +6,9 @@ use serde_json::value::RawValue;
 
 use crate::model::{BidId, NodeId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
+)]
 pub struct FunctionRoutingStack {
     pub function: BidId,
 
@@ -19,8 +21,8 @@ pub struct FunctionRoutingStack {
 
 /// [PacketPacket] with its direction:
 /// - [Packet::FaaSFunction] directs to the hosted faaSFunction
-/// - [Packet::FogNode] directs to the fog node itself (at the start of the routing stack
-///   transmitted)
+/// - [Packet::FogNode] directs to the fog node itself (at the start of the
+///   routing stack transmitted)
 /// - [Packet::Market] directs to the market
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum Packet<'a> {
@@ -46,5 +48,9 @@ pub enum Packet<'a> {
 }
 
 pub fn schema_function(_: &mut SchemaGenerator) -> Schema {
-    SchemaObject { instance_type: Some(InstanceType::Object.into()), ..Default::default() }.into()
+    SchemaObject {
+        instance_type: Some(InstanceType::Object.into()),
+        ..Default::default()
+    }
+    .into()
 }

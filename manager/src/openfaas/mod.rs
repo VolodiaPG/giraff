@@ -33,7 +33,8 @@ where
     }
 }
 
-impl<'de, T> From<(reqwest::StatusCode, Result<T, reqwest::Error>)> for Error<T>
+impl<'de, T> From<(reqwest::StatusCode, Result<T, reqwest::Error>)>
+    for Error<T>
 where
     T: Deserialize<'de> + Display,
 {

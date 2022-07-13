@@ -51,11 +51,24 @@ impl AuctionImpl {
         sla: &Sla,
     ) -> Result<(String, Information, Ratio, Information, Ratio), Error> {
         for node in self.resource_tracking.get_nodes() {
-            let (used_ram, used_cpu) = self.resource_tracking.get_used(node).await?;
-            let (available_ram, available_cpu) = self.resource_tracking.get_available(node).await?;
-            if self.satisfiability_check(&used_ram, &used_cpu, &available_ram, &available_cpu, sla)
-            {
-                return Ok((node.clone(), used_ram, used_cpu, available_ram, available_cpu));
+            let (used_ram, used_cpu) =
+                self.resource_tracking.get_used(node).await?;
+            let (available_ram, available_cpu) =
+                self.resource_tracking.get_available(node).await?;
+            if self.satisfiability_check(
+                &used_ram,
+                &used_cpu,
+                &available_ram,
+                &available_cpu,
+                sla,
+            ) {
+                return Ok((
+                    node.clone(),
+                    used_ram,
+                    used_cpu,
+                    available_ram,
+                    available_cpu,
+                ));
             }
         }
         Err(Error::Unsatisfiable)
@@ -63,12 +76,14 @@ impl AuctionImpl {
 
     /// Compute the bid value from the node environment
     async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
-        let (name, used_ram, used_cpu, available_ram, available_cpu) = self.get_a_node(sla).await?;
+        let (name, used_ram, used_cpu, available_ram, available_cpu) =
+            self.get_a_node(sla).await?;
 
         let cpu_left = available_cpu - used_cpu;
         let ram_left = available_ram - used_ram;
 
-        let price = sla.memory / ram_left * (Information::new::<gigabyte>(1.0) / available_ram)
+        let price = sla.memory / ram_left
+            * (Information::new::<gigabyte>(1.0) / available_ram)
             + sla.cpu / cpu_left * (Ratio::new::<cpu>(1.0) / available_cpu);
 
         let price: f64 = price.into();
@@ -78,7 +93,8 @@ impl AuctionImpl {
         Ok((name, price))
     }
 
-    /// Check if the SLA is satisfiable by the current node (designated by name and metrics).
+    /// Check if the SLA is satisfiable by the current node (designated by name
+    /// and metrics).
     fn satisfiability_check(
         &self,
         used_ram: &Information,
@@ -90,7 +106,8 @@ impl AuctionImpl {
         let would_be_used_ram = *used_ram + sla.memory;
         let would_be_used_cpu = *used_cpu + sla.cpu;
 
-        would_be_used_cpu < *available_cpu && would_be_used_ram < *available_ram
+        would_be_used_cpu < *available_cpu
+            && would_be_used_ram < *available_ram
     }
 }
 
@@ -102,7 +119,11 @@ impl Auction for AuctionImpl {
         let id = self.db.insert(record.to_owned()).await;
         BID_GAUGE
             .with_label_values(&[
-                record.sla.function_live_name.as_ref().unwrap_or(&"unnamed".to_string()),
+                record
+                    .sla
+                    .function_live_name
+                    .as_ref()
+                    .unwrap_or(&"unnamed".to_string()),
                 &id.to_string(),
             ])
             .set(bid);
@@ -110,14 +131,22 @@ impl Auction for AuctionImpl {
     }
 
     async fn validate_bid(&self, id: &BidId) -> Result<BidRecord, Error> {
-        let bid = self.db.get(id).await.ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?.clone();
+        let bid = self
+            .db
+            .get(id)
+            .await
+            .ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?
+            .clone();
 
         self.db.remove(id).await;
 
-        let (used_mem, used_cpu) = self.resource_tracking.get_used(&bid.node).await?;
+        let (used_mem, used_cpu) =
+            self.resource_tracking.get_used(&bid.node).await?;
         let used_mem = used_mem + bid.sla.memory;
         let used_cpu = used_cpu + bid.sla.cpu;
-        self.resource_tracking.update_used(bid.node.clone(), used_mem, used_cpu).await?;
+        self.resource_tracking
+            .update_used(bid.node.clone(), used_mem, used_cpu)
+            .await?;
 
         Ok(bid)
     }

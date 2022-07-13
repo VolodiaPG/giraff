@@ -23,12 +23,18 @@ pub async fn post_bid(
     respond!(controller::auction::bid_on(payload.0, function.inner()).await)
 }
 
-/// Second function called after [post_bid] if the bid is accepted and the transaction starts.
-/// Will then proceed to provision the SLA and thus, the function.
+/// Second function called after [post_bid] if the bid is accepted and the
+/// transaction starts. Will then proceed to provision the SLA and thus, the
+/// function.
 #[openapi]
 #[post("/bid/<id>")]
-pub async fn post_bid_accept(id: BidId, function: &State<Arc<dyn FunctionLife>>) -> Resp {
-    respond!(controller::auction::provision_from_bid(id, function.inner()).await)
+pub async fn post_bid_accept(
+    id: BidId,
+    function: &State<Arc<dyn FunctionLife>>,
+) -> Resp {
+    respond!(
+        controller::auction::provision_from_bid(id, function.inner()).await
+    )
 }
 
 /// Routes the request to the correct URL and node.
@@ -39,7 +45,11 @@ pub async fn post_routing(
     router: &State<Arc<dyn Router>>,
 ) -> Result<BytesResponse, manager::helper::handler::Error> {
     Ok(BytesResponse::from(
-        controller::routing::post_forward_function_routing(&packet.0, router.inner()).await?,
+        controller::routing::post_forward_function_routing(
+            &packet.0,
+            router.inner(),
+        )
+        .await?,
     ))
 }
 
@@ -50,7 +60,9 @@ pub async fn put_routing(
     router: &State<Arc<dyn Router>>,
     stack: Json<FunctionRoutingStack>,
 ) -> Resp {
-    respond!(controller::routing::register_route(router.inner(), stack.0).await)
+    respond!(
+        controller::routing::register_route(router.inner(), stack.0).await
+    )
 }
 
 /// Register a child node to this one
@@ -60,7 +72,9 @@ pub async fn post_register_child_node(
     payload: Json<RegisterNode>,
     router: &State<Arc<dyn NodeLife>>,
 ) -> Resp {
-    respond!(controller::node::register_child_node(payload.0, router.inner()).await)
+    respond!(
+        controller::node::register_child_node(payload.0, router.inner()).await
+    )
 }
 
 /// Route to compute latencies

@@ -32,8 +32,8 @@ pub trait FogNode: Debug + Sync + Send {
         child: NodeId,
         tags: Vec<String>,
     ) -> Result<(), Error>;
-    /// Append the root of the tree, i.e., will fail if not the first node in the whole tree, and
-    /// will fail thereafter
+    /// Append the root of the tree, i.e., will fail if not the first node in
+    /// the whole tree, and will fail thereafter
     async fn append_root(
         &self,
         root: NodeId,
@@ -42,7 +42,8 @@ pub trait FogNode: Debug + Sync + Send {
         tags: Vec<String>,
     ) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
-    /// Return the stack, meaning the destination is at the bottom and the next node is at the top.
+    /// Return the stack, meaning the destination is at the bottom and the next
+    /// node is at the top.
     async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
 
     async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>>;
@@ -80,18 +81,31 @@ impl FogNodeImpl {
         let root = roots.pop().unwrap();
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
-            let node_children =
-                self.nodes.read().await.get(&id).map(|node| node.children.clone()).unwrap();
+            let node_children = self
+                .nodes
+                .read()
+                .await
+                .get(&id)
+                .map(|node| node.children.clone())
+                .unwrap();
             for child in node_children.iter() {
                 if !self.nodes.read().await.contains_key(child) {
-                    return Err(Error::ChildDoesntExist(id.clone(), child.clone()));
+                    return Err(Error::ChildDoesntExist(
+                        id.clone(),
+                        child.clone(),
+                    ));
                 }
             }
 
             for child in node_children.iter() {
-                if let Some(parent) = &self.nodes.read().await.get(child).unwrap().parent {
+                if let Some(parent) =
+                    &self.nodes.read().await.get(child).unwrap().parent
+                {
                     if *parent != id {
-                        return Err(Error::ParentDoesntExist(id.clone(), parent.clone()));
+                        return Err(Error::ParentDoesntExist(
+                            id.clone(),
+                            parent.clone(),
+                        ));
                     }
                 }
             }
@@ -103,7 +117,8 @@ impl FogNodeImpl {
     }
 
     async fn print_tree(&self) {
-        let to_print = serde_json::to_string_pretty(&*self.nodes.read().await).unwrap();
+        let to_print =
+            serde_json::to_string_pretty(&*self.nodes.read().await).unwrap();
         trace!("{}", to_print);
     }
 }
@@ -130,7 +145,9 @@ impl FogNode for FogNodeImpl {
             .write()
             .await
             .get_mut(parent)
-            .ok_or_else(|| Error::ParentDoesntExist(parent.clone(), child.clone()))?
+            .ok_or_else(|| {
+                Error::ParentDoesntExist(parent.clone(), child.clone())
+            })?
             .children
             .push(child.clone());
         self.nodes.write().await.insert(
@@ -148,17 +165,23 @@ impl FogNode for FogNodeImpl {
                 .read()
                 .await
                 .get(parent)
-                .ok_or_else(|| Error::ParentDoesntExist(parent.clone(), child.clone()))?
+                .ok_or_else(|| {
+                    Error::ParentDoesntExist(parent.clone(), child.clone())
+                })?
                 .children
                 .iter()
                 .rev()
                 .position(|node| node == &child)
-                .ok_or_else(|| Error::ChildDoesntExist(parent.clone(), child.clone()))?;
+                .ok_or_else(|| {
+                    Error::ChildDoesntExist(parent.clone(), child.clone())
+                })?;
             self.nodes
                 .write()
                 .await
                 .get_mut(parent)
-                .ok_or_else(|| Error::ParentDoesntExist(parent.clone(), child.clone()))?
+                .ok_or_else(|| {
+                    Error::ParentDoesntExist(parent.clone(), child.clone())
+                })?
                 .children
                 .remove(pos);
             self.nodes.write().await.remove(&child);
@@ -212,7 +235,10 @@ impl FogNode for FogNodeImpl {
     async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>> {
         let mut records: HashMap<NodeId, Vec<AcceptedBid>> = HashMap::new();
         for (node, data) in &*self.nodes.read().await {
-            records.insert(node.clone(), data.data.accepted_bids.values().cloned().collect());
+            records.insert(
+                node.clone(),
+                data.data.accepted_bids.values().cloned().collect(),
+            );
         }
         records
     }

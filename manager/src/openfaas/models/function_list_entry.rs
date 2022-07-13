@@ -18,6 +18,7 @@ pub struct FunctionListEntry {
     env_process:        String,
     /// A map of labels for making scheduling or routing decisions
     labels:             ::std::collections::HashMap<String, String>,
-    /// A map of annotations for management, orchestration, events and build tasks
+    /// A map of annotations for management, orchestration, events and build
+    /// tasks
     annotations:        Option<::std::collections::HashMap<String, String>>,
 }

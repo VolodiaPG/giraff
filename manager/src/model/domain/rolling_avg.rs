@@ -21,6 +21,9 @@ impl RollingAvg {
 
 impl Default for RollingAvg {
     fn default() -> Self {
-        RollingAvg { avg: Time::new::<uom::si::time::millisecond>(0.0), count: 0 }
+        RollingAvg {
+            avg:   Time::new::<uom::si::time::millisecond>(0.0),
+            count: 0,
+        }
     }
 }

@@ -19,7 +19,9 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error("The request failed with error code: {0}")]
     RequestStatus(reqwest::StatusCode),
-    #[error("Failed to retrieve the URI to either the parent node or the market.")]
+    #[error(
+        "Failed to retrieve the URI to either the parent node or the market."
+    )]
     NoURIToUpper,
     #[error("Failed to retrieve the address of the node: {0}")]
     NodeIdNotFound(NodeId),
@@ -27,8 +29,12 @@ pub enum Error {
 
 #[async_trait]
 pub trait NodeQuery: Debug + Sync + Send {
-    /// Update the breadcrumb route to the [BidId] passing by the next [NodeId].
-    async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error>;
+    /// Update the breadcrumb route to the [BidId] passing by the next
+    /// [NodeId].
+    async fn register_to_parent(
+        &self,
+        register: RegisterNode,
+    ) -> Result<(), Error>;
     async fn request_neighbor_bid(
         &self,
         request: BidRequest,
@@ -42,7 +48,9 @@ pub struct NodeQueryRESTImpl {
 }
 
 impl NodeQueryRESTImpl {
-    pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self { Self { node_situation } }
+    pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self {
+        Self { node_situation }
+    }
 
     async fn post<T: Serialize>(
         &self,
@@ -68,17 +76,36 @@ impl NodeQueryRESTImpl {
 
 #[async_trait]
 impl NodeQuery for NodeQueryRESTImpl {
-    async fn register_to_parent(&self, register: RegisterNode) -> Result<(), Error> {
+    async fn register_to_parent(
+        &self,
+        register: RegisterNode,
+    ) -> Result<(), Error> {
         trace!("Registering to parent or market...");
         let upper_node_address = if self.node_situation.is_market().await {
-            self.node_situation.get_market_node_address().await.ok_or(Error::NoURIToUpper)?
+            self.node_situation
+                .get_market_node_address()
+                .await
+                .ok_or(Error::NoURIToUpper)?
         } else {
-            self.node_situation.get_parent_node_address().await.ok_or(Error::NoURIToUpper)?
+            self.node_situation
+                .get_parent_node_address()
+                .await
+                .ok_or(Error::NoURIToUpper)?
         };
 
         // Both the market and node APIs offer the same endpoint.
-        trace!("Registering to {}:{}", upper_node_address.0, upper_node_address.1);
-        self.post(&upper_node_address.0, &upper_node_address.1, "register", &register).await?;
+        trace!(
+            "Registering to {}:{}",
+            upper_node_address.0,
+            upper_node_address.1
+        );
+        self.post(
+            &upper_node_address.0,
+            &upper_node_address.1,
+            "register",
+            &register,
+        )
+        .await?;
         Ok(())
     }
 

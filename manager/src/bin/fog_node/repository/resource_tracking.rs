@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::prom_metrics::{
-    CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE, MEMORY_USED_GAUGE,
+    CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
+    MEMORY_USED_GAUGE,
 };
 use async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -28,16 +29,26 @@ pub enum Error {
 #[async_trait]
 pub trait ResourceTracking: Debug + Sync + Send {
     /// Update a node given its name with said resource usage
-    async fn update_used(&self, name: String, memory: Information, cpu: Ratio)
-        -> Result<(), Error>;
+    async fn update_used(
+        &self,
+        name: String,
+        memory: Information,
+        cpu: Ratio,
+    ) -> Result<(), Error>;
 
     /// Get the used (memory, cpu).
-    async fn get_used(&self, name: &'_ str) -> Result<(Information, Ratio), Error>;
+    async fn get_used(
+        &self,
+        name: &'_ str,
+    ) -> Result<(Information, Ratio), Error>;
 
     /// Get the available (memory, cpu).
     /// This value is the total available resources at the startup;
     /// it needs to be put in perspective with the usage values.
-    async fn get_available(&self, name: &'_ str) -> Result<(Information, Ratio), Error>;
+    async fn get_available(
+        &self,
+        name: &'_ str,
+    ) -> Result<(Information, Ratio), Error>;
 
     /// Get all the detected nodes connected
     fn get_nodes(&self) -> &Vec<String>;
@@ -69,7 +80,13 @@ impl ResourceTrackingImpl {
         let resources_used: HashMap<_, _> = aggregated_metrics
             .iter()
             .map(|(name, _)| {
-                (name.clone(), (Information::new::<byte>(0.0), Ratio::new::<part_per_billion>(0.0)))
+                (
+                    name.clone(),
+                    (
+                        Information::new::<byte>(0.0),
+                        Ratio::new::<part_per_billion>(0.0),
+                    ),
+                )
             })
             .collect();
         let resources_used = RwLock::new(resources_used);
@@ -93,11 +110,19 @@ impl ResourceTrackingImpl {
 
     /// Update the Prometheus metrics
     async fn update_metrics(&self, name: &'_ str) -> Result<(), Error> {
-        let (used_mem, used_cpu) =
-            *self.resources_used.read().await.get(name).ok_or(Error::NonExistentName)?;
+        let (used_mem, used_cpu) = *self
+            .resources_used
+            .read()
+            .await
+            .get(name)
+            .ok_or(Error::NonExistentName)?;
 
-        let (avail_mem, avail_cpu) =
-            *self.resources_available.read().await.get(name).ok_or(Error::NonExistentName)?;
+        let (avail_mem, avail_cpu) = *self
+            .resources_available
+            .read()
+            .await
+            .get(name)
+            .ok_or(Error::NonExistentName)?;
 
         MEMORY_USED_GAUGE.with_label_values(&[name]).set(used_mem.value);
         MEMORY_AVAILABLE_GAUGE.with_label_values(&[name]).set(avail_mem.value);
@@ -122,13 +147,19 @@ impl ResourceTracking for ResourceTrackingImpl {
         Ok(())
     }
 
-    async fn get_used(&self, name: &'_ str) -> Result<(Information, Ratio), Error> {
+    async fn get_used(
+        &self,
+        name: &'_ str,
+    ) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(name).await?;
         let _ = self.update_metrics(name).await?;
         Ok(*self.resources_used.read().await.get(name).unwrap())
     }
 
-    async fn get_available(&self, name: &'_ str) -> Result<(Information, Ratio), Error> {
+    async fn get_available(
+        &self,
+        name: &'_ str,
+    ) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(name).await?;
         let _ = self.update_metrics(name).await?;
         Ok(*self.resources_available.read().await.get(name).unwrap())

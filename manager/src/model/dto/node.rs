@@ -31,7 +31,9 @@ pub struct NodeIdList {
 }
 
 impl fmt::Display for NodeIdList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{:?}", self.list) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.list)
+    }
 }
 
 impl From<Vec<NodeId>> for NodeIdList {

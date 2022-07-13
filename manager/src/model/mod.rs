@@ -10,7 +10,8 @@ use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// encapsulate the UUIDs in custom struct to let the compiler differentiate them
+/// encapsulate the UUIDs in custom struct to let the compiler differentiate
+/// them
 macro_rules! impl_id_encapsulation {
     ($name:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -20,7 +21,10 @@ macro_rules! impl_id_encapsulation {
 
         impl Default for $name {
             fn default() -> Self {
-                $name { id: Uuid::from_str("10000000-0000-0000-0000-000000000000").unwrap() }
+                $name {
+                    id: Uuid::from_str("10000000-0000-0000-0000-000000000000")
+                        .unwrap(),
+                }
             }
         }
 
@@ -40,7 +44,9 @@ macro_rules! impl_id_encapsulation {
 
         impl fmt::Display for $name {
             #[inline(always)]
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "{}", self.id) }
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}", self.id)
+            }
         }
 
         impl Serialize for $name {
@@ -63,15 +69,23 @@ macro_rules! impl_id_encapsulation {
                 impl<'de> Visitor<'de> for MyVisitor {
                     type Value = $name;
 
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    fn expecting(
+                        &self,
+                        formatter: &mut fmt::Formatter,
+                    ) -> fmt::Result {
                         formatter.write_str("a $name, i.e., a UUIDv4")
                     }
 
-                    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> Result<Self::Value, E>
                     where
                         E: serde::de::Error,
                     {
-                        Ok($name { id: Uuid::parse_str(value).map_err(E::custom)? })
+                        Ok($name {
+                            id: Uuid::parse_str(value).map_err(E::custom)?,
+                        })
                     }
                 }
 
@@ -82,10 +96,12 @@ macro_rules! impl_id_encapsulation {
         impl<'a> FromParam<'a> for $name {
             type Error = <uuid::Uuid as std::str::FromStr>::Err;
 
-            /// A value is successfully parsed if `param` is a properly formatted Uuid.
-            /// Otherwise, an error is returned.
+            /// A value is successfully parsed if `param` is a properly
+            /// formatted Uuid. Otherwise, an error is returned.
             #[inline(always)]
-            fn from_param(param: &'a str) -> Result<$name, Self::Error> { param.parse() }
+            fn from_param(param: &'a str) -> Result<$name, Self::Error> {
+                param.parse()
+            }
         }
 
         impl JsonSchema for $name {
@@ -112,8 +128,9 @@ pub enum Reserved {
 }
 
 lazy_static! {
-    static ref MARKET_PING: BidId =
-        BidId::from(Uuid::from_str("00000000-0000-0000-0000-000000000001").unwrap());
+    static ref MARKET_PING: BidId = BidId::from(
+        Uuid::from_str("00000000-0000-0000-0000-000000000001").unwrap()
+    );
 }
 
 impl From<BidId> for Option<Reserved> {

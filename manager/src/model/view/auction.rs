@@ -49,7 +49,9 @@ pub struct BidProposals {
 }
 
 impl PartialOrd for BidProposal {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { self.bid.partial_cmp(&other.bid) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.bid.partial_cmp(&other.bid)
+    }
 }
 
 impl PartialEq for BidProposal {
