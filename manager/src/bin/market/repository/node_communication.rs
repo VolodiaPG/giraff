@@ -11,6 +11,7 @@ use manager::model::domain::routing::Packet;
 use manager::model::domain::sla::Sla;
 use manager::model::dto::node::NodeRecord;
 use manager::model::view::auction::{BidProposal, BidProposals, BidRequest};
+use manager::model::view::routing::Route;
 use manager::model::NodeId;
 
 use crate::repository::fog_node::FogNode;
@@ -40,13 +41,19 @@ pub trait NodeCommunication: Debug + Sync + Send {
     async fn request_bids_from_node(
         &self,
         to: NodeId,
-        sla: Sla,
+        sla: &'_ Sla,
     ) -> Result<BidProposals, Error>;
 
     async fn take_offer(
         &self,
         to: NodeId,
         bid: &BidProposal,
+    ) -> Result<(), Error>;
+
+    async fn establish_route(
+        &self,
+        starting_from: NodeId,
+        route: Route,
     ) -> Result<(), Error>;
 }
 
@@ -103,7 +110,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
     async fn request_bids_from_node(
         &self,
         to: NodeId,
-        sla: Sla,
+        sla: &'_ Sla,
     ) -> Result<BidProposals, Error> {
         let data = Packet::FogNode {
             resource_uri:   "bid".to_string(),
@@ -127,6 +134,24 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
             route_to_stack: self.network.get_route_to_node(to).await,
             resource_uri:   format!("bid/{}", bid.id),
             data:           &serde_json::value::to_raw_value(&())?,
+        };
+
+        self.call_routing(data).await?;
+        Ok(())
+    }
+
+    async fn establish_route(
+        &self,
+        starting_from: NodeId,
+        route: Route,
+    ) -> Result<(), Error> {
+        let data = Packet::FogNode {
+            route_to_stack: self
+                .network
+                .get_route_to_node(starting_from)
+                .await,
+            resource_uri:   "register_route".to_string(),
+            data:           &serde_json::value::to_raw_value(&route)?,
         };
 
         self.call_routing(data).await?;

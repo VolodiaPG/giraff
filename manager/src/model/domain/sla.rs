@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Ratio, Time};
 
 use crate::helper::uom::{information, ratio, time};
+use crate::model::NodeId;
 
 /// Describe the SLA of a function submitted to be provisioned
 #[serde_with::serde_as]
@@ -43,5 +44,23 @@ pub struct Sla {
 
     pub function_image: String,
 
-    pub function_live_name: Option<String>,
+    pub function_live_name: String,
+
+    pub data_flow: Vec<DataFlow>,
+}
+
+/// A point in the Fog
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum SlaFogPoint {
+    ThisFunction,
+    DataSource(NodeId),
+    FunctionSink(String), // Livename
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DataFlow {
+    pub from: SlaFogPoint,
+    pub to:   SlaFogPoint,
 }

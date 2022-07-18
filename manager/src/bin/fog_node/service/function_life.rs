@@ -35,7 +35,7 @@ pub trait FunctionLife: Send + Sync {
     /// [from] is the last node that passed the request
     async fn bid_on_new_function_and_transmit(
         &self,
-        sla: Sla,
+        sla: &Sla,
         from: NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals, Error>;
@@ -85,11 +85,11 @@ mod auction_placement {
         /// came from.
         async fn follow_up_to_neighbors(
             &self,
-            sla: Sla,
+            sla: &Sla,
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
-            let mut promises = vec![];
+            let mut requests = vec![];
 
             for neighbor in self.node_situation.get_neighbors().await {
                 if neighbor == from {
@@ -115,17 +115,20 @@ mod auction_placement {
                     continue;
                 }
 
-                promises.push(self.node_query.request_neighbor_bid(
+                requests.push((
                     BidRequest {
-                        sla:                 sla.clone(),
-                        node_origin:
-                            self.node_situation.get_my_id().await,
+                        sla,
+                        node_origin: self.node_situation.get_my_id().await,
                         accumulated_latency: accumulated_latency
                             + latency_outbound,
                     },
-                    neighbor.clone(),
+                    neighbor,
                 ));
             }
+
+            let promises = requests.iter().map(|(request, neighbor)| {
+                self.node_query.request_neighbor_bid(request, neighbor.clone())
+            });
 
             Ok(BidProposals {
                 bids: try_join_all(promises)
@@ -141,7 +144,7 @@ mod auction_placement {
     impl FunctionLife for FunctionLifeImpl {
         async fn bid_on_new_function_and_transmit(
             &self,
-            sla: Sla,
+            sla: &Sla,
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
@@ -213,7 +216,7 @@ mod bottom_up_placement {
         /// came from.
         async fn follow_up_to_neighbors(
             &self,
-            sla: Sla,
+            sla: &Sla,
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
@@ -244,12 +247,9 @@ mod bottom_up_placement {
                 let bid = self
                     .node_query
                     .request_neighbor_bid(
-                        BidRequest {
-                            sla:                 sla.clone(),
-                            node_origin:         self
-                                .node_situation
-                                .get_my_id()
-                                .await,
+                        &BidRequest {
+                            sla,
+                            node_origin: self.node_situation.get_my_id().await,
                             accumulated_latency: accumulated_latency
                                 + latency_outbound,
                         },
@@ -272,12 +272,12 @@ mod bottom_up_placement {
         /// itself as a candidate
         async fn bid_on_new_function_and_transmit(
             &self,
-            sla: Sla,
+            sla: &Sla,
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
             let bid = if_chain!(
-                if let Ok(mut follow_up) = self.follow_up_to_neighbors(sla.clone(), from, accumulated_latency).await;
+                if let Ok(mut follow_up) = self.follow_up_to_neighbors(sla, from, accumulated_latency).await;
                 if let Some(bid) = follow_up.bids.pop();
                 then{
                     bid

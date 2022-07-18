@@ -119,11 +119,7 @@ impl Auction for AuctionImpl {
         let id = self.db.insert(record.to_owned()).await;
         BID_GAUGE
             .with_label_values(&[
-                record
-                    .sla
-                    .function_live_name
-                    .as_ref()
-                    .unwrap_or(&"unnamed".to_string()),
+                &record.sla.function_live_name,
                 &id.to_string(),
             ])
             .set(bid);

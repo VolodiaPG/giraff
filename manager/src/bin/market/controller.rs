@@ -32,13 +32,14 @@ pub async fn start_auction(
     trace!("put sla: {:?}", payload);
 
     let proposals = auction_service
-        .call_for_bids(payload.target_node, payload.sla)
+        .call_for_bids(payload.target_node, &payload.sla)
         .await?;
 
     let AuctionResult { chosen_bid } =
         auction_service.do_auction(&proposals).await?;
 
-    let accepted = AcceptedBid { chosen: chosen_bid, proposals };
+    let accepted =
+        AcceptedBid { chosen: chosen_bid, proposals, sla: payload.sla };
 
     faas_service.provision_function(accepted.clone()).await?;
 

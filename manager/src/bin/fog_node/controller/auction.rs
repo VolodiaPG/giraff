@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use manager::model::view::auction::{BidProposals, BidRequest};
+use manager::model::view::auction::{BidProposals, BidRequestOwned};
 use manager::model::BidId;
 
 use crate::controller::ControllerError;
@@ -9,13 +9,13 @@ use crate::service::function_life::FunctionLife;
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for
 /// their bids.
 pub async fn bid_on(
-    bid_request: BidRequest,
+    bid_request: BidRequestOwned,
     function: &Arc<dyn FunctionLife>,
 ) -> Result<BidProposals, ControllerError> {
     trace!("bidding on... {:?}", bid_request);
     function
         .bid_on_new_function_and_transmit(
-            bid_request.sla,
+            &bid_request.sla,
             bid_request.node_origin,
             bid_request.accumulated_latency,
         )

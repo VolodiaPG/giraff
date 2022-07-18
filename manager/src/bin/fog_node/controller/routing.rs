@@ -2,16 +2,25 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use manager::model::domain::routing::{FunctionRoutingStack, Packet};
+use manager::model::domain::routing::Packet;
+use manager::model::view::routing::{Route, RouteLinking};
 
 use crate::service::routing::Router;
 
 pub async fn register_route(
     router: &Arc<dyn Router>,
-    stack: FunctionRoutingStack,
+    route: Route,
 ) -> anyhow::Result<()> {
-    trace!("put routing {:?}", stack.function);
-    router.register_function_route(stack).await.map_err(|e| anyhow::anyhow!(e))
+    trace!("Registering route {:?}", route.function);
+    router.register_function_route(route).await.map_err(|e| anyhow::anyhow!(e))
+}
+
+pub async fn route_linking(
+    router: &Arc<dyn Router>,
+    linking: RouteLinking,
+) -> anyhow::Result<()> {
+    trace!("Linking route {:?}", linking.function);
+    router.route_linking(linking).await.map_err(|e| anyhow::anyhow!(e))
 }
 
 pub async fn post_forward_function_routing(

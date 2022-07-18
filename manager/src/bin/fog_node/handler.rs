@@ -2,14 +2,15 @@ use crate::service::function_life::FunctionLife;
 use crate::service::routing::Router;
 use crate::{controller, NodeLife};
 use manager::helper::handler::{BytesResponse, Resp};
-use manager::model::domain::routing::{FunctionRoutingStack, Packet};
-use manager::model::view::auction::{BidProposals, BidRequest};
+use manager::model::domain::routing::Packet;
+use manager::model::view::auction::{BidProposals, BidRequestOwned};
 use manager::model::view::node::RegisterNode;
 use manager::model::view::ping::{Ping, PingResponse};
+use manager::model::view::routing::{Route, RouteLinking};
 use manager::model::BidId;
 use manager::respond;
 use rocket::serde::json::Json;
-use rocket::{get, post, put, State};
+use rocket::{get, post, State};
 use rocket_okapi::openapi;
 use std::sync::Arc;
 
@@ -17,7 +18,7 @@ use std::sync::Arc;
 #[openapi]
 #[post("/bid", data = "<payload>")]
 pub async fn post_bid(
-    payload: Json<BidRequest>,
+    payload: Json<BidRequestOwned>,
     function: &State<Arc<dyn FunctionLife>>,
 ) -> Resp<BidProposals> {
     respond!(controller::auction::bid_on(payload.0, function.inner()).await)
@@ -55,13 +56,24 @@ pub async fn post_routing(
 
 /// Register a route.
 #[openapi]
-#[put("/routing", data = "<stack>")]
-pub async fn put_routing(
+#[post("/register_route", data = "<route>")]
+pub async fn post_register_route(
     router: &State<Arc<dyn Router>>,
-    stack: Json<FunctionRoutingStack>,
+    route: Json<Route>,
 ) -> Resp {
     respond!(
-        controller::routing::register_route(router.inner(), stack.0).await
+        controller::routing::register_route(router.inner(), route.0).await
+    )
+}
+
+#[openapi]
+#[post("/route_linking", data = "<linking>")]
+pub async fn post_route_linking(
+    router: &State<Arc<dyn Router>>,
+    linking: Json<RouteLinking>,
+) -> Resp {
+    respond!(
+        controller::routing::route_linking(router.inner(), linking.0).await
     )
 }
 

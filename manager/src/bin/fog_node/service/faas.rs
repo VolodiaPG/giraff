@@ -54,13 +54,7 @@ impl FaaSBackend for OpenFaaSBackend {
         id: BidId,
         bid: BidRecord,
     ) -> Result<String, Error> {
-        let function_name = bid
-            .sla
-            .function_live_name
-            .to_owned()
-            .unwrap_or_else(|| "".to_string())
-            + "-"
-            + id.to_string().as_str();
+        let function_name = format!("{}-{}", bid.sla.function_live_name, id);
 
         let definition = FunctionDefinition {
             image: bid.sla.function_image.to_owned(),

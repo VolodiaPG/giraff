@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::net::IpAddr;
 
 use async_trait::async_trait;
+
 use tokio::sync::RwLock;
 
 use manager::model::dto::node::{Node, NodeIdList, NodeRecord};
@@ -45,11 +46,15 @@ pub trait FogNode: Debug + Sync + Send {
     /// Return the stack, meaning the destination is at the bottom and the next
     /// node is at the top.
     async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
+    // TODO make it a hashSet?
 
     async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>>;
 
     /// Get all the connected nodes
     async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>;
+
+    /// Get a node hosting a function designated by its name
+    async fn get_node_from_function(&self, name: &str) -> Option<NodeId>;
 }
 
 #[derive(Debug)]
@@ -251,5 +256,15 @@ impl FogNode for FogNodeImpl {
             .iter()
             .map(|(id, record)| (id.clone(), record.data.clone()))
             .collect();
+    }
+
+    async fn get_node_from_function(&self, name: &str) -> Option<NodeId> {
+        self.get_records()
+            .await
+            .iter()
+            .find(|(_, rec)| {
+                rec.iter().any(|bid| bid.sla.function_live_name.eq(name))
+            })
+            .map(|(id, _)| id.clone())
     }
 }

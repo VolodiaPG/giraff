@@ -42,6 +42,7 @@ async fn rocket() -> _ {
         ));
     let faas_service = Arc::new(service::faas::FogNodeFaaSImpl::new(
         fog_node,
+        fog_node_network_service.clone(),
         fog_node_communication,
     ));
 

@@ -1,11 +1,14 @@
+use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use futures::future::try_join_all;
 
-use manager::model::domain::routing::{FunctionRoutingStack, Packet};
+use manager::model::domain::routing::Packet;
 use manager::model::dto::routing::Direction;
+use manager::model::view::routing::{Route, RouteDirection, RouteLinking};
 use manager::model::{BidId, NodeId};
 use manager::openfaas::DefaultApi;
 
@@ -20,6 +23,8 @@ pub enum Error {
     Routing(#[from] crate::repository::routing::Error),
     #[error("The next node doesn't exist: {0}")]
     NextNodeDoesntExist(NodeId),
+    #[error("The next node isn't defined in the routing solution")]
+    NextNodeIsNotDefined,
     #[error("The routing stack was not correct to be utilized")]
     MalformedRoutingStack,
     #[error("The bid id / function id is not known: {0}")]
@@ -33,12 +38,13 @@ pub enum Error {
 /// Service to manage the behaviour of the routing
 #[async_trait]
 pub trait Router: Debug + Send + Sync {
-    /// Register a new route, from a [RoutingStack], making the follow up
-    /// requests left to do in the chain
-    async fn register_function_route(
-        &self,
-        stack: FunctionRoutingStack,
-    ) -> Result<(), Error>;
+    /// Start the process of registering a new route
+    async fn register_function_route(&self, route: Route)
+        -> Result<(), Error>;
+
+    /// Link associations and do the follow-ups
+    async fn route_linking(&self, linking: RouteLinking) -> Result<(), Error>;
+
     /// Forward payloads to a neighbour node
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error>;
 }
@@ -68,22 +74,6 @@ where
     ) -> Self {
         Self { faas_routing_table, node_situation, routing, faas, faas_api }
     }
-
-    async fn forward_register_to_node(
-        &self,
-        to: &NodeId,
-        stack: FunctionRoutingStack,
-    ) -> Result<Bytes, Error> {
-        let next = self
-            .node_situation
-            .get_fog_node_neighbor(to)
-            .await
-            .ok_or_else(|| Error::NextNodeDoesntExist(to.to_owned()))?;
-        self.routing
-            .forward_to_url(&next.ip, &next.port, "register", &stack)
-            .await
-            .map_err(Error::from)
-    }
 }
 
 #[async_trait]
@@ -93,132 +83,93 @@ where
 {
     async fn register_function_route(
         &self,
-        mut stack: FunctionRoutingStack,
+        route: Route,
     ) -> Result<(), Error> {
-        // At least 1 more stop
-        if stack.route_to_first.len() > 1
-            && stack
-                .route_to_first
-                .starts_with(&[self.node_situation.get_my_id().await])
-        {
-            stack.route_to_first.pop();
-            let next = stack
-                .route_to_first
-                .last()
-                .ok_or(Error::MalformedRoutingStack)?
-                .to_owned();
-            self.forward_register_to_node(&next, stack).await?;
+        let mut parts = vec![];
+
+        if !route.stack_rev.is_empty() {
+            parts.push(RouteLinking {
+                stack:     VecDeque::from(route.stack_rev),
+                direction: RouteDirection::FinishToStart,
+                function:  route.function.clone(),
+            });
+        }
+
+        if !route.stack_asc.is_empty() {
+            parts.push(RouteLinking {
+                stack:     VecDeque::from(route.stack_asc),
+                direction: RouteDirection::FinishToStart,
+                function:  route.function,
+            });
+        }
+
+        if parts.is_empty() {
+            return Err(Error::NextNodeIsNotDefined);
+        }
+
+        let parts = parts.into_iter().map(|part| self.route_linking(part));
+        try_join_all(parts).await?;
+        Ok(())
+    }
+
+    async fn route_linking(
+        &self,
+        mut linking: RouteLinking,
+    ) -> Result<(), Error> {
+        if linking.stack.len() == 1 {
+            let my_id = linking.stack.pop_back().unwrap();
+            if my_id != self.node_situation.get_my_id().await {
+                return Err(Error::MalformedRoutingStack);
+            }
+
+            self.faas_routing_table
+                .update(linking.function, Direction::CurrentNode)
+                .await;
+
             return Ok(());
         }
 
-        // No more stop, we need to start registering routes
-        if stack.route_to_first.is_empty() {
-            if stack.route_to_first.len() == 1
-                && stack
-                    .route_to_first
-                    .starts_with(&[self.node_situation.get_my_id().await])
-            {
-                let my_id = self.node_situation.get_my_id().await;
-                stack.route_to_first.pop();
-                let mid = stack
-                    .routes
-                    .iter()
-                    .position(|node| node == &my_id)
-                    .ok_or(Error::MalformedRoutingStack)?;
-
-                // left: from, right: to
-                let (left, right) = stack.routes.split_at(mid);
-
+        match linking.direction {
+            RouteDirection::StartToFinish => {
                 self.faas_routing_table
                     .update(
-                        stack.function.to_owned(),
-                        Direction::NextNode(right[0].to_owned()),
+                        linking.function.clone(),
+                        Direction::NextNode(
+                            linking
+                                .stack
+                                .pop_front()
+                                .ok_or(Error::NextNodeIsNotDefined)?,
+                        ),
                     )
                     .await;
-
-                if !left.is_empty() {
-                    let next = &left[0];
-                    self.forward_register_to_node(
-                        next,
-                        FunctionRoutingStack {
-                            function:       stack.function.to_owned(),
-                            route_to_first: vec![],
-                            routes:         left.to_vec(),
-                        },
-                    )
-                    .await?;
-                }
-
-                if right.len() > 1 {
-                    let next = &right[1];
-                    self.forward_register_to_node(
-                        next,
-                        FunctionRoutingStack {
-                            function:       stack.function.to_owned(),
-                            route_to_first: vec![],
-                            routes:         right.to_vec(),
-                        },
-                    )
-                    .await?;
-                }
-
-                return Ok(());
             }
-
-            if stack.routes.len() > 1 {
-                let next;
-                if stack
-                    .routes
-                    .starts_with(&[self.node_situation.get_my_id().await])
-                {
-                    stack.routes.remove(0);
-                    next = Some(&stack.routes[0]);
-                } else if stack
-                    .routes
-                    .ends_with(&[self.node_situation.get_my_id().await])
-                {
-                    stack.routes.remove(stack.routes.len() - 1);
-                    next = Some(&stack.routes[stack.routes.len() - 1]);
-                } else {
-                    next = None;
-                }
-
-                if let Some(next) = next {
-                    self.forward_register_to_node(
-                        next,
-                        FunctionRoutingStack {
-                            function:       stack.function.to_owned(),
-                            route_to_first: vec![],
-                            routes:         stack.routes.to_vec(),
-                        },
+            RouteDirection::FinishToStart => {
+                self.faas_routing_table
+                    .update(
+                        linking.function.clone(),
+                        Direction::NextNode(
+                            linking
+                                .stack
+                                .pop_back()
+                                .ok_or(Error::NextNodeIsNotDefined)?,
+                        ),
                     )
-                    .await?;
-                    return Ok(());
-                }
-            }
-
-            if stack.routes.len() == 1 {
-                let last_node = stack.routes.pop().unwrap();
-                return if last_node == self.node_situation.get_my_id().await {
-                    trace!(
-                        "Routing table is complete, I am the arrival point"
-                    );
-                    self.faas_routing_table
-                        .update(stack.function, Direction::CurrentNode)
-                        .await;
-                    Ok(())
-                } else {
-                    trace!(
-                        "Routing table is complete, I am the departure point"
-                    );
-                    self.faas_routing_table
-                        .update(stack.function, Direction::NextNode(last_node))
-                        .await;
-                    Ok(())
-                };
+                    .await;
             }
         }
-        Err(Error::MalformedRoutingStack)
+
+        self.forward(&Packet::FogNode {
+            route_to_stack: vec![linking
+                .stack
+                .front()
+                .ok_or(Error::NextNodeIsNotDefined)?
+                .clone()],
+            resource_uri:   "route_linking".to_string(),
+            data:           &serde_json::value::to_raw_value(&linking)?,
+        })
+        .await?;
+
+        Ok(())
     }
 
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error> {

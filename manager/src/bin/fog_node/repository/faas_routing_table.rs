@@ -28,6 +28,7 @@ impl FaaSRoutingTableHashMap {
 #[async_trait]
 impl FaaSRoutingTable for FaaSRoutingTableHashMap {
     async fn update(&self, source: BidId, target: Direction) {
+        trace!("Updating routing table {} -> {:?}", source, target);
         self.table.write().await.insert(source, target);
     }
 

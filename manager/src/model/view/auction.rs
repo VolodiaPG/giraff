@@ -9,9 +9,21 @@ use super::super::domain::sla::Sla;
 use super::super::{BidId, NodeId};
 
 #[serde_with::serde_as]
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct BidRequest {
+pub struct BidRequest<'a> {
+    pub node_origin:         NodeId,
+    pub sla:                 &'a Sla,
+    #[schemars(schema_with = "crate::helper::uom::time::schema_function")]
+    #[serde_as(as = "crate::helper::uom::time::Helper")]
+    pub accumulated_latency: Time,
+}
+
+/// Same as [`BidRequest`](BidRequest) but with an owned SLA
+#[serde_with::serde_as]
+#[derive(Debug, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BidRequestOwned {
     pub node_origin:         NodeId,
     pub sla:                 Sla,
     #[schemars(schema_with = "crate::helper::uom::time::schema_function")]
@@ -32,6 +44,7 @@ pub struct Bid {
 pub struct AcceptedBid {
     pub chosen:    ChosenBid,
     pub proposals: BidProposals,
+    pub sla:       Sla,
 }
 
 /// The bid proposal and the node who issued it

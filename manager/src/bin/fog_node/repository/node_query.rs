@@ -37,7 +37,7 @@ pub trait NodeQuery: Debug + Sync + Send {
     ) -> Result<(), Error>;
     async fn request_neighbor_bid(
         &self,
-        request: BidRequest,
+        request: &BidRequest,
         node: NodeId,
     ) -> Result<BidProposals, Error>;
 }
@@ -111,7 +111,7 @@ impl NodeQuery for NodeQueryRESTImpl {
 
     async fn request_neighbor_bid(
         &self,
-        request: BidRequest,
+        request: &BidRequest,
         id: NodeId,
     ) -> Result<BidProposals, Error> {
         let NodeDescription { ip, port, .. } = self
@@ -121,6 +121,6 @@ impl NodeQuery for NodeQueryRESTImpl {
             .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
         let (ip, port) = (ip, port);
 
-        Ok(self.post(&ip, &port, "bid", &request).await?.json().await?)
+        Ok(self.post(&ip, &port, "bid", request).await?.json().await?)
     }
 }

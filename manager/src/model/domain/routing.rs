@@ -6,17 +6,23 @@ use serde_json::value::RawValue;
 
 use crate::model::{BidId, NodeId};
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
-)]
-pub struct FunctionRoutingStack {
-    pub function: BidId,
+/// Describe a Route from a Fog node to another in the network
+pub struct RoutingStacks {
+    pub least_common_ancestor: NodeId,
+    /// Stack to read from start to finish
+    /// eg. `[a, b]`, establish `a -> b` while travelling from a to b
+    pub stack_asc:             Vec<NodeId>,
+    /// Stack to read from finish to start
+    /// eg. `[a, b]`, establish `b -> a` while travelling from a to b
+    pub stack_rev:             Vec<NodeId>,
+}
 
-    /// Route to the first node where the route need to be registered
-    pub route_to_first: Vec<NodeId>,
-
-    /// Route to be registered, starting at the [route_to_first_node]
-    pub routes: Vec<NodeId>,
+/// A path between two points in the Fog
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct FogSegment {
+    pub from: NodeId,
+    pub to:   NodeId,
 }
 
 /// [PacketPacket] with its direction:
@@ -27,7 +33,7 @@ pub struct FunctionRoutingStack {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub enum Packet<'a> {
     FaaSFunction {
-        to:   BidId,
+        to:   BidId, // TODO check wether its better an id or a name
         #[serde(borrow)]
         #[schemars(schema_with = "schema_function")]
         data: &'a RawValue,

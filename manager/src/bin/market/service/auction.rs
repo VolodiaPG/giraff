@@ -22,7 +22,7 @@ pub trait Auction: Send + Sync {
     async fn call_for_bids(
         &self,
         leaf_node: NodeId,
-        sla: Sla,
+        sla: &'_ Sla,
     ) -> Result<BidProposals, Error>;
 
     /// Execute the auction process and find the winner among the bid proposal
@@ -53,7 +53,7 @@ impl Auction for AuctionImpl {
     async fn call_for_bids(
         &self,
         leaf_node: NodeId,
-        sla: Sla,
+        sla: &'_ Sla,
     ) -> Result<BidProposals, Error> {
         trace!("call for bids: {:?}", sla);
 

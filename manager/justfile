@@ -5,9 +5,9 @@ _default:
     @just --list
 
 # Build a target (market or fog_node)
-build:
-    cargo build --package manager --bin market
-    cargo build --package manager --bin fog_node
+build FLAGS:
+    cargo build --package manager --bin market {{FLAGS}}
+    cargo build --package manager --bin fog_node {{FLAGS}}
 
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check:
@@ -100,3 +100,28 @@ _check_uncommited:
         echo "ERROR: uncommitted changes"
         exit 1
     fi
+# Run market, and two fog nodes as the dev env
+run_dev:
+    #!/usr/bin/env bash
+    echo "To enable tmux mouse interaction, add 'set -g mouse' on to your .tmux.conf"
+
+    just build '--features fake_k8s,bottom_up_placement'
+
+    tmux new-session -d -s faas_fog "printf '\033]2;%s\033\\ ' 'market' ; bash -c \"just run_market ; echo 'Waiting for keypress to close...' && read\""
+
+    until $(curl --output /dev/null --silent --head --fail "http://127.0.0.1:8000/api/health")
+    do
+        printf '.'
+        sleep 5
+    done
+    tmux split-window -d -t faas_fog:0 -p20 -v "printf '\033]2;%s\033\\ ' 'fog_node market' ; bash -c \"just run_fog_node market '--features fake_k8s,bottom_up_placement' ;  echo 'Waiting for keypress to close...' && read\""
+
+    until $(curl --output /dev/null --silent --head --fail "http://127.0.0.1:3030/api/health")
+    do
+        printf '.'
+        sleep 5
+    done
+    tmux split-window -d -t faas_fog:0 -p20 -v "printf '\033]2;%s\033\\ ' 'fog_node not market' ; bash -c \"just run_fog_node not_market '--features fake_k8s,bottom_up_placement' ;  echo 'Waiting for keypress to close...' && read\""
+
+    tmux select-layout -t faas_fog:0 tiled
+    tmux attach-session -t faas_fog
