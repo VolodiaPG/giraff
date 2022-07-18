@@ -276,17 +276,23 @@ mod bottom_up_placement {
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
-            let bid = if_chain!(
-                if let Ok(mut follow_up) = self.follow_up_to_neighbors(sla, from, accumulated_latency).await;
-                if let Some(bid) = follow_up.bids.pop();
-                then{
-                    bid
-                } else {
-                    let (id, record) = self.auction.bid_on(sla.clone()).await?;
-                    BidProposal{node_id: self.node_situation.get_my_id().await,
-                    id, bid: record.bid}
+            let bid = if let Ok((id, record)) =
+                self.auction.bid_on(sla.clone()).await
+            {
+                BidProposal {
+                    node_id: self.node_situation.get_my_id().await,
+                    id,
+                    bid: record.bid,
                 }
-            );
+            } else {
+                let mut follow_up = self
+                    .follow_up_to_neighbors(sla, from, accumulated_latency)
+                    .await?;
+                let bid =
+                    follow_up.bids.pop().ok_or(Error::NoCandidatesRetained)?;
+                trace!("Transmitting bid to other node...");
+                bid
+            };
 
             Ok(BidProposals { bids: vec![bid] })
         }

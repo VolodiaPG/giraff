@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -25,7 +24,7 @@ pub trait FogNodeNetwork: Debug + Sync + Send {
     async fn register_node(&self, node: RegisterNode) -> Result<(), Error>;
 
     /// Get all the connected nodes
-    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>;
+    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>; // TODO danger !
 
     /// Get a solution to establish a [Route] between two points in the Fog
     /// network
@@ -72,23 +71,23 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         let path_to_from =
             self.fog_node.get_route_to_node(segment.from.clone());
         let path_to_to = self.fog_node.get_route_to_node(segment.to.clone());
-        let (path_to_from, path_to_to) = join(path_to_from, path_to_to).await;
-        let mut path_to_from = VecDeque::from(path_to_from);
-        let mut path_to_to = VecDeque::from(path_to_to);
+        let (mut path_to_from, mut path_to_to) =
+            join(path_to_from, path_to_to).await;
+
         trace!("{:?}", path_to_from);
         trace!("{:?}", path_to_to);
 
-        // Remove common bits at the start
+        // Remove common bits at the start (ie the end of the vec)
         let mut last_common_node = None;
         loop {
-            let from = path_to_from.front();
-            let to = path_to_to.front();
+            let from = path_to_from.last();
+            let to = path_to_to.last();
 
             match (from, to) {
                 (Some(a), Some(b)) => {
                     if a.eq(b) {
-                        path_to_from.pop_front();
-                        last_common_node = path_to_to.pop_front();
+                        path_to_from.pop();
+                        last_common_node = path_to_to.pop();
                     } else {
                         break;
                     }
@@ -100,13 +99,13 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         if let Some(least_common_ancestor) = last_common_node {
             // In the case the routing is from node A to A
             if path_to_from.is_empty() && path_to_to.is_empty() {
-                path_to_to.push_back(least_common_ancestor.clone());
+                path_to_to.push(least_common_ancestor.clone());
             }
 
             return Ok(RoutingStacks {
                 least_common_ancestor,
-                stack_rev: Vec::from(path_to_from),
-                stack_asc: Vec::from(path_to_to),
+                stack_rev: path_to_from,
+                stack_asc: path_to_to,
             });
         }
 
