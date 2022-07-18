@@ -184,7 +184,6 @@ pub use bottom_up_placement::*;
 #[cfg(feature = "bottom_up_placement")]
 mod bottom_up_placement {
     use super::*;
-    use if_chain::if_chain;
 
     pub struct FunctionLifeBottomUpImpl {
         function:         Arc<dyn FaaSBackend>,

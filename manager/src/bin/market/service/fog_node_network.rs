@@ -97,11 +97,6 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         }
 
         if let Some(least_common_ancestor) = last_common_node {
-            // In the case the routing is from node A to A
-            if path_to_from.is_empty() && path_to_to.is_empty() {
-                path_to_to.push(least_common_ancestor.clone());
-            }
-
             return Ok(RoutingStacks {
                 least_common_ancestor,
                 stack_rev: path_to_from,

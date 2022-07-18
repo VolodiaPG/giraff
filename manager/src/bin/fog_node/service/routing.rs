@@ -25,7 +25,7 @@ pub enum Error {
     NextNodeDoesntExist(NodeId),
     #[error("The next node isn't defined in the routing solution")]
     NextNodeIsNotDefined,
-    #[error("The routing stack was not correct to be utilized")]
+    #[error("The routing stack was malformed and could not be utilized")]
     MalformedRoutingStack,
     #[error("The bid id / function id is not known: {0}")]
     UnknownBidId(BidId),
@@ -98,13 +98,20 @@ where
         if !route.stack_asc.is_empty() {
             parts.push(RouteLinking {
                 stack:     VecDeque::from(route.stack_asc),
-                direction: RouteDirection::FinishToStart,
-                function:  route.function,
+                direction: RouteDirection::StartToFinish,
+                function:  route.function.clone(),
             });
         }
 
         if parts.is_empty() {
-            return Err(Error::NextNodeIsNotDefined);
+            // meaning we are routing to ourselves
+            self.route_linking(RouteLinking {
+                stack:     VecDeque::new(),
+                direction: RouteDirection::StartToFinish,
+                function:  route.function,
+            })
+            .await?;
+            return Ok(());
         }
 
         let parts = parts.into_iter().map(|part| self.route_linking(part));
@@ -116,12 +123,7 @@ where
         &self,
         mut linking: RouteLinking,
     ) -> Result<(), Error> {
-        if linking.stack.len() == 1 {
-            let my_id = linking.stack.pop_back().unwrap();
-            if my_id != self.node_situation.get_my_id().await {
-                return Err(Error::MalformedRoutingStack);
-            }
-
+        if linking.stack.is_empty() {
             self.faas_routing_table
                 .update(linking.function, Direction::CurrentNode)
                 .await;
@@ -129,41 +131,21 @@ where
             return Ok(());
         }
 
-        match linking.direction {
-            RouteDirection::StartToFinish => {
-                self.faas_routing_table
-                    .update(
-                        linking.function.clone(),
-                        Direction::NextNode(
-                            linking
-                                .stack
-                                .pop_front()
-                                .ok_or(Error::NextNodeIsNotDefined)?,
-                        ),
-                    )
-                    .await;
-            }
-            RouteDirection::FinishToStart => {
-                self.faas_routing_table
-                    .update(
-                        linking.function.clone(),
-                        Direction::NextNode(
-                            linking
-                                .stack
-                                .pop_back()
-                                .ok_or(Error::NextNodeIsNotDefined)?,
-                        ),
-                    )
-                    .await;
-            }
+        let next = match linking.direction {
+            RouteDirection::StartToFinish => linking.stack.pop_front(),
+            RouteDirection::FinishToStart => linking.stack.pop_back(),
         }
+        .ok_or(Error::NextNodeIsNotDefined)?;
+
+        self.faas_routing_table
+            .update(
+                linking.function.clone(),
+                Direction::NextNode(next.clone()),
+            )
+            .await;
 
         self.forward(&Packet::FogNode {
-            route_to_stack: vec![linking
-                .stack
-                .front()
-                .ok_or(Error::NextNodeIsNotDefined)?
-                .clone()],
+            route_to_stack: vec![next, self.node_situation.get_my_id().await],
             resource_uri:   "route_linking".to_string(),
             data:           &serde_json::value::to_raw_value(&linking)?,
         })
