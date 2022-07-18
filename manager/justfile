@@ -9,9 +9,10 @@ build:
     cargo build --package manager --bin market
     cargo build --package manager --bin fog_node
 
-# Check the outdated deps (req. cargo-outdated crate)
-check_outdated:
+# Check outdated or unused deps (req. cargo-outdated + updeps crate)
+check:
 	cargo outdated -R
+	cargo udeps
 
 clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
