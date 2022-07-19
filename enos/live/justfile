@@ -5,7 +5,7 @@ _default:
     @just --choose
 
 # Deploy the stack to redy the eperiment on grid'5000
-deploy $CLUSTER="paravance" +UP_FLAGS='':
+deploy $CLUSTER="gros" +UP_FLAGS='':
     {{RUN}} up {{UP_FLAGS}}
     {{RUN}} k3s-deploy
     {{RUN}} monitoring
