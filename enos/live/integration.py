@@ -186,7 +186,6 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-
 # NETWORK = {
 #     "name": "market",
 #     "flavor": {"core": 10, "mem": 1024 * 16},
@@ -247,7 +246,6 @@ NETWORK = {
     ]
 }
 
-CLUSTER = os.environ["CLUSTER"]
 
 def flatten(container):
     for i in container:
@@ -266,6 +264,18 @@ def gen_fog_nodes_names(node):
     return [name, *[gen_fog_nodes_names(node) for node in children]]
 
 
+def get_extremities_name(node):
+    name = node["name"]
+
+    children = node["children"] if "children" in node else []
+
+    ret = [get_extremities_name(node) for node in children]
+    if len(children) != 0:
+        ret.append(name)
+
+    return ret
+
+
 def adjacency(node):
     children = node["children"] if "children" in node else []
     ret = {}
@@ -277,6 +287,7 @@ def adjacency(node):
 
 
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
+EXTREMITIES = list(flatten([get_extremities_name(child) for child in NETWORK["children"]]))
 ADJACENCY = adjacency(NETWORK)
 
 
@@ -369,22 +380,26 @@ def init():
     en.check()
 
 
-def gen_vm_conf(node, conf):
+def gen_vm_conf(node, conf, cluster):
     children = node["children"] if "children" in node else []
     for child in children:
         conf.add_machine(
             roles=["master", "fog_node", child["name"], "prom_agent"],
-            cluster=CLUSTER,
+            cluster=cluster,
             number=1,
             flavour_desc=child["flavor"]
         )
         gen_vm_conf(child, conf)
+
 
 @cli.command()
 @click.option("--force", is_flag=True, help="destroy and up")
 @enostask(new=True)
 def up(force, env=None, **kwargs):
     """Claim the resources and setup k3s."""
+    env["CLUSTER"] = os.environ["CLUSTER"]
+    cluster=env["CLUSTER"]
+    print(f"Deploying on {cluster}")
 
     conf = (
         en
@@ -392,13 +407,19 @@ def up(force, env=None, **kwargs):
         .from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
         .add_machine(
             roles=["master", "market", "prom_agent"],
-            cluster=CLUSTER,
+            cluster=cluster,
             number=1,
             flavour_desc=NETWORK["flavor"]
         )
         .add_machine(
             roles=["prom_master"],
-            cluster=CLUSTER,
+            cluster=cluster,
+            number=1,
+            flavour="large"
+        )
+        .add_machine(
+            roles=["prom_agent", "iot_emulation"],
+            cluster=cluster,
             number=1,
             flavour="large"
         )
@@ -406,7 +427,7 @@ def up(force, env=None, **kwargs):
 
     print(FOG_NODES)
 
-    gen_vm_conf(NETWORK, conf)
+    gen_vm_conf(NETWORK, conf, cluster)
 
     conf.finalize()
 
@@ -426,7 +447,18 @@ def up(force, env=None, **kwargs):
 
     env['netem'] = netem
 
+    # generate the network
     gen_net(NETWORK, netem, roles)
+
+    # Connect the extremities to the echo server
+    for extremity in EXTREMITIES:
+        netem.add_constraints(
+            src=roles[extremity],
+            dest=roles["iot_emulation"],
+            delay="0ms",
+            rate="1gbit",
+            symetric=True,
+        )
 
     netem.deploy()
     netem.validate()
@@ -455,6 +487,12 @@ def up(force, env=None, **kwargs):
         )
         p.shell(f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080", background=True)
     env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
+
+    # Deploy the echo node
+    with en.Docker(agent=roles["iot_emulation"]):
+        with actions(roles=roles["iot_emulation"]) as p:
+            p.shell('docker run ghcr.io/volodiapg/iot_emulation:latest',
+                    task_name="Run iot_emulation on the endpoints", background=True)
 
 
 def gen_net(node, netem, roles):
