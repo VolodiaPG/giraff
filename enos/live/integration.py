@@ -270,7 +270,7 @@ def get_extremities_name(node):
     children = node["children"] if "children" in node else []
 
     ret = [get_extremities_name(node) for node in children]
-    if len(children) != 0:
+    if len(children) == 0:
         ret.append(name)
 
     return ret
@@ -389,7 +389,7 @@ def gen_vm_conf(node, conf, cluster):
             number=1,
             flavour_desc=child["flavor"]
         )
-        gen_vm_conf(child, conf)
+        gen_vm_conf(child, conf, cluster)
 
 
 @cli.command()
@@ -702,6 +702,19 @@ def tunnels(env=None, all=False, **kwargs):
 
     print("Press Enter to kill.")
     input()
+
+
+@cli.command()
+@enostask()
+def endpoints(env=None, **kwargs):
+    """List the address of the end-nodes in the Fog network"""
+    roles = env["roles"]
+    for extremity in EXTREMITIES:
+        role = roles[extremity][0]
+        address = role.address
+        print(f'{extremity} -> {address}')
+
+
 
 
 @cli.command()

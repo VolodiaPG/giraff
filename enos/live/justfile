@@ -18,6 +18,10 @@ refresh:
 tunnels:
     {{RUN}} tunnels
 
+# List end nodes of the Fog network
+endpoints:
+	{{RUN}} endpoints
+
 # expe to target node_id for n repetitions with a delay between each
 expe market_port node_id n='50' delay='30':
 	./expe.sh {{n}} {{node_id}} {{delay}} {{market_port}}
