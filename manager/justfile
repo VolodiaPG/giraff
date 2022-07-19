@@ -12,7 +12,7 @@ build FLAGS:
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check:
 	cargo outdated -R
-	cargo udeps
+	cargo udeps --all-targets
 
 clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
