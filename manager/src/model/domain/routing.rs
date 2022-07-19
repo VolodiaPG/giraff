@@ -31,7 +31,9 @@ pub struct FogSegment {
 ///   routing stack transmitted)
 /// - [Packet::Market] directs to the market
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub enum Packet<'a> {
+    #[serde(rename = "faasFunction")]
     FaaSFunction {
         to:   BidId, // TODO check wether its better an id or a name
         #[serde(borrow)]
