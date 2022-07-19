@@ -1,0 +1,16 @@
+# Run the echo server
+run $ROCKET_PORT="7070" $ROCKET_ADDRESS="0.0.0.0":
+	cargo run --release
+
+# Build the project as a docker image
+docker:
+    docker build -t iot_emulation:latest .
+
+# Push an image to ghcr
+_push image user:
+    docker tag {{image}} ghcr.io/{{user}}/{{image}}
+    docker push ghcr.io/{{user}}/{{image}}
+
+# Push docker images to ghcr
+ghcr user: docker
+    just _push iot_emulation:latest {{user}}
