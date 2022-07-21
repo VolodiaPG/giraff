@@ -88,10 +88,13 @@ where
         let mut parts = vec![];
 
         if !route.stack_rev.is_empty() {
+            let stack = VecDeque::from(route.stack_rev);
             parts.push(RouteLinking {
-                stack:     VecDeque::from(route.stack_rev),
-                direction: RouteDirection::FinishToStart,
-                function:  route.function.clone(),
+                direction: RouteDirection::FinishToStart {
+                    last_node: stack.front().unwrap().clone(),
+                },
+                stack,
+                function: route.function.clone(),
             });
         }
 
@@ -124,16 +127,21 @@ where
         mut linking: RouteLinking,
     ) -> Result<(), Error> {
         if linking.stack.is_empty() {
-            self.faas_routing_table
-                .update(linking.function, Direction::CurrentNode)
-                .await;
+            let target = match linking.direction {
+                RouteDirection::StartToFinish => Direction::CurrentNode,
+                RouteDirection::FinishToStart { last_node } => {
+                    Direction::NextNode(last_node)
+                }
+            };
+
+            self.faas_routing_table.update(linking.function, target).await;
 
             return Ok(());
         }
 
         let next = match linking.direction {
             RouteDirection::StartToFinish => linking.stack.pop_front(),
-            RouteDirection::FinishToStart => linking.stack.pop_back(),
+            RouteDirection::FinishToStart { .. } => linking.stack.pop_back(),
         }
         .ok_or(Error::NextNodeIsNotDefined)?;
 

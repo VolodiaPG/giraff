@@ -23,7 +23,7 @@ pub struct Route {
 #[serde(rename_all = "camelCase")]
 pub enum RouteDirection {
     StartToFinish,
-    FinishToStart,
+    FinishToStart { last_node: NodeId },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

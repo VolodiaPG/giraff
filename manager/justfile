@@ -95,7 +95,7 @@ clean:
 # Check for uncommited changes
 _check_uncommited:
     #!/usr/bin/env bash
-    if [ -n "$(git status --porcelain)" ]
+    if [ -n "$(git status --porcelain | grep $PWD))" ]
     then
         echo "ERROR: uncommitted changes"
         exit 1

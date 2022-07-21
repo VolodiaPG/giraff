@@ -131,7 +131,7 @@ impl FogNodeFaaS for FogNodeFaaSImpl {
             .map(|segment| self.establish_route(id.clone(), segment));
         try_join_all(promises).await?;
 
-        trace!("Routes to function have been established");
+        trace!("Routes to function1894968 have been established");
 
         Ok(res)
     }
