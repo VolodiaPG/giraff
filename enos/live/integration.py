@@ -482,7 +482,6 @@ def up(force, env=None, **kwargs):
         )
         p.shell(
             f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'",
-            # noqa
             task_name="token",
         )
         p.shell(f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080", background=True)
@@ -491,7 +490,7 @@ def up(force, env=None, **kwargs):
     # Deploy the echo node
     with en.Docker(agent=roles["iot_emulation"]):
         with actions(roles=roles["iot_emulation"]) as p:
-            p.shell('docker run ghcr.io/volodiapg/iot_emulation:latest',
+            p.shell('docker run -p 7070:7070 ghcr.io/volodiapg/iot_emulation:latest',
                     task_name="Run iot_emulation on the endpoints", background=True)
 
 
@@ -699,6 +698,7 @@ def tunnels(env=None, all=False, **kwargs):
 
     open_tunnel(env['roles']['prom_master'][0].address, 9090)
     open_tunnel(env['monitor'].ui.address, 3000)
+    open_tunnel(env['roles']['iot_emulation'][0].address, 7070)
 
     print("Press Enter to kill.")
     input()
@@ -714,6 +714,7 @@ def endpoints(env=None, **kwargs):
         address = role.address
         print(f'{extremity} -> {address}')
 
+    print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
 
 
