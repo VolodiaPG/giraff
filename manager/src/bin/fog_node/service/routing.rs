@@ -43,7 +43,11 @@ pub trait Router: Debug + Send + Sync {
         -> Result<(), Error>;
 
     /// Link associations and do the follow-ups
-    async fn route_linking(&self, linking: RouteLinking) -> Result<(), Error>;
+    async fn route_linking(
+        &self,
+        linking: RouteLinking,
+        read_only: bool,
+    ) -> Result<(), Error>;
 
     /// Forward payloads to a neighbour node
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error>;
@@ -87,77 +91,93 @@ where
     ) -> Result<(), Error> {
         let mut parts = vec![];
 
+        //Order is important, as stack_asc is the destination, so the last
+        // redirection to be written if the case of a “^”-shaped branch comes
+        // into consideration
+
         if !route.stack_rev.is_empty() {
             let stack = VecDeque::from(route.stack_rev);
-            parts.push(RouteLinking {
+            let link = RouteLinking {
                 direction: RouteDirection::FinishToStart {
                     last_node: stack.front().unwrap().clone(),
                 },
                 stack,
                 function: route.function.clone(),
-            });
+            };
+
+            parts.push(self.route_linking(link, route.stack_asc.is_empty()));
         }
 
         if !route.stack_asc.is_empty() {
-            parts.push(RouteLinking {
+            let link = RouteLinking {
                 stack:     VecDeque::from(route.stack_asc),
                 direction: RouteDirection::StartToFinish,
                 function:  route.function.clone(),
-            });
+            };
+
+            parts.push(self.route_linking(link, false));
+        } else {
+            // We are the first node and are routing to ourselves
+            self.faas_routing_table
+                .update(route.function, Direction::CurrentNode)
+                .await;
         }
 
-        if parts.is_empty() {
-            // meaning we are routing to ourselves
-            self.route_linking(RouteLinking {
-                stack:     VecDeque::new(),
-                direction: RouteDirection::StartToFinish,
-                function:  route.function,
-            })
-            .await?;
-            return Ok(());
-        }
+        // if parts.is_empty() {
+        //     // meaning we are routing to ourselves
+        //     self.route_linking(RouteLinking {
+        //         stack:     VecDeque::new(),
+        //         direction: RouteDirection::StartToFinish,
+        //         function:  route.function,
+        //     })
+        //     .await?;
+        //     return Ok(());
+        // }
 
-        let parts = parts.into_iter().map(|part| self.route_linking(part));
-        try_join_all(parts).await?;
+        try_join_all(parts.into_iter()).await?;
         Ok(())
     }
 
     async fn route_linking(
         &self,
         mut linking: RouteLinking,
+        readonly: bool,
     ) -> Result<(), Error> {
-        if linking.stack.is_empty() {
-            let target = match linking.direction {
+        let target = if linking.stack.is_empty() {
+            match linking.direction {
                 RouteDirection::StartToFinish => Direction::CurrentNode,
-                RouteDirection::FinishToStart { last_node } => {
-                    Direction::NextNode(last_node)
+                RouteDirection::FinishToStart { ref last_node } => {
+                    Direction::NextNode(last_node.clone())
                 }
-            };
+            }
+        } else {
+            let next = match linking.direction {
+                RouteDirection::StartToFinish => linking.stack.pop_front(),
+                RouteDirection::FinishToStart { .. } => {
+                    linking.stack.pop_back()
+                }
+            }
+            .ok_or(Error::NextNodeIsNotDefined)?;
+            Direction::NextNode(next)
+        };
 
-            self.faas_routing_table.update(linking.function, target).await;
-
-            return Ok(());
+        if !readonly {
+            self.faas_routing_table
+                .update(linking.function.clone(), target.clone())
+                .await;
         }
 
-        let next = match linking.direction {
-            RouteDirection::StartToFinish => linking.stack.pop_front(),
-            RouteDirection::FinishToStart { .. } => linking.stack.pop_back(),
+        if let Direction::NextNode(next) = target {
+            self.forward(&Packet::FogNode {
+                route_to_stack: vec![
+                    next,
+                    self.node_situation.get_my_id().await,
+                ],
+                resource_uri:   "route_linking".to_string(),
+                data:           &serde_json::value::to_raw_value(&linking)?,
+            })
+            .await?;
         }
-        .ok_or(Error::NextNodeIsNotDefined)?;
-
-        self.faas_routing_table
-            .update(
-                linking.function.clone(),
-                Direction::NextNode(next.clone()),
-            )
-            .await;
-
-        self.forward(&Packet::FogNode {
-            route_to_stack: vec![next, self.node_situation.get_my_id().await],
-            resource_uri:   "route_linking".to_string(),
-            data:           &serde_json::value::to_raw_value(&linking)?,
-        })
-        .await?;
 
         Ok(())
     }

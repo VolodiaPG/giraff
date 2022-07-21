@@ -74,9 +74,6 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         let (mut path_to_from, mut path_to_to) =
             join(path_to_from, path_to_to).await;
 
-        trace!("{:?}", path_to_from);
-        trace!("{:?}", path_to_to);
-
         // Remove common bits at the start (ie the end of the vec)
         let mut last_common_node = None;
         loop {
@@ -97,11 +94,14 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
         }
 
         if let Some(least_common_ancestor) = last_common_node {
-            return Ok(RoutingStacks {
+            let stack = RoutingStacks {
                 least_common_ancestor,
                 stack_rev: path_to_from,
                 stack_asc: path_to_to,
-            });
+            };
+            trace!("{:?}", stack);
+
+            return Ok(stack);
         }
 
         Err(Error::NoRoutingSolution {

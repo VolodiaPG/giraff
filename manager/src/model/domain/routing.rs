@@ -7,6 +7,7 @@ use serde_json::value::RawValue;
 use crate::model::{BidId, NodeId};
 
 /// Describe a Route from a Fog node to another in the network
+#[derive(Debug)]
 pub struct RoutingStacks {
     pub least_common_ancestor: NodeId,
     /// Stack to read from start to finish

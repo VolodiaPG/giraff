@@ -20,7 +20,7 @@ pub async fn route_linking(
     linking: RouteLinking,
 ) -> anyhow::Result<()> {
     trace!("Linking route {:?}", linking.function);
-    router.route_linking(linking).await.map_err(|e| anyhow::anyhow!(e))
+    router.route_linking(linking, false).await.map_err(|e| anyhow::anyhow!(e))
 }
 
 pub async fn post_forward_function_routing(
