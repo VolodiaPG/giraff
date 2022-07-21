@@ -30,7 +30,7 @@ type CronFn = Box<
 
 lazy_static! {
     static ref HTTP_PRINT_HISTOGRAM: HistogramVec = register_histogram_vec!(
-        "http_request_duration_seconds_print",
+        "iot_emulation_http_request_duration_seconds_print",
         "The HTTP request latencies in seconds for the /print route, tagged \
          with the content `tag`.",
         &["tag"]
