@@ -1,25 +1,22 @@
 use reqwest;
-use serde::{Deserialize, Serialize};
-use std::error::Error;
+use serde::Deserialize;
+use serde_json::Value;
 
-use warp::{
-    filters::BoxedFilter,
-    http::{Response, StatusCode},
-    Filter, Reply,
-};
+use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
 
 type Result<T> = std::result::Result<T, warp::Rejection>;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct IncomingPayload {
     address_to_call: String,
-    message: String,
+    data: Value,
 }
 
 async fn handle(payload: IncomingPayload) -> Result<impl Reply> {
     if reqwest::Client::new()
         .post(payload.address_to_call)
-        .body(payload.message)
+        .body(serde_json::to_string(&payload.data).unwrap())
         .send()
         .await
         .is_ok()
