@@ -10,7 +10,6 @@ use std::time::Duration;
 
 use lazy_static::lazy_static;
 use rocket::{delete, post, put, routes, State};
-use rocket::futures::future::join_all;
 use rocket::serde::json::Json;
 use rocket_prometheus::prometheus::{
     HistogramTimer, HistogramVec, register_histogram_vec,
@@ -189,7 +188,9 @@ async fn forever(jobs: Arc<RwLock<HashMap<String, CronFn>>>) {
 
     loop {
         interval.tick().await;
-        join_all(jobs.read().await.values().map(|func| func())).await;
+        for value in jobs.read().await.values(){
+            tokio::spawn(value());
+        }
     }
 }
 
