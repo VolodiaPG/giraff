@@ -15,8 +15,8 @@ refresh:
     {{RUN}} k3s-deploy
 
 # Open SSH tunnels
-tunnels:
-    {{RUN}} tunnels
+tunnels +FLAGS='':
+    {{RUN}} tunnels {{FLAGS}}
 
 # List end nodes of the Fog network
 endpoints:
@@ -34,3 +34,6 @@ clean:
 
 collect $port $period="1h":
     poetry run python collect.py
+
+lab:
+	jupyter lab
