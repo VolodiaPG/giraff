@@ -86,7 +86,7 @@ impl DefaultApi for DefaultApiClient {
         input: String,
     ) -> Result<(), Error<String>> {
         let uri_str = format!(
-            "{}/function/{}", // TODO change back to async
+            "{}/async-function/{}",
             self.configuration.base_path, function_name
         );
         trace!("Requesting {}", uri_str);
