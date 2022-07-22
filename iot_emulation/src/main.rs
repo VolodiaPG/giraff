@@ -184,7 +184,7 @@ async fn rocket(jobs: Arc<RwLock<HashMap<String, CronFn>>>) {
 }
 
 async fn forever(jobs: Arc<RwLock<HashMap<String, CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(5));
+    let mut interval = time::interval(Duration::from_secs(15));
 
     loop {
         interval.tick().await;

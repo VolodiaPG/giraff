@@ -109,7 +109,7 @@ where
                 function: route.function.clone(),
             };
 
-            parts.push(self.route_linking(link, !route.stack_asc.is_empty()));
+            parts.push(self.route_linking(link, true));
         }
 
         if !route.stack_asc.is_empty() {
