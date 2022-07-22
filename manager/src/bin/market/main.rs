@@ -6,7 +6,6 @@ extern crate rocket;
 use std::env;
 use std::sync::Arc;
 
-use rocket::launch;
 use rocket_okapi::openapi_get_routes;
 use rocket_okapi::swagger_ui::*;
 
@@ -18,11 +17,7 @@ mod handler;
 mod repository;
 mod service;
 
-#[launch]
-async fn rocket() -> _ {
-    std::env::set_var("RUST_LOG", "info, market=trace");
-    env_logger::init();
-
+async fn rocket() {
     let fog_node = Arc::new(FogNodeImpl::new());
     let fog_node_communication =
         Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
@@ -46,7 +41,7 @@ async fn rocket() -> _ {
         fog_node_communication,
     ));
 
-    rocket::build()
+    let _ = rocket::build()
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(
             fog_node_network_service
@@ -70,4 +65,21 @@ async fn rocket() -> _ {
                 health
             ],
         )
+        .ignite()
+        .await
+        .expect("Rocket failed to ignite")
+        .launch()
+        .await
+        .expect("Rocket launch failed");
+}
+
+fn main() {
+    env::set_var("RUST_LOG", "info, market=trace");
+    env_logger::init();
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("build runtime failed")
+        .block_on(rocket());
 }

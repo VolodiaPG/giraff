@@ -5,6 +5,7 @@ extern crate core;
 extern crate log;
 
 use crate::handler::*;
+use crate::repeated_tasks::init;
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
 use crate::repository::node_situation::{
@@ -20,19 +21,20 @@ use crate::service::routing::{Router, RouterImpl};
 use manager::model::dto::node::{NodeSituationData, NodeSituationDisk};
 use manager::openfaas::{Configuration, DefaultApiClient};
 use reqwest::Client;
-use rocket::fairing::AdHoc;
-use rocket::launch;
 use rocket_okapi::openapi_get_routes;
 use rocket_okapi::swagger_ui::*;
 use rocket_prometheus::prometheus::GaugeVec;
 use rocket_prometheus::PrometheusMetrics;
 use std::env;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use tokio::time;
 
 mod controller;
-mod cron;
 mod handler;
 mod prom_metrics;
+mod repeated_tasks;
 mod repository;
 mod service;
 
@@ -104,11 +106,7 @@ fn function_life_factory(
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
 
-#[launch]
-async fn rocket() -> _ {
-    std::env::set_var("RUST_LOG", "info, fog_node=trace, node_logic=trace");
-    env_logger::init();
-
+async fn rocket() {
     let port_openfaas = env::var("OPENFAAS_PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
@@ -229,7 +227,7 @@ async fn rocket() -> _ {
         prometheus.registry().register(Box::new(metric.clone())).unwrap();
     }
 
-    rocket::build()
+    let rocket = rocket::build()
         .attach(prometheus.clone())
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
@@ -263,35 +261,53 @@ async fn rocket() -> _ {
                 health
             ],
         )
-        .attach(AdHoc::on_liftoff(
-            "Registration to the parent & market",
-            |_rocket| {
-                Box::pin(async {
-                    info!("Registering to market and parent...");
-                    // let address = address.clone();
-                    // trace!("Register using address: {}:{}", address, port);
-                    register_to_market(node_life_service, node_situation)
-                        .await;
-                    info!("Registered to market and parent.");
-                })
-            },
-        ))
-        .attach(AdHoc::on_liftoff("Starting CRON jobs", |_rocket| {
-            Box::pin(async {
-                cron::init(neighbor_monitor_service, k8s_repo);
-                info!("Initialized CRON jobs.");
-            })
-        }))
+        .ignite()
+        .await
+        .expect("Rocket failed to ignite")
+        .launch();
+
+    let handle = tokio::spawn(rocket);
+    tokio::spawn(register_to_market(node_life_service, node_situation));
+    tokio::spawn(loop_jobs(init(neighbor_monitor_service, k8s_repo).await));
+
+    let _ = handle
+        .await
+        .expect("Cannot join tasks concurrently")
+        .expect("Rocket launch failed");
 }
 
 async fn register_to_market(
     node_life: Arc<dyn NodeLife>,
     node_situation: Arc<dyn NodeSituation>,
 ) {
+    info!("Registering to market and parent...");
     let my_ip = node_situation.get_my_public_ip().await;
     let my_port = node_situation.get_my_public_port().await;
     if let Err(err) = node_life.init_registration(my_ip, my_port).await {
         error!("Failed to register to market: {}", err.to_string());
         std::process::exit(1);
     }
+    info!("Registered to market and parent.");
+}
+
+async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
+    let mut interval = time::interval(Duration::from_secs(15));
+
+    loop {
+        interval.tick().await;
+        for value in jobs.read().await.iter() {
+            tokio::spawn(value());
+        }
+    }
+}
+
+fn main() {
+    env::set_var("RUST_LOG", "info, market=trace");
+    env_logger::init();
+
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("build runtime failed")
+        .block_on(rocket());
 }

@@ -4,47 +4,31 @@ use crate::prom_metrics::{
 };
 use crate::repository::k8s::K8s;
 use crate::service::neighbor_monitor::NeighborMonitor;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
-use tokio_cron_scheduler::{Job, JobScheduler};
+use tokio::sync::RwLock;
 
-pub fn init(
+pub type CronFn =
+    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+
+pub async fn init(
     neighbor_monitor: Arc<dyn NeighborMonitor>,
     k8s_repo: Arc<dyn K8s>,
-) {
-    let sched = JobScheduler::new().unwrap();
+) -> Arc<RwLock<Vec<CronFn>>> {
+    let jobs: Arc<RwLock<Vec<CronFn>>> = Arc::new(RwLock::new(Vec::new()));
 
-    // TODO option to configure ?
-    sched
-        .add(
-            Job::new_async("1/15 * * * * *", move |_, _| {
-                let neighbor_monitor = neighbor_monitor.clone();
-                Box::pin(async move {
-                    ping(neighbor_monitor).await;
-                })
-            })
-            .unwrap(),
-        )
-        .unwrap();
+    jobs.write().await.push(Box::new(move || {
+        let neighbor_monitor = neighbor_monitor.clone();
+        Box::pin(ping(neighbor_monitor))
+    }));
 
-    sched
-        .add(
-            Job::new_async("1/15 * * * * *", move |_, _| {
-                let k8s_repo = k8s_repo.clone();
-                Box::pin(async move {
-                    let _ = measure(k8s_repo).await.map_err(|err| {
-                        warn!(
-                            "An error occurred while CRON measuring from \
-                             K8S: {}",
-                            err
-                        )
-                    });
-                })
-            })
-            .unwrap(),
-        )
-        .unwrap();
+    jobs.write().await.push(Box::new(move || {
+        let k8s_repo = k8s_repo.clone();
+        Box::pin(measure(k8s_repo))
+    }));
 
-    sched.start().unwrap();
+    jobs
 }
 
 async fn ping(neighbor_monitor: Arc<dyn NeighborMonitor>) {
@@ -53,7 +37,13 @@ async fn ping(neighbor_monitor: Arc<dyn NeighborMonitor>) {
     };
 }
 
-async fn measure(k8s_repo: Arc<dyn K8s>) -> anyhow::Result<()> {
+async fn measure(k8s_repo: Arc<dyn K8s>) {
+    let _ = _measure(k8s_repo).await.map_err(|err| {
+        warn!("An error occurred while CRON measuring from K8S: {}", err)
+    });
+}
+
+async fn _measure(k8s_repo: Arc<dyn K8s>) -> anyhow::Result<()> {
     let aggregated_metrics = k8s_repo.get_k8s_metrics().await?;
     for (name, metrics) in aggregated_metrics {
         let allocatable = metrics.allocatable.as_ref().ok_or_else(|| {
