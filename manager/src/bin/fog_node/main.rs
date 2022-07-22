@@ -302,7 +302,7 @@ async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info, market=trace");
+    env::set_var("RUST_LOG", "info, fog_node=trace");
     env_logger::init();
 
     tokio::runtime::Builder::new_multi_thread()
