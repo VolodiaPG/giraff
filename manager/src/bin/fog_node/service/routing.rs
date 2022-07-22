@@ -91,21 +91,25 @@ where
     ) -> Result<(), Error> {
         let mut parts = vec![];
 
-        //Order is important, as stack_asc is the destination, so the last
+        // Order is important, as stack_asc is the destination, so the last
         // redirection to be written if the case of a “^”-shaped branch comes
         // into consideration
 
         if !route.stack_rev.is_empty() {
             let stack = VecDeque::from(route.stack_rev);
+            let prev_last_node = if let Some(prev) = stack.get(1) {
+                prev.clone()
+            } else {
+                self.node_situation.get_my_id().await
+            };
+
             let link = RouteLinking {
-                direction: RouteDirection::FinishToStart {
-                    last_node: stack.front().unwrap().clone(),
-                },
+                direction: RouteDirection::FinishToStart { prev_last_node },
                 stack,
                 function: route.function.clone(),
             };
 
-            parts.push(self.route_linking(link, route.stack_asc.is_empty()));
+            parts.push(self.route_linking(link, !route.stack_asc.is_empty()));
         }
 
         if !route.stack_asc.is_empty() {
@@ -123,17 +127,6 @@ where
                 .await;
         }
 
-        // if parts.is_empty() {
-        //     // meaning we are routing to ourselves
-        //     self.route_linking(RouteLinking {
-        //         stack:     VecDeque::new(),
-        //         direction: RouteDirection::StartToFinish,
-        //         function:  route.function,
-        //     })
-        //     .await?;
-        //     return Ok(());
-        // }
-
         try_join_all(parts.into_iter()).await?;
         Ok(())
     }
@@ -143,11 +136,12 @@ where
         mut linking: RouteLinking,
         readonly: bool,
     ) -> Result<(), Error> {
-        let target = if linking.stack.is_empty() {
+        let linking_empty_at_start = linking.stack.is_empty();
+        let target = if linking_empty_at_start {
             match linking.direction {
                 RouteDirection::StartToFinish => Direction::CurrentNode,
-                RouteDirection::FinishToStart { ref last_node } => {
-                    Direction::NextNode(last_node.clone())
+                RouteDirection::FinishToStart { ref prev_last_node } => {
+                    Direction::NextNode(prev_last_node.clone())
                 }
             }
         } else {
@@ -165,6 +159,10 @@ where
             self.faas_routing_table
                 .update(linking.function.clone(), target.clone())
                 .await;
+        }
+
+        if linking_empty_at_start {
+            return Ok(());
         }
 
         if let Direction::NextNode(next) = target {

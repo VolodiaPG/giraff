@@ -23,7 +23,8 @@ pub struct Route {
 #[serde(rename_all = "camelCase")]
 pub enum RouteDirection {
     StartToFinish,
-    FinishToStart { last_node: NodeId },
+    // prev last node is the node that comes just before the last node
+    FinishToStart { prev_last_node: NodeId },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
