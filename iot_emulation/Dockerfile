@@ -48,8 +48,8 @@ COPY --from=builder \
     /builder/iot_emulation/target/$RUST_TARGET/release/iot_emulation \
     /usr/local/bin/iot_emulation
 
-ENV ROCKET_PORT="7070"
+ENV ROCKET_PORT="3030"
 ENV ROCKET_ADDRESS="0.0.0.0"
-EXPOSE 7070
+EXPOSE 3030
 
 CMD ["iot_emulation"]
