@@ -51,6 +51,8 @@ pub use auction_placement::*;
 
 #[cfg(not(feature = "bottom_up_placement"))]
 mod auction_placement {
+    use crate::service::auction;
+
     use super::*;
 
     use futures::future::{join3, try_join_all};
@@ -155,14 +157,22 @@ mod auction_placement {
             )
             .await;
 
-            let (bid, bid_record) = result_bid?;
             let mut proposals = proposals?;
 
-            proposals.bids.push(BidProposal {
-                node_id: my_id,
-                id:      bid,
-                bid:     bid_record.bid,
-            });
+            match result_bid {
+                Err(auction::Error::Unsatisfiable) => {
+                    warn!("Bid unsatisfiable, passing on...");
+                }
+                _ => {
+                    // let the error happen if it something else
+                    let (bid, bid_record) = result_bid?;
+                    proposals.bids.push(BidProposal {
+                        node_id: my_id,
+                        id:      bid,
+                        bid:     bid_record.bid,
+                    });
+                }
+            }
 
             Ok(proposals)
         }
