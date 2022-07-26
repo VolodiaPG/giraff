@@ -5,12 +5,17 @@ _default:
     @just --list
 
 # Build a target (market or fog_node)
-build FLAGS:
+build *FLAGS:
     cargo build --package manager --bin market {{FLAGS}}
     cargo build --package manager --bin fog_node {{FLAGS}}
 
+# Run cargo check
+check *FLAGS:
+    cargo check --package manager --bin market {{FLAGS}}
+    cargo check --package manager --bin fog_node {{FLAGS}}
+
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
-check:
+check_deps:
 	cargo outdated -R
 	cargo udeps --all-targets
 
