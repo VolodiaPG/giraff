@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::Duration;
 use tokio::sync::RwLock;
 use uom::si::f64::Time;
 
@@ -75,22 +76,20 @@ impl LatencyEstimationImpl {
     #[inline]
     fn compute_latency(
         &self,
-        ping: &Ping,
-        received_at: &chrono::DateTime<chrono::Utc>,
+        ping: Ping,
+        received_at: chrono::DateTime<chrono::Utc>,
     ) -> Result<(Time, Time), IndividualError> {
         // TODO fix that simplistic estimation with somthing considering the
         // real values instead of symetric ones!!
 
-        let latency_round = (received_at.timestamp_millis()
-            - ping.sent_at.timestamp_millis())
-            as i64;
+        let latency_round = received_at - ping.sent_at;
 
-        if latency_round < 0 {
+        if latency_round < Duration::seconds(0) {
             warn!("Got negative latency: {}", latency_round);
             return Err(IndividualError::NegativeTimeInterval);
         }
 
-        let latency = latency_round as f64 / 2.0;
+        let latency = latency_round.num_milliseconds() as f64 / 2.0;
         let outgoing_latency =
             Time::new::<uom::si::time::millisecond>(latency);
         let incoming_latency = outgoing_latency;
@@ -122,7 +121,7 @@ impl LatencyEstimationImpl {
             .await?;
         let received_at = chrono::Utc::now();
 
-        self.compute_latency(&ping, &received_at)
+        self.compute_latency(ping, received_at)
     }
 }
 
