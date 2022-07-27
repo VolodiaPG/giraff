@@ -14,5 +14,4 @@ pub enum ControllerError {
 
 pub(crate) mod auction;
 pub(crate) mod node;
-pub(crate) mod ping;
 pub(crate) mod routing;

@@ -5,7 +5,6 @@ use manager::helper::handler::{BytesResponse, Resp};
 use manager::model::domain::routing::Packet;
 use manager::model::view::auction::{BidProposals, BidRequestOwned};
 use manager::model::view::node::RegisterNode;
-use manager::model::view::ping::{Ping, PingResponse};
 use manager::model::view::routing::{Route, RouteLinking};
 use manager::model::BidId;
 use manager::respond;
@@ -87,13 +86,6 @@ pub async fn post_register_child_node(
     respond!(
         controller::node::register_child_node(payload.0, router.inner()).await
     )
-}
-
-/// Route to compute latencies
-#[openapi]
-#[post("/ping", data = "<payload>")]
-pub async fn post_ping(payload: Json<Ping>) -> Json<PingResponse> {
-    controller::ping::ping(payload.0).await.into()
 }
 
 #[openapi]

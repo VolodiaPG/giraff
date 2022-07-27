@@ -257,7 +257,6 @@ async fn rocket() {
                 post_register_route,
                 post_route_linking,
                 post_register_child_node,
-                post_ping,
                 health
             ],
         )

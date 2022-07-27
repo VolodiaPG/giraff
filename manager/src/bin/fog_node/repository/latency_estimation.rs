@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
-use chrono::Duration;
 use tokio::sync::RwLock;
 use uom::si::f64::Time;
 
 use manager::model::domain::rolling_avg::RollingAvg;
-use manager::model::view::ping::Ping;
 use manager::model::NodeId;
 
 use crate::NodeSituation;
@@ -22,8 +21,6 @@ pub enum Error {
 
 #[derive(Debug, thiserror::Error)]
 pub enum IndividualError {
-    #[error("Got negative RTTs")]
-    NegativeTimeInterval,
     #[error("Did not found node: {0}")]
     NodeNotFound(NodeId),
     #[error(transparent)]
@@ -72,31 +69,6 @@ impl LatencyEstimationImpl {
         }
     }
 
-    /// Compute latencies and return (outgoing, incoming)
-    #[inline]
-    fn compute_latency(
-        &self,
-        ping: Ping,
-        received_at: chrono::DateTime<chrono::Utc>,
-    ) -> Result<(Time, Time), IndividualError> {
-        // TODO fix that simplistic estimation with somthing considering the
-        // real values instead of symetric ones!!
-
-        let latency_round = received_at - ping.sent_at;
-
-        if latency_round < Duration::seconds(0) {
-            warn!("Got negative latency: {}", latency_round);
-            return Err(IndividualError::NegativeTimeInterval);
-        }
-
-        let latency = latency_round.num_milliseconds() as f64 / 2.0;
-        let outgoing_latency =
-            Time::new::<uom::si::time::millisecond>(latency);
-        let incoming_latency = outgoing_latency;
-
-        Ok((outgoing_latency, incoming_latency))
-    }
-
     /// Do the packet exchanges to get the latencies and return (outgoing,
     /// incoming)
     async fn make_latency_request_to(
@@ -113,15 +85,19 @@ impl LatencyEstimationImpl {
         let port = desc.port;
 
         let client = reqwest::Client::new();
-        let ping = Ping { sent_at: chrono::Utc::now() };
+        let sent_at = Instant::now();
         let _response = client
-            .post(format!("http://{}:{}/api/ping", ip, port).as_str())
-            .json(&ping)
+            .head(format!("http://{}:{}/api/health", ip, port).as_str())
             .send()
             .await?;
-        let received_at = chrono::Utc::now();
+        let elapsed = sent_at.elapsed().as_millis();
 
-        self.compute_latency(ping, received_at)
+        let latency = elapsed as f64 / 2.0;
+        let outgoing_latency =
+            Time::new::<uom::si::time::millisecond>(latency);
+        let incoming_latency = outgoing_latency;
+
+        Ok((outgoing_latency, incoming_latency))
     }
 }
 
