@@ -1,9 +1,13 @@
 import base64
 import logging
+import math
 import os
+import signal
 import subprocess
 import tempfile
+from time import sleep
 import uuid
+from collections import defaultdict
 from pathlib import Path
 
 import click
@@ -195,55 +199,111 @@ NODE_CONNECTED_NODE = """NodeConnected (
 #             "flavor": {"core": 4, "mem": 1024 * 4},
 #             "latency": 150
 #         },
+#         {
+#             "name": "brest",
+#             "flavor": {"core": 2, "mem": 1024 * 2},
+#             "latency": 50
+#         },
 #     ]
 # }
+
+TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 8}
+TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 4}
+TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
 
 NETWORK = {
     "name": "market",
     "flavor": {"core": 10, "mem": 1024 * 16},
     "children": [
+        # {
+        #     "name": "germany",
+        #     "flavor": TIER_1_FLAVOR,
+        #     "latency": 150,
+        #     "children": [
+        #         {
+        #             "name": "berlin",
+        #             "flavor": TIER_2_FLAVOR,
+        #             "latency": 100,
+        #             "children": [
+        #                 {
+        #                     "name": "berlin-50",
+        #                     "flavor": TIER_3_FLAVOR,
+        #                     "latency": 50
+        #                 },
+        #                 {
+        #                     "name": "berlin-100",
+        #                     "flavor": TIER_3_FLAVOR,
+        #                     "latency": 100
+        #                 },
+        #             ]
+        #         },
+        #         {
+        #             "name": "munich",
+        #             "flavor": TIER_2_FLAVOR,
+        #             "latency": 250,
+        #             "children": [
+        #                 {
+        #                     "name": "munich-75",
+        #                     "flavor": TIER_3_FLAVOR,
+        #                     "latency": 75
+        #                 },
+        #                 {
+        #                     "name": "munich-50",
+        #                     "flavor": TIER_3_FLAVOR,
+        #                     "latency": 50
+        #                 }
+        #             ]
+        #         }
+        #     ]
+        # },
         {
-            "name": "london",
-            "flavor": {"core": 4, "mem": 1024 * 4},
-            "latency": 150,
+            "name": "paris",
+            "flavor": TIER_3_FLAVOR,
+            "latency": 50,
             "children": [
                 {
-                    "name": "berlin",
-                    "flavor": {"core": 2, "mem": 1024 * 2},
-                    "latency": 100
-                }
-            ]
-        },
-        {
-            "name": "rennes",
-            "flavor": {"core": 6, "mem": 1024 * 4},
-            "latency": 100,
-            "children": [
-                {
-                    "name": "vannes",
-                    "flavor": {"core": 2, "mem": 1024 * 2},
-                    "latency": 100,
+                    "name": "rennes",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 150,
                     "children": [
                         {
-                            "name": "brest",
-                            "flavor": {"core": 2, "mem": 1024 * 2},
+                            "name": "rennes-50",
+                            "flavor": TIER_3_FLAVOR,
                             "latency": 50
                         },
                         {
-                            "name": "caveirac",
-                            "flavor": {"core": 4, "mem": 1024 * 4},
-                            "latency": 100
-                        }
+                            "name": "rennes-75",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 75
+                        },
                     ]
                 },
                 {
                     "name": "nantes",
-                    "flavor": {"core": 4, "mem": 1024 * 4},
-                    "latency": 250
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 250,
+                    "children": [
+                        {
+                            "name": "nantes-75",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 75
+                        },
+                        {
+                            "name": "nantes-50",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 50
+                        }
+                    ]
                 }
             ]
         }
     ]
+}
+
+# Remove a unit so that the hosts are not saturated
+NB_CPU_PER_MACHINE_PER_CLUSTER = {
+    "gros": {"core": 18 - 1, "mem": 1024*96 - 1},
+    "paravance": {"core": 2*8 - 1, "mem": 1024*128 - 1},
 }
 
 
@@ -336,7 +396,7 @@ def log_cmd(env, results):
                             file.write(data["stdout"])
                         alias_name = get_aliases(env).get(host, host)
                         subprocess.run(["mprocs", "--server", "127.0.0.1:4050", "--ctl",
-                                        f'{{c: add-proc, cmd: "echo {alias_name} && cat {tmpfile.name}"}}'])
+                                        f'{{c: add-proc, cmd: "echo {alias_name} && cat {tmpfile.name} | tail -n 900 && sleep 1"}}'])
                 except:
                     log.warning("Cannot use mprocs to output nice things organized.")
             if data['stderr']:
@@ -380,16 +440,69 @@ def init():
     en.check()
 
 
-def gen_vm_conf(node, conf, cluster):
+def gen_vm_conf(node):
+    ret = defaultdict(lambda: [])
     children = node["children"] if "children" in node else []
     for child in children:
-        conf.add_machine(
-            roles=["master", "fog_node", child["name"], "prom_agent"],
-            cluster=cluster,
-            number=1,
-            flavour_desc=child["flavor"]
-        )
-        gen_vm_conf(child, conf, cluster)
+        ret[frozenset(child["flavor"].items())].append(child["name"])
+        for key, value in gen_vm_conf(child).items():
+            for val in value:
+                ret[key].append(val)
+
+    return ret
+
+
+def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
+    attributions = {}
+    vms = gen_vm_conf(node)
+    for key, value in vms.items():
+        flavor = {x: y for (x, y) in key}
+        core = flavor["core"]
+        mem = flavor["mem"]
+
+        core_used = 0
+        mem_used = 0
+        vm_id = str(uuid.uuid4())
+        nb_vms = 0
+        for vm_name in value:
+            core_used += core
+            mem_used += mem
+
+            if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
+                if nb_vms == 0:
+                    raise Exception("The VM requires more resources than the node can provide")
+
+                conf.add_machine(
+                    roles=["master", "fog_node", "prom_agent", vm_id],
+                    cluster=cluster,
+                    number=nb_vms,
+                    flavour_desc=flavor
+                )
+                core_used = 0
+                mem_used = 0
+                nb_vms = 0
+                vm_id = str(uuid.uuid4())
+
+            nb_vms += 1
+            attributions[vm_name] = vm_id
+
+        # Still an assignation left?
+        if nb_vms > 0:
+            conf.add_machine(
+                roles=["master", "fog_node", "prom_agent", vm_id],
+                cluster=cluster,
+                number=nb_vms,
+                flavour_desc=flavor
+            )
+
+    return attributions
+
+
+def attributes_roles(vm_attributions, roles):
+    count = defaultdict(lambda: 0)
+    for vm, instance_id in vm_attributions.items():
+        roles[vm] = [roles[instance_id][count[instance_id]]]
+        count[instance_id] += 1
 
 
 @cli.command()
@@ -398,7 +511,16 @@ def gen_vm_conf(node, conf, cluster):
 def up(force, env=None, **kwargs):
     """Claim the resources and setup k3s."""
     env["CLUSTER"] = os.environ["CLUSTER"]
-    cluster=env["CLUSTER"]
+    cluster = env["CLUSTER"]
+
+    if cluster not in NB_CPU_PER_MACHINE_PER_CLUSTER:
+        print(f"Consider adding support for {cluster} in the variable NB_CPU_PER_MACHINE_PER_CLUSTER (I need more "
+              f"details about this cluster to support it")
+        exit(126)
+
+    nb_cpu_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["core"]
+    mem_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["mem"]
+
     print(f"Deploying on {cluster}")
 
     conf = (
@@ -425,9 +547,9 @@ def up(force, env=None, **kwargs):
         )
     )
 
-    print(FOG_NODES)
+    assignations = assign_vm_to_hosts(NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine)
 
-    gen_vm_conf(NETWORK, conf, cluster)
+    print(f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs")
 
     conf.finalize()
 
@@ -435,13 +557,17 @@ def up(force, env=None, **kwargs):
 
     roles, networks = provider.init(force_deploy=force)
 
-    env['provider'] = provider
-    env['roles'] = roles
-    env['networks'] = networks
-
     en.wait_for(roles)
 
     roles = en.sync_info(roles, networks)
+
+    attributes_roles(assignations, roles)
+
+    roles = en.sync_info(roles, networks)
+
+    env['provider'] = provider
+    env['roles'] = roles
+    env['networks'] = networks
 
     netem = en.NetemHTB()
 
@@ -480,17 +606,17 @@ def up(force, env=None, **kwargs):
             (f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && sudo -E arkade install openfaas"),
             task_name="[master] Installing OpenFaaS"
         )
-        p.shell(
-            f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'",
-            task_name="token",
-        )
+        # p.shell(
+        #     f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'",
+        #     task_name="token",
+        # )
         p.shell(f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080", background=True)
-    env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
+    # env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
 
     # Deploy the echo node
     with en.Docker(agent=roles["iot_emulation"]):
         with actions(roles=roles["iot_emulation"]) as p:
-            p.shell('docker run -p 7070:7070 ghcr.io/volodiapg/iot_emulation:latest',
+            p.shell('docker run -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest',
                     task_name="Run iot_emulation on the endpoints", background=True)
 
 
@@ -637,7 +763,7 @@ def functions(env=None, **kwargs):
 def toto(env=None, **kwargs):
     roles = env['roles']
     res = en.run_command(
-        'kubectl logs deployment/primes -n openfaas-fn',
+        'kubectl logs deployment/primes -n openfaas-fn | tail -n 1000',
         roles=roles["master"])
     log_cmd(env, res)
 
@@ -682,26 +808,46 @@ def openfaas_login(env=None, file=None, **kwargs):
 @enostask()
 def tunnels(env=None, all=False, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
-    roles = env['roles']
-    if all:
-        for role in roles['master']:
-            address = role.address
-            open_tunnel(address, 31112)  # OpenFaas
-            open_tunnel(address, 3030)  # Fog Node
-            open_tunnel(address, 8001,
-                        "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
+    procs = []
+    try:
+        roles = env['roles']
+        if all:
+            for role in roles['master']:
+                address = role.address
+                open_tunnel(address, 31112)  # OpenFaas
+                open_tunnel(address, 3030)  # Fog Node
+                open_tunnel(address, 8001,
+                            "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default")  # K8S API
 
-    for role in roles['market']:
-        address = role.address
 
-        open_tunnel(address, 8000)  # Market
+        tun = {} # out_port, (res of tunnels())
+        flag = False
+        for role in roles['market']:
+            res = open_tunnel(role.address, 8000)  # Market
+            if flag == False:
+                tun[8080] = res
+                flag = True
 
-    open_tunnel(env['roles']['prom_master'][0].address, 9090)
-    open_tunnel(env['monitor'].ui.address, 3000)
-    open_tunnel(env['roles']['iot_emulation'][0].address, 7070)
+        tun[9090] = open_tunnel(env['roles']['prom_master'][0].address, 9090)
+        tun[7070] = open_tunnel(env['monitor'].ui.address, 3000)
+        tun[3030] = open_tunnel(env['roles']['iot_emulation'][0].address, 3030)
 
-    print("Press Enter to kill.")
-    input()
+        # The os.setsid() is passed in the argument preexec_fn so
+        # it's run after the fork() and before  exec() to run the shell.
+
+        for port, (_, local_port) in tun.items():
+            cmd = f"ssh -N -L {port}:127.0.0.1:{local_port} -i $HOME/.ssh/id_rsa.pub 127.0.0.1"
+            pro = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                shell=True, preexec_fn=os.setsid)
+            print(f"{cmd}, aka new tunnel: {local_port} -> {port}")
+            procs.append(pro)
+        sleep(1)
+        print("Press Enter to kill.")
+        input()
+    finally:
+        for pro in procs:
+            os.killpg(os.getpgid(pro.pid), signal.SIGTERM)  # Send the signal to all the process groups
+
 
 
 @cli.command()
@@ -716,6 +862,28 @@ def endpoints(env=None, **kwargs):
 
     print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
+@cli.command()
+@click.option('--src', required=True, help="Source of the latency request")
+@click.option('--dest', required=True, help="Dest of the latency request")
+@enostask()
+def latency(src, dest, env=None):
+    roles = env["roles"]
+    src = roles[src][0]
+    dest = roles[dest][0]
+
+    res = en.run_command(
+        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3030/api/health" <<'EOF'
+   time_namelookup:  %{{time_namelookup}}s\\n
+      time_connect:  %{{time_connect}}s\\n
+   time_appconnect:  %{{time_appconnect}}s\\n
+  time_pretransfer:  %{{time_pretransfer}}s\\n
+     time_redirect:  %{{time_redirect}}s\\n
+time_starttransfer:  %{{time_starttransfer}}s\\n
+---\\n
+        time_total:  %{{time_total}}s\\n
+EOF""",
+        roles=[src])
+    log_cmd(env, res)
 
 
 @cli.command()
