@@ -23,8 +23,8 @@ endpoints:
 	{{RUN}} endpoints
 
 # expe to target node_id for n repetitions with a delay between each
-expe market_port node_id n='50' delay='30':
-	./expe.sh {{n}} {{node_id}} {{delay}} {{market_port}}
+expe node_id iot_remote_ip target_remote_ip n='50' delay='30' market_local_port='8080' iot_local_port='3030':
+	./expe.sh {{n}} {{node_id}} {{delay}} {{market_local_port}} {{iot_local_port}} {{iot_remote_ip}} {{target_remote_ip}}
 
 
 # Delete the Job on grid'5000 and local EnosLib files
@@ -32,8 +32,11 @@ clean:
     {{RUN}} clean || true
     rm -rf enos_* current cachedir __enos*
 
-collect $port $period="1h":
+collect $port="9090" $period="1h":
     poetry run python collect.py
+
+latency src dest:
+	{{RUN}} latency --src {{src}} --dest {{dest}}
 
 lab:
 	jupyter lab
