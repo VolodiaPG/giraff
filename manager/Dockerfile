@@ -31,14 +31,23 @@ COPY ./src ./src
 RUN touch src/bin/fog_node/main.rs  \
     && touch src/bin/market/main.rs
 
-RUN cargo build --release --target=x86_64-unknown-linux-musl --package manager --bin fog_node
-
+FROM cargo-build as market-default-build
 RUN cargo build --release --target=x86_64-unknown-linux-musl --package manager --bin market
 
-FROM scratch as market
-COPY --from=cargo-build /manager/target/x86_64-unknown-linux-musl/release/market .
+FROM cargo-build as fog_node-default-build
+RUN cargo build --release --target=x86_64-unknown-linux-musl --package manager --bin fog_node
+
+FROM cargo-build as fog_node-naive-build
+RUN cargo build --release --target=x86_64-unknown-linux-musl --package manager --bin fog_node --features bottom_up_placement
+
+FROM scratch as market-default
+COPY --from=market-default-build /manager/target/x86_64-unknown-linux-musl/release/market .
 CMD ["./market"]
 
-FROM scratch as fog_node
-COPY --from=cargo-build /manager/target/x86_64-unknown-linux-musl/release/fog_node .
+FROM scratch as fog_node-default
+COPY --from=fog_node-default-build /manager/target/x86_64-unknown-linux-musl/release/fog_node .
+CMD ["./fog_node"]
+
+FROM scratch as fog_node-naive
+COPY --from=fog_node-naive-build /manager/target/x86_64-unknown-linux-musl/release/fog_node .
 CMD ["./fog_node"]

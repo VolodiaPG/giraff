@@ -34,7 +34,7 @@ do
 		"storage": "0 MB",
 		"memory": "'"$mem"'",
 		"cpu": "'"$cpu"'",
-		"latencyMax": "600 ms",
+		"latencyMax": "1 s",
 		"dataInputMaxSize": "1 GB",
 		"dataOutputMaxSize": "1 GB",
 		"maxTimeBeforeHot": "10 s",
