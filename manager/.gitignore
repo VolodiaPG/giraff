@@ -1,3 +1,5 @@
 *.ron
 prometheus/
 .cargo/
+result-bin/
+result
