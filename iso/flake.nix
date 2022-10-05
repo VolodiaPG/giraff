@@ -23,10 +23,11 @@
 
       devShells.${system} = {
         default = pkgs.mkShell {
-          buildInputs = [
-            pkgs.python3
-            pkgs.ansible
-            (pkgs.callPackage ./enoslib {})
+          buildInputs = with pkgs; [
+            python3
+            ansible
+            just
+            (callPackage ./enoslib {})
           ];
         };
       };

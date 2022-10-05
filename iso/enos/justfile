@@ -1,0 +1,42 @@
+RUN := "python integration.py"
+
+# Entrypoint, run deploy and then tunnels
+_default:
+    @just --choose
+
+# Deploy the stack to redy the eperiment on grid'5000
+deploy $CLUSTER="gros" +UP_FLAGS='':
+    {{RUN}} up {{UP_FLAGS}}
+    {{RUN}} k3s-deploy
+    {{RUN}} monitoring
+
+# Refresh the container images hosted by k3s on all deployed nodes
+refresh:
+    {{RUN}} k3s-deploy
+
+# Open SSH tunnels
+tunnels +FLAGS='':
+    {{RUN}} tunnels {{FLAGS}}
+
+# List end nodes of the Fog network
+endpoints:
+	{{RUN}} endpoints
+
+# expe to target node_id for n repetitions with a delay between each
+expe node_id iot_remote_ip target_remote_ip n='50' delay='30' market_local_port='8080' iot_local_port='3030':
+	./expe.sh {{n}} {{node_id}} {{delay}} {{market_local_port}} {{iot_local_port}} {{iot_remote_ip}} {{target_remote_ip}}
+
+
+# Delete the Job on grid'5000 and local EnosLib files
+clean:
+    {{RUN}} clean || true
+    rm -rf enos_* current cachedir __enos*
+
+collect $port="9090" $period="1h":
+    python collect.py
+
+latency src dest:
+	{{RUN}} latency --src {{src}} --dest {{dest}}
+
+lab:
+	jupyter lab

@@ -1,0 +1,14 @@
+# Entrypoint, run deploy and then tunnels
+_default:
+    @just --choose
+    
+build:
+    nix build .#nixosConfigurations.isoimage.config.system.build.isoImage
+
+upload $CITY="nancy":
+    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/iso/nixos*.iso $CITY.g5k:~/faas-fog.iso
+    
+vm :
+    export QEMU_NET_OPTS="hostfwd=tcp::2221-:22,hostfwd=tcp::8080-:80" && \
+    nixos-rebuild --flake .#isoimage build-vm && \
+    ./result/bin/run-*-vm

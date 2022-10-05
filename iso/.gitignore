@@ -1,0 +1,6 @@
+*.qcow2
+enos_*
+result
+current/
+cachedir/
+__enoslib*
