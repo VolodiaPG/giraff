@@ -8,7 +8,7 @@
 
 - include_tasks: config.yml
 
-# - include_tasks: container.yml
+- include_tasks: container.yml
   # when: ansible_architecture != "armv7l"
 
 # - include_tasks: binary.yml

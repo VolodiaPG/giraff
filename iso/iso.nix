@@ -84,7 +84,7 @@
   #     domain = "0.0.0.0";
   #     #rootUrl = "http://your.domain/grafana/"; # Not needed if it is `https://your.domain/`
   # };
-  services.telegraf.enable = true;
+  # services.telegraf.enable = true;
 
   # Forward faas-cli
   # systemd.services.openfaas-forward = {
@@ -100,6 +100,8 @@
   environment.etc."modprobe.d/floppy.blacklist.conf".text = ''
     blacklist floppy
   '';
+  
+  networking.firewall.enable = false;
   
   system.stateVersion = "22.05"; # Do not change
 }

@@ -9,9 +9,9 @@ scrape_configs:
       - targets:
         - "{{ collector_address |ipwrap }}:{{ collector_port }}"
 
-  - job_name: telegraf
-    static_configs:
-      - targets:
-{% for host in telegraf_targets %}
-        - "{{ host | ipwrap }}:{{ telegraf_port }}"
-{% endfor %}
+#  - job_name: telegraf
+#    static_configs:
+#      - targets:
+#{% for host in telegraf_targets %}
+#        - "{{ host | ipwrap }}:{{ telegraf_port }}"
+#{% endfor %}

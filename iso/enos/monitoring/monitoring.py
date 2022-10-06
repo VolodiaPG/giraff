@@ -137,7 +137,6 @@ class TPGMonitoring(Service):
             "collector_port": self.prometheus_port,
             "ui_address": ui_address,
             "telegraf_targets": [_get_address(h, self.networks) for h in self.agent],
-            #"telegraf_targets": [],
             "agent_image": self.telegraf_image,
             "grafana_image": self.grafana_image,
             "prometheus_image": self.prometheus_image,
