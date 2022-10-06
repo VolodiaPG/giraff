@@ -3,3 +3,4 @@ prometheus/
 .cargo/
 result-bin/
 result
+.direnv/
