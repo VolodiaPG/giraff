@@ -4,3 +4,4 @@ result
 current/
 cachedir/
 __enoslib*
+.direnv/
