@@ -1,6 +1,56 @@
 {
   "nodes": {
+    "enoslib": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1665156571,
+        "narHash": "sha256-I/AilsO73+SwJucmy9teQ1hAPBN/t1rcSOBuGR0ELc8=",
+        "owner": "volodiapg",
+        "repo": "enoslib-flake",
+        "rev": "78218aec029bccee76c90ef94953508ed229904d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "volodiapg",
+        "repo": "enoslib-flake",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1659877975,
+        "narHash": "sha256-zllb8aq3YO3h8B/U0/J1WBgAL8EX5yWf5pMj3G0NAmc=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "c0e246b9b83f637f4681389ecabcb2681b4f3af0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
+      "locked": {
+        "lastModified": 1665066044,
+        "narHash": "sha256-mkO0LMHVunMFRWLcJhHT0fBf2v6RlH3vg7EVpfSIAFc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "ed9b904c5eba055a6d6f5c1ccb89ba8f0a056dc6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
       "locked": {
         "lastModified": 1664790708,
         "narHash": "sha256-fzxmpOPjzOVIt9KeDN4EDPI13xJn+u0uMxheKCWken8=",
@@ -18,7 +68,8 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "enoslib": "enoslib",
+        "nixpkgs": "nixpkgs_2"
       }
     }
   },
