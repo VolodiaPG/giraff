@@ -208,7 +208,7 @@ NODE_CONNECTED_NODE = """NodeConnected (
 #     ]
 # }
 
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 4}
+TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 8}
 # TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 4}
 # TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
 
@@ -220,90 +220,90 @@ NETWORK = {
             "name": "paris",
             "flavor": TIER_3_FLAVOR,
             "latency": 50,
-            # "children": [
-            #     {
-            #         "name": "rennes",
-            #         "flavor": TIER_3_FLAVOR,
-            #         "latency": 150,
-            #         "children": [
-            #             {
-            #                 "name": "rennes-50",
-            #                 "flavor": TIER_3_FLAVOR,
-            #                 "latency": 50,
-            #                 "children": [
-            #                     {
-            #                         "name": "st-greg-50",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 50,
-            #                     },
-            #                     {
-            #                         "name": "st-greg-75",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 75,
-            #                     },
-            #                 ],
-            #             },
-            #             {
-            #                 "name": "rennes-75",
-            #                 "flavor": TIER_3_FLAVOR,
-            #                 "latency": 75,
-            #                 "children": [
-            #                     {
-            #                         "name": "cesson-50",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 50,
-            #                     },
-            #                     {
-            #                         "name": "cesson-75",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 75,
-            #                     },
-            #                 ],
-            #             },
-            #         ],
-            #     },
-            #     {
-            #         "name": "nantes",
-            #         "flavor": TIER_3_FLAVOR,
-            #         "latency": 100,
-            #         "children": [
-            #             {
-            #                 "name": "nantes-50",
-            #                 "flavor": TIER_3_FLAVOR,
-            #                 "latency": 50,
-            #                 "children": [
-            #                     {
-            #                         "name": "clisson-50",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 50,
-            #                     },
-            #                     {
-            #                         "name": "clisson-75",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 75,
-            #                     },
-            #                 ],
-            #             },
-            #             {
-            #                 "name": "nantes-75",
-            #                 "flavor": TIER_3_FLAVOR,
-            #                 "latency": 75,
-            #                 "children": [
-            #                     {
-            #                         "name": "cholet-50",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 50,
-            #                     },
-            #                     {
-            #                         "name": "cholet-75",
-            #                         "flavor": TIER_3_FLAVOR,
-            #                         "latency": 75,
-            #                     },
-            #                 ],
-            #             },
-            #         ],
-            #     },
-            # ],
+            "children": [
+                {
+                    "name": "rennes",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 150,
+                    "children": [
+                        {
+                            "name": "rennes-50",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 50,
+                            "children": [
+                                {
+                                    "name": "st-greg-50",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 50,
+                                },
+                                {
+                                    "name": "st-greg-75",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 75,
+                                },
+                            ],
+                        },
+                        # {
+                        #     "name": "rennes-75",
+                        #     "flavor": TIER_3_FLAVOR,
+                        #     "latency": 75,
+                        #     "children": [
+                        #         {
+                        #             "name": "cesson-50",
+                        #             "flavor": TIER_3_FLAVOR,
+                        #             "latency": 50,
+                        #         },
+                        #         {
+                        #             "name": "cesson-75",
+                        #             "flavor": TIER_3_FLAVOR,
+                        #             "latency": 75,
+                        #         },
+                        #     ],
+                        # },
+                    ],
+                },
+                # {
+                #     "name": "nantes",
+                #     "flavor": TIER_3_FLAVOR,
+                #     "latency": 100,
+                #     "children": [
+                #         {
+                #             "name": "nantes-50",
+                #             "flavor": TIER_3_FLAVOR,
+                #             "latency": 50,
+                #             "children": [
+                #                 {
+                #                     "name": "clisson-50",
+                #                     "flavor": TIER_3_FLAVOR,
+                #                     "latency": 50,
+                #                 },
+                #                 {
+                #                     "name": "clisson-75",
+                #                     "flavor": TIER_3_FLAVOR,
+                #                     "latency": 75,
+                #                 },
+                #             ],
+                #         },
+                #         {
+                #             "name": "nantes-75",
+                #             "flavor": TIER_3_FLAVOR,
+                #             "latency": 75,
+                #             "children": [
+                #                 {
+                #                     "name": "cholet-50",
+                #                     "flavor": TIER_3_FLAVOR,
+                #                     "latency": 50,
+                #                 },
+                #                 {
+                #                     "name": "cholet-75",
+                #                     "flavor": TIER_3_FLAVOR,
+                #                     "latency": 75,
+                #                 },
+                #             ],
+                #         },
+                #     ],
+                # },
+            ],
         }
     ],
 }
@@ -576,7 +576,7 @@ def up(force, env=None, **kwargs):
 
     env["netem"] = netem
 
-    establish_netem(env)
+    # establish_netem(env)
     
     with actions(roles=roles["master"], gather_facts=False) as p:
         # p.shell(
@@ -604,13 +604,13 @@ def up(force, env=None, **kwargs):
     # env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
 
     # Deploy the echo node
-    # with en.Docker(agent=roles["iot_emulation"]):
-    #     with actions(roles=roles["iot_emulation"]) as p:
-    #         p.shell(
-    #             "docker run -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
-    #             task_name="Run iot_emulation on the endpoints",
-    #             background=True,
-    #         )
+    with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
+        p.shell(
+            "docker run -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
+            task_name="Run iot_emulation on the endpoints",
+            background=True,
+            )
+
 
 
 def establish_netem(env):

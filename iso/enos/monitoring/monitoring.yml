@@ -5,10 +5,10 @@
   - name: Gather facts on all hosts
     setup: {}
 
-# - name: Monitoring - Telegraf agents
-#   hosts: telegraf
-#   roles:
-#   - telegraf
+- name: Monitoring - Telegraf agents
+  hosts: telegraf
+  roles:
+  - telegraf
 
 #- name: Monitoring - InfluxDB collector
 #  hosts: influxdb

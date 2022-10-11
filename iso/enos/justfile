@@ -2,7 +2,7 @@ RUN := "python integration.py"
 
 # Entrypoint, run deploy and then tunnels
 _default:
-    @just --choose
+    @just --list
 
 # Deploy the stack to redy the eperiment on grid'5000
 deploy $CLUSTER="gros" +UP_FLAGS='':
@@ -37,6 +37,3 @@ collect $port="9090" $period="1h":
 
 latency src dest:
 	{{RUN}} latency --src {{src}} --dest {{dest}}
-
-lab:
-	jupyter lab

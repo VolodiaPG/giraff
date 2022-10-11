@@ -3,7 +3,7 @@
 #   ansible.builtin.debug:
 #     var: ansible_architecture
 
-# - include_tasks: gpu.yml
+- include_tasks: gpu.yml
 #   when: ansible_architecture != "armv7l"
 
 - include_tasks: config.yml

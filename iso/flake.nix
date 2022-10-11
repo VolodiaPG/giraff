@@ -45,6 +45,7 @@
             ((rstudioWrapper.override {
               packages = r_pkgs;
             }))
+            pandoc # for rstudio
             enoslib
             just
             jq

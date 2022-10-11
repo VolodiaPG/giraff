@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 MAX=$1
 TARGET_NODE=$2
