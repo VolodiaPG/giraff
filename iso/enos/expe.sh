@@ -8,11 +8,13 @@ IOT_LOCAL_PORT=$5
 IOT_URL=$6
 TARGET_REMOTE_IP=$7
 
-# configs_mem=("50 MB" "150 MB" "500 MB")
-configs_mem=("50 MB")
+#configs_mem=("50" "150" "500") # megabytes
+configs_mem=("50" "75" "150")
 
-# configs_cpu=("100 millicpu" "150 millicpu" "500 millicpu")
-configs_cpu=("100 millicpu")
+configs_latency=("200" "500" "1000") # ms
+
+#configs_cpu=("100" "150" "500") #millicpu
+configs_cpu=("100" "150" "500")
 
 size=${#configs_cpu[@]}
 
@@ -25,6 +27,7 @@ do
 	index=$(($ii % $size))
 	mem="${configs_mem[$index]}"
 	cpu="${configs_cpu[$index]}"
+	latency="${configs_latency[$index]}"
 
 	FUNCTION_ID=$(curl --request PUT \
   --url "http://localhost:$PORT/api/function" \
@@ -32,15 +35,15 @@ do
   --data '{
 	"sla": {
 		"storage": "0 MB",
-		"memory": "'"$mem"'",
-		"cpu": "'"$cpu"'",
-		"latencyMax": "1 s",
+		"memory": "'"$mem"' MB",
+		"cpu": "'"$cpu"' millicpu",
+		"latencyMax": "'"$latency"' ms",
 		"dataInputMaxSize": "1 GB",
 		"dataOutputMaxSize": "1 GB",
 		"maxTimeBeforeHot": "10 s",
 		"reevaluationPeriod": "1 hour",
 		"functionImage": "ghcr.io/volodiapg/echo:latest",
-		"functionLiveName": "echo-'"$function_id"'",
+		"functionLiveName": "echo-'"$function_id"'-'"$latency"'-'"$cpu"'-'"$mem"'",
 		"dataFlow": [
 			{
 				"from": {

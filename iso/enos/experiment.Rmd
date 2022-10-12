@@ -36,6 +36,7 @@ library(tidyverse)
 library(igraph)
 library(r2r)
 library(formattable)
+library(stringr)
 ```
 
 Load the the Python `integration.py` script to use its variable in R
@@ -221,24 +222,49 @@ head(bids_won_function)
 bids_function <- bids_raw %>%
   select(c(instance, function_name, value)) %>%
   distinct() %>%
+  mutate(latency = stringr::str_match(function_name, '(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)') %>% .[,4]) %>%
   inner_join(bids_won_function, by = c("function_name"))
 
+head(bids_function)
+
 bids_function %>%
-  ggplot(aes(x = function_name, y = value.x, group = function_name, color = winner, label = instance.x)) +
+  ggplot(aes(x = latency, y = value.x, group = function_name, color = winner, label = instance.x)) +
   geom_boxplot() +
-  geom_point() +
-  geom_text(hjust = 0, vjust = 0) +
+  #geom_point() +
+  #geom_text(hjust = 0, vjust = 0) +
   labs(x="Functions", y="Bids (currency)", title="Bids made for each functions submitted", subtitle="Color matches the winner's")
 ```
 
 ```{r}
-toto <- read.csv2(file = paste(METRICS_PATH,'iot_emulation_http_request_duration_seconds_print_sum.csv',sep="/"), header = TRUE, sep = '\t') %>%
+winner_gains <- bids_won_function %>%
+  select(c(winner, function_name, value)) %>%
+  distinct() 
+head(winner_gains)
+
+winner_gains %>%
+  ggplot(aes(x = winner, y = value, color = winner)) +
+  geom_col() +
+  labs(x="Functions", y="nodes", title="Monetary gains")
+```
+
+```{r}
+head(bids_function)
+
+bids_won_function %>%
+  ggplot(aes(x = winner, color = winner)) +
+  geom_bar() +
+  labs(x="Nodes", y="Number of won bids", title="Number of bids won")
+```
+
+
+```{r}
+toto <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_sum.csv', header = TRUE, sep = '\t') %>%
   mutate(timestamp = as.numeric(as.character(timestamp))) %>%
   mutate(timestamp = as.POSIXct(timestamp, origin = "1970-01-01")) %>%
   mutate(value = as.numeric(as.character(value)))
 
 
-titi <- read.csv2(file = paste(METRICS_PATH,'iot_emulation_http_request_duration_seconds_print_count.csv',sep="/"), header = TRUE, sep = '\t') %>%
+titi <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_count.csv', header = TRUE, sep = '\t') %>%
   mutate(timestamp = as.numeric(as.character(timestamp))) %>%
   mutate(timestamp = as.POSIXct(timestamp, origin = "1970-01-01")) %>%
   mutate(value = as.numeric(as.character(value)))
