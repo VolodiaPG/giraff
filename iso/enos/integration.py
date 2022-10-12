@@ -208,22 +208,22 @@ NODE_CONNECTED_NODE = """NodeConnected (
 #     ]
 # }
 
-TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 8}
-# TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 4}
-# TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
+TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 6}
+TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 10}
+TIER_1_FLAVOR = {"core": 6, "mem": 1024 * 14}
 
 NETWORK = {
     "name": "market",
-    "flavor": TIER_3_FLAVOR,#{"core": 10, "mem": 1024 * 16},
+    "flavor": TIER_1_FLAVOR,#{"core": 10, "mem": 1024 * 16},
     "children": [
         {
             "name": "paris",
-            "flavor": TIER_3_FLAVOR,
+            "flavor": TIER_1_FLAVOR,
             "latency": 50,
             "children": [
                 {
                     "name": "rennes",
-                    "flavor": TIER_3_FLAVOR,
+                    "flavor": TIER_2_FLAVOR,
                     "latency": 150,
                     "children": [
                         {
