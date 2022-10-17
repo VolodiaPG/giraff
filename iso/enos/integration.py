@@ -191,26 +191,33 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
+TIER_3_FLAVOR = {"core": 1, "mem": 1024 * 2}
+TIER_2_FLAVOR = {"core": 2, "mem": 1024 * 4}
+TIER_1_FLAVOR = {"core": 4, "mem": 1024 * 8}
+
 # NETWORK = {
 #     "name": "market",
-#     "flavor": {"core": 10, "mem": 1024 * 16},
+#     "flavor": TIER_1_FLAVOR,
 #     "children": [
 #         {
-#             "name": "caveirac",
-#             "flavor": {"core": 4, "mem": 1024 * 4},
-#             "latency": 150
-#         },
-#         {
-#             "name": "brest",
-#             "flavor": {"core": 2, "mem": 1024 * 2},
-#             "latency": 50
-#         },
+#             "name": "rennes",
+#             "flavor": TIER_2_FLAVOR,
+#             "latency": 25,
+#             "children": [
+#                 {
+#                     "name": "cesson",
+#                     "flavor": TIER_3_FLAVOR,
+#                     "latency": 150
+#                 },
+#                 {
+#                     "name": "st-greg",
+#                     "flavor": TIER_3_FLAVOR,
+#                     "latency": 50
+#                 },       
+#             ]
+#         }
 #     ]
 # }
-
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 6}
-TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 10}
-TIER_1_FLAVOR = {"core": 6, "mem": 1024 * 14}
 
 NETWORK = {
     "name": "market",
@@ -243,66 +250,66 @@ NETWORK = {
                                 },
                             ],
                         },
-                        # {
-                        #     "name": "rennes-75",
-                        #     "flavor": TIER_3_FLAVOR,
-                        #     "latency": 75,
-                        #     "children": [
-                        #         {
-                        #             "name": "cesson-50",
-                        #             "flavor": TIER_3_FLAVOR,
-                        #             "latency": 50,
-                        #         },
-                        #         {
-                        #             "name": "cesson-75",
-                        #             "flavor": TIER_3_FLAVOR,
-                        #             "latency": 75,
-                        #         },
-                        #     ],
-                        # },
+                        {
+                            "name": "rennes-75",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 75,
+                            "children": [
+                                {
+                                    "name": "cesson-50",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 50,
+                                },
+                                {
+                                    "name": "cesson-75",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 75,
+                                },
+                            ],
+                        },
                     ],
                 },
-                # {
-                #     "name": "nantes",
-                #     "flavor": TIER_3_FLAVOR,
-                #     "latency": 100,
-                #     "children": [
-                #         {
-                #             "name": "nantes-50",
-                #             "flavor": TIER_3_FLAVOR,
-                #             "latency": 50,
-                #             "children": [
-                #                 {
-                #                     "name": "clisson-50",
-                #                     "flavor": TIER_3_FLAVOR,
-                #                     "latency": 50,
-                #                 },
-                #                 {
-                #                     "name": "clisson-75",
-                #                     "flavor": TIER_3_FLAVOR,
-                #                     "latency": 75,
-                #                 },
-                #             ],
-                #         },
-                #         {
-                #             "name": "nantes-75",
-                #             "flavor": TIER_3_FLAVOR,
-                #             "latency": 75,
-                #             "children": [
-                #                 {
-                #                     "name": "cholet-50",
-                #                     "flavor": TIER_3_FLAVOR,
-                #                     "latency": 50,
-                #                 },
-                #                 {
-                #                     "name": "cholet-75",
-                #                     "flavor": TIER_3_FLAVOR,
-                #                     "latency": 75,
-                #                 },
-                #             ],
-                #         },
-                #     ],
-                # },
+                {
+                    "name": "nantes",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 100,
+                    "children": [
+                        {
+                            "name": "nantes-50",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 50,
+                            "children": [
+                                {
+                                    "name": "clisson-50",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 50,
+                                },
+                                {
+                                    "name": "clisson-75",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 75,
+                                },
+                            ],
+                        },
+                        {
+                            "name": "nantes-75",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 75,
+                            "children": [
+                                {
+                                    "name": "cholet-50",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 50,
+                                },
+                                {
+                                    "name": "cholet-75",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 75,
+                                },
+                            ],
+                        },
+                    ],
+                },
             ],
         }
     ],
@@ -530,7 +537,7 @@ def up(force, env=None, **kwargs):
     print(f"Deploying on {cluster}")
 
     conf = (
-        en.VMonG5kConf.from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00", image = "/home/volparolguarino/faas-fog.iso")
+        en.VMonG5kConf.from_settings(job_name="Nix❄️+En0SLib FTW ❤️", walltime="1:00:00", image = "/home/volparolguarino/nixos.qcow2")
         .add_machine(
             roles=["master", "market", "prom_agent"],
             cluster=cluster,
@@ -576,32 +583,23 @@ def up(force, env=None, **kwargs):
 
     env["netem"] = netem
 
-    # establish_netem(env)
-    
     with actions(roles=roles["master"], gather_facts=False) as p:
-        # p.shell(
-        #     ("curl -sSL https://cli.openfaas.com | sudo -E sh"),
-        #     task_name="[master] Installing OpenFaaS CLI",
-        # )
-        # p.shell(
-        #     ("curl -SLsf https://dl.get-arkade.dev/ | sudo -E sh"),
-        #     task_name="[master] Installing Arkade",
-        # )
+        p.shell(
+            (
+                f"systemctl start fixcertificate && sleep 5" # Yep, that's nasty...
+            ),
+            task_name="[master] Fix K3S",
+        )
         p.shell(
             (
                 f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && sudo -E arkade install openfaas"
             ),
             task_name="[master] Installing OpenFaaS",
         )
-        # p.shell(
-        #     f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'",
-        #     task_name="token",
-        # )
         p.shell(
             f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
             background=True,
         )
-    # env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
 
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:

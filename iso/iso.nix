@@ -1,11 +1,21 @@
 { config, pkgs, ... }:
 {
+  #https://gist.github.com/flokli/734a1224e931af4b52561c436ca09ce1
 
   # compress 6x faster than default
   # but iso is 15% bigger
   # tradeoff acceptable because we don't want to distribute
   # default is xz which is very slow
-  isoImage.squashfsCompression = "zstd -Xcompression-level 6";
+  # isoImage.squashfsCompression = "zstd -Xcompression-level 12";
+  
+  # # EFI booting
+  # isoImage.makeEfiBootable = true;
+  
+  # # USB booting
+  # isoImage.makeUsbBootable = true;
+
+  # # Add Memtest86+ to the CD.
+  # boot.loader.grub.memtest86.enable = true;
 
   # my azerty keyboard
   i18n.defaultLocale = "fr_FR.UTF-8";

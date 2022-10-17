@@ -13,6 +13,7 @@
         overlays = [ inputs.enoslib.overlay.${system} ];
       };
       lib = nixpkgs.lib;
+
       r_pkgs = with pkgs.rPackages; [
         # rmarkdown-related packages.
         knitr
@@ -34,17 +35,32 @@
       nixosConfigurations.isoimage = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          ./iso.nix
-          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-base.nix"
+          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
         ];
+      };
+      qcow2 = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+        inherit lib pkgs;
+        config = (nixpkgs.lib.nixosSystem {
+          inherit lib pkgs system;
+          modules = [
+            "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
+            "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+            ./machine-config.nix
+          ];
+        }).config;
+        diskSize = "auto";
+        additionalSpace = "2048M"; # Space added after all the necessary 
+        format = "qcow2-compressed";
       };
 
       devShells.${system} = {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            ((rstudioWrapper.override {
-              packages = r_pkgs;
-            }))
+            (
+              (rstudioWrapper.override {
+                packages = r_pkgs;
+              })
+            )
             pandoc # for rstudio
             enoslib
             just

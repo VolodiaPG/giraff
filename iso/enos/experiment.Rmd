@@ -17,9 +17,18 @@ Idées de mesures:
 
 - distribution des fonctions
 - politique basique edge first ou quoi
-- temps de deploiement vs nombre de noeuds dans le Fog
-- temps de deploiement vs nombre de fonctions
+- temps de deploiement vs nombre de noeuds dans le Fog vs taille du réseau
+- temps de deploiement vs nombre de fonctions vs taille du réseau
 - la mémoire et le cpu au niveau du noeud fog
+
+Changer le nombre de fonctions que l'on déploi = saturation (x nbre de fonction)
+Regarder l'évolution des temps de réponses / des violations de temps de deadline
+
+Regarder si on satisfait les deadlines et si c'est scalable
+
+Comparer en terme de prix = pas relevant
+Définir une fonction d'utilité au niveau des enchères, par rapport au temps d'exécution
+
 
 
 
@@ -227,6 +236,14 @@ bids_function <- bids_raw %>%
 
 head(bids_function)
 
+bids_function %>%
+  ggplot(aes(x = latency, y = value.x, group = function_name, color = winner, label = instance.x)) +
+  geom_boxplot() +
+  #geom_point() +
+  #geom_text(hjust = 0, vjust = 0) +
+  labs(x="Functions", y="Bids (currency)", title="Bids made for each functions submitted", subtitle="Color matches the winner's")
+```
+```{r}
 bids_function %>%
   ggplot(aes(x = latency, y = value.x, group = function_name, color = winner, label = instance.x)) +
   geom_boxplot() +

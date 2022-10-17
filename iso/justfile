@@ -2,11 +2,14 @@
 _default:
     @just --choose
     
-build:
+build-iso:
     nix build .#nixosConfigurations.isoimage.config.system.build.isoImage
 
+build-vm:
+    nix build .#qcow2
+
 upload $CITY="nancy":
-    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/iso/nixos*.iso $CITY.g5k:~/faas-fog.iso
+    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos*.qcow2 $CITY.g5k:~/nixos.qcow2
     
 vm :
     export QEMU_NET_OPTS="hostfwd=tcp::2221-:22,hostfwd=tcp::8080-:80" && \

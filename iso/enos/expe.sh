@@ -9,12 +9,12 @@ IOT_URL=$6
 TARGET_REMOTE_IP=$7
 
 #configs_mem=("50" "150" "500") # megabytes
-configs_mem=("50" "75" "150")
+configs_mem=("50" "50" "50" "50")
 
-configs_latency=("200" "500" "1000") # ms
+configs_latency=("100" "300" "1000" "10000") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("100" "150" "500")
+configs_cpu=("100" "100" "100" "100")
 
 size=${#configs_cpu[@]}
 
