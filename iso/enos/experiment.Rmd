@@ -177,19 +177,38 @@ plot(net_won, layout = layout_as_tree)
 Plot the free memory
 
 ```{r}
+mem_used <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_usage.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
+mem_avail <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_allocatable.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
+
+mem_free <- mem_used %>%
+        inner_join(mem_avail, by=c("instance", "timestamp")) %>%
+        mutate(free = (value.y - value.x)/1e09) %>%
+        group_by(instance) %>%
+        mutate(free_percent = formattable::percent(free / max(free, na.rm=TRUE))) %>%
+        select(instance, timestamp, free, free_percent)
+
+mem_free %>%
+  ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
+  geom_step() +
+  # geom_point() +
+  labs(x="Time", y="Free memory (%)", title="Free memory in fog_nodes over time", subtitle = "True metrics as seen by k3s on the node")
+```
+```{r}
 mem_used <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_used.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
 mem_avail <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_available.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
 
 mem_free <- mem_used %>%
         inner_join(mem_avail, by=c("instance", "timestamp")) %>%
         mutate(free = (value.y - value.x)/1e09) %>%
-        select(instance, timestamp, free)
+        group_by(instance) %>%
+        mutate(free_percent = formattable::percent(free / max(free, na.rm=TRUE))) %>%
+        select(instance, timestamp, free, free_percent)
 
 mem_free %>%
-  ggplot(aes(x = timestamp, y = free, color = instance)) +
+  ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
   geom_step() +
-  geom_point() +
-  labs(x="Time", y="Free memory (GB)", title="Free memory in fog_nodes over time")
+  # geom_point() +
+  labs(x="Time", y="Free memory (%)", title="Free memory in fog_nodes over time", subtitle = "As seen by the inside of the fog node software")
 ```
 
 Latency of the nodes from their rolling average
@@ -213,7 +232,7 @@ latency %>%
 ```
 
 ```{r}
-bids_won_function <- read.csv2(file = paste(METRICS_PATH,'iot_emulation_http_request_duration_seconds_print_bucket.csv',sep=""), header = TRUE, sep = '\t') %>%
+iot_request_duration <- read.csv2(file = paste(METRICS_PATH,'iot_emulation_http_request_duration_seconds_print_bucket.csv',sep=""), header = TRUE, sep = '\t') %>%
   prepare %>%
   select(instance, tag, value, le, n)
 
@@ -276,33 +295,33 @@ bids_won_function %>%
 
 ```{r}
 toto <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_sum.csv', header = TRUE, sep = '\t') %>%
-  mutate(timestamp = as.numeric(as.character(timestamp))) %>%
-  mutate(timestamp = as.POSIXct(timestamp, origin = "1970-01-01")) %>%
-  mutate(value = as.numeric(as.character(value)))
+  prepare
 
+tmp <- toto %>% select(tag) %>% distinct()
 
 titi <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_count.csv', header = TRUE, sep = '\t') %>%
-  mutate(timestamp = as.numeric(as.character(timestamp))) %>%
-  mutate(timestamp = as.POSIXct(timestamp, origin = "1970-01-01")) %>%
-  mutate(value = as.numeric(as.character(value)))
+  prepare
 
 tutu <- toto %>%
   inner_join(titi, by = c("instance", "job", "timestamp", "tag"), ) %>%
   mutate(avg = value.x/value.y) %>%
   select(timestamp, avg, tag) %>%
   filter(!is.na(avg)) %>%
-  mutate(function_name=tag) %>%
-  inner_join(bids_function %>% select(function_name, winner), by=c("function_name")) %>%
-  select(timestamp, avg, tag, winner)
-
-head(tutu)
+  mutate(function_name=tag) 
+# %>%
+  # inner_join(bids_function %>% select(function_name, winner), by=c("function_name")) %>%
+  # select(timestamp, avg, tag, winner)
+tutu %>%
+  select(function_name) %>%
+  distinct()
+  
 
 tutu %>% 
-  # ggplot(aes(x = timestamp, y = avg, group = tag, color = tag, label = tag)) +
-  ggplot(aes(x=timestamp,y=avg)) +
+  ggplot(aes(x = timestamp, y = avg, group = tag, color = tag, label = tag)) +
+  # ggplot(aes(x=timestamp,y=avg)) +
   # geom_point() +
-  geom_point(aes(color=winner), size=2, alpha = 0.5) +
-  geom_density_2d_filled(alpha = 0.5) +
+  geom_point(aes(color=tag), size=2, alpha = 0.5) +
+  # geom_density_2d_filled(alpha = 0.5) +
   geom_density_2d(size = 0.25, colour = "black") +
   # geom_bin_2d() +
   #geom_text(hjust = 0, vjust = 0) +

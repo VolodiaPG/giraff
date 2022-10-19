@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 import logging
 import math
 import os
@@ -193,7 +194,7 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 TIER_3_FLAVOR = {"core": 1, "mem": 1024 * 2}
 TIER_2_FLAVOR = {"core": 2, "mem": 1024 * 4}
-TIER_1_FLAVOR = {"core": 4, "mem": 1024 * 8}
+TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 16}
 
 # NETWORK = {
 #     "name": "market",
@@ -221,17 +222,37 @@ TIER_1_FLAVOR = {"core": 4, "mem": 1024 * 8}
 
 NETWORK = {
     "name": "market",
-    "flavor": TIER_1_FLAVOR,#{"core": 10, "mem": 1024 * 16},
+    "flavor": TIER_1_FLAVOR,
     "children": [
+        # {
+        #     "name": "paris-right",
+        #     "flavor": TIER_1_FLAVOR,
+        #     "latency": 25,
+        # },
+        # {
+        #     "name": "paris-left",
+        #     "flavor": TIER_1_FLAVOR,
+        #     "latency": 15,
+        # },
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
-            "latency": 50,
+            "latency": 35,
             "children": [
+                # {
+                #     "name": "rennes-right",
+                #     "flavor": TIER_2_FLAVOR,
+                #     "latency": 25,
+                # },
+                # {
+                #     "name": "rennes-left",
+                #     "flavor": TIER_2_FLAVOR,
+                #     "latency": 15,
+                # },
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
-                    "latency": 150,
+                    "latency": 35,
                     "children": [
                         {
                             "name": "rennes-50",
@@ -239,81 +260,128 @@ NETWORK = {
                             "latency": 50,
                             "children": [
                                 {
-                                    "name": "st-greg-50",
+                                    "name": "st-greg-5",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
+                                    "latency": 5,
                                 },
                                 {
                                     "name": "st-greg-75",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 75,
                                 },
-                            ],
-                        },
-                        {
-                            "name": "rennes-75",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 75,
-                            "children": [
                                 {
-                                    "name": "cesson-50",
+                                    "name": "st-greg-25",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
+                                    "latency": 25,
                                 },
                                 {
-                                    "name": "cesson-75",
+                                    "name": "st-greg-100",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    "name": "nantes",
-                    "flavor": TIER_3_FLAVOR,
-                    "latency": 100,
-                    "children": [
-                        {
-                            "name": "nantes-50",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 50,
-                            "children": [
-                                {
-                                    "name": "clisson-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "clisson-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "nantes-75",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 75,
-                            "children": [
-                                {
-                                    "name": "cholet-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "cholet-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
+                                    "latency": 100,
                                 },
                             ],
                         },
                     ],
                 },
             ],
-        }
+        },
     ],
 }
+# NETWORK = {
+#     "name": "market",
+#     "flavor": TIER_1_FLAVOR,#{"core": 10, "mem": 1024 * 16},
+#     "children": [
+#         {
+#             "name": "paris",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 50,
+#             "children": [
+#                 {
+#                     "name": "rennes",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 150,
+#                     "children": [
+#                         {
+#                             "name": "rennes-50",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 50,
+#                             "children": [
+#                                 {
+#                                     "name": "st-greg-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "st-greg-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "rennes-75",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 75,
+#                             "children": [
+#                                 {
+#                                     "name": "cesson-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "cesson-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "nantes",
+#                     "flavor": TIER_3_FLAVOR,
+#                     "latency": 100,
+#                     "children": [
+#                         {
+#                             "name": "nantes-50",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 50,
+#                             "children": [
+#                                 {
+#                                     "name": "clisson-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "clisson-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "nantes-75",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 75,
+#                             "children": [
+#                                 {
+#                                     "name": "cholet-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "cholet-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         }
+#     ],
+# }
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
@@ -394,40 +462,56 @@ def get_aliases_from_ip(env):
 
 
 def log_cmd(env, results):
-    if results.filter(status=STATUS_FAILED):
-        for data in results.filter(status=STATUS_FAILED).data:
-            data = data.payload
-            if data["stdout"]:
-                log.error(data["stdout"])
-            if data["stderr"]:
-                log.error(data["stderr"])
+    # if results.filter(status=STATUS_FAILED):
+    #     for data in results.filter(status=STATUS_FAILED).data:
+    #         data = data.payload
+    #         if data["stdout"]:
+    #             log.error(data["stdout"])
+    #         if data["stderr"]:
+    #             log.error(data["stderr"])
 
-    if results.filter(status=STATUS_OK):
-        for data in results.filter(status=STATUS_OK).data:
-            host = data.host
-            data = data.payload
-            if data["stdout"]:
-                print(data["stdout"])
-                try:
-                    with tempfile.NamedTemporaryFile(
-                        dir="/tmp", delete=False
-                    ) as tmpfile:
-                        with open(tmpfile.name, "w") as file:
-                            file.write(data["stdout"])
-                        alias_name = get_aliases(env).get(host, host)
-                        subprocess.run(
-                            [
-                                "mprocs",
-                                "--server",
-                                "127.0.0.1:4050",
-                                "--ctl",
-                                f'{{c: add-proc, cmd: "echo {alias_name} && cat {tmpfile.name} | tail -n 900 && sleep 1"}}',
-                            ]
-                        )
-                except:
-                    log.warning("Cannot use mprocs to output nice things organized.")
-            if data["stderr"]:
-                log.error(data["stderr"])
+    # if results.filter(status=STATUS_OK):
+    now = datetime.now()
+    current_time = now.strftime("%Y-%m-%d-%H-%M-%S")
+    prefix = f"{os.getcwd()}/logs"
+    try:
+        os.mkdir(prefix)
+    except FileExistsError:
+        pass
+    path = f"{prefix}/{current_time}"
+    os.mkdir(path)
+    try:
+        os.remove(f"{prefix}/current")
+    except (FileExistsError, FileNotFoundError):
+        pass
+    os.symlink(path, f"{prefix}/current")
+    for data in results.filter(status=STATUS_OK).data + results.filter(status=STATUS_FAILED).data:
+        host = data.host
+        data = data.payload
+        alias_name = get_aliases(env).get(host, host)
+        
+        if data["stdout"]:
+            # print(data["stdout"])
+            with open(path + "/" + alias_name + ".log", "w") as file:
+                file.write(data["stdout"])
+                
+        if data["stderr"]:
+            with open(path + "/" + alias_name + ".err", "w") as file:
+                file.write(data["stderr"])
+            log.error(data["stderr"])
+                
+        try:
+            subprocess.run(
+                [
+                    "mprocs",
+                    "--server",
+                    "127.0.0.1:4050",
+                    "--ctl",
+                    f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
+                ]
+            )
+        except:
+            log.warning("Cannot use mprocs to output nice things organized.")
 
 
 def open_tunnel(address, port, rest_of_url=""):
@@ -604,7 +688,7 @@ def up(force, env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            "docker run -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
+            "docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
             task_name="Run iot_emulation on the endpoints",
             background=True,
             )
@@ -825,7 +909,7 @@ def functions(env=None, **kwargs):
 def toto(env=None, **kwargs):
     roles = env["roles"]
     res = en.run_command(
-        "kubectl logs deployment/primes -n openfaas-fn | tail -n 1000",
+        "k3s kubectl get pods -n openfaas-fn",
         roles=roles["master"],
     )
     log_cmd(env, res)
@@ -836,15 +920,17 @@ def toto(env=None, **kwargs):
 @enostask()
 def logs(env=None, all=False, **kwargs):
     roles = env["roles"]
-    if all:
-        res = en.run_command(
-            "kubectl logs deployment/fog-node -n openfaas", roles=roles["master"]
-        )
-        log_cmd(env, res)
-
+        
     res = en.run_command(
-        "kubectl logs deployment/market -n openfaas", roles=roles["market"]
+        "k3s kubectl logs deployment/market -n openfaas", roles=roles["market"]
     )
+    res += en.run_command(
+        "docker logs iot_emulation", roles=roles["iot_emulation"]
+    )
+    if all:
+        res += en.run_command(
+            "k3s kubectl logs deployment/fog-node -n openfaas", roles=roles["master"]
+        )
     log_cmd(env, res)
 
 

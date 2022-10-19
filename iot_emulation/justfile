@@ -4,7 +4,8 @@ run $ROCKET_PORT="7070" $ROCKET_ADDRESS="0.0.0.0":
 
 # Build the project as a docker image
 docker:
-    docker build -t iot_emulation:latest .
+    nix build .#docker_iot_emulation
+    docker load < result
 
 # Push an image to ghcr
 _push image user:

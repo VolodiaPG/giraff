@@ -1,16 +1,20 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     enoslib.url = "github:volodiapg/enoslib-flake";
   };
 
-  outputs = { self, nixpkgs, ... }@inputs:
+  outputs = { self, nixpkgs, nixpkgs-unstable, ... }@inputs:
     let
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
         inherit system; config = { allowUnfree = true; };
         overlays = [ inputs.enoslib.overlay.${system} ];
+      };
+      pkgs-unstable = import nixpkgs-unstable {
+        inherit system; config = { allowUnfree = true; };
       };
       lib = nixpkgs.lib;
 
@@ -65,6 +69,7 @@
             enoslib
             just
             jq
+            pkgs-unstable.mprocs
           ];
         };
       };

@@ -1,0 +1,142 @@
+#==============================================================================
+# vim: softtabstop=2 shiftwidth=2 expandtab fenc=utf-8 cc=81 tw=80
+#==============================================================================
+#
+# DESCRIPTION: Base recipe template
+#
+#==============================================================================
+---
+# # Load qemu checkpoint
+# checkpoint: simple.yaml
+# # Loads some helpful aliases (this files are located in steps/aliases/ directory)
+# aliases: defaults.yaml
+
+# # Custom shell environement (this files are located in steps/env/ directory)
+# env:
+#   - bashrc
+#   - functions.sh
+
+# Global variables use by Kameleon engine and the steps
+global:
+  # Architecture for the target system
+  arch: x86_64
+  distrib: nixos
+  release: unknown
+  # Default hostname
+  hostname: kameleon-$${distrib}
+  # Default root password
+  root_password: faas
+
+  ## System variables. Required by kameleon engine
+  # Include specific steps
+  include_steps:
+    - $${distrib}/$${release}
+    - $${distrib}
+
+  boot_timeout_installer: 5
+  # If qemu_iso_path is set, boot from an iso, retrieved from the following URL:
+  installer_iso_arch: x86_64
+  installer_iso_url:
+  # or give an helper script to find out the iso URL:
+  installer_iso_finder_helper:
+  installer_iso_finder_args:
+  installer_iso_rebuild: false
+
+  # Otherwise, if qemu_kernel_path is set, boot from an kernel, initrd and
+  # cmdline fetched from the URL defined below, and used directly in qemu:
+  installer_kernel_url:
+  installer_initrd_url:
+  installer_cmdline:
+
+  ## GPG keyserver (Waring: not all servers are reliable)
+  gpg_keyserver: keyserver.ubuntu.com
+
+  ## QEMU options
+  qemu_enable_kvm: true
+  qemu_uefi: false
+  qemu_cpus: 8
+  qemu_memory_size: 16G
+  qemu_monitor_socket: $${kameleon_cwd}/qemu_monitor.socket
+  qemu_arch: $${arch}
+  qemu_image_size: 17G
+  qemu_pidfile: $${kameleon_cwd}/qemu.pid
+  qemu_kernel_path: $${kameleon_cwd}/qemu_kernel
+  qemu_initrd_path: $${kameleon_cwd}/qemu_initrd
+  qemu_append_cmdline: $${installer_cmdline}
+  qemu_iso_path: $${kameleon_cwd}/qemu.iso
+
+  # rootfs options
+  disk_device: /dev/vda
+  rootfs: /rootfs
+  filesystem_type: ext4
+
+  # appliance options
+  boot_timeout_setupvm: 100
+  image_disk: $${kameleon_cwd}/base_$${kameleon_recipe_name}
+  image_format: qcow2
+
+  # Allowed formats are: tar.gz, tar.bz2, tar.xz, tar.lzo, qcow, qcow2, qed, vdi, raw, vmdk
+  appliance_formats: tar.xz
+  appliance_filename: "$${kameleon_cwd}/$${kameleon_recipe_name}"
+  appliance_tar_excludes: >-
+    ./etc/fstab ./root/.bash_history ./root/kameleon_workdir ./root/.ssh
+    ./var/tmp/* ./tmp/* ./dev/* ./proc/* ./run/*
+    ./sys/* ./root/.rpmdb ./boot/extlinux ./boot/grub ./boot/grub2
+  zerofree: false
+
+  # GRUB
+  grub_cmdline_linux: console=tty0 console=ttyS0,115200
+  custom_grub_cfg:
+
+  http_directory: $${kameleon_cwd}/http_dir
+  http_pid:  $${kameleon_cwd}/http.pid
+
+  ssh_config_file: $${kameleon_cwd}/ssh_config
+  local_ip: 10.0.2.2
+
+  out_context:
+    cmd: ssh -F $${ssh_config_file} $${kameleon_recipe_name} -t /bin/bash
+    workdir: /root/kameleon_workdir
+    proxy_cache: $${local_ip}
+
+  in_context:
+    cmd: ssh -F $${ssh_config_file} $${kameleon_recipe_name} -t /bin/bash
+    workdir: /root/kameleon_workdir
+    proxy_cache: $${local_ip}
+
+# Bootstrap the new system and create the 'in_context'
+bootstrap:
+  - enable_checkpoint
+  - download_installer
+  - prepare_disk
+  - start_http_server
+  - prepare_autoinstall
+  - start_qemu:
+    - force_vm_shutdown: false
+    - shutdown_vm_immediately: true
+    - vm_cleanup_section: bootstrap
+    - vm_expected_service:
+    - boot_timeout: $${boot_timeout_installer}
+  - prepare_ssh_to_out_context
+  - prepare_appliance
+  - start_qemu:
+    - force_vm_shutdown: true
+    - shutdown_vm_immediately: false
+    - vm_cleanup_section: setup
+    - vm_expected_server: ssh
+    - boot_timeout: $${boot_timeout_setupvm}
+    - qemu_iso_boot: false
+    - qemu_iso_path: ""
+    - qemu_kernel_path: ""
+    - qemu_sendkeys_commands: ""
+
+# Install and configuration steps
+setup:
+  - minimal_install
+  - clean_system
+
+# Export the generated appliance in the format of your choice
+export:
+  - disable_checkpoint
+  - save_appliance_VM:
+    - appliance_tar_compression_level: "9"

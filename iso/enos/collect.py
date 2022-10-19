@@ -30,8 +30,9 @@ if __name__ == "__main__":
     today = datetime.today()
 
     today = today.strftime("%Y-%m-%d-%H-%M")
+    archive = f"metrics_{today}.tar.gz"
 
-    with tarfile.open(f"metrics_{today}.tar.gz", "w:gz") as tar:
+    with tarfile.open(archive, "w:gz") as tar:
         names = aliases()
         with BytesIO() as tmpfile:
             codecinfo = codecs.lookup("utf8")
@@ -76,3 +77,9 @@ if __name__ == "__main__":
                 tarinfo.size = tmpfile.tell()
                 tmpfile.seek(0)
                 tar.addfile(tarinfo, tmpfile)
+
+    try:
+        os.remove("latest_metrics.tar.gz")
+    except (FileExistsError, FileNotFoundError):
+        pass
+    os.symlink(archive, "latest_metrics.tar.gz")

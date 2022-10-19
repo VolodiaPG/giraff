@@ -134,6 +134,11 @@ async fn ping(
     }
     let tag = config.tag.clone();
 
+    info!(
+        "Sending a ping to {:?}...",
+        tag.clone()
+    );
+
     let res = reqwest::Client::new()
         .post(config.first_node_url.clone())
         .body(
@@ -141,7 +146,7 @@ async fn ping(
                 to: config.function_id.clone(),
                 data: &serde_json::value::to_raw_value(&CronPayload {
                     address_to_call: config.iot_url.clone(),
-                    data: Payload { tag, id },
+                    data: Payload { tag: tag.clone(), id },
                 })
                     .unwrap(),
             })
@@ -149,6 +154,11 @@ async fn ping(
         )
         .send()
         .await;
+
+    info!(
+        "Ping sent to {:?}.",
+        tag
+    );
     if let Err(err) = res {
         warn!(
             "Something went wrong sending a message using config {:?}, error \
@@ -184,7 +194,7 @@ async fn rocket(jobs: Arc<RwLock<HashMap<String, CronFn>>>) {
 }
 
 async fn forever(jobs: Arc<RwLock<HashMap<String, CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(15));
+    let mut interval = time::interval(Duration::from_secs(5));
 
     loop {
         interval.tick().await;

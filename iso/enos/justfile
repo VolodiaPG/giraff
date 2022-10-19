@@ -4,6 +4,10 @@ RUN := "python integration.py"
 _default:
     @just --list
 
+mprocs:
+    mprocs --server 127.0.0.1:4050
+
+
 # Deploy the stack to redy the eperiment on grid'5000
 deploy $CLUSTER="gros" +UP_FLAGS='':
     {{RUN}} up {{UP_FLAGS}}

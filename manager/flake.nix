@@ -10,32 +10,44 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [cargo2nix.overlays.default];
+          config.allowUnfree = true;
+          overlays = [ cargo2nix.overlays.default ];
         };
 
+        rustChannel = "nightly";
+        rustProfile = "minimal";
+        target = "x86_64-unknown-linux-musl";
+
         rustPkgs = pkgs.rustBuilder.makePackageSet {
-          rustChannel = "nightly";
-          rustProfile = "minimal";
-          target = "x86_64-unknown-linux-musl";
+          inherit rustChannel rustProfile target;
           packageFun = import ./Cargo.nix;
+          rootFeatures = [ ];
+        };
+
+        rustPkgs_naive = pkgs.rustBuilder.makePackageSet {
+          inherit rustChannel rustProfile target;
+          packageFun = import ./Cargo.nix;
+          rootFeatures = [ "fog_node/bottom_up_placement" ];
         };
 
         workspaceShell = (rustPkgs.workspaceShell {
-          packages = [
-            pkgs.k3s
-            pkgs.faas-cli
+          packages = with pkgs; [
+            docker
+            just
+            rust-analyzer
           ];
-        }); # supports override & overrideAttrs
+        });
 
 
-        fog_node_bin = (rustPkgs.workspace.fog_node {}).bin;
-        market_bin = (rustPkgs.workspace.market {}).bin;
+        fog_node_bin = (rustPkgs.workspace.fog_node { }).bin;
+        market_bin = (rustPkgs.workspace.market { }).bin;
+
+        fog_node_naive_bin = (rustPkgs_naive.workspace.fog_node { }).bin;
 
         dockerImageFogNode = pkgs.dockerTools.buildImage {
           name = "nix_fog_node";
           tag = "latest";
           config.Cmd = [ "${fog_node_bin}/bin/fog_node" ];
-
         };
 
         dockerImageMarket = pkgs.dockerTools.buildImage {
@@ -44,24 +56,21 @@
           config.Cmd = [ "${market_bin}/bin/market" ];
         };
 
-        # This is required so that pod can reach the API server (running on port 6443 by default)
-        networking.firewall.allowedTCPPorts = [ 6443 ];
-        services.k3s.enable = true;
-        services.k3s.role = "server";
-        services.k3s.extraFlags = toString [
-          # "--kubelet-arg=v=4" # Optionally add additional args to k3s
-        ];
-        environment.systemPackages = [ pkgs.k3s ];
-
-      in rec {
+        dockerImageFogNodeNaive = pkgs.dockerTools.buildImage {
+          name = "nix_fog_node";
+          tag = "latest";
+          config.Cmd = [ "${fog_node_naive_bin}/bin/fog_node" ];
+        };
+      in
+      rec {
         packages = {
           # replace hello-world with your package name
           fog_node = fog_node_bin;
+          fog_node_naive = fog_node_naive_bin;
           market = market_bin;
           docker_fog_node = dockerImageFogNode;
+          docker_fog_node_naive = dockerImageFogNodeNaive;
           docker_market = dockerImageMarket;
-
-          default = packages.fog_node;
         };
         devShells = pkgs.mkShell {
           default = workspaceShell;
