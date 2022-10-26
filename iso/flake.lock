@@ -6,11 +6,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1665572884,
-        "narHash": "sha256-ZochGqmLEjIx1FvbDEUBMD0SiAFCj9R/W2Q8zzVLUHY=",
+        "lastModified": 1666619660,
+        "narHash": "sha256-L9mC7iD55cjm/u1uiH44Ll+0L/bdyDt7l2SCMOF3Uto=",
         "owner": "volodiapg",
         "repo": "enoslib-flake",
-        "rev": "810f9dfa1fd3ce35763f09a0b80c42015bc42d2d",
+        "rev": "effb0c9cd0f0957385cac23071f435cff33b1c1f",
         "type": "github"
       },
       "original": {

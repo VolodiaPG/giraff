@@ -1,6 +1,6 @@
 {
     "recommendations": [
-        "rust-lang.rust-analyzer",
+        "ms-python.python",
         "mkhl.direnv"
     ]
 }

@@ -2,14 +2,14 @@ use crate::service::function_life::FunctionLife;
 use crate::service::routing::Router;
 use crate::{controller, NodeLife};
 use helper::handler::{BytesResponse, Resp};
+use helper::respond;
 use model::domain::routing::Packet;
 use model::view::auction::{BidProposals, BidRequestOwned};
 use model::view::node::RegisterNode;
 use model::view::routing::{Route, RouteLinking};
 use model::BidId;
-use helper::respond;
 use rocket::serde::json::Json;
-use rocket::{get, post, State};
+use rocket::{head, post, State};
 use rocket_okapi::openapi;
 use std::sync::Arc;
 
@@ -89,5 +89,5 @@ pub async fn post_register_child_node(
 }
 
 #[openapi]
-#[get("/health")]
+#[head("/health")]
 pub fn health() {}

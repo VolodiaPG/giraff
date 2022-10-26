@@ -301,8 +301,15 @@ async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info, fog_node=trace");
-    env_logger::init();
+    {
+        let log_config_path = env::var("LOG_CONFIG_PATH").expect(
+            "Env variable LOG_CONFIG_PATH should point to a log4rs.yaml \
+             config file",
+        );
+        log4rs::init_file(log_config_path.clone(), Default::default())
+            .unwrap();
+        info!("Using log4rs config file located at {:?}", log_config_path);
+    }
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

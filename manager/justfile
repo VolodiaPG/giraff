@@ -78,7 +78,7 @@ docker flavor="default":
         docker build -t market:latest --target market-default .
     fi
 
-docker-load user image:
+nix-build-push user image:
     docker load < result
     docker tag nix_{{image}} ghcr.io/{{user}}/{{image}}
     docker push ghcr.io/{{user}}/{{image}}

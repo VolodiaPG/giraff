@@ -4,7 +4,7 @@
 - name: Installing Prometheus
   docker_container:
     name: prometheus
-    image: prom/prometheus
+    image: ghcr.io/volodiapg/prometheus:latest
     detach: yes
     state: started
     recreate: yes

@@ -107,12 +107,17 @@ mod auction_placement {
                 if latency_outbound + accumulated_latency > sla.latency_max {
                     trace!(
                         "Skipping neighbor {} because latency is too high \
-                         ({}).",
+                         ({}, a total of {}).",
                         neighbor,
                         latency_outbound.into_format_args(
                             uom::si::time::millisecond,
                             Abbreviation
-                        )
+                        ),
+                        (latency_outbound + accumulated_latency)
+                            .into_format_args(
+                                uom::si::time::millisecond,
+                                Abbreviation
+                            ),
                     );
                     continue;
                 }

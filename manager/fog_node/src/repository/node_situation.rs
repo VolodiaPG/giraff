@@ -4,9 +4,7 @@ use std::net::IpAddr;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 
-use model::dto::node::NodeSituationData::{
-    MarketConnected, NodeConnected,
-};
+use model::dto::node::NodeSituationData::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
 use model::NodeId;
 

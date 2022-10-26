@@ -1,6 +1,10 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
 ---
 
 # Experiment
@@ -33,7 +37,7 @@ Définir une fonction d'utilité au niveau des enchères, par rapport au temps d
 
 
 ```{r}
-METRICS_PATH<-"./metrics/"
+METRICS_PATH <- "./metrics/"
 ```
 
 Then, the dependencies
@@ -46,16 +50,18 @@ library(igraph)
 library(r2r)
 library(formattable)
 library(stringr)
+library(viridis)
+library(zoo) # moving averages        
 ```
 
 Load the the Python `integration.py` script to use its variable in R
 
 ```{r}
-#use_virtualenv('.venv/', required = TRUE)
+# use_virtualenv('.venv/', required = TRUE)
 import_from_path("monitoring", path = ".")
 
 # Always throws an error because it is a CLI tool; it is not made to be loaded in R
-try(source_python('integration.py')) 
+try(source_python("integration.py"))
 ```
 
 Load the graph network as an adjancency matrix
@@ -64,21 +70,20 @@ Load the graph network as an adjancency matrix
 raw <- py$ADJACENCY
 
 adjancy_transform <- function(x) {
-  ret = matrix(0, nrow = length(x), ncol = length(x))
+  ret <- matrix(0, nrow = length(x), ncol = length(x))
   rownames(ret) <- c(sort(names(x)))
   colnames(ret) <- c(sort(names(x)))
   for (ii in seq_along(x)) {
     for (jj in seq_along(x[[ii]])) {
       ret[names(x)[[ii]], x[[ii]][[jj]][[1]]] <- strtoi(x[[ii]][[jj]][[2]])
     }
-
   }
   return(ret)
 }
 
 graph_matrix <- adjancy_transform(raw)
 net <- graph_from_adjacency_matrix(as.matrix(graph_matrix), weighted = TRUE)
-plot(net, layout=layout_as_tree)
+plot(net, layout = layout_as_tree)
 
 # ceb <- cluster_edge_betweenness(g)
 #
@@ -89,7 +94,7 @@ plot(net, layout=layout_as_tree)
 ## Data preprocessing
 
 ```{r}
-names_raw <- read.csv2(file = paste(METRICS_PATH,'names.csv',sep="/"), header = TRUE, sep = '\t')
+names_raw <- read.csv2(file = paste(METRICS_PATH, "names.csv", sep = "/"), header = TRUE, sep = "\t")
 names <- hashmap()
 names[names_raw$instance] <- names_raw$name
 
@@ -104,8 +109,8 @@ prepare <- function(x) {
     x %>%
       mutate(instance = names[instance]) %>%
       mutate(instance = as.character(instance)) %>%
-      mutate(timestamp = as.numeric(as.character(timestamp))) %>%
-      mutate(timestamp = as.POSIXct(timestamp, origin = "1970-01-01")) %>%
+      mutate(timestamp_raw = as.numeric(as.character(timestamp))) %>%
+      mutate(timestamp = as.POSIXct(timestamp_raw, origin = "1970-01-01")) %>%
       mutate(value = as.numeric(as.character(value))) %>%
       merge(missing, all = TRUE) %>%
       arrange(instance)
@@ -120,31 +125,33 @@ Check what nodes we have values for (usually the ones who have submitted bids an
 - Red is a node that was not present in the data
 
 ```{r}
-mem <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_available.csv',sep="/"), header = TRUE, sep = '\t') %>%
-    prepare %>%
-    distinct(instance, value, .keep_all = TRUE) %>%
-    select(c(instance, value)) %>%
-    mutate(dyn = formattable::percent(value / max(value, na.rm=TRUE))) %>%
-    mutate(value = as.numeric(as.character(value)))
+mem <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_available.csv", sep = "/"), header = TRUE, sep = "\t") %>%
+  prepare() %>%
+  distinct(instance, value, .keep_all = TRUE) %>%
+  select(c(instance, value)) %>%
+  mutate(dyn = formattable::percent(value / max(value, na.rm = TRUE))) %>%
+  mutate(value = as.numeric(as.character(value)))
 
-cpu <- read.csv2(file = paste(METRICS_PATH,'fog_node_cpu_used.csv', sep="/"), header = TRUE, sep = '\t') %>%
-    prepare %>%
-    select(c(instance, value)) %>%
-    distinct(instance, value, .keep_all = TRUE) %>%
-    group_by(instance) %>%
-    mutate(value = as.numeric(as.character(value)))
+cpu <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_used.csv", sep = "/"), header = TRUE, sep = "\t") %>%
+  prepare() %>%
+  select(c(instance, value)) %>%
+  distinct(instance, value, .keep_all = TRUE) %>%
+  group_by(instance) %>%
+  mutate(value = as.numeric(as.character(value)))
 ```
 
 ```{r}
-PercentageColourConnected <- function(x) { colorRampPalette(c('red', 'green'))(2)[ifelse(is.na(x), 1, 2)] }
+PercentageColourConnected <- function(x) {
+  colorRampPalette(c("red", "green"))(2)[ifelse(is.na(x), 1, 2)]
+}
 net_connected <- graph_from_adjacency_matrix(as.matrix(graph_matrix), weighted = TRUE)
 V(net_connected)$color <- PercentageColourConnected(mem$value)
 plot(net_connected, layout = layout_as_tree, edge.label = E(net_connected)$weight)
 ```
 
 ```{r}
-bids_raw <- read.csv2(file = paste(METRICS_PATH,'fog_node_bids.csv',sep="/"), header = TRUE, sep = '\t') %>%
-prepare
+bids_raw <- read.csv2(file = paste(METRICS_PATH, "fog_node_bids.csv", sep = "/"), header = TRUE, sep = "\t") %>%
+  prepare()
 
 head(bids_raw)
 ```
@@ -167,48 +174,71 @@ bids_won <- bids_won %>%
   merge(bids_won_all_zero, all = TRUE) %>%
   group_by(instance) %>%
   summarise(across(everything(), sum)) %>%
-  arrange
+  arrange()
 
 net_won <- graph_from_adjacency_matrix(as.matrix(graph_matrix), weighted = TRUE)
 V(net_won)$size <- bids_won$n * 2
 plot(net_won, layout = layout_as_tree)
 ```
+Plot the free cpu
+
+```{r}
+cpu_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_usage.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+cpu_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_allocatable.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+
+cpu_free <- cpu_used %>%
+  inner_join(cpu_avail, by = c("instance", "timestamp")) %>%
+  mutate(free = (value.y - value.x) / 1e09) %>%
+  group_by(instance) %>%
+  mutate(free_percent = formattable::percent(free / max(free, na.rm = TRUE))) %>%
+  select(instance, timestamp, free, free_percent)
+
+cpu_free %>%
+ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
+  geom_step() +
+  # geom_point() +
+  labs(x = "Time", y = "Free CPU (%)", title = "Free cpu in fog_nodes over time", subtitle = "True metrics as seen by k3s on the node") +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+```
 
 Plot the free memory
 
 ```{r}
-mem_used <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_usage.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
-mem_avail <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_allocatable.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
+mem_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_usage.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+mem_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_allocatable.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
 
 mem_free <- mem_used %>%
-        inner_join(mem_avail, by=c("instance", "timestamp")) %>%
-        mutate(free = (value.y - value.x)/1e09) %>%
-        group_by(instance) %>%
-        mutate(free_percent = formattable::percent(free / max(free, na.rm=TRUE))) %>%
-        select(instance, timestamp, free, free_percent)
+  inner_join(mem_avail, by = c("instance", "timestamp")) %>%
+mutate(free = (value.y - value.x) / 1e09) %>%
+  group_by(instance) %>%
+  mutate(free_percent = formattable::percent(free / max(free, na.rm = TRUE))) %>%
+  select(instance, timestamp, free, free_percent)
 
 mem_free %>%
   ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
   geom_step() +
   # geom_point() +
-  labs(x="Time", y="Free memory (%)", title="Free memory in fog_nodes over time", subtitle = "True metrics as seen by k3s on the node")
+labs(x = "Time", y = "Free memory (%)", title = "Free memory in fog_nodes over time", subtitle = "True metrics as seen by k3s on the node") +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 ```{r}
-mem_used <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_used.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
-mem_avail <- read.csv2(file = paste(METRICS_PATH,'fog_node_memory_available.csv', sep="/"), header = TRUE, sep = '\t') %>% prepare
+mem_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_used.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+mem_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_available.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
 
 mem_free <- mem_used %>%
-        inner_join(mem_avail, by=c("instance", "timestamp")) %>%
-        mutate(free = (value.y - value.x)/1e09) %>%
-        group_by(instance) %>%
-        mutate(free_percent = formattable::percent(free / max(free, na.rm=TRUE))) %>%
-        select(instance, timestamp, free, free_percent)
+  inner_join(mem_avail, by = c("instance", "timestamp")) %>%
+mutate(free = (value.y - value.x) / 1e09) %>%
+  group_by(instance) %>%
+  mutate(free_percent = formattable::percent(free / max(free, na.rm = TRUE))) %>%
+  select(instance, timestamp, free, free_percent)
 
 mem_free %>%
   ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
   geom_step() +
   # geom_point() +
-  labs(x="Time", y="Free memory (%)", title="Free memory in fog_nodes over time", subtitle = "As seen by the inside of the fog node software")
+  labs(x = "Time", y = "Free memory (%)", title = "Free memory in fog_nodes over time", subtitle = "As seen by the inside of the fog node software")
 ```
 
 Latency of the nodes from their rolling average
@@ -216,27 +246,37 @@ Latency of the nodes from their rolling average
 > It is actually the double of the set latency because first the TCP connection is established and then the data flows. So those are actually: src -> dest and then src -> dest, so counting twice as long as the actual network latency.
 
 ```{r}
-latency <- read.csv2(file = paste(METRICS_PATH,'fog_node_neighbors_latency_rolling_avg.csv',sep="/"), header = TRUE, sep = '\t') %>%
-  prepare %>%
+latency <- read.csv2(file = paste(METRICS_PATH, "fog_node_neighbors_latency_rolling_avg.csv", sep = "/"), header = TRUE, sep = "\t") %>%
+  prepare() %>%
   mutate(instance_to = as.character(names[instance_to]))
 
 latency %>%
   group_by(instance, instance_to) %>%
-  summarise(mean_ms = round(mean(value*1000), 0))
+  summarise(mean_ms = round(mean(value * 1000), 0))
 
 latency %>%
   ggplot(aes(x = timestamp, y = value, color = instance_to)) +
-  geom_smooth() +
-  labs(x="Time", y="Latency (s)", title="Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
-  facet_grid(rows = vars(instance))
+geom_smooth() +
+  labs(x = "Time", y = "Latency (s)", title = "Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
+  facet_grid(rows = vars(instance))+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+
+latency %>% group_by(instance, instance_to) %>% mutate(max = max(value)) %>% select(instance, instance_to, max) %>% 
+  ggplot(aes(x = instance, y = max, color = instance_to)) +
+geom_col(position="dodge") +
+  labs(x = "Time", y = "Latency (s)", title = "Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
+  # facet_grid(rows = vars(instance_to))+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 
 ```{r}
-iot_request_duration <- read.csv2(file = paste(METRICS_PATH,'iot_emulation_http_request_duration_seconds_print_bucket.csv',sep=""), header = TRUE, sep = '\t') %>%
-  prepare %>%
+iot_request_duration <- read.csv2(file = paste(METRICS_PATH, "iot_emulation_http_request_duration_seconds_print_bucket.csv", sep = ""), header = TRUE, sep = "\t") %>%
+  prepare() %>%
   select(instance, tag, value, le, n)
 
-head(bids_won_function)
+head(iot_request_duration)
 ```
 
 ```{r}
@@ -250,7 +290,7 @@ head(bids_won_function)
 bids_function <- bids_raw %>%
   select(c(instance, function_name, value)) %>%
   distinct() %>%
-  mutate(latency = stringr::str_match(function_name, '(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)') %>% .[,4]) %>%
+  mutate(latency = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
   inner_join(bids_won_function, by = c("function_name"))
 
 head(bids_function)
@@ -258,72 +298,130 @@ head(bids_function)
 bids_function %>%
   ggplot(aes(x = latency, y = value.x, group = function_name, color = winner, label = instance.x)) +
   geom_boxplot() +
-  #geom_point() +
-  #geom_text(hjust = 0, vjust = 0) +
-  labs(x="Functions", y="Bids (currency)", title="Bids made for each functions submitted", subtitle="Color matches the winner's")
+  # geom_point() +
+  # geom_text(hjust = 0, vjust = 0) +
+  labs(x = "Functions", y = "Bids (currency)", title = "Bids made for each functions submitted", subtitle = "Color matches the winner's")+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 ```{r}
 bids_function %>%
   ggplot(aes(x = latency, y = value.x, group = function_name, color = winner, label = instance.x)) +
   geom_boxplot() +
-  #geom_point() +
-  #geom_text(hjust = 0, vjust = 0) +
-  labs(x="Functions", y="Bids (currency)", title="Bids made for each functions submitted", subtitle="Color matches the winner's")
+  # geom_point() +
+  # geom_text(hjust = 0, vjust = 0) +
+  labs(x = "Functions", y = "Bids (currency)", title = "Bids made for each functions submitted", subtitle = "Color matches the winner's")+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 
 ```{r}
 winner_gains <- bids_won_function %>%
   select(c(winner, function_name, value)) %>%
-  distinct() 
+  distinct()
 head(winner_gains)
 
 winner_gains %>%
   ggplot(aes(x = winner, y = value, color = winner)) +
   geom_col() +
-  labs(x="Functions", y="nodes", title="Monetary gains")
+  labs(x = "Functions", y = "nodes", title = "Monetary gains")+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 
 ```{r}
 head(bids_function)
 
-bids_won_function %>%
+bids_function %>%
+  select(winner, function_name) %>%
+  distinct() %>%
   ggplot(aes(x = winner, color = winner)) +
   geom_bar() +
-  labs(x="Nodes", y="Number of won bids", title="Number of bids won")
+  labs(x = "Nodes", y = "Number of won bids", title = "Number of bids won")+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 ```
 
 
 ```{r}
-toto <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_sum.csv', header = TRUE, sep = '\t') %>%
-  prepare
+toto <- read.csv2(file = "metrics/iot_emulation_http_request_duration_seconds_print_sum.csv", header = TRUE, sep = "\t") %>%
+  prepare()
 
-tmp <- toto %>% select(tag) %>% distinct()
-
-titi <- read.csv2(file = 'metrics/iot_emulation_http_request_duration_seconds_print_count.csv', header = TRUE, sep = '\t') %>%
-  prepare
-
-tutu <- toto %>%
-  inner_join(titi, by = c("instance", "job", "timestamp", "tag"), ) %>%
-  mutate(avg = value.x/value.y) %>%
-  select(timestamp, avg, tag) %>%
-  filter(!is.na(avg)) %>%
-  mutate(function_name=tag) 
-# %>%
-  # inner_join(bids_function %>% select(function_name, winner), by=c("function_name")) %>%
-  # select(timestamp, avg, tag, winner)
-tutu %>%
-  select(function_name) %>%
-  distinct()
+titi <- read.csv2(file = "metrics/iot_emulation_http_request_duration_seconds_print_count.csv", header = TRUE, sep = "\t") %>%
+  prepare()
   
 
-tutu %>% 
-  ggplot(aes(x = timestamp, y = avg, group = tag, color = tag, label = tag)) +
-  # ggplot(aes(x=timestamp,y=avg)) +
-  # geom_point() +
-  geom_point(aes(color=tag), size=2, alpha = 0.5) +
-  # geom_density_2d_filled(alpha = 0.5) +
-  geom_density_2d(size = 0.25, colour = "black") +
-  # geom_bin_2d() +
-  #geom_text(hjust = 0, vjust = 0) +
-  labs(x="time", y="Avg lat. (s)", title="Bids made for each functions submitted", subtitle="Color matches the winner's")
+latencies <- toto %>%
+  mutate(latency = stringr::str_match(tag, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
+  select(latency) %>%
+  distinct() %>%
+  filter(!is.na(latency))
+# %>%
+# filter(latency == 100)
+
+tutu <- toto %>%
+  inner_join(titi, by = c("instance", "job", "timestamp", "timestamp_raw", "tag"), ) %>%
+  # filter(tag=="echo-001-100-10-10") %>%
+# group_by(timestamp_raw) %>%
+  # mutate(avg = (value.x / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE))) / (value.y / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE)))) %>%
+  group_by(tag) %>%
+  mutate(avg = value.x / value.y) %>%
+  # mutate(avg_5last = zoo::rollmean(value.x / value.y, k = 5, fill = NA)) %>%
+  mutate(new_x = value.x - dplyr::lag(x = value.x, n = 1, 
+                                            order_by = timestamp)) %>% 
+  mutate(new_y = value.y - dplyr::lag(x = value.y, n = 1, 
+                                              order_by = timestamp)) %>% 
+  mutate(new_avg = new_x / new_y) %>% 
+  # select(timestamp, avg, tag) %>%
+  filter(!is.na(avg)) %>%
+  mutate(function_name = tag) %>%
+  mutate(latency = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
+  mutate(index = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 3]) %>%
+  inner_join(bids_function %>% select(function_name, winner), by=c("function_name"))
+  # select(timestamp, avg, tag, winner)
+
+tata <- tutu %>%
+  group_by(winner) %>%
+  summarise(timestamp, average_of_column_x = mean(new_avg, na.rm = TRUE))
+
+for (selected_latency in latencies$latency)
+{
+  print(selected_latency)
+ 
+  
+print(
+  tutu %>% filter(latency == selected_latency) %>%
+  select(function_name) %>%
+  distinct()
+)
+
+
+print(
+  tutu %>% filter(latency == selected_latency) %>% group_by(tag) %>% mutate(count = max(value.y)) %>% select(index, winner, count, latency) %>% distinct() %>%
+  ggplot(aes(x = index, y = count, group = index, color = winner, label = latency)) +
+geom_col() +
+  labs(x = "Function id", y = "Number of echo requests", title = "Number of requests made to each functions (back in forth=2×latency)", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency"))+
+scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+)
+
+print(
+  tutu %>% filter(latency == selected_latency) %>%
+  ggplot(aes(x = index, y = avg, group = index, color = winner, label = latency)) +
+  geom_violin() +
+  labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+)
+
+print(
+  tata %>% filter(latency == selected_latency) %>%
+    group_by(winner) %>%
+  ggplot(aes(x = timestamp, y = new_avg, group = function_name, color = winner, label = latency)) +
+  geom_smooth() +
+labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+)
+}
 ```

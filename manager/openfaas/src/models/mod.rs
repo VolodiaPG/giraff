@@ -1,7 +1,7 @@
+use helper;
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information;
-use helper;
 
 pub use function_definition::{FunctionDefinition, Limits};
 

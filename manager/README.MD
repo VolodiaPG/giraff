@@ -9,3 +9,7 @@ This is the source of:
 - RTT computation
 - Protocol, currently only HTTP, maybe useful in the future to use a zero-copy buffer RPC protocol that Rust enables
 - Using persistent storage for both the market and the nodes, like [redb](https://github.com/cberner/redb)
+
+
+TMp:
+k3s kubectl exec --namespace openfaas fog-node-8666cf4b8f-wf6vw --container  sidecar-log-agent-fog-node  -it -- /bin/sh

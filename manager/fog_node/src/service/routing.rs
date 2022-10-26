@@ -89,12 +89,13 @@ where
         &self,
         route: Route,
     ) -> Result<(), Error> {
+        trace!("Linking upon requested route: {:?}", route);
+
         let mut parts = vec![];
 
         // Order is important, as stack_asc is the destination, so the last
         // redirection to be written if the case of a “^”-shaped branch comes
         // into consideration
-
         if !route.stack_rev.is_empty() {
             let stack = VecDeque::from(route.stack_rev);
             let prev_last_node = if let Some(prev) = stack.get(1) {
@@ -136,6 +137,12 @@ where
         mut linking: RouteLinking,
         readonly: bool,
     ) -> Result<(), Error> {
+        trace!(
+            "Linking route subpart (readonly: {:?}): {:?}",
+            readonly,
+            linking
+        );
+
         let linking_empty_at_start = linking.stack.is_empty();
         let target = if linking_empty_at_start {
             match linking.direction {
@@ -156,8 +163,17 @@ where
         };
 
         if !readonly {
+            let target = match linking.direction {
+                RouteDirection::StartToFinish => target.clone(),
+                RouteDirection::FinishToStart { .. } => Direction::NextNode(
+                    self.node_situation
+                        .get_parent_id()
+                        .await
+                        .ok_or(Error::NextNodeIsNotDefined)?,
+                ),
+            };
             self.faas_routing_table
-                .update(linking.function.clone(), target.clone())
+                .update(linking.function.clone(), target)
                 .await;
         }
 
@@ -166,6 +182,8 @@ where
         }
 
         if let Direction::NextNode(next) = target {
+            trace!("Sending next step to node {:?}", next);
+
             self.forward(&Packet::FogNode {
                 route_to_stack: vec![
                     next,

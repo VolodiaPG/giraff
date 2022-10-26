@@ -30,7 +30,7 @@ pub enum RouteDirection {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteLinking {
-    /// The destination is at the end
+    /// The destination is at the end, depending on the direction
     pub stack:     VecDeque<NodeId>,
     pub direction: RouteDirection,
     pub function:  BidId,

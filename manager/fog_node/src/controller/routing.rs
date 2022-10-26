@@ -11,7 +11,7 @@ pub async fn register_route(
     router: &Arc<dyn Router>,
     route: Route,
 ) -> anyhow::Result<()> {
-    trace!("Registering route {:?}", route.function);
+    trace!("Registering function route {:?}", route.function);
     router.register_function_route(route).await.map_err(|e| anyhow::anyhow!(e))
 }
 

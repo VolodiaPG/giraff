@@ -2,15 +2,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use rocket::serde::json::Json;
-use rocket::{get, post, put, State};
+use rocket::{get, head, post, put, State};
 use rocket_okapi::openapi;
 
 use helper::handler::Resp;
+use helper::respond;
 use model::view::auction::AcceptedBid;
 use model::view::node::{GetFogNodes, RegisterNode};
 use model::view::sla::PutSla;
 use model::NodeId;
-use helper::respond;
 
 use crate::controller;
 
@@ -67,5 +67,5 @@ pub async fn get_fog(
 }
 
 #[openapi]
-#[get("/health")]
+#[head("/health")]
 pub async fn health() {}

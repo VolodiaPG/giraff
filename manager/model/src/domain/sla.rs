@@ -2,8 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Ratio, Time};
 
-use helper::uom_helper::{information, ratio, time};
 use crate::NodeId;
+use helper::uom_helper::{information, ratio, time};
 
 /// Describe the SLA of a function submitted to be provisioned
 #[serde_with::serde_as]

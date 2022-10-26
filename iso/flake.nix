@@ -21,9 +21,11 @@
       r_pkgs = with pkgs.rPackages; [
         # rmarkdown-related packages.
         knitr
+        knitLatex
         rmarkdown
         tidyverse
         viridis
+        languageserver
 
         # others
         ggplot2
@@ -32,6 +34,7 @@
         igraph
         r2r
         formattable
+        zoo
       ];
     in
     {
@@ -70,6 +73,7 @@
             just
             jq
             pkgs-unstable.mprocs
+            black
           ];
         };
       };

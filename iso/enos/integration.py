@@ -123,6 +123,19 @@ spec:
           value: "{conf}"
         ports:
         - containerPort: 3030
+        volumeMounts:
+        - name: log-storage-fog-node
+          mountPath: /var/log
+      - name: sidecar-log-agent-fog-node
+        image: ghcr.io/volodiapg/busybox:latest
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        volumeMounts:
+        - name: log-storage-fog-node
+          readOnly: true
+          mountPath: /mnt/log
+      volumes:
+      - name: log-storage-fog-node
+        emptyDir: {{}}
 """
 
 MARKET_DEPLOYMENT = """apiVersion: v1
@@ -167,6 +180,19 @@ spec:
         env:
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
+        volumeMounts:
+        - name: log-storage-market
+          mountPath: /var/log
+      - name: sidecar-log-agent-market
+        image: ghcr.io/volodiapg/busybox:latest
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        volumeMounts:
+        - name: log-storage-market
+          readOnly: true
+          mountPath: /mnt/log
+      volumes:
+      - name: log-storage-market
+        emptyDir: {}
 """
 
 MARKET_CONNECTED_NODE = """MarketConnected (
@@ -192,8 +218,8 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-TIER_3_FLAVOR = {"core": 1, "mem": 1024 * 2}
-TIER_2_FLAVOR = {"core": 2, "mem": 1024 * 4}
+TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
+TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 4}
 TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 16}
 
 # NETWORK = {
@@ -214,7 +240,7 @@ TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 16}
 #                     "name": "st-greg",
 #                     "flavor": TIER_3_FLAVOR,
 #                     "latency": 50
-#                 },       
+#                 },
 #             ]
 #         }
 #     ]
@@ -224,31 +250,31 @@ NETWORK = {
     "name": "market",
     "flavor": TIER_1_FLAVOR,
     "children": [
-        # {
-        #     "name": "paris-right",
-        #     "flavor": TIER_1_FLAVOR,
-        #     "latency": 25,
-        # },
-        # {
-        #     "name": "paris-left",
-        #     "flavor": TIER_1_FLAVOR,
-        #     "latency": 15,
-        # },
+        {
+            "name": "paris-right",
+            "flavor": TIER_1_FLAVOR,
+            "latency": 25,
+        },
+        {
+            "name": "paris-left",
+            "flavor": TIER_1_FLAVOR,
+            "latency": 15,
+        },
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
             "latency": 35,
             "children": [
-                # {
-                #     "name": "rennes-right",
-                #     "flavor": TIER_2_FLAVOR,
-                #     "latency": 25,
-                # },
-                # {
-                #     "name": "rennes-left",
-                #     "flavor": TIER_2_FLAVOR,
-                #     "latency": 15,
-                # },
+                {
+                    "name": "rennes-right",
+                    "flavor": TIER_2_FLAVOR,
+                    "latency": 25,
+                },
+                {
+                    "name": "rennes-left",
+                    "flavor": TIER_2_FLAVOR,
+                    "latency": 15,
+                },
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
@@ -385,9 +411,9 @@ NETWORK = {
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": 18 - 1, "mem": 1024 * (96 - 2)},
-    "paravance": {"core": 2 * 8 - 1, "mem": 1024 * (128 - 2)},
-    "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 2)},
+    "gros": {"core": 18 - 2, "mem": 1024 * (96 - 4)},
+    "paravance": {"core": 2 * 8 - 2, "mem": 1024 * (128 - 4)},
+    "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
 }
 
 
@@ -461,7 +487,7 @@ def get_aliases_from_ip(env):
     return ret
 
 
-def log_cmd(env, results):
+def log_cmd(env, results_list):
     # if results.filter(status=STATUS_FAILED):
     #     for data in results.filter(status=STATUS_FAILED).data:
     #         data = data.payload
@@ -485,33 +511,41 @@ def log_cmd(env, results):
     except (FileExistsError, FileNotFoundError):
         pass
     os.symlink(path, f"{prefix}/current")
-    for data in results.filter(status=STATUS_OK).data + results.filter(status=STATUS_FAILED).data:
-        host = data.host
-        data = data.payload
-        alias_name = get_aliases(env).get(host, host)
-        
-        if data["stdout"]:
-            # print(data["stdout"])
-            with open(path + "/" + alias_name + ".log", "w") as file:
-                file.write(data["stdout"])
-                
-        if data["stderr"]:
-            with open(path + "/" + alias_name + ".err", "w") as file:
-                file.write(data["stderr"])
-            log.error(data["stderr"])
-                
-        try:
-            subprocess.run(
-                [
-                    "mprocs",
-                    "--server",
-                    "127.0.0.1:4050",
-                    "--ctl",
-                    f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
-                ]
+    aliases = {}
+    for results in results_list:
+        for data in results.filter(status=STATUS_OK) + results.filter(
+            status=STATUS_FAILED
+        ):
+            host = data.host
+            data = data.payload
+            alias_name = get_aliases(env).get(host, host)
+            aliases[alias_name] = aliases.get(alias_name, -1) + 1
+            alias_name = alias_name + (
+                "" if aliases[alias_name] == 0 else "." + str(aliases[alias_name])
             )
-        except:
-            log.warning("Cannot use mprocs to output nice things organized.")
+
+            if data["stdout"]:
+                # print(data["stdout"])
+                with open(path + "/" + alias_name + ".log", "w") as file:
+                    file.write(data["stdout"])
+
+            if data["stderr"]:
+                with open(path + "/" + alias_name + ".err", "w") as file:
+                    file.write(data["stderr"])
+                log.error(data["stderr"])
+
+            try:
+                subprocess.run(
+                    [
+                        "mprocs",
+                        "--server",
+                        "127.0.0.1:4050",
+                        "--ctl",
+                        f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
+                    ]
+                )
+            except:
+                log.warning("Cannot use mprocs to output nice things organized.")
 
 
 def open_tunnel(address, port, rest_of_url=""):
@@ -621,7 +655,11 @@ def up(force, env=None, **kwargs):
     print(f"Deploying on {cluster}")
 
     conf = (
-        en.VMonG5kConf.from_settings(job_name="Nix❄️+En0SLib FTW ❤️", walltime="1:00:00", image = "/home/volparolguarino/nixos.qcow2")
+        en.VMonG5kConf.from_settings(
+            job_name="Nix❄️+En0SLib FTW ❤️",
+            walltime="2:00:00",
+            image="/home/volparolguarino/nixos.qcow2",
+        )
         .add_machine(
             roles=["master", "market", "prom_agent"],
             cluster=cluster,
@@ -669,9 +707,7 @@ def up(force, env=None, **kwargs):
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
-            (
-                f"systemctl start fixcertificate && sleep 5" # Yep, that's nasty...
-            ),
+            (f"systemctl start fixcertificate && sleep 5"),  # Yep, that's nasty...
             task_name="[master] Fix K3S",
         )
         p.shell(
@@ -691,15 +727,14 @@ def up(force, env=None, **kwargs):
             "docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
             task_name="Run iot_emulation on the endpoints",
             background=True,
-            )
-
+        )
 
 
 def establish_netem(env):
     netem = env["netem"]
     roles = env["roles"]
 
-     # generate the network
+    # generate the network
     gen_net(NETWORK, netem, roles)
 
     # Connect the extremities to the echo server
@@ -715,9 +750,11 @@ def establish_netem(env):
     netem.deploy()
     # netem.validate()
 
+
 def drop_netem(env):
     netem = env["netem"]
     netem.destroy()
+
 
 def gen_net(node, netem, roles):
     children = node["children"] if "children" in node else []
@@ -851,7 +888,7 @@ def k3s_deploy(env=None, **kwargs):
             roles=roles["master"],
             task_name="Deploying fog_node software",
         )
-        log_cmd(env, res)
+        log_cmd(env, [res])
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
@@ -869,13 +906,13 @@ def k3s_deploy(env=None, **kwargs):
             roles=roles["market"],
             task_name="Deploying market software",
         )
-        log_cmd(env, res)
+        log_cmd(env, [res])
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
-            if payload["stdout"]:
-                print(payload["stdout"])
-            if payload["stderr"]:
+            if "stdout" in payload and payload["stdout"]:
+                print(payload["sdout"])
+            if "stderr" in payload and payload["stderr"]:
                 log.error(payload["stderr"])
 
     establish_netem(env)
@@ -891,7 +928,7 @@ def health(env=None, all=False, **kwargs):
     if all:
         command = "kubectl get deployments --all-namespaces"
     res = en.run_command(command, roles=roles["master"])
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -901,7 +938,7 @@ def functions(env=None, **kwargs):
     res = en.run_command(
         "kubectl get deployments -n openfaas-fn", roles=roles["master"]
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -909,10 +946,10 @@ def functions(env=None, **kwargs):
 def toto(env=None, **kwargs):
     roles = env["roles"]
     res = en.run_command(
-        "k3s kubectl get pods -n openfaas-fn",
+        "k3s kubectl get pods -A",
         roles=roles["master"],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -920,16 +957,24 @@ def toto(env=None, **kwargs):
 @enostask()
 def logs(env=None, all=False, **kwargs):
     roles = env["roles"]
-        
-    res = en.run_command(
-        "k3s kubectl logs deployment/market -n openfaas", roles=roles["market"]
+
+    res = []
+
+    res.append(
+        en.run_command(
+            "k3s kubectl logs deployment/market -n openfaas --container sidecar-log-agent-market",
+            roles=roles["market"],
+        )
     )
-    res += en.run_command(
-        "docker logs iot_emulation", roles=roles["iot_emulation"]
+    res.append(
+        en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
     )
     if all:
-        res += en.run_command(
-            "k3s kubectl logs deployment/fog-node -n openfaas", roles=roles["master"]
+        res.append(
+            en.run_command(
+                "k3s kubectl logs deployment/fog-node -n openfaas --container sidecar-log-agent-fog-node",
+                roles=roles["master"],
+            )
         )
     log_cmd(env, res)
 
@@ -947,7 +992,7 @@ def openfaas_login(env=None, file=None, **kwargs):
         'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo)',
         roles=roles["master"],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
     if file:
         with open(file, "w") as f:
             f.write(str(res.filter(status=STATUS_OK).data[0].payload["stdout"]) + "\n")
@@ -979,10 +1024,10 @@ def tunnels(env=None, all=False, **kwargs):
             if flag == False:
                 tun[8080] = res
                 flag = True
-        
+
         if "prom_master" in env["roles"]:
             tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
-        if "monitor" in env:            
+        if "monitor" in env:
             tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
         if "iot_emulation" in env["roles"]:
             tun[3030] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3030)
@@ -1042,7 +1087,7 @@ time_starttransfer:  %{{time_starttransfer}}s\\n
 EOF""",
         roles=[src],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()

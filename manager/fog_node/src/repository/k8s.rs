@@ -32,8 +32,8 @@ mod k8s_impl {
     use k8s_openapi::api::core::v1::Node;
     use kube::api::ListParams;
     use kube::{Api, Client};
-    use lazy_regex::regex;
     use kube_metrics::node::NodeMetrics;
+    use lazy_regex::regex;
     use std::str::FromStr;
 
     pub struct K8sImpl;
