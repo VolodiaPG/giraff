@@ -263,9 +263,9 @@ geom_smooth() +
   scale_fill_viridis(discrete = TRUE) 
 
 latency %>% group_by(instance, instance_to) %>% mutate(max = max(value)) %>% select(instance, instance_to, max) %>% 
-  ggplot(aes(x = instance, y = max, color = instance_to)) +
+  ggplot(aes(x = instance, y = max, fill = instance_to)) +
 geom_col(position="dodge") +
-  labs(x = "Time", y = "Latency (s)", title = "Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
+  labs(x = "Source", y = "Latency (s)", title = "Max latency from a node to its neighbors") +
   # facet_grid(rows = vars(instance_to))+
   scale_color_viridis(discrete = TRUE, option = "D") +
   scale_fill_viridis(discrete = TRUE) 
@@ -322,7 +322,7 @@ winner_gains <- bids_won_function %>%
 head(winner_gains)
 
 winner_gains %>%
-  ggplot(aes(x = winner, y = value, color = winner)) +
+  ggplot(aes(x = winner, y = value, fill = winner)) +
   geom_col() +
   labs(x = "Functions", y = "nodes", title = "Monetary gains")+
   scale_color_viridis(discrete = TRUE, option = "D") +
@@ -335,7 +335,7 @@ head(bids_function)
 bids_function %>%
   select(winner, function_name) %>%
   distinct() %>%
-  ggplot(aes(x = winner, color = winner)) +
+  ggplot(aes(x = winner, fill = winner)) +
   geom_bar() +
   labs(x = "Nodes", y = "Number of won bids", title = "Number of bids won")+
   scale_color_viridis(discrete = TRUE, option = "D") +
@@ -365,7 +365,7 @@ tutu <- toto %>%
 # group_by(timestamp_raw) %>%
   # mutate(avg = (value.x / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE))) / (value.y / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE)))) %>%
   group_by(tag) %>%
-  mutate(avg = value.x / value.y) %>%
+  # mutate(avg = value.x / value.y) %>%
   # mutate(avg_5last = zoo::rollmean(value.x / value.y, k = 5, fill = NA)) %>%
   mutate(new_x = value.x - dplyr::lag(x = value.x, n = 1, 
                                             order_by = timestamp)) %>% 
@@ -373,7 +373,7 @@ tutu <- toto %>%
                                               order_by = timestamp)) %>% 
   mutate(new_avg = new_x / new_y) %>% 
   # select(timestamp, avg, tag) %>%
-  filter(!is.na(avg)) %>%
+  # filter(!is.na(avg)) %>%
   mutate(function_name = tag) %>%
   mutate(latency = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
   mutate(index = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 3]) %>%
@@ -381,8 +381,8 @@ tutu <- toto %>%
   # select(timestamp, avg, tag, winner)
 
 tata <- tutu %>%
-  group_by(winner) %>%
-  summarise(timestamp, average_of_column_x = mean(new_avg, na.rm = TRUE))
+  group_by(winner, timestamp, latency) %>%
+  summarise(avg = mean(new_avg, na.rm = TRUE))
 
 for (selected_latency in latencies$latency)
 {
@@ -407,17 +407,17 @@ scale_color_viridis(discrete = TRUE, option = "D") +
 
 print(
   tutu %>% filter(latency == selected_latency) %>%
-  ggplot(aes(x = index, y = avg, group = index, color = winner, label = latency)) +
+  ggplot(aes(x = index, y = new_avg, group = index, color = winner, label = latency)) +
   geom_violin() +
   labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE) 
+  scale_fill_viridis(discrete = TRUE)
 )
 
 print(
   tata %>% filter(latency == selected_latency) %>%
     group_by(winner) %>%
-  ggplot(aes(x = timestamp, y = new_avg, group = function_name, color = winner, label = latency)) +
+  ggplot(aes(x = timestamp, y = avg, group = winner, color = winner, label = latency)) +
   geom_smooth() +
 labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +

@@ -71,7 +71,6 @@ do
 	echo -e "${GREEN}${FUNCTION_ID}${NC}" # DGRAY for the following
 	echo -e "${PURPLE}Instanciating echo from Iot platform${DGRAY}" # DGRAY for the following
 
-	sleep $DELAY
 
   	curl --request PUT \
   --url http://localhost:$IOT_LOCAL_PORT/api/cron \
@@ -83,5 +82,6 @@ do
 	"tag": "'"$function_name"'"
   }'
 echo -e "\n${GREEN}Iot registred${NC}" # DGRAY for the following
+sleep $DELAY
 
 done
