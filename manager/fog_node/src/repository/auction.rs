@@ -1,7 +1,4 @@
-use std::collections::HashMap;
-
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use model::dto::auction::BidRecord;
@@ -15,12 +12,12 @@ pub trait Auction: Sync + Send {
 }
 
 pub struct AuctionImpl {
-    database: RwLock<HashMap<BidId, BidRecord>>,
+    database: flurry::HashMap<BidId, BidRecord>,
 }
 
 impl AuctionImpl {
     pub fn new() -> AuctionImpl {
-        AuctionImpl { database: RwLock::new(HashMap::new()) }
+        AuctionImpl { database: flurry::HashMap::new() }
     }
 }
 
@@ -28,15 +25,13 @@ impl AuctionImpl {
 impl Auction for AuctionImpl {
     async fn insert(&self, auction: BidRecord) -> BidId {
         let id = BidId::from(Uuid::new_v4());
-        self.database.write().await.insert(id.to_owned(), auction);
+        self.database.pin().insert(id.to_owned(), auction);
         id
     }
 
     async fn get(&self, id: &BidId) -> Option<BidRecord> {
-        self.database.read().await.get(id).cloned()
+        self.database.pin().get(id).cloned()
     }
 
-    async fn remove(&self, id: &BidId) {
-        self.database.write().await.remove(id);
-    }
+    async fn remove(&self, id: &BidId) { self.database.pin().remove(id); }
 }

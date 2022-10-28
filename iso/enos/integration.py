@@ -1,11 +1,9 @@
 import base64
 from datetime import datetime
 import logging
-import math
 import os
 import signal
 import subprocess
-import tempfile
 from time import sleep
 import uuid
 from collections import defaultdict
@@ -250,61 +248,61 @@ NETWORK = {
     "name": "market",
     "flavor": TIER_1_FLAVOR,
     "children": [
-        {
-            "name": "paris-right",
-            "flavor": TIER_1_FLAVOR,
-            "latency": 25,
-        },
-        {
-            "name": "paris-left",
-            "flavor": TIER_1_FLAVOR,
-            "latency": 15,
-        },
+        # {
+        #     "name": "paris-right",
+        #     "flavor": TIER_1_FLAVOR,
+        #     "latency": 25,
+        # },
+        # {
+        #     "name": "paris-left",
+        #     "flavor": TIER_1_FLAVOR,
+        #     "latency": 15,
+        # },
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
-            "latency": 35,
+            "latency": 0,
             "children": [
-                {
-                    "name": "rennes-right",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 25,
-                },
-                {
-                    "name": "rennes-left",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 15,
-                },
+                # {
+                #     "name": "rennes-right",
+                #     "flavor": TIER_2_FLAVOR,
+                #     "latency": 25,
+                # },
+                # {
+                #     "name": "rennes-left",
+                #     "flavor": TIER_2_FLAVOR,
+                #     "latency": 15,
+                # },
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
-                    "latency": 35,
+                    "latency": 0,
                     "children": [
                         {
                             "name": "rennes-50",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 50,
+                            "latency": 0,
                             "children": [
                                 {
                                     "name": "st-greg-5",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
+                                    "latency": 0,
                                 },
-                                {
-                                    "name": "st-greg-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
+                                # {
+                                #     "name": "st-greg-75",
+                                #     "flavor": TIER_3_FLAVOR,
+                                #     "latency": 75,
+                                # },
                                 {
                                     "name": "st-greg-25",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 25,
+                                    "latency": 0,
                                 },
-                                {
-                                    "name": "st-greg-100",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 100,
-                                },
+                                # {
+                                #     "name": "st-greg-100",
+                                #     "flavor": TIER_3_FLAVOR,
+                                #     "latency": 100,
+                                # },
                             ],
                         },
                     ],
@@ -657,7 +655,7 @@ def up(force, env=None, **kwargs):
     conf = (
         en.VMonG5kConf.from_settings(
             job_name="Nix❄️+En0SLib FTW ❤️",
-            walltime="2:00:00",
+            walltime="1:00:00",
             image="/home/volparolguarino/nixos.qcow2",
         )
         .add_machine(
@@ -707,12 +705,24 @@ def up(force, env=None, **kwargs):
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
-            (f"systemctl start fixcertificate && sleep 5"),  # Yep, that's nasty...
+            (f"systemctl start fixcertificate && sleep 10"),  # Yep, that's nasty...
             task_name="[master] Fix K3S",
         )
         p.shell(
             (
-                f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && sudo -E arkade install openfaas"
+                # f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && sudo -E arkade install openfaas"
+                f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
+                    && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
+                    && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
+                    && helm repo update \
+                    && helm upgrade openfaas --install openfaas/openfaas \
+                        --namespace openfaas  \
+                        --set functionNamespace=openfaas-fn \
+                        --set generateBasicAuth=true \
+                        --set prometheus.image=ghcr.io/volodiapg/prometheus:latest \
+                        --set alertmanager.image=ghcr.io/volodiapg/altermanager:latest \
+                        --set stan.image=ghcr.io/volodiapg/nats-streaming:latest \
+                        --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"""
             ),
             task_name="[master] Installing OpenFaaS",
         )
@@ -724,7 +734,7 @@ def up(force, env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            "docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
+            "docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
@@ -744,11 +754,11 @@ def establish_netem(env):
             dest=roles["iot_emulation"],
             delay="0ms",
             rate="1gbit",
-            symetric=True,
+            symmetric=True,
         )
 
     netem.deploy()
-    # netem.validate()
+    netem.validate()
 
 
 def drop_netem(env):
@@ -1009,6 +1019,7 @@ def tunnels(env=None, all=False, **kwargs):
         if all:
             for role in roles["master"]:
                 address = role.address
+                print(f"Opening to {address}")
                 open_tunnel(address, 31112)  # OpenFaas
                 open_tunnel(address, 3030)  # Fog Node
                 open_tunnel(

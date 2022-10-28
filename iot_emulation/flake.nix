@@ -26,6 +26,9 @@
           packages = with pkgs; [
             just
             docker
+            rust-analyzer
+            (rustfmt.override { asNightly = true; })
+            cargo2nix.packages.${system}.cargo2nix
           ];
         });
 

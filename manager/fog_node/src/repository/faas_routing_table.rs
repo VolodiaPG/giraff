@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
 use model::dto::routing::Direction;
 use model::BidId;
@@ -18,21 +16,21 @@ pub trait FaaSRoutingTable: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct FaaSRoutingTableHashMap {
-    table: RwLock<HashMap<BidId, Direction>>,
+    table: flurry::HashMap<BidId, Direction>,
 }
 
 impl FaaSRoutingTableHashMap {
-    pub fn new() -> Self { Self { table: RwLock::new(HashMap::new()) } }
+    pub fn new() -> Self { Self { table: flurry::HashMap::new() } }
 }
 
 #[async_trait]
 impl FaaSRoutingTable for FaaSRoutingTableHashMap {
     async fn update(&self, source: BidId, target: Direction) {
         trace!("Updating routing table {} -> {:?}", source, target);
-        self.table.write().await.insert(source, target);
+        self.table.pin().insert(source, target);
     }
 
     async fn get(&self, bid_id: &BidId) -> Option<Direction> {
-        self.table.read().await.get(bid_id).cloned()
+        self.table.pin().get(bid_id).map(|x| x.clone())
     }
 }

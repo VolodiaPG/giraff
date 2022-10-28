@@ -2,9 +2,8 @@ use std::fmt::Debug;
 use std::net::IpAddr;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
-use model::dto::node::NodeSituationData::{MarketConnected, NodeConnected};
+use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
 use model::NodeId;
 
@@ -35,121 +34,95 @@ pub trait NodeSituation: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct NodeSituationHashSetImpl {
-    database: RwLock<NodeSituationData>,
+    database: NodeSituationData,
 }
 
 impl NodeSituationHashSetImpl {
     pub fn new(situation: NodeSituationData) -> Self {
-        Self { database: RwLock::new(situation) }
+        Self { database: situation }
     }
 }
 
 #[async_trait]
 impl NodeSituation for NodeSituationHashSetImpl {
     async fn register(&self, id: NodeId, description: NodeDescription) {
-        match &mut *self.database.write().await {
-            MarketConnected { children, .. }
-            | NodeConnected { children, .. } => {
-                children.insert(id, description);
-            }
-        }
+        self.database.children.pin().insert(id, description);
     }
 
     async fn get_fog_node_neighbor(
         &self,
         id: &NodeId,
     ) -> Option<NodeDescription> {
-        match &*self.database.read().await {
-            MarketConnected { children, .. } => children.get(id).cloned(),
-            NodeConnected {
-                children,
-                parent_node_ip,
-                parent_node_port,
-                parent_id,
-                ..
-            } => {
-                let ret = children.get(id).cloned();
-                if ret.is_none() && parent_id == id {
-                    return Some(NodeDescription {
-                        ip:   *parent_node_ip,
-                        port: *parent_node_port,
-                    });
+        let ret = self.database.children.pin().get(id).cloned();
+        if ret.is_none() {
+            match &self.database.situation {
+                NodeConnected {
+                    parent_node_ip,
+                    parent_node_port,
+                    parent_id,
+                    ..
+                } => {
+                    if parent_id == id {
+                        return Some(NodeDescription {
+                            ip:   parent_node_ip.clone(),
+                            port: parent_node_port.clone(),
+                        });
+                    }
                 }
-                ret
+                MarketConnected { .. } => (),
             }
         }
+        ret
     }
 
-    async fn get_my_id(&self) -> NodeId {
-        match &*self.database.read().await {
-            MarketConnected { my_id, .. } | NodeConnected { my_id, .. } => {
-                my_id.clone()
-            }
-        }
-    }
+    async fn get_my_id(&self) -> NodeId { self.database.my_id.clone() }
 
     async fn get_parent_id(&self) -> Option<NodeId> {
-        match &*self.database.read().await {
+        match &self.database.situation {
             NodeConnected { parent_id, .. } => Some(parent_id.clone()),
             _ => None,
         }
     }
 
-    async fn get_my_tags(&self) -> Vec<String> {
-        match &*self.database.read().await {
-            NodeConnected { tags, .. } | MarketConnected { tags, .. } => {
-                tags.clone()
-            }
-        }
-    }
+    async fn get_my_tags(&self) -> Vec<String> { self.database.tags.clone() }
 
     async fn is_market(&self) -> bool {
-        matches!(&*self.database.read().await, MarketConnected { .. })
+        matches!(self.database.situation, MarketConnected { .. })
     }
 
     async fn get_parent_node_address(&self) -> Option<(IpAddr, u16)> {
-        match &*self.database.read().await {
+        match self.database.situation {
             NodeConnected { parent_node_ip, parent_node_port, .. } => {
-                Some((*parent_node_ip, *parent_node_port))
+                Some((parent_node_ip.clone(), parent_node_port.clone()))
             }
             _ => None,
         }
     }
 
     async fn get_market_node_address(&self) -> Option<(IpAddr, u16)> {
-        match &*self.database.read().await {
+        match self.database.situation {
             MarketConnected { market_ip, market_port, .. } => {
-                Some((*market_ip, *market_port))
+                Some((market_ip.clone(), market_port.clone()))
             }
             _ => None,
         }
     }
 
     async fn get_neighbors(&self) -> Vec<NodeId> {
-        match &*self.database.read().await {
-            MarketConnected { children, .. } => {
-                children.keys().cloned().collect()
+        let mut ret: Vec<NodeId> =
+            self.database.children.pin().keys().cloned().collect();
+
+        match &self.database.situation {
+            NodeConnected { parent_id, .. } => {
+                ret.push(parent_id.clone());
             }
-            NodeConnected { parent_id, children, .. } => {
-                vec![parent_id.clone()]
-                    .into_iter()
-                    .chain(children.keys().cloned())
-                    .collect()
-            }
+            MarketConnected { .. } => (),
         }
+
+        ret
     }
 
-    async fn get_my_public_ip(&self) -> IpAddr {
-        *match &*self.database.read().await {
-            MarketConnected { my_public_ip, .. }
-            | NodeConnected { my_public_ip, .. } => my_public_ip,
-        }
-    }
+    async fn get_my_public_ip(&self) -> IpAddr { self.database.my_public_ip }
 
-    async fn get_my_public_port(&self) -> u16 {
-        *match &*self.database.read().await {
-            MarketConnected { my_public_port, .. }
-            | NodeConnected { my_public_port, .. } => my_public_port,
-        }
-    }
+    async fn get_my_public_port(&self) -> u16 { self.database.my_public_port }
 }

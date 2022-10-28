@@ -46,27 +46,50 @@ pub struct NodeDescription {
     pub port: u16,
 }
 
+// #[derive(Debug)]
+// pub enum NodeSituationData {
+//     MarketConnected {
+//         children:       HashMap<NodeId, NodeDescription>,
+//         market_ip:      IpAddr,
+//         market_port:    u16,
+//         my_id:          NodeId,
+//         my_public_ip:   IpAddr,
+//         my_public_port: u16,
+//         tags:           Vec<String>,
+//     },
+//     NodeConnected {
+//         children:         HashMap<NodeId, NodeDescription>,
+//         parent_id:        NodeId,
+//         parent_node_ip:   IpAddr,
+//         parent_node_port: u16,
+//         my_id:            NodeId,
+//         my_public_ip:     IpAddr,
+//         my_public_port:   u16,
+//         tags:             Vec<String>,
+//     },
+// }
+
 #[derive(Debug)]
-pub enum NodeSituationData {
+pub enum NodeCategory {
     MarketConnected {
-        children:       HashMap<NodeId, NodeDescription>,
-        market_ip:      IpAddr,
-        market_port:    u16,
-        my_id:          NodeId,
-        my_public_ip:   IpAddr,
-        my_public_port: u16,
-        tags:           Vec<String>,
+        market_ip:   IpAddr,
+        market_port: u16,
     },
     NodeConnected {
-        children:         HashMap<NodeId, NodeDescription>,
         parent_id:        NodeId,
         parent_node_ip:   IpAddr,
         parent_node_port: u16,
-        my_id:            NodeId,
-        my_public_ip:     IpAddr,
-        my_public_port:   u16,
-        tags:             Vec<String>,
     },
+}
+
+#[derive(Debug)]
+pub struct NodeSituationData {
+    pub situation:      NodeCategory,
+    pub my_id:          NodeId,
+    pub my_public_ip:   IpAddr,
+    pub my_public_port: u16,
+    pub tags:           Vec<String>,
+    pub children:       flurry::HashMap<NodeId, NodeDescription>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -122,14 +145,16 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_public_ip,
                 my_public_port,
                 tags,
-            } => NodeSituationData::MarketConnected {
-                children: HashMap::new(),
-                market_ip,
-                market_port,
+            } => NodeSituationData {
+                children: flurry::HashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port,
                 tags,
+                situation: NodeCategory::MarketConnected {
+                    market_ip,
+                    market_port,
+                },
             },
             NodeSituationDisk::NodeConnected {
                 parent_id,
@@ -139,15 +164,17 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_public_ip,
                 my_public_port,
                 tags,
-            } => NodeSituationData::NodeConnected {
-                children: HashMap::new(),
-                parent_id,
-                parent_node_ip,
-                parent_node_port,
+            } => NodeSituationData {
+                children: flurry::HashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port,
                 tags,
+                situation: NodeCategory::NodeConnected {
+                    parent_id,
+                    parent_node_ip,
+                    parent_node_port,
+                },
             },
         }
     }

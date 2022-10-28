@@ -25,6 +25,9 @@ Idées de mesures:
 - temps de deploiement vs nombre de fonctions vs taille du réseau
 - la mémoire et le cpu au niveau du noeud fog
 
+graohes des localités : courbe qui montre combien de fonctions se répartissent sur l'edge et sur le cloud
+faire varier le nombre de noeuds
+
 Changer le nombre de fonctions que l'on déploi = saturation (x nbre de fonction)
 Regarder l'évolution des temps de réponses / des violations de temps de deadline
 
@@ -412,6 +415,16 @@ print(
   labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +
   scale_fill_viridis(discrete = TRUE)
+)
+
+print(
+  tutu %>% filter(latency == selected_latency) %>%
+    group_by(function_name) %>%
+  ggplot(aes(x = timestamp, y = new_avg, group = function_name, color = winner, label = latency)) +
+  geom_smooth() +
+labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
 )
 
 print(

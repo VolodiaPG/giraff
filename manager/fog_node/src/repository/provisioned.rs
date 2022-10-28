@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 
 use model::dto::faas::ProvisionedRecord;
 use model::BidId;
@@ -15,20 +13,20 @@ pub trait Provisioned: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct ProvisionedHashMapImpl {
-    database: RwLock<HashMap<BidId, ProvisionedRecord>>,
+    database: flurry::HashMap<BidId, ProvisionedRecord>,
 }
 
 impl ProvisionedHashMapImpl {
-    pub fn new() -> Self { Self { database: RwLock::new(HashMap::new()) } }
+    pub fn new() -> Self { Self { database: flurry::HashMap::new() } }
 }
 
 #[async_trait]
 impl Provisioned for ProvisionedHashMapImpl {
     async fn insert(&self, id: BidId, bid: ProvisionedRecord) {
-        self.database.write().await.insert(id, bid);
+        self.database.pin().insert(id, bid);
     }
 
     async fn get(&self, id: &BidId) -> Option<ProvisionedRecord> {
-        self.database.read().await.get(id).cloned()
+        self.database.pin().get(id).map(|x| x.clone())
     }
 }

@@ -71,6 +71,8 @@
       docker
     ]))
     ansible
+    fping
+    kubernetes-helm
   ];
 
   networking.firewall.enable = false;

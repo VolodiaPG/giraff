@@ -17,12 +17,12 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 #configs_mem=("50" "150" "500") # megabytes
-configs_mem=("10" "10" "10" "10" "10")
+configs_mem=("100" "100" "100" "100" "100")
 
 configs_latency=("50" "100" "300" "500" "1000") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("10" "10" "10" "10" "10")
+configs_cpu=("200" "200" "200" "200" "200")
 
 size=${#configs_cpu[@]}
 
@@ -69,7 +69,9 @@ do
 	echo -e $FUNCTION_ID
 	FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
 	echo -e "${GREEN}${FUNCTION_ID}${NC}" # DGRAY for the following
-	echo -e "${PURPLE}Instanciating echo from Iot platform${DGRAY}" # DGRAY for the following
+
+	sleep $DELAY
+	echo -e "${PURPLE}Instanciating echo from Iot platform${RED}" # DGRAY for the following
 
 
   	curl --request PUT \

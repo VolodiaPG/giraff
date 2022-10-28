@@ -8,13 +8,14 @@ use schemars::schema::*;
 use schemars::JsonSchema;
 use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use uuid::Uuid;
 
 /// encapsulate the UUIDs in custom struct to let the compiler differentiate
 /// them
 macro_rules! impl_id_encapsulation {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd)]
         pub struct $name {
             id: Uuid,
         }
@@ -115,6 +116,10 @@ macro_rules! impl_id_encapsulation {
                 }
                 .into()
             }
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> Ordering { self.id.cmp(&other.id) }
         }
     };
 }
