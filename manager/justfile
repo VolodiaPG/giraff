@@ -66,17 +66,26 @@ run_fog_node $node_type *FLAGS:
     && cargo run {{FLAGS}} --package manager --bin fog_node
     ''')
 
-# Build the project as a docker image. Flavors are [default, naive]
-docker flavor="default":
+# Build the project as a docker image. Flavors are [default, naive, perftools]
+docker $flavor="default":
     #!/usr/bin/env bash
-    echo "Building flavor: {{flavor}}"
-    if [ {{flavor}} = naive]; then
-        docker build -t fog_node:latest --target fog_node-naive .
-        docker build -t market:latest --target market-default .
+    echo "Building flavor: $flavor"
+    if [ $flavor = naive ]; then
+        nix build .#docker_fog_node_naive
+        docker load < result
+    elif [ $flavor = perftools ]; then
+        nix build .#docker_fog_node_perftools
+        docker load < result
     else
-        docker build -t fog_node:latest --target fog_node-default .
-        docker build -t market:latest --target market-default .
+        nix build .#docker_fog_node
+        docker load < result
     fi
+
+    nix build .#docker_market
+    docker load < result
+
+    nix build .#docker_perftools
+    docker load < result
 
 nix-build-push user image:
     docker load < result
@@ -90,9 +99,11 @@ _push image user:
     docker push ghcr.io/{{user}}/{{image}}
 
 # Push docker images to ghcr. See `docker` for flavors to build
-ghcr user flavor="default": _check_uncommited (docker "{{flavor}}")
+ghcr user flavor="default":
+    @just docker {{flavor}}
     just _push fog_node:latest {{user}}
     just _push market:latest {{user}}
+    just _push perftools:latest {{user}}
 
 # Cleans
 clean:

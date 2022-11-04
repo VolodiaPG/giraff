@@ -8,8 +8,8 @@ build-iso:
 build-vm:
     nix build .#qcow2
 
-upload $CITY="nancy":
-    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos*.qcow2 $CITY.g5k:~/nixos.qcow2
+upload city="nancy":
+    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos*.qcow2 {{city}}.g5k:~/nixos.qcow2
     
 vm :
     export QEMU_NET_OPTS="hostfwd=tcp::2221-:22,hostfwd=tcp::8080-:80" && \

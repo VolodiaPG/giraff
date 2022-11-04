@@ -410,9 +410,9 @@ scale_color_viridis(discrete = TRUE, option = "D") +
 
 print(
   tutu %>% filter(latency == selected_latency) %>%
-  ggplot(aes(x = index, y = new_avg, group = index, color = winner, label = latency)) +
+  ggplot(aes(x = winner, y = new_avg, group = winner, color = winner, label = latency)) +
   geom_violin() +
-  labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
+labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +
   scale_fill_viridis(discrete = TRUE)
 )
@@ -420,7 +420,7 @@ print(
 print(
   tutu %>% filter(latency == selected_latency) %>%
     group_by(function_name) %>%
-  ggplot(aes(x = timestamp, y = new_avg, group = function_name, color = winner, label = latency)) +
+  ggplot(aes(x = timestamp, y = new_avg, group = index, color = winner, label = latency)) +
   geom_smooth() +
 labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +
@@ -431,10 +431,21 @@ print(
   tata %>% filter(latency == selected_latency) %>%
     group_by(winner) %>%
   ggplot(aes(x = timestamp, y = avg, group = winner, color = winner, label = latency)) +
-  geom_smooth() +
+  geom_point(size=0.25) +
+    geom_smooth(alpha=0.25) +
 labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
   scale_color_viridis(discrete = TRUE, option = "D") +
   scale_fill_viridis(discrete = TRUE) 
 )
 }
+print(
+  tata %>%
+    group_by(winner) %>%
+  ggplot(aes(x = timestamp, y = avg, group = winner, color = winner, label = latency)) +
+  geom_point(size=0.25) +
+    geom_smooth(alpha=0.25) +
+labs(x = "time", y = "Avg lat. (s)", title = "ALL Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+)
 ```

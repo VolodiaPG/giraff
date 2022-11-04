@@ -3,12 +3,18 @@ name = "fog_node"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+debuginfo-level = 1
+
 [features]
 default = []
 # Enables fake implementation of kubernetes not to rely on a true one
 fake_k8s = []
 # Enable the bottom up placement method (placing at Edge first)
 bottom_up_placement = []
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C force-frame-pointers=y"]
 
 [dependencies]
 anyhow = "1.0.58"

@@ -71,6 +71,8 @@ do
 	echo -e "${GREEN}${FUNCTION_ID}${NC}" # DGRAY for the following
 
 	sleep $DELAY
+
+	
 	echo -e "${PURPLE}Instanciating echo from Iot platform${RED}" # DGRAY for the following
 
 
@@ -84,6 +86,5 @@ do
 	"tag": "'"$function_name"'"
   }'
 echo -e "\n${GREEN}Iot registred${NC}" # DGRAY for the following
-sleep $DELAY
 
 done

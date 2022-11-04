@@ -20,7 +20,9 @@
   systemd.services.fixcertificate = {
     script = ''
       systemctl stop k3s.service
+      sleep 5
       rm -rf /var/lib/rancher/k3s
+      sleep 5
       systemctl start k3s.service
     '';
     wantedBy = [ "multi-user.target" ];

@@ -93,6 +93,7 @@ spec:
       labels:
         app: fog-node
     spec:
+      shareProcessNamespace: true
       serviceAccountName: fog-node
       automountServiceAccountToken: true
       containers:
@@ -124,13 +125,24 @@ spec:
         volumeMounts:
         - name: log-storage-fog-node
           mountPath: /var/log
-      - name: sidecar-log-agent-fog-node
+      - name: sidecar-logs
         image: ghcr.io/volodiapg/busybox:latest
         args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
         volumeMounts:
         - name: log-storage-fog-node
           readOnly: true
           mountPath: /mnt/log
+      - name: sidecar-perf
+        image: ghcr.io/volodiapg/perftools:latest
+        securityContext:
+          capabilities:
+            add:
+            - SYS_PTRACE
+        volumeMounts:
+        - name: log-storage-fog-node
+          readOnly: true
+          mountPath: /mnt/log
+        command: [ "/bin/bash", "-c", "--", "trap : TERM INT; sleep 9999999999d & wait" ]
       volumes:
       - name: log-storage-fog-node
         emptyDir: {{}}
@@ -181,7 +193,7 @@ spec:
         volumeMounts:
         - name: log-storage-market
           mountPath: /var/log
-      - name: sidecar-log-agent-market
+      - name: sidecar-logs
         image: ghcr.io/volodiapg/busybox:latest
         args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
         volumeMounts:
@@ -655,7 +667,7 @@ def up(force, env=None, **kwargs):
     conf = (
         en.VMonG5kConf.from_settings(
             job_name="Nix❄️+En0SLib FTW ❤️",
-            walltime="1:00:00",
+            walltime="2:00:00",
             image="/home/volparolguarino/nixos.qcow2",
         )
         .add_machine(
@@ -705,7 +717,10 @@ def up(force, env=None, **kwargs):
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
-            (f"systemctl start fixcertificate && sleep 10"),  # Yep, that's nasty...
+            # (f"systemctl start fixcertificate && sleep 10"),  # Yep, that's nasty...
+            (
+                f"systemctl stop k3s.service && sleep 5 && rm -rf /var/lib/rancher/k3s && sleep 5 && systemctl start k3s.service"
+            ),  # Yep, that's nasty...
             task_name="[master] Fix K3S",
         )
         p.shell(
@@ -799,7 +814,7 @@ def monitoring(env=None, **kwargs):
     )
     monitor.deploy()
     env["monitor"] = monitor
-    establish_netem(env)
+    # establish_netem(env)
 
 
 @cli.command()
@@ -925,7 +940,7 @@ def k3s_deploy(env=None, **kwargs):
             if "stderr" in payload and payload["stderr"]:
                 log.error(payload["stderr"])
 
-    establish_netem(env)
+    # establish_netem(env)
 
 
 @cli.command()
@@ -972,7 +987,7 @@ def logs(env=None, all=False, **kwargs):
 
     res.append(
         en.run_command(
-            "k3s kubectl logs deployment/market -n openfaas --container sidecar-log-agent-market",
+            "k3s kubectl logs deployment/market -n openfaas --container sidecar-logs",
             roles=roles["market"],
         )
     )
@@ -982,7 +997,7 @@ def logs(env=None, all=False, **kwargs):
     if all:
         res.append(
             en.run_command(
-                "k3s kubectl logs deployment/fog-node -n openfaas --container sidecar-log-agent-fog-node",
+                "k3s kubectl logs deployment/fog-node -n openfaas --container sidecar-logs",
                 roles=roles["master"],
             )
         )

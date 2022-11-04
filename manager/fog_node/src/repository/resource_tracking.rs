@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -7,7 +6,6 @@ use crate::prom_metrics::{
     MEMORY_USED_GAUGE,
 };
 use async_trait::async_trait;
-use tokio::sync::RwLock;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::byte;
 use uom::si::ratio::part_per_billion;
@@ -56,8 +54,8 @@ pub trait ResourceTracking: Debug + Sync + Send {
 
 #[derive(Debug, Default)]
 pub struct ResourceTrackingImpl {
-    resources_available: RwLock<HashMap<String, (Information, Ratio)>>,
-    resources_used:      RwLock<HashMap<String, (Information, Ratio)>>,
+    resources_available: flurry::HashMap<String, (Information, Ratio)>,
+    resources_used:      flurry::HashMap<String, (Information, Ratio)>,
     nodes:               Vec<String>,
 }
 
@@ -65,7 +63,7 @@ impl ResourceTrackingImpl {
     pub async fn new(k8s: Arc<dyn K8s>) -> Result<Self, Error> {
         let aggregated_metrics = k8s.get_k8s_metrics().await?;
 
-        let resources_available: Result<HashMap<_, _>, Error> = aggregated_metrics
+        let resources_available: Result<flurry::HashMap<_, _>, Error> = aggregated_metrics
             .iter()
             .map(|(name, metrics)| -> Result<(String, (Information, Ratio)), Error> {
                 let allocatable = metrics.allocatable.as_ref().ok_or(Error::MetricsNotFound)?;
@@ -77,7 +75,7 @@ impl ResourceTrackingImpl {
             .collect();
         let resources_available = resources_available?;
 
-        let resources_used: HashMap<_, _> = aggregated_metrics
+        let resources_used: flurry::HashMap<_, _> = aggregated_metrics
             .iter()
             .map(|(name, _)| {
                 (
@@ -89,19 +87,19 @@ impl ResourceTrackingImpl {
                 )
             })
             .collect();
-        let resources_used = RwLock::new(resources_used);
 
-        let nodes = resources_available.keys().cloned().collect();
-
-        let resources_available = RwLock::new(resources_available);
+        let nodes = {
+            let resources_available_pinned = resources_available.pin();
+            resources_available_pinned.keys().cloned().collect()
+        };
 
         Ok(Self { resources_available, resources_used, nodes })
     }
 
     /// Check if the key exists in all storages
     async fn key_exists(&self, name: &str) -> Result<(), Error> {
-        if self.resources_used.read().await.contains_key(name)
-            && self.resources_available.read().await.contains_key(name)
+        if self.resources_used.pin().contains_key(name)
+            && self.resources_available.pin().contains_key(name)
         {
             return Ok(());
         }
@@ -112,15 +110,13 @@ impl ResourceTrackingImpl {
     async fn update_metrics(&self, name: &'_ str) -> Result<(), Error> {
         let (used_mem, used_cpu) = *self
             .resources_used
-            .read()
-            .await
+            .pin()
             .get(name)
             .ok_or(Error::NonExistentName)?;
 
         let (avail_mem, avail_cpu) = *self
             .resources_available
-            .read()
-            .await
+            .pin()
             .get(name)
             .ok_or(Error::NonExistentName)?;
 
@@ -142,7 +138,7 @@ impl ResourceTracking for ResourceTrackingImpl {
         cpu: Ratio,
     ) -> Result<(), Error> {
         let _ = self.key_exists(&name).await?;
-        self.resources_used.write().await.insert(name.clone(), (memory, cpu));
+        self.resources_used.pin().insert(name.clone(), (memory, cpu));
         let _ = self.update_metrics(&name).await?;
         Ok(())
     }
@@ -153,7 +149,7 @@ impl ResourceTracking for ResourceTrackingImpl {
     ) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(name).await?;
         let _ = self.update_metrics(name).await?;
-        Ok(*self.resources_used.read().await.get(name).unwrap())
+        Ok(*self.resources_used.pin().get(name).unwrap())
     }
 
     async fn get_available(
@@ -162,7 +158,7 @@ impl ResourceTracking for ResourceTrackingImpl {
     ) -> Result<(Information, Ratio), Error> {
         let _ = self.key_exists(name).await?;
         let _ = self.update_metrics(name).await?;
-        Ok(*self.resources_available.read().await.get(name).unwrap())
+        Ok(*self.resources_available.pin().get(name).unwrap())
     }
 
     fn get_nodes(&self) -> &Vec<String> { &self.nodes }
