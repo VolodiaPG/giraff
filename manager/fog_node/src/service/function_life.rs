@@ -23,6 +23,7 @@ pub enum Error {
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error("Cannot get latency of node {0}")]
     CannotGetLatency(NodeId),
+    #[cfg(feature = "bottom_up_placement")]
     #[error("No candidates were found or returned an Ok result")]
     NoCandidatesRetained,
 }

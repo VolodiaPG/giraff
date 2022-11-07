@@ -314,7 +314,7 @@ fn main() {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(
-            std::thread::available_parallelism().unwrap().get() * 100,
+            std::thread::available_parallelism().unwrap().get(), // * 100,
         )
         .thread_stack_size(256 * 1024)
         .build()
