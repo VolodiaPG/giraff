@@ -116,7 +116,7 @@ impl Auction for AuctionImpl {
     async fn bid_on(&self, sla: Sla) -> Result<(BidId, BidRecord), Error> {
         let (node, bid) = self.compute_bid(&sla).await?;
         let record = BidRecord { bid, sla, node };
-        let id = self.db.insert(record.to_owned()).await;
+        let id = self.db.insert(record.to_owned());
         BID_GAUGE
             .with_label_values(&[
                 &record.sla.function_live_name,
@@ -130,11 +130,10 @@ impl Auction for AuctionImpl {
         let bid = self
             .db
             .get(id)
-            .await
             .ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?
             .clone();
 
-        self.db.remove(id).await;
+        self.db.remove(id);
 
         let (used_mem, used_cpu) =
             self.resource_tracking.get_used(&bid.node).await?;

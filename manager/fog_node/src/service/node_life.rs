@@ -70,16 +70,14 @@ impl NodeLife for NodeLifeImpl {
         trace!("Registering child node");
         match &register {
             RegisterNode::Node { node_id, parent, ip, port, .. } => {
-                if &self.node_situation.get_my_id().await != parent {
+                if &self.node_situation.get_my_id() != parent {
                     return Err(Error::NotTheParent);
                 }
 
-                self.node_situation
-                    .register(
-                        node_id.clone(),
-                        NodeDescription { ip: *ip, port: *port },
-                    )
-                    .await;
+                self.node_situation.register(
+                    node_id.clone(),
+                    NodeDescription { ip: *ip, port: *port },
+                );
             }
             RegisterNode::MarketNode { .. } => {
                 return Err(Error::CannotRegisterMarketOnRegularNode)
@@ -102,24 +100,23 @@ impl NodeLife for NodeLifeImpl {
         port: u16,
     ) -> Result<(), Error> {
         trace!("Init registration");
-        let register = if self.node_situation.is_market().await {
+        let register = if self.node_situation.is_market() {
             RegisterNode::MarketNode {
-                node_id: self.node_situation.get_my_id().await,
+                node_id: self.node_situation.get_my_id(),
                 ip,
                 port,
-                tags: self.node_situation.get_my_tags().await,
+                tags: self.node_situation.get_my_tags(),
             }
         } else {
             RegisterNode::Node {
                 ip,
                 port,
-                node_id: self.node_situation.get_my_id().await,
+                node_id: self.node_situation.get_my_id(),
                 parent: self
                     .node_situation
                     .get_parent_id()
-                    .await
                     .ok_or(Error::ParentDoesntExist)?,
-                tags: self.node_situation.get_my_tags().await,
+                tags: self.node_situation.get_my_tags(),
             }
         };
         self.node_query.register_to_parent(register).await?;

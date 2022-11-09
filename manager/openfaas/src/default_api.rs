@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use log::trace;
+use reqwest::Client;
 use std::fmt::Debug;
 
 use super::{configuration, Error};
@@ -43,7 +44,7 @@ impl DefaultApi for DefaultApiClient {
             format!("{}/system/functions", self.configuration.base_path);
         trace!("Requesting {}", uri_str);
 
-        let mut builder = self.configuration.client.get(&uri_str);
+        let mut builder = Client::new().get(&uri_str);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
@@ -60,11 +61,8 @@ impl DefaultApi for DefaultApiClient {
             format!("{}/system/functions", self.configuration.base_path);
         trace!("Requesting {}", uri_str);
 
-        let mut builder = self
-            .configuration
-            .client
-            .post(&uri_str)
-            .body(serde_json::to_string(&body)?);
+        let mut builder =
+            Client::new().post(&uri_str).body(serde_json::to_string(&body)?);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
@@ -91,12 +89,12 @@ impl DefaultApi for DefaultApiClient {
         );
         trace!("Requesting {}", uri_str);
 
-        let mut builder = self.configuration.client.post(&uri_str).body(input);
+        let mut builder = Client::new().post(&uri_str).body(input);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
         }
-
+        trace!("Sending on {}", uri_str);
         let response = builder.send().await?;
         trace!("response: {:#?}", response);
 

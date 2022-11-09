@@ -81,15 +81,13 @@ impl NodeQuery for NodeQueryRESTImpl {
         register: RegisterNode,
     ) -> Result<(), Error> {
         trace!("Registering to parent or market...");
-        let upper_node_address = if self.node_situation.is_market().await {
+        let upper_node_address = if self.node_situation.is_market() {
             self.node_situation
                 .get_market_node_address()
-                .await
                 .ok_or(Error::NoURIToUpper)?
         } else {
             self.node_situation
                 .get_parent_node_address()
-                .await
                 .ok_or(Error::NoURIToUpper)?
         };
 
@@ -117,7 +115,6 @@ impl NodeQuery for NodeQueryRESTImpl {
         let NodeDescription { ip, port, .. } = self
             .node_situation
             .get_fog_node_neighbor(&id)
-            .await
             .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
         let (ip, port) = (ip, port);
 

@@ -77,8 +77,10 @@ impl Routing for RoutingImpl {
         packet: &Packet,
     ) -> Result<Bytes, Error> {
         let url = format!("http://{}:{}/api/routing", ip, port);
-        trace!("Posting to routing on: {}", &url);
-        self.forward_to(&packet, &url).await
+        trace!("Posting to routing on: {}...", &url);
+        let ret = self.forward_to(&packet, &url).await;
+        trace!("Posted to routing on: {}", &url);
+        ret
     }
 
     async fn forward_to_url<'a, 'b, T>(

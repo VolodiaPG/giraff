@@ -89,7 +89,7 @@ pub struct NodeSituationData {
     pub my_public_ip:   IpAddr,
     pub my_public_port: u16,
     pub tags:           Vec<String>,
-    pub children:       flurry::HashMap<NodeId, NodeDescription>,
+    pub children:       dashmap::DashMap<NodeId, NodeDescription>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,7 +146,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_public_port,
                 tags,
             } => NodeSituationData {
-                children: flurry::HashMap::new(),
+                children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port,
@@ -165,7 +165,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_public_port,
                 tags,
             } => NodeSituationData {
-                children: flurry::HashMap::new(),
+                children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port,

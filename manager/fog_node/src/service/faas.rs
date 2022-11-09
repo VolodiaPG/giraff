@@ -26,7 +26,7 @@ pub trait FaaSBackend: Debug + Sync + Send {
         id: BidId,
         bid: BidRecord,
     ) -> Result<String, Error>;
-    async fn get_provisioned_function(
+    fn get_provisioned_function(
         &self,
         id: &BidId,
     ) -> Option<ProvisionedRecord>;
@@ -68,23 +68,18 @@ impl FaaSBackend for OpenFaaSBackend {
 
         self.client.system_functions_post(definition).await?;
 
-        self.provisioned_functions
-            .insert(
-                id,
-                ProvisionedRecord {
-                    bid,
-                    function_name: function_name.to_owned(),
-                },
-            )
-            .await;
+        self.provisioned_functions.insert(
+            id,
+            ProvisionedRecord { bid, function_name: function_name.to_owned() },
+        );
 
         Ok(function_name)
     }
 
-    async fn get_provisioned_function(
+    fn get_provisioned_function(
         &self,
         id: &BidId,
     ) -> Option<ProvisionedRecord> {
-        self.provisioned_functions.get(id).await
+        self.provisioned_functions.get(id)
     }
 }

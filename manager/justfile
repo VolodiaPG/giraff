@@ -72,14 +72,12 @@ docker $flavor="default":
     echo "Building flavor: $flavor"
     if [ $flavor = naive ]; then
         nix build .#docker_fog_node_naive
-        docker load < result
     elif [ $flavor = perftools ]; then
         nix build .#docker_fog_node_perftools
-        docker load < result
     else
         nix build .#docker_fog_node
-        docker load < result
     fi
+    docker load < result
 
     nix build .#docker_market
     docker load < result

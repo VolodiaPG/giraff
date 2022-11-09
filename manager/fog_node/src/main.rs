@@ -20,7 +20,6 @@ use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
-use reqwest::Client;
 use rocket_okapi::openapi_get_routes;
 use rocket_okapi::swagger_ui::*;
 use rocket_prometheus::prometheus::GaugeVec;
@@ -136,7 +135,6 @@ async fn rocket() {
     // Repositories
     let client = Arc::new(DefaultApiClient::new(Configuration {
         base_path:  format!("http://{}:{}", ip_openfaas, port_openfaas),
-        client:     Client::new(),
         basic_auth: auth,
     }));
 
@@ -145,11 +143,8 @@ async fn rocket() {
         NodeSituationData::from(disk_data.unwrap()),
     ));
 
-    info!("Current node ID is {}", node_situation.get_my_id().await);
-    info!(
-        "Current node has been tagged {:?}",
-        node_situation.get_my_tags().await
-    );
+    info!("Current node ID is {}", node_situation.get_my_id());
+    info!("Current node has been tagged {:?}", node_situation.get_my_tags());
     let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(k8s_factory());
@@ -202,7 +197,7 @@ async fn rocket() {
         node_query.clone(),
     ));
 
-    if node_situation.is_market().await {
+    if node_situation.is_market() {
         info!("This node is a provider node located at the market node");
     } else {
         info!("This node is a provider node");
@@ -280,8 +275,8 @@ async fn register_to_market(
     node_situation: Arc<dyn NodeSituation>,
 ) {
     info!("Registering to market and parent...");
-    let my_ip = node_situation.get_my_public_ip().await;
-    let my_port = node_situation.get_my_public_port().await;
+    let my_ip = node_situation.get_my_public_ip();
+    let my_port = node_situation.get_my_public_port();
     if let Err(err) = node_life.init_registration(my_ip, my_port).await {
         error!("Failed to register to market: {}", err.to_string());
         std::process::exit(1);
@@ -290,13 +285,13 @@ async fn register_to_market(
 }
 
 async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(15));
+    let mut interval = time::interval(Duration::from_secs(60));
 
     loop {
-        interval.tick().await;
         for value in jobs.read().await.iter() {
             tokio::spawn(value());
         }
+        interval.tick().await;
     }
 }
 
@@ -312,11 +307,9 @@ fn main() {
     }
 
     tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(num_cpus::get())
         .enable_all()
-        .worker_threads(
-            std::thread::available_parallelism().unwrap().get(), // * 100,
-        )
-        .thread_stack_size(256 * 1024)
+        // .thread_stack_size(256 * 1024)
         .build()
         .expect("build runtime failed")
         .block_on(rocket());

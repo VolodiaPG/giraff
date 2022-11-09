@@ -56,7 +56,7 @@ mod auction_placement {
 
     use super::*;
 
-    use futures::future::{join3, try_join_all};
+    use futures::future::{join, try_join_all};
 
     pub struct FunctionLifeImpl {
         function:         Arc<dyn FaaSBackend>,
@@ -94,7 +94,7 @@ mod auction_placement {
         ) -> Result<BidProposals, Error> {
             let mut requests = vec![];
 
-            for neighbor in self.node_situation.get_neighbors().await {
+            for neighbor in self.node_situation.get_neighbors() {
                 if neighbor == from {
                     continue;
                 }
@@ -126,7 +126,7 @@ mod auction_placement {
                 requests.push((
                     BidRequest {
                         sla,
-                        node_origin: self.node_situation.get_my_id().await,
+                        node_origin: self.node_situation.get_my_id(),
                         accumulated_latency: accumulated_latency
                             + latency_outbound,
                     },
@@ -156,12 +156,12 @@ mod auction_placement {
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
-            let (my_id, result_bid, proposals) = join3(
-                self.node_situation.get_my_id(),
+            let (result_bid, proposals) = join(
                 self.auction.bid_on(sla.clone()),
                 self.follow_up_to_neighbors(sla, from, accumulated_latency),
             )
             .await;
+            let my_id = self.node_situation.get_my_id();
 
             let mut proposals = proposals?;
 

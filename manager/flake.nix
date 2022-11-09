@@ -1,8 +1,18 @@
 {
   inputs = {
-    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
+    nixpkgs.url = "github:Nixos/nixpkgs/nixos-unstable";
+    cargo2nix = {
+      url = "github:cargo2nix/cargo2nix/release-0.11.0";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
+    cargo2nix.inputs.nixpkgs.follows = "nixpkgs";
     flake-utils.follows = "cargo2nix/flake-utils";
-    nixpkgs.follows = "cargo2nix/nixpkgs";
+    # nixpkgs.follows = "github:Nixos/nixpkgs/nixos-unstable";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
 
@@ -16,12 +26,12 @@
         };
 
         rustChannel = "nightly";
-        rustProfile = "default";
+        rustProfile = "minimal";
+        rustVersion = "2022-11-05";
         target = "x86_64-unknown-linux-musl";
 
         rustPkgs = pkgs.rustBuilder.makePackageSet {
-          # inherit rustChannel rustProfile target;
-          inherit rustChannel rustProfile target;
+          inherit rustChannel rustProfile target rustVersion;
           packageFun = import ./Cargo.nix;
           rootFeatures = [ ];
           rustcBuildFlags = [
@@ -33,12 +43,12 @@
         };
 
         rustPkgs_naive = pkgs.rustBuilder.makePackageSet {
-          inherit rustChannel rustProfile target;
+          inherit rustChannel rustProfile target rustVersion;
           packageFun = import ./Cargo.nix;
           rootFeatures = [ "fog_node/bottom_up_placement" ];
         };
 
-        workspaceShell = (rustPkgs_naive.workspaceShell {
+        workspaceShell = (rustPkgs.workspaceShell {
           packages = with pkgs; [
             docker
             just
@@ -48,7 +58,7 @@
           ];
         });
 
-        dockerImageFogNodeBuilder = { fog_node_bin }: {
+        dockerImageFogNodeBuilder = { fog_node_bin }: pkgs.dockerTools.buildImage {
           name = "fog_node";
           tag = "latest";
           config = {

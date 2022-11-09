@@ -54,16 +54,16 @@ pub trait LatencyEstimation: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct LatencyEstimationImpl {
     node_situation:     Arc<dyn NodeSituation>,
-    outgoing_latencies: Arc<flurry::HashMap<NodeId, RollingAvg>>,
-    incoming_latencies: Arc<flurry::HashMap<NodeId, RollingAvg>>,
+    outgoing_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
+    incoming_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
 }
 
 impl LatencyEstimationImpl {
     pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self {
         Self {
             node_situation,
-            outgoing_latencies: Arc::new(flurry::HashMap::new()),
-            incoming_latencies: Arc::new(flurry::HashMap::new()),
+            outgoing_latencies: Arc::new(dashmap::DashMap::new()),
+            incoming_latencies: Arc::new(dashmap::DashMap::new()),
         }
     }
 
@@ -76,7 +76,6 @@ impl LatencyEstimationImpl {
         let desc = self
             .node_situation
             .get_fog_node_neighbor(node_id)
-            .await
             .ok_or_else(|| IndividualError::NodeNotFound(node_id.clone()))?;
 
         let ip = desc.ip;
@@ -104,7 +103,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
     async fn latency_to_neighbors(&self) -> Result<(), Error> {
         let mut handles = Vec::new();
         let mut tried_nodes = Vec::new(); // same order as handles
-        for node in self.node_situation.get_neighbors().await {
+        for node in self.node_situation.get_neighbors() {
             tried_nodes.push(node.clone());
             handles.push(async move {
                 let (incoming, outgoing) =
@@ -124,7 +123,6 @@ impl LatencyEstimation for LatencyEstimationImpl {
                 let desc = self
                     .node_situation
                     .get_fog_node_neighbor(&node)
-                    .await
                     .ok_or_else(|| {
                         IndividualError::NodeNotFound(node.clone())
                     })?;
@@ -135,7 +133,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .with_label_values(&[&format!("{}:{}", ip, port)])
                     .set(outgoing.value);
 
-                if let Some(lat) = self.outgoing_latencies.pin().get(&node) {
+                if let Some(lat) = self.outgoing_latencies.get(&node) {
                     crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
                         .with_label_values(&[&format!("{}:{}", ip, port)])
                         .set(lat.get_avg().value);
@@ -165,26 +163,24 @@ impl LatencyEstimation for LatencyEstimationImpl {
     }
 
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies.pin().get(id).map(|avg| avg.get_avg())
+        self.outgoing_latencies.get(id).map(|avg| avg.get_avg())
     }
 
     async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time> {
-        self.incoming_latencies.pin().get(id).map(|avg| avg.get_avg())
+        self.incoming_latencies.get(id).map(|avg| avg.get_avg())
     }
 }
 
 impl LatencyEstimationImpl {
     fn update_latency(
-        map: &flurry::HashMap<NodeId, RollingAvg>,
+        map: &dashmap::DashMap<NodeId, RollingAvg>,
         key: &NodeId,
         value: Time,
     ) {
-        let map = map.pin();
-        let entry = match map.get(key) {
-            Some(latency) => latency,
+        let mut entry = match map.get(key) {
+            Some(latency) => latency.clone(),
             None => map.insert(key.clone(), RollingAvg::default()).unwrap(),
         };
-        let mut entry = entry.clone();
         entry.update(value);
         map.insert(key.clone(), entry);
     }
