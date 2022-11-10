@@ -56,7 +56,6 @@
   services.fwupd.enable = true;
   services.k3s = {
     enable = true;
-    docker = true;
   };
 
   virtualisation.docker.enable = true;
