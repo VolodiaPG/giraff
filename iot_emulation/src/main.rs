@@ -1,11 +1,17 @@
-extern crate log;
+extern crate core;
 #[macro_use]
+extern crate tracing;
 extern crate rocket;
+
+use tracing_forest::ForestLayer;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::EnvFilter;
 
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
 use lazy_static::lazy_static;
 use rocket::serde::json::Json;
@@ -21,7 +27,7 @@ use uuid::Uuid;
 type CronFn =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
-type PromTimer = Arc<flurry::HashMap<Uuid, Sender<()>>>;
+type PromTimer = Arc<dashmap::DashMap<Uuid, Sender<()>>>;
 
 lazy_static! {
     static ref HTTP_PRINT_HISTOGRAM: HistogramVec = register_histogram_vec!(
@@ -74,8 +80,8 @@ pub struct StartCron {
 
 #[post("/print", data = "<payload>")]
 pub async fn print(payload: Json<Payload>, prom_timers: &State<PromTimer>) {
-    let timer = prom_timers.pin().remove(&payload.id).cloned();
-    if let Some(tx) = timer {
+    let timer = prom_timers.remove(&payload.id);
+    if let Some((_id, tx)) = timer {
         tx.send(()).await.unwrap();
     }
     info!("{:?}", payload);
@@ -84,7 +90,7 @@ pub async fn print(payload: Json<Payload>, prom_timers: &State<PromTimer>) {
 #[put("/cron", data = "<config>")]
 async fn put_cron(
     config: Json<StartCron>,
-    cron_jobs: &State<Arc<flurry::HashMap<String, CronFn>>>,
+    cron_jobs: &State<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
     prom_timers: &State<PromTimer>,
 ) {
     let config = Arc::new(config.0);
@@ -101,27 +107,33 @@ async fn put_cron(
         Box::pin(ping(prom_timers, config))
     });
 
-    cron_jobs.pin().insert(tag, job);
+    cron_jobs.insert(tag, Arc::new(job));
 }
 
 #[delete("/cron/<tag>")]
 async fn delete_cron(
     tag: String,
-    cron_jobs: &State<Arc<flurry::HashMap<String, CronFn>>>,
+    cron_jobs: &State<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
 ) {
     info!("Deleting cron on tag {:?}", tag);
-    cron_jobs.pin().remove(&tag);
+    cron_jobs.remove(&tag);
 }
 
+#[instrument(
+    level = "trace",
+    skip(prom_timers, config),
+    fields(tag=%config.tag)
+)]
 async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
     let id = Uuid::new_v4();
     let (tx, mut rx) = mpsc::channel(1);
-
+    
     {
-        prom_timers.pin().insert(id.clone(), tx);
+        prom_timers.insert(id.clone(), tx);
     }
     let tag = config.tag.clone();
-
+    
+    let start = Instant::now();
     info!("Sending a ping to {:?}...", tag.clone());
 
     let res = reqwest::Client::new().post(config.first_node_url.clone()).body(
@@ -156,13 +168,17 @@ async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
         return;
     }
 
+    let elapsed = start.elapsed();
     measure.observe_duration();
+
+    debug!("Elapsed: {:?}", elapsed); 
+    debug!("Millis: {} ms", elapsed.as_millis()); 
     info!("Measured {:?} ({:?})", id, tag);
 }
 
-async fn rocket(jobs: Arc<flurry::HashMap<String, CronFn>>) {
+async fn rocket(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
     // Id of the request; Histogram that started w/ that request
-    let prom_timers = Arc::new(flurry::HashMap::<Uuid, Sender<()>>::new());
+    let prom_timers = Arc::new(dashmap::DashMap::<Uuid, Sender<()>>::new());
 
     let metrics: [&HistogramVec; 1] = [&HTTP_PRINT_HISTOGRAM];
     let prometheus = PrometheusMetrics::new();
@@ -184,30 +200,33 @@ async fn rocket(jobs: Arc<flurry::HashMap<String, CronFn>>) {
         .expect("Rocket launch failed");
 }
 
-async fn forever(jobs: Arc<flurry::HashMap<String, CronFn>>) {
+async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
     let mut interval = time::interval(Duration::from_secs(5));
 
     loop {
         interval.tick().await;
-        let pin = jobs.pin();
-        for value in pin.values() {
-            tokio::spawn(value());
+        for value in jobs.iter() {
+            let val = value.value().clone();
+            tokio::spawn(val());
         }
     }
 }
 
 fn main() {
-    std::env::set_var("RUST_LOG", "info, echo=trace");
-    env_logger::init();
+    std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
 
-    let jobs = Arc::new(flurry::HashMap::<String, CronFn>::new());
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(ForestLayer::default())
+        .init();
+
+    debug!("Tracing initialized.");
+
+    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(
-            std::thread::available_parallelism().unwrap().get() * 100,
-        )
-        .thread_stack_size(256 * 1024)
+        .worker_threads(num_cpus::get())
         .build()
         .expect("build runtime failed")
         .block_on(async {

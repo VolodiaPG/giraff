@@ -1,8 +1,19 @@
 {
   inputs = {
-    cargo2nix.url = "github:cargo2nix/cargo2nix/release-0.11.0";
+    nixpkgs.url = "github:Nixos/nixpkgs/nixos-unstable";
+    cargo2nix = {
+      url = "github:cargo2nix/cargo2nix/release-0.11.0";
+      inputs.rust-overlay.follows = "rust-overlay";
+    };
+    # cargo2nix.inputs.nixpkgs.follows = "nixpkgs";
     flake-utils.follows = "cargo2nix/flake-utils";
-    nixpkgs.follows = "cargo2nix/nixpkgs";
+    # nixpkgs.follows = "github:Nixos/nixpkgs/nixos-unstable";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
   };
 
   outputs = inputs: with inputs;
@@ -15,10 +26,11 @@
 
         rustChannel = "nightly";
         rustProfile = "minimal";
+        rustVersion = "2022-11-05";
         target = "x86_64-unknown-linux-musl";
 
         rustPkgs = pkgs.rustBuilder.makePackageSet {
-          inherit rustChannel rustProfile target;
+          inherit rustChannel rustProfile target rustVersion;
           packageFun = import ./Cargo.nix;
         };
 
