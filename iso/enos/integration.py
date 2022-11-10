@@ -120,6 +120,12 @@ spec:
           value: "0.0.0.0"
         - name: CONFIG
           value: "{conf}"
+        - name: LOG_CONFIG_PATH
+          value: "/var/log"
+        - name: LOG_CONFIG_FILENAME
+          value: "stdout.log"
+        - name: RUST_LOG
+          value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
         ports:
         - containerPort: 3030
         volumeMounts:
@@ -228,9 +234,9 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
-TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 4}
-TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 16}
+TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 2}
+TIER_2_FLAVOR = {"core": 8, "mem": 1024 * 4}
+TIER_1_FLAVOR = {"core": 10, "mem": 1024 * 16}
 
 # NETWORK = {
 #     "name": "market",
@@ -509,18 +515,19 @@ def log_cmd(env, results_list):
     # if results.filter(status=STATUS_OK):
     now = datetime.now()
     current_time = now.strftime("%Y-%m-%d-%H-%M-%S")
-    prefix = f"{os.getcwd()}/logs"
+    prefix_dir = f"{os.getcwd()}/logs"
+    prefix_simlink = f"{os.getcwd()}"
     try:
-        os.mkdir(prefix)
+        os.mkdir(prefix_dir)
     except FileExistsError:
         pass
-    path = f"{prefix}/{current_time}"
+    path = f"{prefix_dir}/{current_time}"
     os.mkdir(path)
     try:
-        os.remove(f"{prefix}/current")
+        os.remove(f"{prefix_simlink}/logs-latest")
     except (FileExistsError, FileNotFoundError):
         pass
-    os.symlink(path, f"{prefix}/current")
+    os.symlink(path, f"{prefix_simlink}/logs-latest")
     aliases = {}
     for results in results_list:
         for data in results.filter(status=STATUS_OK) + results.filter(
@@ -605,7 +612,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
             core_used += core
             mem_used += mem
 
-            if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
+            if core_used >= nb_cpu_per_host or mem_used >= mem_total_per_host:
                 if nb_vms == 0:
                     raise Exception(
                         "The VM requires more resources than the node can provide"
@@ -642,6 +649,31 @@ def attributes_roles(vm_attributions, roles):
     for vm, instance_id in vm_attributions.items():
         roles[vm] = [roles[instance_id][count[instance_id]]]
         count[instance_id] += 1
+
+
+# def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
+#     attributions = {}
+#     vms = gen_vm_conf(node)
+#     for key, value in vms.items():
+#         flavor = {x: y for (x, y) in key}
+
+#         vm_id = str(uuid.uuid4())
+#         for vm_name in value:
+#             vm_id = str(uuid.uuid4())
+#             conf.add_machine(
+#                 roles=["master", "fog_node", "prom_agent", vm_id],
+#                 cluster=cluster,
+#                 number=1,
+#                 flavour_desc=flavor,
+#             )
+
+#             attributions[vm_name] = vm_id
+
+#     return attributions
+
+
+# def attributes_roles(vm_attributions, roles):
+#     pass
 
 
 @cli.command()
@@ -735,7 +767,7 @@ def up(force, env=None, **kwargs):
                         --set functionNamespace=openfaas-fn \
                         --set generateBasicAuth=true \
                         --set prometheus.image=ghcr.io/volodiapg/prometheus:latest \
-                        --set alertmanager.image=ghcr.io/volodiapg/altermanager:latest \
+                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:latest \
                         --set stan.image=ghcr.io/volodiapg/nats-streaming:latest \
                         --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"""
             ),
@@ -746,10 +778,15 @@ def up(force, env=None, **kwargs):
             background=True,
         )
 
+
+@cli.command()
+@enostask()
+def iot_emulation(env=None, **kwargs):
+    roles = env["roles"]
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            "docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
+            "(docker rm iot_emulation || true) && docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
@@ -862,7 +899,7 @@ def k3s_deploy(env=None, **kwargs):
     )
 
     en.run_command(
-        "k3s kubectl delete -f /tmp/market.yaml || true",
+        "(k3s kubectl delete -f /tmp/market.yaml || true) && sleep 30",
         roles=roles["master"],
         task_name="Removing existing market software",
     )
@@ -998,6 +1035,12 @@ def logs(env=None, all=False, **kwargs):
         res.append(
             en.run_command(
                 "k3s kubectl logs deployment/fog-node -n openfaas --container sidecar-logs",
+                roles=roles["master"],
+            )
+        )
+        res.append(
+            en.run_command(
+                "k3s kubectl logs deployment/fog-node -n openfaas --container fog-node",
                 roles=roles["master"],
             )
         )
