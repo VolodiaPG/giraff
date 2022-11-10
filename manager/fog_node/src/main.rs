@@ -34,8 +34,8 @@ use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-mod controller;
 mod handler;
+mod http_controller;
 mod prom_metrics;
 mod repeated_tasks;
 mod repository;

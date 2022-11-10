@@ -1,6 +1,6 @@
 use crate::service::function_life::FunctionLife;
 use crate::service::routing::Router;
-use crate::{controller, NodeLife};
+use crate::{http_controller, NodeLife};
 use helper::handler::{BytesResponse, Resp};
 use helper::respond;
 use model::domain::routing::Packet;
@@ -20,7 +20,9 @@ pub async fn post_bid(
     payload: Json<BidRequestOwned>,
     function: &State<Arc<dyn FunctionLife>>,
 ) -> Resp<BidProposals> {
-    respond!(controller::auction::bid_on(payload.0, function.inner()).await)
+    respond!(
+        http_controller::auction::bid_on(payload.0, function.inner()).await
+    )
 }
 
 /// Second function called after [post_bid] if the bid is accepted and the
@@ -33,7 +35,8 @@ pub async fn post_bid_accept(
     function: &State<Arc<dyn FunctionLife>>,
 ) -> Resp {
     respond!(
-        controller::auction::provision_from_bid(id, function.inner()).await
+        http_controller::auction::provision_from_bid(id, function.inner())
+            .await
     )
 }
 
@@ -45,7 +48,7 @@ pub async fn post_routing(
     router: &State<Arc<dyn Router>>,
 ) -> Result<BytesResponse, helper::handler::Error> {
     Ok(BytesResponse::from(
-        controller::routing::post_forward_function_routing(
+        http_controller::routing::post_forward_function_routing(
             &packet.0,
             router.inner(),
         )
@@ -61,7 +64,8 @@ pub async fn post_register_route(
     route: Json<Route>,
 ) -> Resp {
     respond!(
-        controller::routing::register_route(router.inner(), route.0).await
+        http_controller::routing::register_route(router.inner(), route.0)
+            .await
     )
 }
 
@@ -72,7 +76,8 @@ pub async fn post_route_linking(
     linking: Json<RouteLinking>,
 ) -> Resp {
     respond!(
-        controller::routing::route_linking(router.inner(), linking.0).await
+        http_controller::routing::route_linking(router.inner(), linking.0)
+            .await
     )
 }
 
@@ -84,7 +89,8 @@ pub async fn post_register_child_node(
     router: &State<Arc<dyn NodeLife>>,
 ) -> Resp {
     respond!(
-        controller::node::register_child_node(payload.0, router.inner()).await
+        http_controller::node::register_child_node(payload.0, router.inner())
+            .await
     )
 }
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use model::view::auction::{BidProposals, BidRequestOwned};
 use model::BidId;
 
-use crate::controller::ControllerError;
+use crate::http_controller::ControllerError;
 use crate::service::function_life::FunctionLife;
 
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for
