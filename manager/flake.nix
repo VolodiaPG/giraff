@@ -63,13 +63,6 @@
           tag = "latest";
           config = {
             Cmd = [ "${fog_node_bin}/bin/fog_node" ];
-            Env = [ "LOG_CONFIG_PATH=/log4rs.yaml" ];
-          };
-          # Now renamed to copyToRoot
-          contents = pkgs.buildEnv {
-            name = "log4rs.yaml";
-            paths = [ log4rs ];
-            pathsToLink = [ "/" ];
           };
         };
 
@@ -77,8 +70,6 @@
         market_bin = (rustPkgs.workspace.market { }).bin;
 
         fog_node_naive_bin = (rustPkgs_naive.workspace.fog_node { }).bin;
-
-        log4rs = pkgs.writeTextDir "/log4rs.yaml" (builtins.readFile ./log4rs.yaml);
 
         dockerImageFogNode = dockerImageFogNodeBuilder { fog_node_bin = fog_node_bin; };
         dockerImageFogNodeNaive = dockerImageFogNodeBuilder { fog_node_bin = fog_node_naive_bin; };
@@ -89,18 +80,14 @@
             tag = "latest";
             config = {
               Cmd = [ "${pkgs.linuxPackages_latest.perf}/bin/perf" "record" "-F99" "--call-graph" "dwarf" "-o" "/var/log/perf.data" "${fog_node_bin}/bin/fog_node" ];
-              Env = [ "LOG_CONFIG_PATH=/log4rs.yaml" ];
             };
             runAsRoot = ''
               #!${pkgs.runtimeShell}
               mkdir -p /var/log/
             '';
-            # Now renamed to copyToRoot
-            contents = pkgs.buildEnv {
-              name = "log4rs.yaml";
-              pathsToLink = [ "/" "/bin" ];
+            copyToRoot = pkgs.buildEnv {
+              pathsToLink = [ "/bin" ];
               paths = [
-                log4rs
                 pkgs.coreutils
                 pkgs.bashInteractive
                 pkgs.micro
@@ -133,7 +120,7 @@
               cp -r ${perftoolsflame}/* /FlameGraph
               ln -s ${pkgs.perl}/bin/* /usr/bin
             '';
-            contents = pkgs.buildEnv {
+            copyToRoot = pkgs.buildEnv {
               name = "image-root";
               pathsToLink = [ "/" "/bin" ];
               paths = [

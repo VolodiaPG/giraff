@@ -21,11 +21,21 @@ impl FaaSRoutingTableHashMap {
 }
 
 impl FaaSRoutingTable for FaaSRoutingTableHashMap {
+    #[instrument(
+        name = "update faas routing table",
+        level = "trace",
+        skip(self)
+    )]
     fn update(&self, source: BidId, target: Direction) {
         trace!("Updating routing table {} -> {:?}", source, target);
         self.table.insert(source, target);
     }
 
+    #[instrument(
+        name = "get from faas routing table",
+        level = "trace",
+        skip(self)
+    )]
     fn get(&self, bid_id: &BidId) -> Option<Direction> {
         self.table.get(bid_id).map(|x| x.clone())
     }

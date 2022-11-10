@@ -2,7 +2,7 @@
 
 extern crate core;
 #[macro_use]
-extern crate log;
+extern crate tracing;
 
 use crate::handler::*;
 use crate::repeated_tasks::init;
@@ -18,6 +18,7 @@ use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
 use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
+
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
 use rocket_okapi::openapi_get_routes;
@@ -29,6 +30,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use tracing_forest::ForestLayer;
+use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter};
 
 mod controller;
 mod handler;
@@ -275,11 +279,13 @@ async fn register_to_market(
     node_situation: Arc<dyn NodeSituation>,
 ) {
     info!("Registering to market and parent...");
+    let mut interval = time::interval(Duration::from_secs(5));
     let my_ip = node_situation.get_my_public_ip();
     let my_port = node_situation.get_my_public_port();
-    if let Err(err) = node_life.init_registration(my_ip, my_port).await {
-        error!("Failed to register to market: {}", err.to_string());
-        std::process::exit(1);
+
+    while let Err(err) = node_life.init_registration(my_ip, my_port).await {
+        warn!("Failed to register to market: {}", err.to_string());
+        interval.tick().await;
     }
     info!("Registered to market and parent.");
 }
@@ -296,20 +302,29 @@ async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
 }
 
 fn main() {
-    {
-        let log_config_path = env::var("LOG_CONFIG_PATH").expect(
-            "Env variable LOG_CONFIG_PATH should point to a log4rs.yaml \
-             config file",
-        );
-        log4rs::init_file(log_config_path.clone(), Default::default())
-            .unwrap();
-        info!("Using log4rs config file located at {:?}", log_config_path);
-    }
+    // Env variable LOG_CONFIG_PATH points at the path where
+    // LOG_CONFIG_FILENAME is located
+    let log_config_path =
+        env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
+    // Env variable LOG_CONFIG_FILENAME names the log file
+    let log_config_filename = env::var("LOG_CONFIG_FILENAME")
+        .unwrap_or_else(|_| "fog_node.log".to_string());
+    let file_appender =
+        tracing_appender::rolling::never(log_config_path, log_config_filename);
+    let (non_blocking_file, _guard) =
+        tracing_appender::non_blocking(file_appender);
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(ForestLayer::default())
+        .with(fmt::Layer::default().with_writer(non_blocking_file))
+        .init();
+
+    debug!("Tracing initialized.");
 
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(num_cpus::get())
         .enable_all()
-        // .thread_stack_size(256 * 1024)
         .build()
         .expect("build runtime failed")
         .block_on(rocket());

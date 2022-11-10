@@ -42,6 +42,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
         self.database.children.insert(id, description);
     }
 
+    #[instrument(level = "trace", skip(self))]
     fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription> {
         let ret = self.database.children.get(id);
         if ret.is_none() {
@@ -98,6 +99,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
         }
     }
 
+    #[instrument(level = "trace", skip(self))]
     fn get_neighbors(&self) -> Vec<NodeId> {
         let mut ret: Vec<NodeId> =
             self.database.children.iter().map(|x| x.key().clone()).collect();

@@ -177,10 +177,10 @@ impl LatencyEstimationImpl {
         key: &NodeId,
         value: Time,
     ) {
-        let mut entry = match map.get(key) {
-            Some(latency) => latency.clone(),
-            None => map.insert(key.clone(), RollingAvg::default()).unwrap(),
-        };
+        let mut entry = map
+            .get(key)
+            .map(|entry| entry.value().clone())
+            .unwrap_or_else(RollingAvg::default);
         entry.update(value);
         map.insert(key.clone(), entry);
     }

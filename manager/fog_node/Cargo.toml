@@ -3,8 +3,6 @@ name = "fog_node"
 version = "0.1.0"
 edition = "2021"
 
-[profile.release]
-debuginfo-level = 1
 
 [features]
 default = []
@@ -12,9 +10,6 @@ default = []
 fake_k8s = []
 # Enable the bottom up placement method (placing at Edge first)
 bottom_up_placement = []
-
-[target.x86_64-unknown-linux-musl]
-rustflags = ["-C force-frame-pointers=y"]
 
 [dependencies]
 anyhow = "1.0.58"
@@ -25,15 +20,12 @@ base64 = { version = "0.13.0", default-features = false, features = [
 bytes = "1.2.0"
 chrono = "0.4"
 dashmap = "5.4.0"
-env_logger = "0.9"
 futures = "0.3.21"
 if_chain = "1.0.2"
 k8s-openapi = { version = "0.15.0", features = ["v1_22"] }
 kube = { version = "0.74.0", default-features = false, features = ["client", "runtime", "rustls-tls"] }
 lazy-regex = "2.3.0"
 lazy_static = "1.4.0"
-log = "0.4.17"
-log4rs = "1.2.0"
 num_cpus = "1.14.0"
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
@@ -47,6 +39,11 @@ serde_json = { version = "1.0.82", features = ["raw_value"] }
 serde_with = "2.0.0"
 thiserror = "1.0.31"
 tokio = { version = "1.20.1", features = ["rt-multi-thread", "time", "sync"] }
+tracing = "0.1.37"
+tracing-appender = "0.2"
+tracing-futures = "0.2.5"
+tracing-subscriber = {version = "0.3", features = ["env-filter"]}
+tracing-forest = { version = "0.1.5", features = ["tokio"]}
 uom = { version = "0.33.0", default-features = false, features = [
     "f64",
     "si",

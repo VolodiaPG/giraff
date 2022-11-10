@@ -29,7 +29,7 @@ run_market:
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node $node_type *FLAGS:
-    #!/usr/bin/python3
+    #!/usr/bin/env python3
     import os
     import base64
 

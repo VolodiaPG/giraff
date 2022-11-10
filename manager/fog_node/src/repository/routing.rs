@@ -70,6 +70,7 @@ impl RoutingImpl {
 
 #[async_trait]
 impl Routing for RoutingImpl {
+    #[instrument(level = "trace", skip(self, packet))]
     async fn forward_to_routing(
         &self,
         ip: &IpAddr,
@@ -83,6 +84,7 @@ impl Routing for RoutingImpl {
         ret
     }
 
+    #[instrument(level = "trace", skip(self, data))]
     async fn forward_to_url<'a, 'b, T>(
         &self,
         node_ip: &IpAddr,

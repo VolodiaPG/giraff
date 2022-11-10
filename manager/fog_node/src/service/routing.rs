@@ -191,6 +191,7 @@ where
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn forward(&self, packet: &Packet) -> Result<Bytes, Error> {
         trace!("Forwarding packet...");
         let ret = match packet {
