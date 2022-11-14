@@ -11,7 +11,7 @@
 
       pkgs = import nixpkgs {
         inherit system; config = { allowUnfree = true; };
-        overlays = [ inputs.enoslib.overlay.${system} ];
+        # overlays = [ inputs.enoslib.overlay.${system} ];
       };
       pkgs-unstable = import nixpkgs-unstable {
         inherit system; config = { allowUnfree = true; };
@@ -39,12 +39,15 @@
     in
     {
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
-      nixosConfigurations.isoimage = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.vm = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         modules = [
-          "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+          "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
+          "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+          ./machine-config.nix
         ];
       };
+
       qcow2 = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
         inherit lib pkgs;
         config = (nixpkgs.lib.nixosSystem {
@@ -60,6 +63,7 @@
         format = "qcow2-compressed";
       };
 
+
       devShells.${system} = {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
@@ -69,11 +73,12 @@
               })
             )
             pandoc # for rstudio
-            enoslib
+            inputs.enoslib.defaultPackage
             just
             jq
             pkgs-unstable.mprocs
             black
+            qemu
           ];
         };
       };

@@ -11,7 +11,47 @@ build-vm:
 upload city="nancy":
     rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos*.qcow2 {{city}}.g5k:~/nixos.qcow2
     
-vm :
-    export QEMU_NET_OPTS="hostfwd=tcp::2221-:22,hostfwd=tcp::8080-:80" && \
-    nixos-rebuild --flake .#isoimage build-vm && \
-    ./result/bin/run-*-vm
+vm clean="false":
+    #!/usr/bin/env bash
+    export NIX_DISK_IMAGE="nixos.vm.qcow2"
+    export QEMU_NET_OPTS="hostfwd=tcp::2221-:22" 
+    export QEMU_OPTS="-m 4096 -smp 4 -enable-kvm" 
+    
+    export SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
+    
+    if {{clean}} || ! test -e "$NIX_DISK_IMAGE"
+    then
+        qemu-img create -f qcow2 "$NIX_DISK_IMAGE" 4G
+    fi
+
+    nixos-rebuild --flake .#vm build-vm 
+    ./result/bin/run-*-vm&
+
+    until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
+    do
+        sleep 1
+    done
+    
+    $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+                    && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
+                    && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
+                    && helm repo update \
+                    && helm upgrade openfaas --install openfaas/openfaas \
+                        --namespace openfaas  \
+                        --set functionNamespace=openfaas-fn \
+                        --set generateBasicAuth=true \
+                        --set prometheus.image=ghcr.io/volodiapg/prometheus:latest \
+                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:latest \
+                        --set stan.image=ghcr.io/volodiapg/nats-streaming:latest \
+                        --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"
+    sleep 20
+
+    $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s"
+    $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s"
+    
+    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
+    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
+    $SSH_CMD -N -L 8080:127.0.0.1:8080&
+    $SSH_CMD -N -L 9090:127.0.0.1:9090
+
+    

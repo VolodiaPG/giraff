@@ -74,6 +74,8 @@
     ansible
     fping
     kubernetes-helm
+
+    htop
   ];
 
   networking.firewall.enable = false;
