@@ -11,12 +11,15 @@ mprocs:
 # Deploy the stack to redy the eperiment on grid'5000
 deploy $CLUSTER="gros" +UP_FLAGS='':
     {{RUN}} up {{UP_FLAGS}}
+    {{RUN}} iot-emulation
     {{RUN}} k3s-deploy
     {{RUN}} monitoring
 
 # Refresh the container images hosted by k3s on all deployed nodes
 refresh:
+    {{RUN}} iot-emulation
     {{RUN}} k3s-deploy
+    {{RUN}} monitoring
 
 # Open SSH tunnels
 tunnels +FLAGS='':
@@ -36,8 +39,9 @@ clean:
     {{RUN}} clean || true
     rm -rf enos_* current cachedir __enos*
 
-collect $port="9090" $period="1h":
+collect extract="ss" $port="9090" $period="1h":
     python collect.py
+    {{extract}} || rm metrics/* && tar -xvf latest_metrics.tar.gz -C metrics
     # {{RUN}} logs --all
 
 latency src dest:

@@ -1,3 +1,7 @@
+# Nix
+result
+result-*
+
 # EnosLib
 current
 enos_*/

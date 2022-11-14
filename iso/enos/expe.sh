@@ -17,14 +17,16 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 #configs_mem=("50" "150" "500") # megabytes
-configs_mem=("100" "100" "100" "100" "100")
+configs_mem=("100")
 
-configs_latency=("50" "100" "300" "500" "1000") # ms
+configs_latency=("1000") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("200" "200" "200" "200" "200")
+configs_cpu=("200")
 
 size=${#configs_cpu[@]}
+
+iot_requests_body=()
 
 for ii in $(seq 1 $MAX)
 do
@@ -68,23 +70,28 @@ do
   }')
 	echo -e $FUNCTION_ID
 	FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
-	echo -e "${GREEN}${FUNCTION_ID}${NC}" # DGRAY for the following
+	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
-	sleep $DELAY
-
-	
-	echo -e "${PURPLE}Instanciating echo from Iot platform${RED}" # DGRAY for the following
-
-
-  	curl --request PUT \
-  --url http://localhost:$IOT_LOCAL_PORT/api/cron \
-  --header 'Content-Type: application/json' \
-  --data '{
+	iot_requests_body+=('{
 	"iotUrl": "http://'$IOT_URL':3030/api/print",
 	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3030/api/routing",
 	"functionId": "'$FUNCTION_ID'",
 	"tag": "'"$function_name"'"
-  }'
-echo -e "\n${GREEN}Iot registred${NC}" # DGRAY for the following
+  	}')
+done
+
+echo -e "${NC}Waiting $DELAY seconds" # RED for the following
+
+sleep $DELAY
+
+echo -e "${PURPLE}Instanciating echoes from Iot platform for all the functions instanciated ${RED}" # RED for the following
+
+for body in "${iot_requests_body[@]}"
+do	
+  	curl --request PUT \
+  --url http://localhost:$IOT_LOCAL_PORT/api/cron \
+  --header 'Content-Type: application/json' \
+  --data "$body"
+echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
 
 done

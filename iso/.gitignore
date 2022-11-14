@@ -1,7 +1,9 @@
 *.qcow2
 enos_*
 result
+result-*
 current/
 cachedir/
 __enoslib*
 .direnv/
+logs-latest/

@@ -352,7 +352,7 @@ toto <- read.csv2(file = "metrics/iot_emulation_http_request_duration_seconds_pr
 
 titi <- read.csv2(file = "metrics/iot_emulation_http_request_duration_seconds_print_count.csv", header = TRUE, sep = "\t") %>%
   prepare()
-  
+
 
 latencies <- toto %>%
   mutate(latency = stringr::str_match(tag, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
