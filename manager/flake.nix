@@ -28,7 +28,7 @@
         rustChannel = "nightly";
         rustProfile = "minimal";
         rustVersion = "2022-11-05";
-        target = "x86_64-unknown-linux-musl";
+        target = "x86_64-unknown-linux-gnu";
 
         rustPkgs = pkgs.rustBuilder.makePackageSet {
           inherit rustChannel rustProfile target rustVersion;
@@ -52,9 +52,12 @@
           packages = with pkgs; [
             docker
             just
+            pkg-config
+            openssl
             rust-analyzer
             cargo-outdated
             cargo-udeps
+            kubectl
             (rustfmt.override { asNightly = true; })
             cargo2nix.packages.${system}.cargo2nix
           ];
