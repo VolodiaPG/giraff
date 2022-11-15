@@ -64,6 +64,7 @@ run_fog_node $node_type *FLAGS:
     os.system('''export OPENFAAS_USERNAME="admin" \
     OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
     RUST_LOG={{RUST_LOG}} \
+    LOG_CONFIG_FILENAME={{node_type}} \
     && cargo run {{FLAGS}} --bin fog_node
     ''')
 
