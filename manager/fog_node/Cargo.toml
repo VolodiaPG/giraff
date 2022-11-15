@@ -12,45 +12,43 @@ fake_k8s = []
 bottom_up_placement = []
 
 [dependencies]
-anyhow = "1.0.58"
-async-trait = "0.1.56"
-base64 = { version = "0.13.0", default-features = false, features = [
+anyhow = "1.0.66"
+async-trait = "0.1.58"
+base64 = { version = "0.13.1", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
 ] }
 bytes = "1.2.0"
-chrono = "0.4"
+chrono = "0.4.23"
 dashmap = "5.4.0"
-futures = "0.3.21"
-if_chain = "1.0.2"
-k8s-openapi = { version = "0.15.0", features = ["v1_22"] }
-kube = { version = "0.74.0", default-features = false, features = ["client", "runtime", "rustls-tls"] }
-lazy-regex = "2.3.0"
+futures = "0.3.25"
+k8s-openapi = { version = "0.16.0", features = ["v1_22"] }
+kube = { version = "0.76.0", default-features = false, features = ["client", "runtime", "rustls-tls"] }
+lazy-regex = "2.3.1"
 lazy_static = "1.4.0"
 num_cpus = "1.14.0"
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
-reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11.12", default-features = false, features = ["json", "rustls-tls"] }
 rocket = "0.5.0-rc.2"
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger", "uuid"] }
 rocket_prometheus = "0.10.0-rc.3"
-ron = "0.7.1"
-schemars = "0.8"
-serde = { version = "1.0.140", features = ["derive", "rc"] }
-serde_json = { version = "1.0.82", features = ["raw_value"] }
-serde_with = "2.0.0"
-thiserror = "1.0.31"
-tarpc = "0.31.0"
-tokio = { version = "1.20.1", features = ["full"] }
+ron = "0.8.0"
+schemars = "0.8.11"
+serde = { version = "1.0.147", features = ["derive", "rc"] }
+serde_json = { version = "1.0.87", features = ["raw_value"] }
+serde_with = "2.0.1"
+thiserror = "1.0.37"
+# tarpc = "0.31.0"
+tokio = { version = "1.21.2", features = ["full"] }
 tracing = "0.1.37"
 tracing-appender = "0.2"
-tracing-futures = "0.2.5"
-tracing-subscriber = {version = "0.3", features = ["env-filter"]}
+tracing-subscriber = {version = "0.3.16", features = ["env-filter"]}
 tracing-forest = { version = "0.1.5", features = ["tokio"]}
 uom = { version = "0.33.0", default-features = false, features = [
     "f64",
     "si",
     "autoconvert",
 ] }
-uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
+uuid = { version = "1.2.2", features = ["v4", "fast-rng", "serde"] }
 
 helper = { path = "../helper" }
 kube_metrics = { path = "../kube_metrics" }

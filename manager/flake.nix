@@ -53,6 +53,8 @@
             docker
             just
             rust-analyzer
+            cargo-outdated
+            cargo-udeps
             (rustfmt.override { asNightly = true; })
             cargo2nix.packages.${system}.cargo2nix
           ];

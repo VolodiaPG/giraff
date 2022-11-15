@@ -13,9 +13,6 @@ bytes = "1.2.0"
 chrono = "0.4"
 env_logger = "0.9"
 futures = "0.3.21"
-if_chain = "1.0.2"
-k8s-openapi = { version = "0.15.0", features = ["v1_22"] }
-kube = { version = "0.74.0", default-features = false, features = ["client", "runtime", "rustls-tls"] }
 lazy-regex = "2.3.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
@@ -23,8 +20,7 @@ okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
 rocket = "0.5.0-rc.2"
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger", "uuid"] }
-rocket_prometheus = "0.10.0-rc.3"
-ron = "0.7.1"
+ron = "0.8.0"
 schemars = "0.8"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
@@ -39,6 +35,4 @@ uom = { version = "0.33.0", default-features = false, features = [
 uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
 
 helper = { path = "../helper" }
-kube_metrics = { path = "../kube_metrics" }
 model = { path = "../model" }
-openfaas = { path = "../openfaas" }

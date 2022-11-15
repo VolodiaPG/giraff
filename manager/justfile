@@ -1,4 +1,5 @@
-PROMETHEUS_VERSION := "2.36.1"
+KUBECONFIG := "../iso/vm.kubeconfig"
+RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
 
 # Default command when no verb specified
 _default:
@@ -25,7 +26,7 @@ clippy:
 # Run the market
 run_market:
    export ROCKET_PORT=8000
-   cargo run --package manager --bin market
+   cargo run --bin market
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node $node_type *FLAGS:
@@ -59,11 +60,11 @@ run_fog_node $node_type *FLAGS:
     config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
     os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     os.environ["ROCKET_PORT"] = "3030" if (node_type=="market") else "3031"
-    os.system('''export ID=1 \
-    && export KUBECONFIG="../kubeconfig-master-${ID}" \
-    OPENFAAS_USERNAME="admin" \
-    OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
-    && cargo run {{FLAGS}} --package manager --bin fog_node
+    os.environ["KUBECONFIG"] = "{{KUBECONFIG}}"
+    os.system('''export OPENFAAS_USERNAME="admin" \
+    OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
+    RUST_LOG={{RUST_LOG}} \
+    && cargo run {{FLAGS}} --bin fog_node
     ''')
 
 # Build the project as a docker image. Flavors are [default, naive, perftools]
@@ -85,12 +86,6 @@ docker $flavor="default":
     nix build .#docker_perftools
     docker load < result
 
-nix-build-push user image:
-    docker load < result
-    docker tag nix_{{image}} ghcr.io/{{user}}/{{image}}
-    docker push ghcr.io/{{user}}/{{image}}
-
-
 # Push an image to ghcr
 _push image user:
     docker tag {{image}} ghcr.io/{{user}}/{{image}}
@@ -105,14 +100,4 @@ ghcr user flavor="default":
 
 # Cleans
 clean:
-    rm -rf ./prometheus
     rm -rf target
-
-# Check for uncommited changes
-_check_uncommited:
-    #!/usr/bin/env bash
-    if [ -n "$(git status --porcelain | grep {{invocation_directory()}})" ]
-    then
-      echo "ERROR: uncommitted changes"
-      exit 1
-    fi
