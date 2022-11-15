@@ -7,3 +7,4 @@ cachedir/
 __enoslib*
 .direnv/
 logs-latest/
+vm.kubeconfig

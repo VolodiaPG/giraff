@@ -46,11 +46,14 @@ vm clean="false":
                         --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"
     sleep 20
 
+    $SSH_CMD "cat /etc/rancher/k3s/k3s.yaml>&1 > vm.kubeconfig 2>&2"
+
     $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s"
     $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s"
     
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
+    $SSH_CMD -N -L 6443:127.0.0.1:6443&
     $SSH_CMD -N -L 8080:127.0.0.1:8080&
     $SSH_CMD -N -L 9090:127.0.0.1:9090
 
