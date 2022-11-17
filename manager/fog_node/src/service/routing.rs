@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bytes::Bytes;
+
 use futures::future::try_join_all;
 
 use model::domain::routing::Packet;
@@ -11,6 +11,7 @@ use model::dto::routing::Direction;
 use model::view::routing::{Route, RouteDirection, RouteLinking};
 use model::{BidId, NodeId};
 use openfaas::DefaultApi;
+use serde_json::value::RawValue;
 
 use crate::repository::faas_routing_table::FaaSRoutingTable;
 use crate::repository::routing::Routing as RoutingRepository;
@@ -50,7 +51,7 @@ pub trait Router: Debug + Send + Sync {
     ) -> Result<(), Error>;
 
     /// Forward payloads to a neighbour node
-    async fn forward(&self, packet: &Packet) -> Result<Bytes, Error>;
+    async fn forward(&self, packet: Packet) -> Result<Box<RawValue>, Error>;
 }
 
 #[derive(Debug)]
@@ -180,10 +181,10 @@ where
         if let Direction::NextNode(next) = target {
             trace!("Sending next step to node {:?}", next);
 
-            self.forward(&Packet::FogNode {
+            self.forward(Packet::FogNode {
                 route_to_stack: vec![next, self.node_situation.get_my_id()],
                 resource_uri:   "route_linking".to_string(),
-                data:           &serde_json::value::to_raw_value(&linking)?,
+                data:           serde_json::value::to_raw_value(&linking)?,
             })
             .await?;
         }
@@ -192,13 +193,13 @@ where
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn forward(&self, packet: &Packet) -> Result<Bytes, Error> {
+    async fn forward(&self, packet: Packet) -> Result<Box<RawValue>, Error> {
         trace!("Forwarding packet...");
-        let ret = match packet {
+        match packet {
             Packet::FaaSFunction { to, data: payload } => {
                 let node_to = self
                     .faas_routing_table
-                    .get(to)
+                    .get(&to)
                     .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
@@ -216,7 +217,7 @@ where
                             .routing
                             .forward_to_routing(
                                 &next.ip,
-                                &next.port,
+                                &next.port_rpc,
                                 &Packet::FaaSFunction {
                                     to:   to.to_owned(),
                                     data: payload,
@@ -227,19 +228,19 @@ where
                     Direction::CurrentNode => {
                         let record = self
                             .faas
-                            .get_provisioned_function(to)
+                            .get_provisioned_function(&to)
                             .ok_or_else(|| {
-                                Error::UnknownBidId(to.to_owned())
-                            })?;
+                            Error::UnknownBidId(to.to_owned())
+                        })?;
                         self.faas_api
                             .async_function_name_post(
                                 &record.function_name,
-                                serde_json::to_string(payload)?,
+                                serde_json::to_string(&payload)?,
                             )
                             .await
                             .map_err(Error::from)?;
                         // TODO check if that doesn't cause any harm
-                        Ok(Bytes::new())
+                        Ok(RawValue::from_string("{}".to_string()).unwrap())
                     }
                 }
             }
@@ -258,11 +259,17 @@ where
 
                 if route_to.is_empty() {
                     let my_ip = self.node_situation.get_my_public_ip();
-                    let my_port = self.node_situation.get_my_public_port();
+                    let my_port =
+                        self.node_situation.get_my_public_port_http();
 
                     Ok(self
                         .routing
-                        .forward_to_url(&my_ip, &my_port, resource_uri, data)
+                        .forward_to_fog_node_url(
+                            &my_ip,
+                            &my_port,
+                            &resource_uri,
+                            &data,
+                        )
                         .await?)
                 } else {
                     let next = route_to.last().unwrap();
@@ -276,7 +283,7 @@ where
                         .routing
                         .forward_to_routing(
                             &next.ip,
-                            &next.port,
+                            &next.port_rpc,
                             &Packet::FogNode {
                                 route_to_stack: route_to,
                                 resource_uri: resource_uri.to_owned(),
@@ -289,30 +296,40 @@ where
             Packet::Market { resource_uri, data } => {
                 if self.node_situation.is_market() {
                     trace!(
-                        "Transmitting market packet to market: {:?}",
-                        packet
+                        "Transmitting market packet to market on {:?}: {:?}",
+                        &resource_uri,
+                        &data
                     );
                     let (ip, port) =
                         self.node_situation.get_market_node_address().unwrap();
                     Ok(self
                         .routing
-                        .forward_to_url(&ip, &port, resource_uri, data)
+                        .forward_to_market_url(
+                            &ip,
+                            &port,
+                            &resource_uri,
+                            &data,
+                        )
                         .await?)
                 } else {
                     trace!(
-                        "Transmitting market packet to other node: {:?}",
-                        packet
+                        "Transmitting market packet to other node on {:?}: \
+                         {:?}",
+                        &resource_uri,
+                        &data
                     );
-                    let (ip, port) =
+                    let (ip, _, port) =
                         self.node_situation.get_parent_node_address().unwrap();
                     Ok(self
                         .routing
-                        .forward_to_routing(&ip, &port, packet)
+                        .forward_to_routing(
+                            &ip,
+                            &port,
+                            &Packet::Market { resource_uri, data },
+                        )
                         .await?)
                 }
             }
-        };
-        trace!("Forwarded packet");
-        ret
+        }
     }
 }

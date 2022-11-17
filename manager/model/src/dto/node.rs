@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::view::auction::AcceptedBid;
-use crate::{BidId, NodeId};
+use crate::{BidId, FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort, NodeId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -20,7 +20,8 @@ pub struct Node<T> {
 pub struct NodeRecord {
     /// URI, only in the case of the market node
     pub ip:            Option<IpAddr>,
-    pub port:          Option<u16>,
+    pub port_http:     Option<FogNodeHTTPPort>,
+    pub port_rpc:      Option<FogNodeRPCPort>,
     pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
@@ -42,74 +43,57 @@ impl From<Vec<NodeId>> for NodeIdList {
 
 #[derive(Debug, Clone)]
 pub struct NodeDescription {
-    pub ip:   IpAddr,
-    pub port: u16,
+    pub ip:        IpAddr,
+    pub port_http: FogNodeHTTPPort,
+    pub port_rpc:  FogNodeRPCPort,
 }
-
-// #[derive(Debug)]
-// pub enum NodeSituationData {
-//     MarketConnected {
-//         children:       HashMap<NodeId, NodeDescription>,
-//         market_ip:      IpAddr,
-//         market_port:    u16,
-//         my_id:          NodeId,
-//         my_public_ip:   IpAddr,
-//         my_public_port: u16,
-//         tags:           Vec<String>,
-//     },
-//     NodeConnected {
-//         children:         HashMap<NodeId, NodeDescription>,
-//         parent_id:        NodeId,
-//         parent_node_ip:   IpAddr,
-//         parent_node_port: u16,
-//         my_id:            NodeId,
-//         my_public_ip:     IpAddr,
-//         my_public_port:   u16,
-//         tags:             Vec<String>,
-//     },
-// }
 
 #[derive(Debug)]
 pub enum NodeCategory {
     MarketConnected {
         market_ip:   IpAddr,
-        market_port: u16,
+        market_port: MarketHTTPPort,
     },
     NodeConnected {
-        parent_id:        NodeId,
-        parent_node_ip:   IpAddr,
-        parent_node_port: u16,
+        parent_id:             NodeId,
+        parent_node_ip:        IpAddr,
+        parent_node_port_http: FogNodeHTTPPort,
+        parent_node_port_rpc:  FogNodeRPCPort,
     },
 }
 
 #[derive(Debug)]
 pub struct NodeSituationData {
-    pub situation:      NodeCategory,
-    pub my_id:          NodeId,
-    pub my_public_ip:   IpAddr,
-    pub my_public_port: u16,
-    pub tags:           Vec<String>,
-    pub children:       dashmap::DashMap<NodeId, NodeDescription>,
+    pub situation:           NodeCategory,
+    pub my_id:               NodeId,
+    pub my_public_ip:        IpAddr,
+    pub my_public_port_http: FogNodeHTTPPort,
+    pub my_public_port_rpc:  FogNodeRPCPort,
+    pub tags:                Vec<String>,
+    pub children:            dashmap::DashMap<NodeId, NodeDescription>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeSituationDisk {
     MarketConnected {
-        market_ip:      IpAddr,
-        market_port:    u16,
-        my_id:          NodeId,
-        my_public_ip:   IpAddr,
-        my_public_port: u16,
-        tags:           Vec<String>,
+        market_ip:           IpAddr,
+        market_port:         MarketHTTPPort,
+        my_id:               NodeId,
+        my_public_ip:        IpAddr,
+        my_public_port_http: FogNodeHTTPPort,
+        my_public_port_rpc:  FogNodeRPCPort,
+        tags:                Vec<String>,
     },
     NodeConnected {
-        parent_id:        NodeId,
-        parent_node_ip:   IpAddr,
-        parent_node_port: u16,
-        my_id:            NodeId,
-        my_public_ip:     IpAddr,
-        my_public_port:   u16,
-        tags:             Vec<String>,
+        parent_id:             NodeId,
+        parent_node_ip:        IpAddr,
+        parent_node_port_http: FogNodeHTTPPort,
+        parent_node_port_rpc:  FogNodeRPCPort,
+        my_id:                 NodeId,
+        my_public_ip:          IpAddr,
+        my_public_port_http:   FogNodeHTTPPort,
+        my_public_port_rpc:    FogNodeRPCPort,
+        tags:                  Vec<String>,
     },
 }
 
@@ -143,13 +127,15 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 market_ip,
                 my_id,
                 my_public_ip,
-                my_public_port,
+                my_public_port_http,
+                my_public_port_rpc,
                 tags,
             } => NodeSituationData {
                 children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
-                my_public_port,
+                my_public_port_http,
+                my_public_port_rpc,
                 tags,
                 situation: NodeCategory::MarketConnected {
                     market_ip,
@@ -158,22 +144,26 @@ impl From<NodeSituationDisk> for NodeSituationData {
             },
             NodeSituationDisk::NodeConnected {
                 parent_id,
-                parent_node_port,
+                parent_node_port_http,
+                parent_node_port_rpc,
                 parent_node_ip,
                 my_id,
                 my_public_ip,
-                my_public_port,
+                my_public_port_http,
+                my_public_port_rpc,
                 tags,
             } => NodeSituationData {
                 children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
-                my_public_port,
+                my_public_port_http,
+                my_public_port_rpc,
                 tags,
                 situation: NodeCategory::NodeConnected {
                     parent_id,
                     parent_node_ip,
-                    parent_node_port,
+                    parent_node_port_http,
+                    parent_node_port_rpc,
                 },
             },
         }

@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use model::domain::routing::Packet;
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
+use model::{FogNodeHTTPPort, FogNodeRPCPort};
 
 use crate::{NodeQuery, NodeSituation, Router};
 
@@ -40,7 +41,8 @@ pub trait NodeLife: Send + Sync {
     async fn init_registration(
         &self,
         my_ip: IpAddr,
-        my_port: u16,
+        my_port_http: FogNodeHTTPPort,
+        my_port_rpc: FogNodeRPCPort,
     ) -> Result<(), Error>;
 }
 
@@ -69,14 +71,25 @@ impl NodeLife for NodeLifeImpl {
     ) -> Result<(), Error> {
         trace!("Registering child node");
         match &register {
-            RegisterNode::Node { node_id, parent, ip, port, .. } => {
+            RegisterNode::Node {
+                node_id,
+                parent,
+                ip,
+                port_http,
+                port_rpc,
+                ..
+            } => {
                 if &self.node_situation.get_my_id() != parent {
                     return Err(Error::NotTheParent);
                 }
 
                 self.node_situation.register(
                     node_id.clone(),
-                    NodeDescription { ip: *ip, port: *port },
+                    NodeDescription {
+                        ip:        *ip,
+                        port_http: port_http.clone(),
+                        port_rpc:  port_rpc.clone(),
+                    },
                 );
             }
             RegisterNode::MarketNode { .. } => {
@@ -85,9 +98,9 @@ impl NodeLife for NodeLifeImpl {
         }
 
         self.router
-            .forward(&Packet::Market {
+            .forward(Packet::Market {
                 resource_uri: "register".to_string(),
-                data:         &serde_json::value::to_raw_value(&register)
+                data:         serde_json::value::to_raw_value(&register)
                     .unwrap(),
             })
             .await?;
@@ -97,20 +110,23 @@ impl NodeLife for NodeLifeImpl {
     async fn init_registration(
         &self,
         ip: IpAddr,
-        port: u16,
+        port_http: FogNodeHTTPPort,
+        port_rpc: FogNodeRPCPort,
     ) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market() {
             RegisterNode::MarketNode {
                 node_id: self.node_situation.get_my_id(),
                 ip,
-                port,
+                port_http,
+                port_rpc,
                 tags: self.node_situation.get_my_tags(),
             }
         } else {
             RegisterNode::Node {
                 ip,
-                port,
+                port_http,
+                port_rpc,
                 node_id: self.node_situation.get_my_id(),
                 parent: self
                     .node_situation

@@ -20,6 +20,7 @@ base64 = { version = "0.13.1", default-features = false, features = [
 bytes = "1.2.0"
 chrono = "0.4.23"
 dashmap = "5.4.0"
+drpc = "0.2.0"
 futures = "0.3.25"
 k8s-openapi = { version = "0.16.0", features = ["v1_25"] }
 kube = { version = "0.76.0", features = ["client", "runtime"] }
@@ -37,7 +38,6 @@ serde = { version = "1.0.147", features = ["derive", "rc"] }
 serde_json = { version = "1.0.87", features = ["raw_value"] }
 serde_with = "2.0.1"
 thiserror = "1.0.37"
-# tarpc = "0.31.0"
 tokio = { version = "1.21.2", features = ["full"] }
 tracing = "0.1.37"
 tracing-appender = "0.2"

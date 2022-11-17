@@ -79,7 +79,7 @@ impl LatencyEstimationImpl {
             .ok_or_else(|| IndividualError::NodeNotFound(node_id.clone()))?;
 
         let ip = desc.ip;
-        let port = desc.port;
+        let port = desc.port_http;
 
         let client = reqwest::Client::new();
         let sent_at = Instant::now();
@@ -128,7 +128,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     })?;
 
                 let ip = desc.ip;
-                let port = desc.port;
+                let port = desc.port_http;
                 crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
                     .with_label_values(&[&format!("{}:{}", ip, port)])
                     .set(outgoing.value);

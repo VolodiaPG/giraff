@@ -4,7 +4,8 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
-use crate::handler::*;
+use crate::handler_http::*;
+use crate::handler_rpc::serve_rpc;
 use crate::repeated_tasks::init;
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
@@ -34,8 +35,9 @@ use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-mod handler;
-mod http_controller;
+mod controller;
+mod handler_http;
+mod handler_rpc;
 mod prom_metrics;
 mod repeated_tasks;
 mod repository;
@@ -234,7 +236,9 @@ async fn rocket() {
             function_life_service
                 as Arc<dyn crate::service::function_life::FunctionLife>,
         )
-        .manage(router_service as Arc<dyn crate::service::routing::Router>)
+        .manage(
+            router_service.clone() as Arc<dyn crate::service::routing::Router>
+        )
         .manage(node_life_service.clone()
             as Arc<dyn crate::service::node_life::NodeLife>)
         .manage(neighbor_monitor_service.clone()
@@ -265,8 +269,15 @@ async fn rocket() {
         .launch();
 
     let handle = tokio::spawn(rocket);
-    tokio::spawn(register_to_market(node_life_service, node_situation));
+    tokio::spawn(register_to_market(
+        node_life_service,
+        node_situation.clone(),
+    ));
     tokio::spawn(loop_jobs(init(neighbor_monitor_service, k8s_repo).await));
+    tokio::spawn(serve_rpc(
+        node_situation.get_my_public_port_rpc(),
+        router_service,
+    ));
 
     let _ = handle
         .await
@@ -281,9 +292,13 @@ async fn register_to_market(
     info!("Registering to market and parent...");
     let mut interval = time::interval(Duration::from_secs(5));
     let my_ip = node_situation.get_my_public_ip();
-    let my_port = node_situation.get_my_public_port();
+    let my_port_http = node_situation.get_my_public_port_http();
+    let my_port_rpc = node_situation.get_my_public_port_rpc();
 
-    while let Err(err) = node_life.init_registration(my_ip, my_port).await {
+    while let Err(err) = node_life
+        .init_registration(my_ip, my_port_http.clone(), my_port_rpc.clone())
+        .await
+    {
         warn!("Failed to register to market: {}", err.to_string());
         interval.tick().await;
     }
@@ -291,7 +306,7 @@ async fn register_to_market(
 }
 
 async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(60));
+    let mut interval = time::interval(Duration::from_secs(5));
 
     loop {
         for value in jobs.read().await.iter() {
@@ -323,7 +338,8 @@ fn main() {
     debug!("Tracing initialized.");
 
     tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(num_cpus::get())
+        // .worker_threads(num_cpus::get())
+        .worker_threads(1)
         .enable_all()
         .build()
         .expect("build runtime failed")

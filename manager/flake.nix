@@ -14,6 +14,10 @@
       inputs.flake-utils.follows = "flake-utils";
     };
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
   };
 
   outputs = inputs: with inputs;
@@ -57,6 +61,7 @@
             rust-analyzer
             cargo-outdated
             cargo-udeps
+            lldb
             kubectl
             (rustfmt.override { asNightly = true; })
             cargo2nix.packages.${system}.cargo2nix

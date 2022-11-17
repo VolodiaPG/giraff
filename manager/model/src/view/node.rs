@@ -7,7 +7,7 @@ use std::net::IpAddr;
 
 use crate::dto::node::NodeRecord;
 use crate::view::auction::AcceptedBid;
-use crate::BidId;
+use crate::{BidId, FogNodeHTTPPort, FogNodeRPCPort};
 use helper::chrono as chrono_helper;
 
 use super::super::NodeId;
@@ -53,17 +53,19 @@ pub struct PostNodeResponse {
 #[serde(rename_all = "camelCase")]
 pub enum RegisterNode {
     MarketNode {
-        node_id: NodeId,
-        ip:      IpAddr,
-        port:    u16,
-        tags:    Vec<String>,
+        node_id:   NodeId,
+        ip:        IpAddr,
+        port_http: FogNodeHTTPPort,
+        port_rpc:  FogNodeRPCPort,
+        tags:      Vec<String>,
     },
     Node {
-        parent:  NodeId,
-        node_id: NodeId,
-        ip:      IpAddr,
-        port:    u16,
-        tags:    Vec<String>,
+        parent:    NodeId,
+        node_id:   NodeId,
+        ip:        IpAddr,
+        port_http: FogNodeHTTPPort,
+        port_rpc:  FogNodeRPCPort,
+        tags:      Vec<String>,
     },
 }
 

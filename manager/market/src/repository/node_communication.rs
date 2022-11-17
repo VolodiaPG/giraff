@@ -3,6 +3,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+
 use bytes::Bytes;
 use uom::si::f64::Time;
 use uom::si::time::second;
@@ -12,7 +13,7 @@ use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::view::routing::Route;
-use model::NodeId;
+use model::{FogNodeHTTPPort, NodeId};
 
 use crate::repository::fog_node::FogNode;
 
@@ -68,9 +69,9 @@ impl NodeCommunicationThroughRoutingImpl {
     async fn get_address_of_first_node(
         &self,
         route_stack: &[NodeId],
-    ) -> Result<(IpAddr, u16), Error> {
+    ) -> Result<(IpAddr, FogNodeHTTPPort), Error> {
         let node = route_stack.first().ok_or(Error::EmptyRoutingStack)?;
-        let NodeRecord { ip, port, .. } = self
+        let NodeRecord { ip, port_http, .. } = self
             .network
             .get(route_stack.last().ok_or(Error::EmptyRoutingStack)?)
             .await
@@ -78,11 +79,12 @@ impl NodeCommunicationThroughRoutingImpl {
             .data;
 
         let ip = ip.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
-        let port = port.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
+        let port =
+            port_http.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
         Ok((ip, port))
     }
 
-    async fn call_routing(&self, packet: Packet<'_>) -> Result<Bytes, Error> {
+    async fn call_routing(&self, packet: Packet) -> Result<Bytes, Error> {
         let (ip, port) = match &packet {
             Packet::FogNode { route_to_stack, .. } => {
                 self.get_address_of_first_node(route_to_stack).await?
@@ -114,7 +116,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
     ) -> Result<BidProposals, Error> {
         let data = Packet::FogNode {
             resource_uri:   "bid".to_string(),
-            data:           &serde_json::value::to_raw_value(&BidRequest {
+            data:           serde_json::value::to_raw_value(&BidRequest {
                 sla,
                 node_origin: to.clone(),
                 accumulated_latency: Time::new::<second>(0.0),
@@ -133,7 +135,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
         let data = Packet::FogNode {
             route_to_stack: self.network.get_route_to_node(to).await,
             resource_uri:   format!("bid/{}", bid.id),
-            data:           &serde_json::value::to_raw_value(&())?,
+            data:           serde_json::value::to_raw_value(&())?,
         };
 
         self.call_routing(data).await?;
@@ -151,7 +153,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
                 .get_route_to_node(starting_from)
                 .await,
             resource_uri:   "register_route".to_string(),
-            data:           &serde_json::value::to_raw_value(&route)?,
+            data:           serde_json::value::to_raw_value(&route)?,
         };
 
         self.call_routing(data).await?;

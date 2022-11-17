@@ -29,44 +29,63 @@ run_market:
    cargo run --bin market
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node $node_type *FLAGS:
+run_fog_node node_type debugger_enabled="False":
     #!/usr/bin/env python3
     import os
     import base64
+    import subprocess
 
-    MARKET_CONNECTED_NODE = """MarketConnected (
+    node_type = "{{node_type}}"
+    debugger_enabled = True if {{debugger_enabled}} else False
+
+    MARKET_CONNECTED_NODE = '''MarketConnected (
         market_ip: "127.0.0.1",
-        market_port: 8000,
+        market_port: "8000",
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "127.0.0.1",
-        my_public_port: 3030,
+        my_public_port_http: "3030",
+        my_public_port_rpc: "3031",
         tags: ["market connected"],
-    )
+    )'''
 
-    """
-
-    NODE_CONNECTED_NODE = """NodeConnected (
+    NODE_CONNECTED_NODE = '''NodeConnected (
         parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         parent_node_ip: "127.0.0.1",
-        parent_node_port: 3030,
+        parent_node_port_http: "3030",
+        parent_node_port_rpc: "3031",
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "127.0.0.1",
-        my_public_port: 3031,
+        my_public_port_http: "3032",
+        my_public_port_rpc: "3033",
         tags: ["node connected"],
-    )
+    )'''
 
-    """
-    node_type = os.environ["node_type"]
     config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
-    os.environ["CONFIG"] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
-    os.environ["ROCKET_PORT"] = "3030" if (node_type=="market") else "3031"
-    os.environ["KUBECONFIG"] = "{{KUBECONFIG}}"
-    os.system('''export OPENFAAS_USERNAME="admin" \
-    OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) \
-    RUST_LOG={{RUST_LOG}} \
-    LOG_CONFIG_FILENAME={{node_type}} \
-    && cargo run {{FLAGS}} --bin fog_node
-    ''')
+    
+    env_vars = {}
+    env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
+    env_vars['ROCKET_PORT'] = "3030" if (node_type=="market") else "3032"
+    env_vars['KUBECONFIG'] = "{{KUBECONFIG}}"
+    env_vars['OPENFAAS_USERNAME'] = "admin"
+    env_vars['OPENFAAS_PASSWORD'] = subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo')
+    env_vars['RUST_LOG'] = "{{RUST_LOG}}"
+    env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
+
+    env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
+
+    # if debugger_enabled:
+    os.system(f'''cargo build --bin fog_node \
+        && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
+        ''')
+    # else:
+    #     os.system('''cargo build --bin fog_node \
+    #         && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
+    #         ''')
+
+run_all:
+    just run_fog_node market
+    just run_fog_node other
+    just run_market
 
 # Build the project as a docker image. Flavors are [default, naive, perftools]
 docker $flavor="default":

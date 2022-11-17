@@ -74,7 +74,10 @@ macro_rules! impl_id_encapsulation {
                         &self,
                         formatter: &mut fmt::Formatter,
                     ) -> fmt::Result {
-                        formatter.write_str("a $name, i.e., a UUIDv4")
+                        formatter.write_str(
+                            format!("a {}, i.e., a UUIDv4", stringify!($name))
+                                .as_str(),
+                        )
                     }
 
                     fn visit_str<E>(
@@ -124,8 +127,103 @@ macro_rules! impl_id_encapsulation {
     };
 }
 
+macro_rules! impl_port_encapsulation {
+    ($name:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd)]
+        pub struct $name {
+            port: u16,
+        }
+
+        impl From<u16> for $name {
+            #[inline(always)]
+            fn from(port: u16) -> Self { $name { port } }
+        }
+
+        impl fmt::Display for $name {
+            #[inline(always)]
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "{}", self.port)
+            }
+        }
+
+        impl Serialize for $name {
+            #[inline(always)]
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                serializer.serialize_str(self.port.to_string().as_str())
+            }
+        }
+
+        impl<'de> Deserialize<'de> for $name {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                struct MyVisitor;
+
+                impl<'de> Visitor<'de> for MyVisitor {
+                    type Value = $name;
+
+                    fn expecting(
+                        &self,
+                        formatter: &mut fmt::Formatter,
+                    ) -> fmt::Result {
+                        formatter.write_str(
+                            format!(
+                                "a {}, i.e., a u16 as a string (\\\"8080\\\")",
+                                stringify!($name)
+                            )
+                            .as_str(),
+                        )
+                    }
+
+                    fn visit_str<E>(
+                        self,
+                        value: &str,
+                    ) -> Result<Self::Value, E>
+                    where
+                        E: serde::de::Error,
+                    {
+                        Ok($name { port: value.parse().map_err(E::custom)? })
+                    }
+                }
+
+                deserializer.deserialize_str(MyVisitor)
+            }
+        }
+
+        impl JsonSchema for $name {
+            fn schema_name() -> String { String::from(stringify!($name)) }
+
+            fn json_schema(_: &mut SchemaGenerator) -> Schema {
+                SchemaObject {
+                    instance_type: Some(InstanceType::Number.into()),
+                    format: Some("port".to_string()),
+                    ..Default::default()
+                }
+                .into()
+            }
+        }
+
+        impl Ord for $name {
+            fn cmp(&self, other: &Self) -> Ordering {
+                self.port.cmp(&other.port)
+            }
+        }
+    };
+}
+
 impl_id_encapsulation!(NodeId);
 impl_id_encapsulation!(BidId);
+
+// Port for fog node Rpc
+impl_port_encapsulation!(FogNodeRPCPort);
+// Port for fog node HTTP
+impl_port_encapsulation!(FogNodeHTTPPort);
+// Port for Market HTTP port
+impl_port_encapsulation!(MarketHTTPPort);
 
 #[derive(Debug, Clone)]
 pub enum Reserved {

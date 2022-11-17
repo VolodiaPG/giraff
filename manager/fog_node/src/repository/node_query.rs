@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::net::IpAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -54,17 +53,11 @@ impl NodeQueryRESTImpl {
 
     async fn post<T: Serialize>(
         &self,
-        ip: &IpAddr,
-        port: &u16,
-        uri: &str,
+        url: &str,
         data: &T,
     ) -> Result<Response, Error> {
         let client = reqwest::Client::new();
-        let response = client
-            .post(format!("http://{}:{}/api/{}", ip, port, uri).as_str())
-            .json(data)
-            .send()
-            .await?;
+        let response = client.post(url).json(data).send().await?;
         if response.status().is_success() {
             trace!("Node has been registered to parent or market node");
             Ok(response)
@@ -76,48 +69,54 @@ impl NodeQueryRESTImpl {
 
 #[async_trait]
 impl NodeQuery for NodeQueryRESTImpl {
+    #[instrument(level = "trace", skip(self))]
     async fn register_to_parent(
         &self,
         register: RegisterNode,
     ) -> Result<(), Error> {
         trace!("Registering to parent or market...");
-        let upper_node_address = if self.node_situation.is_market() {
-            self.node_situation
+
+        // Ignore the type of port since it doesn't matter-explicitely-here
+        let url = if self.node_situation.is_market() {
+            let (addr, port) = self
+                .node_situation
                 .get_market_node_address()
-                .ok_or(Error::NoURIToUpper)?
+                .ok_or(Error::NoURIToUpper)?;
+            format!("http://{}:{}/api/register", addr, port)
         } else {
-            self.node_situation
+            let (addr, port, _) = self
+                .node_situation
                 .get_parent_node_address()
-                .ok_or(Error::NoURIToUpper)?
+                .ok_or(Error::NoURIToUpper)?;
+            format!("http://{}:{}/api/register", addr, port)
         };
 
+        trace!("Registering to {}", url);
+        self.post(url.as_str(), &register).await?;
+
         // Both the market and node APIs offer the same endpoint.
-        trace!(
-            "Registering to {}:{}",
-            upper_node_address.0,
-            upper_node_address.1
-        );
-        self.post(
-            &upper_node_address.0,
-            &upper_node_address.1,
-            "register",
-            &register,
-        )
-        .await?;
+
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn request_neighbor_bid(
         &self,
         request: &BidRequest,
         id: NodeId,
     ) -> Result<BidProposals, Error> {
-        let NodeDescription { ip, port, .. } = self
+        let NodeDescription { ip, port_http, .. } = self
             .node_situation
             .get_fog_node_neighbor(&id)
             .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
-        let (ip, port) = (ip, port);
 
-        Ok(self.post(&ip, &port, "bid", request).await?.json().await?)
+        Ok(self
+            .post(
+                format!("http://{}:{}/api/bid", ip, port_http).as_str(),
+                request,
+            )
+            .await?
+            .json()
+            .await?)
     }
 }

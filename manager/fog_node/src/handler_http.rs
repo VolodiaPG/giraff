@@ -1,7 +1,7 @@
 use crate::service::function_life::FunctionLife;
 use crate::service::routing::Router;
-use crate::{http_controller, NodeLife};
-use helper::handler::{BytesResponse, Resp};
+use crate::{controller, NodeLife};
+use helper::handler::Resp;
 use helper::respond;
 use model::domain::routing::Packet;
 use model::view::auction::{BidProposals, BidRequestOwned};
@@ -11,6 +11,7 @@ use model::BidId;
 use rocket::serde::json::Json;
 use rocket::{head, post, State};
 use rocket_okapi::openapi;
+use serde_json::Value;
 use std::sync::Arc;
 
 /// Return a bid for the SLA.
@@ -20,9 +21,7 @@ pub async fn post_bid(
     payload: Json<BidRequestOwned>,
     function: &State<Arc<dyn FunctionLife>>,
 ) -> Resp<BidProposals> {
-    respond!(
-        http_controller::auction::bid_on(payload.0, function.inner()).await
-    )
+    respond!(controller::auction::bid_on(payload.0, function.inner()).await)
 }
 
 /// Second function called after [post_bid] if the bid is accepted and the
@@ -35,8 +34,7 @@ pub async fn post_bid_accept(
     function: &State<Arc<dyn FunctionLife>>,
 ) -> Resp {
     respond!(
-        http_controller::auction::provision_from_bid(id, function.inner())
-            .await
+        controller::auction::provision_from_bid(id, function.inner()).await
     )
 }
 
@@ -44,16 +42,16 @@ pub async fn post_bid_accept(
 #[openapi]
 #[post("/routing", data = "<packet>")]
 pub async fn post_routing(
-    packet: Json<Packet<'_>>,
+    packet: Json<Packet>,
     router: &State<Arc<dyn Router>>,
-) -> Result<BytesResponse, helper::handler::Error> {
-    Ok(BytesResponse::from(
-        http_controller::routing::post_forward_function_routing(
-            &packet.0,
+) -> Result<Value, helper::handler::Error> {
+    Ok(serde_json::to_value(
+        controller::routing::post_forward_function_routing(
+            packet.0,
             router.inner(),
         )
         .await?,
-    ))
+    )?)
 }
 
 /// Register a route.
@@ -64,8 +62,7 @@ pub async fn post_register_route(
     route: Json<Route>,
 ) -> Resp {
     respond!(
-        http_controller::routing::register_route(router.inner(), route.0)
-            .await
+        controller::routing::register_route(router.inner(), route.0).await
     )
 }
 
@@ -76,8 +73,7 @@ pub async fn post_route_linking(
     linking: Json<RouteLinking>,
 ) -> Resp {
     respond!(
-        http_controller::routing::route_linking(router.inner(), linking.0)
-            .await
+        controller::routing::route_linking(router.inner(), linking.0).await
     )
 }
 
@@ -89,8 +85,7 @@ pub async fn post_register_child_node(
     router: &State<Arc<dyn NodeLife>>,
 ) -> Resp {
     respond!(
-        http_controller::node::register_child_node(payload.0, router.inner())
-            .await
+        controller::node::register_child_node(payload.0, router.inner()).await
     )
 }
 

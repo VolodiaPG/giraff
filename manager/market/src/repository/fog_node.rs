@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use model::dto::node::{Node, NodeIdList, NodeRecord};
 use model::view::auction::AcceptedBid;
-use model::NodeId;
+use model::{FogNodeHTTPPort, FogNodeRPCPort, NodeId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -39,7 +39,8 @@ pub trait FogNode: Debug + Sync + Send {
         &self,
         root: NodeId,
         ip: IpAddr,
-        port: u16,
+        port_http: FogNodeHTTPPort,
+        port_rpc: FogNodeRPCPort,
         tags: Vec<String>,
     ) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
@@ -201,7 +202,8 @@ impl FogNode for FogNodeImpl {
         &self,
         root: NodeId,
         ip: IpAddr,
-        port: u16,
+        port_http: FogNodeHTTPPort,
+        port_rpc: FogNodeRPCPort,
         tags: Vec<String>,
     ) -> Result<(), Error> {
         self.nodes.write().await.insert(
@@ -211,7 +213,8 @@ impl FogNode for FogNodeImpl {
                 children: vec![],
                 data:     NodeRecord {
                     ip: Some(ip),
-                    port: Some(port),
+                    port_http: Some(port_http),
+                    port_rpc: Some(port_rpc),
                     tags,
                     ..NodeRecord::default()
                 },

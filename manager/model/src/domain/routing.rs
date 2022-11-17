@@ -3,6 +3,7 @@ use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
+use serde_json::Value;
 
 use crate::{BidId, NodeId};
 
@@ -33,26 +34,23 @@ pub struct FogSegment {
 /// - [Packet::Market] directs to the market
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub enum Packet<'a> {
+pub enum Packet {
     #[serde(rename = "faasFunction")]
     FaaSFunction {
         to:   BidId, // TODO check wether its better an id or a name
-        #[serde(borrow)]
         #[schemars(schema_with = "schema_function")]
-        data: &'a RawValue,
+        data: Box<RawValue>,
     },
     FogNode {
         route_to_stack: Vec<NodeId>,
         resource_uri:   String,
-        #[serde(borrow)]
         #[schemars(schema_with = "schema_function")]
-        data:           &'a RawValue,
+        data:           Box<RawValue>,
     },
     Market {
         resource_uri: String,
-        #[serde(borrow)]
         #[schemars(schema_with = "schema_function")]
-        data:         &'a RawValue,
+        data:         Box<RawValue>,
     },
 }
 

@@ -74,7 +74,7 @@ async fn rocket() {
 }
 
 fn main() {
-    env::set_var("RUST_LOG", "info, market=trace");
+    env::set_var("RUST_LOG", "info, market=trace, model=trace");
     env_logger::init();
 
     tokio::runtime::Builder::new_multi_thread()

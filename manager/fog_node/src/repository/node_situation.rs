@@ -3,7 +3,7 @@ use std::net::IpAddr;
 
 use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
-use model::NodeId;
+use model::{FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort, NodeId};
 
 pub trait NodeSituation: Debug + Sync + Send {
     fn register(&self, id: NodeId, description: NodeDescription);
@@ -15,15 +15,19 @@ pub trait NodeSituation: Debug + Sync + Send {
     /// Whether the node is connected to the market (i.e., doesn't have any
     /// parent = root of the network)
     fn is_market(&self) -> bool;
-    fn get_parent_node_address(&self) -> Option<(IpAddr, u16)>;
-    fn get_market_node_address(&self) -> Option<(IpAddr, u16)>;
+    fn get_parent_node_address(
+        &self,
+    ) -> Option<(IpAddr, FogNodeHTTPPort, FogNodeRPCPort)>;
+    fn get_market_node_address(&self) -> Option<(IpAddr, MarketHTTPPort)>;
     /// Return iter over both the parent and the children node...
     /// Aka all the nodes interesting that can accommodate a function
     fn get_neighbors(&self) -> Vec<NodeId>;
     /// Get the public ip associated with this server
     fn get_my_public_ip(&self) -> IpAddr;
-    /// Get the public port associated with this server
-    fn get_my_public_port(&self) -> u16;
+    /// Get the public port associated with this server (HTTP)
+    fn get_my_public_port_http(&self) -> FogNodeHTTPPort;
+    /// Get the public port associated with this server (RPC)
+    fn get_my_public_port_rpc(&self) -> FogNodeRPCPort;
 }
 
 #[derive(Debug)]
@@ -42,21 +46,22 @@ impl NodeSituation for NodeSituationHashSetImpl {
         self.database.children.insert(id, description);
     }
 
-    #[instrument(level = "trace", skip(self))]
     fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription> {
         let ret = self.database.children.get(id);
         if ret.is_none() {
             match &self.database.situation {
                 NodeConnected {
                     parent_node_ip,
-                    parent_node_port,
+                    parent_node_port_http,
+                    parent_node_port_rpc,
                     parent_id,
                     ..
                 } => {
                     if parent_id == id {
                         return Some(NodeDescription {
-                            ip:   parent_node_ip.clone(),
-                            port: parent_node_port.clone(),
+                            ip:        parent_node_ip.clone(),
+                            port_http: parent_node_port_http.clone(),
+                            port_rpc:  parent_node_port_rpc.clone(),
                         });
                     }
                 }
@@ -81,17 +86,26 @@ impl NodeSituation for NodeSituationHashSetImpl {
         matches!(self.database.situation, MarketConnected { .. })
     }
 
-    fn get_parent_node_address(&self) -> Option<(IpAddr, u16)> {
-        match self.database.situation {
-            NodeConnected { parent_node_ip, parent_node_port, .. } => {
-                Some((parent_node_ip.clone(), parent_node_port.clone()))
-            }
+    fn get_parent_node_address(
+        &self,
+    ) -> Option<(IpAddr, FogNodeHTTPPort, FogNodeRPCPort)> {
+        match &self.database.situation {
+            NodeConnected {
+                parent_node_ip,
+                parent_node_port_http,
+                parent_node_port_rpc,
+                ..
+            } => Some((
+                parent_node_ip.clone(),
+                parent_node_port_http.clone(),
+                parent_node_port_rpc.clone(),
+            )),
             _ => None,
         }
     }
 
-    fn get_market_node_address(&self) -> Option<(IpAddr, u16)> {
-        match self.database.situation {
+    fn get_market_node_address(&self) -> Option<(IpAddr, MarketHTTPPort)> {
+        match &self.database.situation {
             MarketConnected { market_ip, market_port, .. } => {
                 Some((market_ip.clone(), market_port.clone()))
             }
@@ -99,7 +113,6 @@ impl NodeSituation for NodeSituationHashSetImpl {
         }
     }
 
-    #[instrument(level = "trace", skip(self))]
     fn get_neighbors(&self) -> Vec<NodeId> {
         let mut ret: Vec<NodeId> =
             self.database.children.iter().map(|x| x.key().clone()).collect();
@@ -116,5 +129,11 @@ impl NodeSituation for NodeSituationHashSetImpl {
 
     fn get_my_public_ip(&self) -> IpAddr { self.database.my_public_ip }
 
-    fn get_my_public_port(&self) -> u16 { self.database.my_public_port }
+    fn get_my_public_port_http(&self) -> FogNodeHTTPPort {
+        self.database.my_public_port_http.clone()
+    }
+
+    fn get_my_public_port_rpc(&self) -> FogNodeRPCPort {
+        self.database.my_public_port_rpc.clone()
+    }
 }
