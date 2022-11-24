@@ -1,7 +1,8 @@
+use chrono::{DateTime, Utc};
 use reqwest;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
+use chrono::serde::ts_microseconds;
 use warp::{filters::BoxedFilter, http::StatusCode, Filter, Reply};
 
 type Result<T> = std::result::Result<T, warp::Rejection>;
@@ -13,10 +14,21 @@ struct IncomingPayload {
     data: Value,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct OutgoingPayload {
+    #[serde(with = "ts_microseconds")]
+    timestamp: DateTime<Utc>,
+    data: Value,
+}
+
 async fn handle(payload: IncomingPayload) -> Result<impl Reply> {
     if reqwest::Client::new()
         .post(payload.address_to_call)
-        .body(serde_json::to_string(&payload.data).unwrap())
+        .body(serde_json::to_string(&OutgoingPayload{
+            timestamp: chrono::offset::Utc::now(),
+            data: payload.data
+        }).unwrap())
         .send()
         .await
         .is_ok()

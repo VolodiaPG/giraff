@@ -73,8 +73,8 @@ do
 	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
 	iot_requests_body+=('{
-	"iotUrl": "http://'$IOT_URL':3030/api/print",
-	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3030/api/routing",
+	"iotUrl": "http://'$IOT_URL':3003/api/print",
+	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3003/api/routing",
 	"functionId": "'$FUNCTION_ID'",
 	"tag": "'"$function_name"'"
   	}')

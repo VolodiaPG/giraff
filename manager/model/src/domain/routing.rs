@@ -2,7 +2,6 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue;
 use serde_json::Value;
 
 use crate::{BidId, NodeId};
@@ -39,18 +38,18 @@ pub enum Packet {
     FaaSFunction {
         to:   BidId, // TODO check wether its better an id or a name
         #[schemars(schema_with = "schema_function")]
-        data: Box<RawValue>,
+        data: Value,
     },
     FogNode {
         route_to_stack: Vec<NodeId>,
         resource_uri:   String,
         #[schemars(schema_with = "schema_function")]
-        data:           Box<RawValue>,
+        data:           Value,
     },
     Market {
         resource_uri: String,
         #[schemars(schema_with = "schema_function")]
-        data:         Box<RawValue>,
+        data:         Value,
     },
 }
 

@@ -29,16 +29,17 @@ run_market:
    cargo run --bin market
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type debugger_enabled="False":
+run_fog_node node_type:
     #!/usr/bin/env python3
     import os
     import base64
     import subprocess
 
     node_type = "{{node_type}}"
-    debugger_enabled = True if {{debugger_enabled}} else False
 
-    MARKET_CONNECTED_NODE = '''MarketConnected (
+    nodes = {}
+
+    nodes["market"] = '''MarketConnected (
         market_ip: "127.0.0.1",
         market_port: "8000",
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
@@ -48,7 +49,7 @@ run_fog_node node_type debugger_enabled="False":
         tags: ["market connected"],
     )'''
 
-    NODE_CONNECTED_NODE = '''NodeConnected (
+    nodes["node_1"] = '''NodeConnected (
         parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         parent_node_ip: "127.0.0.1",
         parent_node_port_http: "3030",
@@ -57,14 +58,43 @@ run_fog_node node_type debugger_enabled="False":
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3032",
         my_public_port_rpc: "3033",
-        tags: ["node connected"],
+        tags: ["node connected 1"],
     )'''
 
-    config = MARKET_CONNECTED_NODE if (node_type=="market") else NODE_CONNECTED_NODE
+    nodes["node_2"] = '''NodeConnected (
+        parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
+        parent_node_ip: "127.0.0.1",
+        parent_node_port_http: "3032",
+        parent_node_port_rpc: "3033",
+        my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
+        my_public_ip: "127.0.0.1",
+        my_public_port_http: "3034",
+        my_public_port_rpc: "3035",
+        tags: ["node connected 2"],
+    )'''
+
+    # Must be that port so expe.sh works magically
+    nodes["node_3"] = '''NodeConnected (
+        parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
+        parent_node_ip: "127.0.0.1",
+        parent_node_port_http: "3034",
+        parent_node_port_rpc: "3035",
+        my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
+        my_public_ip: "127.0.0.1",
+        my_public_port_http: "3003",
+        my_public_port_rpc: "3037",
+        tags: ["node connected 3"],
+    )'''
+
+    if node_type not in nodes:
+        print(f"Wrong node name, select one of the followings: {','.join(nodes.keys())}")
+        exit(1)
+    config = nodes[node_type]
     
     env_vars = {}
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
-    env_vars['ROCKET_PORT'] = "3030" if (node_type=="market") else "3032"
+    if node_type == "market":
+        env_vars['ROCKET_PORT'] = "3030"
     env_vars['KUBECONFIG'] = "{{KUBECONFIG}}"
     env_vars['OPENFAAS_USERNAME'] = "admin"
     env_vars['OPENFAAS_PASSWORD'] = subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo')
@@ -73,19 +103,22 @@ run_fog_node node_type debugger_enabled="False":
 
     env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
 
-    # if debugger_enabled:
-    os.system(f'''cargo build --bin fog_node \
+    cmd = f'''cargo build --bin fog_node \
         && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
-        ''')
-    # else:
-    #     os.system('''cargo build --bin fog_node \
-    #         && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
-    #         ''')
+        '''
+    print(cmd)
+    os.system(cmd)
 
 run_all:
     just run_fog_node market
-    just run_fog_node other
+    just run_fog_node node_1
+    just run_fog_node node_2
+    just run_fog_node node_3
     just run_market
+
+expe target_node_uuid n='50' delay='30' market_local_port='8000' iot_local_port='30080':
+    cd ../iso/enos \
+    && ./expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} 127.0.0.1 127.0.0.1
 
 # Build the project as a docker image. Flavors are [default, naive, perftools]
 docker $flavor="default":

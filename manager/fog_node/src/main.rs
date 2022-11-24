@@ -44,7 +44,7 @@ mod repository;
 mod service;
 
 /*
-ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
+ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) r="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
 
 Simpler config only using kubeconfig-1
 ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="8081" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
@@ -184,7 +184,7 @@ async fn rocket() {
             ),
         ),
         node_situation.clone(),
-        Arc::new(crate::repository::routing::RoutingImpl),
+        Arc::new(crate::repository::routing::RoutingImpl::new()),
         faas_service.clone(),
         client.clone(),
     ));
@@ -227,6 +227,9 @@ async fn rocket() {
     for metric in metrics {
         prometheus.registry().register(Box::new(metric.clone())).unwrap();
     }
+
+    let my_port_http = node_situation.get_my_public_port_http();
+    env::set_var("ROCKET_PORT", my_port_http.to_string());
 
     let rocket = rocket::build()
         .attach(prometheus.clone())
@@ -338,8 +341,7 @@ fn main() {
     debug!("Tracing initialized.");
 
     tokio::runtime::Builder::new_multi_thread()
-        // .worker_threads(num_cpus::get())
-        .worker_threads(1)
+        // .worker_threads(num_cpus::get() * 2)
         .enable_all()
         .build()
         .expect("build runtime failed")

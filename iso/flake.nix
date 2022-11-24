@@ -3,6 +3,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
     nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     enoslib.url = "github:volodiapg/enoslib-flake";
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
   };
 
   outputs = { self, nixpkgs, nixpkgs-unstable, ... }@inputs:
@@ -10,8 +14,9 @@
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
-        inherit system; config = { allowUnfree = true; };
-        # overlays = [ inputs.enoslib.overlay.${system} ];
+        inherit system;
+        config.allowUnfree = true;
+        overlays = [ inputs.enoslib.overlay.${system} ];
       };
       pkgs-unstable = import nixpkgs-unstable {
         inherit system; config = { allowUnfree = true; };
@@ -73,7 +78,7 @@
               })
             )
             pandoc # for rstudio
-            inputs.enoslib.defaultPackage
+            enoslib
             just
             jq
             pkgs-unstable.mprocs

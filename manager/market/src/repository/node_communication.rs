@@ -116,7 +116,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
     ) -> Result<BidProposals, Error> {
         let data = Packet::FogNode {
             resource_uri:   "bid".to_string(),
-            data:           serde_json::value::to_raw_value(&BidRequest {
+            data:           serde_json::value::to_value(&BidRequest {
                 sla,
                 node_origin: to.clone(),
                 accumulated_latency: Time::new::<second>(0.0),
@@ -135,7 +135,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
         let data = Packet::FogNode {
             route_to_stack: self.network.get_route_to_node(to).await,
             resource_uri:   format!("bid/{}", bid.id),
-            data:           serde_json::value::to_raw_value(&())?,
+            data:           serde_json::value::to_value(&())?,
         };
 
         self.call_routing(data).await?;
@@ -153,7 +153,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
                 .get_route_to_node(starting_from)
                 .await,
             resource_uri:   "register_route".to_string(),
-            data:           serde_json::value::to_raw_value(&route)?,
+            data:           serde_json::value::to_value(&route)?,
         };
 
         self.call_routing(data).await?;

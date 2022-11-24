@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::time::Instant;
 
 use async_trait::async_trait;
 
@@ -11,7 +12,7 @@ use model::dto::routing::Direction;
 use model::view::routing::{Route, RouteDirection, RouteLinking};
 use model::{BidId, NodeId};
 use openfaas::DefaultApi;
-use serde_json::value::RawValue;
+use serde_json::Value;
 
 use crate::repository::faas_routing_table::FaaSRoutingTable;
 use crate::repository::routing::Routing as RoutingRepository;
@@ -51,7 +52,7 @@ pub trait Router: Debug + Send + Sync {
     ) -> Result<(), Error>;
 
     /// Forward payloads to a neighbour node
-    async fn forward(&self, packet: Packet) -> Result<Box<RawValue>, Error>;
+    async fn forward(&self, packet: Packet) -> Result<Value, Error>;
 }
 
 #[derive(Debug)]
@@ -184,7 +185,7 @@ where
             self.forward(Packet::FogNode {
                 route_to_stack: vec![next, self.node_situation.get_my_id()],
                 resource_uri:   "route_linking".to_string(),
-                data:           serde_json::value::to_raw_value(&linking)?,
+                data:           serde_json::value::to_value(&linking)?,
             })
             .await?;
         }
@@ -193,7 +194,7 @@ where
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn forward(&self, packet: Packet) -> Result<Box<RawValue>, Error> {
+    async fn forward(&self, packet: Packet) -> Result<Value, Error> {
         trace!("Forwarding packet...");
         match packet {
             Packet::FaaSFunction { to, data: payload } => {
@@ -232,6 +233,7 @@ where
                             .ok_or_else(|| {
                             Error::UnknownBidId(to.to_owned())
                         })?;
+                        let start = Instant::now();
                         self.faas_api
                             .async_function_name_post(
                                 &record.function_name,
@@ -239,8 +241,10 @@ where
                             )
                             .await
                             .map_err(Error::from)?;
+                        let elapsed = start.elapsed();
+                        debug!("Call to OpenFaaS elapsed: {:?}", elapsed);
                         // TODO check if that doesn't cause any harm
-                        Ok(RawValue::from_string("{}".to_string()).unwrap())
+                        Ok(serde_json::from_str("{}").unwrap())
                     }
                 }
             }

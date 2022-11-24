@@ -3,6 +3,8 @@ extern crate core;
 extern crate tracing;
 extern crate rocket;
 
+use chrono::serde::ts_microseconds;
+use chrono::{DateTime, Utc};
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
@@ -11,7 +13,6 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use std::time::Instant;
 
 use lazy_static::lazy_static;
 use rocket::serde::json::Json;
@@ -20,19 +21,26 @@ use rocket_prometheus::prometheus::{register_histogram_vec, HistogramVec};
 use rocket_prometheus::PrometheusMetrics;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
-use tokio::sync::mpsc::{self, Sender};
 use tokio::time;
 use uuid::Uuid;
 
 type CronFn =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
-type PromTimer = Arc<dashmap::DashMap<Uuid, Sender<()>>>;
+type PromTimer = Arc<dashmap::DashMap<Uuid, DateTime<Utc>>>;
 
 lazy_static! {
     static ref HTTP_PRINT_HISTOGRAM: HistogramVec = register_histogram_vec!(
         "iot_emulation_http_request_duration_seconds_print",
         "The HTTP request latencies in seconds for the /print route, tagged \
+         with the content `tag`.",
+        &["tag"]
+    )
+    .unwrap();
+
+    static ref HTTP_TIME_TO_PROCESS_HISTOGRAM: HistogramVec = register_histogram_vec!(
+        "iot_emulation_http_request_to_processing_echo_duration_seconds_print",
+        "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
          with the content `tag`.",
         &["tag"]
     )
@@ -58,6 +66,14 @@ pub struct Payload {
     id:  Uuid,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseFromEcho {
+    #[serde(with = "ts_microseconds")]
+    timestamp: DateTime<Utc>,
+    data:      Payload,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CronPayload {
@@ -79,12 +95,38 @@ pub struct StartCron {
 }
 
 #[post("/print", data = "<payload>")]
-pub async fn print(payload: Json<Payload>, prom_timers: &State<PromTimer>) {
-    let timer = prom_timers.remove(&payload.id);
-    if let Some((_id, tx)) = timer {
-        tx.send(()).await.unwrap();
-    }
+pub async fn print(
+    payload: Json<ResponseFromEcho>,
+    prom_timers: &State<PromTimer>,
+) {
+    let Some(start) = prom_timers.get(&payload.data.id).map(|x|*x.value()) else {
+        warn!("Received a print that was discarded");
+        return;
+    };
+
     info!("{:?}", payload);
+    let now = chrono::offset::Utc::now();
+    let elapsed = now - start;
+    debug!("Elapsed (after being received): {}ms", elapsed.num_milliseconds());
+    HTTP_PRINT_HISTOGRAM
+        .with_label_values(&[&payload.data.tag])
+        .observe(elapsed.num_seconds().abs() as f64);
+
+    let elapsed = now - payload.timestamp;
+    debug!(
+        "Elapsed (start of processing by echo): {}ms",
+        elapsed.num_milliseconds()
+    );
+    HTTP_TIME_TO_PROCESS_HISTOGRAM
+        .with_label_values(&[&payload.data.tag])
+        .observe(elapsed.num_seconds().abs() as f64);
+    let elapsed = now - start;
+    debug!(
+        "Elapsed (after being contacted back): {}ms",
+        elapsed.num_milliseconds()
+    );
+
+    info!("Measured {:?} ({:?})", payload.data.id, payload.data.tag);
 }
 
 #[put("/cron", data = "<config>")]
@@ -97,7 +139,7 @@ async fn put_cron(
     let prom_timers = prom_timers.inner().clone();
     let tag = config.tag.clone();
     info!(
-        "Sending to {:?} on tag {:?}; then to {:?}",
+        "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}",
         config.first_node_url, config.tag, config.iot_url
     );
 
@@ -124,16 +166,10 @@ async fn delete_cron(
     skip(prom_timers, config),
     fields(tag=%config.tag)
 )]
+#[instrument(level = "trace")]
 async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
     let id = Uuid::new_v4();
-    let (tx, mut rx) = mpsc::channel(1);
-    
-    {
-        prom_timers.insert(id.clone(), tx);
-    }
     let tag = config.tag.clone();
-    
-    let start = Instant::now();
     info!("Sending a ping to {:?}...", tag.clone());
 
     let res = reqwest::Client::new().post(config.first_node_url.clone()).body(
@@ -147,40 +183,28 @@ async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
         })
         .unwrap(),
     );
-    let measure =
-        HTTP_PRINT_HISTOGRAM.with_label_values(&[&config.tag]).start_timer();
-    let res = res.send().await;
+
+    prom_timers.insert(id.clone(), chrono::offset::Utc::now());
+    let res = res.send();
 
     info!("Ping sent to {:?}.", tag);
-    if let Err(err) = res {
+    if let Err(err) = res.await {
         warn!(
             "Discarded measure because something went wrong sending a \
              message using config {:?}, error is {:?}",
             config, err
         );
-        measure.stop_and_discard();
+        prom_timers.remove(&id);
         return;
     }
-
-    if rx.recv().await.is_none() {
-        warn!("Channed received None, discarding...");
-        measure.stop_and_discard();
-        return;
-    }
-
-    let elapsed = start.elapsed();
-    measure.observe_duration();
-
-    debug!("Elapsed: {:?}", elapsed); 
-    debug!("Millis: {} ms", elapsed.as_millis()); 
-    info!("Measured {:?} ({:?})", id, tag);
 }
 
 async fn rocket(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
     // Id of the request; Histogram that started w/ that request
-    let prom_timers = Arc::new(dashmap::DashMap::<Uuid, Sender<()>>::new());
+    let prom_timers = Arc::new(dashmap::DashMap::<Uuid, DateTime<Utc>>::new());
 
-    let metrics: [&HistogramVec; 1] = [&HTTP_PRINT_HISTOGRAM];
+    let metrics: [&HistogramVec; 2] =
+        [&HTTP_PRINT_HISTOGRAM, &HTTP_TIME_TO_PROCESS_HISTOGRAM];
     let prometheus = PrometheusMetrics::new();
     for metric in metrics {
         prometheus.registry().register(Box::new(metric.clone())).unwrap();
@@ -226,7 +250,7 @@ fn main() {
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(num_cpus::get())
+        // .worker_threads(num_cpus::get() * 2)
         .build()
         .expect("build runtime failed")
         .block_on(async {

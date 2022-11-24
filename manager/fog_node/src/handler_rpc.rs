@@ -2,7 +2,7 @@ use drpc::codec::{BinCodec, JsonCodec};
 use drpc::server::Server;
 use model::domain::routing::Packet;
 use model::FogNodeRPCPort;
-use serde_json::value::RawValue;
+use serde_json::Value;
 use std::sync::Arc;
 
 use crate::controller;
@@ -12,7 +12,7 @@ use crate::service::routing::Router;
 async fn routing(
     packet: Packet,
     router: Arc<dyn Router>,
-) -> drpc::Result<Box<RawValue>> {
+) -> drpc::Result<Value> {
     controller::routing::post_forward_function_routing(packet, &router)
         .await
         .map_err(|e| drpc::Error::from(e.to_string()))

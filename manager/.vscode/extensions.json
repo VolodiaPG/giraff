@@ -2,6 +2,9 @@
     "recommendations": [
         "rust-lang.rust-analyzer",
         "vadimcn.vscode-lldb",
-        "mkhl.direnv"
+        "iliazeus.vscode-ansi",
+        "skellock.just",
+        "arrterian.nix-env-selector",
+        "jnoortheen.nix-ide",
     ]
 }

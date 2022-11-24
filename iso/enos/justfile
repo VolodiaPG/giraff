@@ -11,6 +11,7 @@ mprocs:
 # Deploy the stack to redy the eperiment on grid'5000
 deploy $CLUSTER="gros" +UP_FLAGS='':
     {{RUN}} up {{UP_FLAGS}}
+    {{RUN}} network
     {{RUN}} iot-emulation
     {{RUN}} k3s-deploy
     {{RUN}} monitoring
@@ -29,10 +30,25 @@ tunnels +FLAGS='':
 endpoints:
 	{{RUN}} endpoints
 
-# expe to target node_id for n repetitions with a delay between each
-expe node_id iot_remote_ip target_remote_ip n='50' delay='30' market_local_port='8080' iot_local_port='3030':
-	./expe.sh {{n}} {{node_id}} {{delay}} {{market_local_port}} {{iot_local_port}} {{iot_remote_ip}} {{target_remote_ip}}
+is_connected city_name_node_target market_local_port='8080':
+    #!/usr/bin/env bash
+    if [[ $(curl -s "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
+        echo "{{city_name_node_target}} is connected ✅"
+    else
+        echo "❌"
+    fi
 
+
+# expe to target node_id for n repetitions with a delay between each
+expe city_name_node_target n='50' delay='30' market_local_port='8080' iot_local_port='3003':
+    #!/usr/bin/env bash
+    NODE_TARGET=$(curl "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
+    NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
+    IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
+    echo $NODE_TARGET
+    echo $IOT_IP
+    echo $NODE_TARGET_IP
+    ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP
 
 # Delete the Job on grid'5000 and local EnosLib files
 clean:

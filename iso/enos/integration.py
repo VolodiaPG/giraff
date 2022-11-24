@@ -69,9 +69,13 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxied-fog-node-3030
-      port: 3030
-      targetPort: 3030
+    - name: proxied-fog-node-3003
+      port: 3003
+      targetPort: 3003
+      protocol: TCP
+    - name: proxied-fog-node-3004
+      port: 3004
+      targetPort: 3004
       protocol: TCP
   selector:
     app: fog-node
@@ -115,7 +119,7 @@ spec:
         - name: OPENFAAS_PORT
           value: "8080"
         - name: ROCKET_PORT
-          value: "3030"
+          value: "3003"
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
         - name: CONFIG
@@ -127,7 +131,8 @@ spec:
         - name: RUST_LOG
           value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
         ports:
-        - containerPort: 3030
+        - containerPort: 3003
+        - containerPort: 3004
         volumeMounts:
         - name: log-storage-fog-node
           mountPath: /var/log
@@ -164,9 +169,9 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxied-market-8000
-      port: 8000
-      targetPort: 8000
+    - name: proxied-market-3008
+      port: 3008
+      targetPort: 3008
       protocol: TCP
   selector:
     app: market
@@ -192,10 +197,12 @@ spec:
       - name: market
         image: ghcr.io/volodiapg/market:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 3008
         env:
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
+        - name: ROCKET_PORT
+          value: "3008"
         volumeMounts:
         - name: log-storage-market
           mountPath: /var/log
@@ -213,10 +220,11 @@ spec:
 
 MARKET_CONNECTED_NODE = """MarketConnected (
     market_ip: "{market_ip}",
-    market_port: 8000,
+    market_port: "3008",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030,
+    my_public_port_http: "3003",
+    my_public_port_rpc: "3004",
     tags: ["node_to_market", "{name}"],
 )
 
@@ -225,10 +233,12 @@ MARKET_CONNECTED_NODE = """MarketConnected (
 NODE_CONNECTED_NODE = """NodeConnected (
     parent_id: "{parent_id}",
     parent_node_ip: "{parent_ip}",
-    parent_node_port: 3030,
+    parent_node_port_http: "3003",
+    parent_node_port_rpc: "3004",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030,
+    my_public_port_http: "3003",
+    my_public_port_rpc: "3004",
     tags: ["node_to_node", "{name}"],
 )
 
@@ -279,7 +289,7 @@ NETWORK = {
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
-            "latency": 0,
+            "latency": 25,
             "children": [
                 # {
                 #     "name": "rennes-right",
@@ -294,28 +304,28 @@ NETWORK = {
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
-                    "latency": 0,
+                    "latency": 25,
                     "children": [
                         {
                             "name": "rennes-50",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 0,
+                            "latency": 25,
                             "children": [
                                 {
                                     "name": "st-greg-5",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 0,
+                                    "latency": 25,
                                 },
                                 # {
                                 #     "name": "st-greg-75",
                                 #     "flavor": TIER_3_FLAVOR,
                                 #     "latency": 75,
                                 # },
-                                {
-                                    "name": "st-greg-25",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 0,
-                                },
+                                # {
+                                #     "name": "st-greg-25",
+                                #     "flavor": TIER_3_FLAVOR,
+                                #     "latency": 25,
+                                # },
                                 # {
                                 #     "name": "st-greg-100",
                                 #     "flavor": TIER_3_FLAVOR,
@@ -496,9 +506,9 @@ def get_aliases_from_ip(env):
     ret = {}
     for node in FOG_NODES:
         role = roles[node]
-        alias = role[0].address + ":3030"
+        alias = role[0].address + ":3003"
         ret[alias] = node
-    ret[roles["market"][0].address + ":3030"] = "market"
+    ret[roles["market"][0].address + ":3003"] = "market"
 
     return ret
 
@@ -612,7 +622,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
             core_used += core
             mem_used += mem
 
-            if core_used >= nb_cpu_per_host or mem_used >= mem_total_per_host:
+            if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
                     raise Exception(
                         "The VM requires more resources than the node can provide"
@@ -651,25 +661,24 @@ def attributes_roles(vm_attributions, roles):
         count[instance_id] += 1
 
 
-# def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
-#     attributions = {}
-#     vms = gen_vm_conf(node)
-#     for key, value in vms.items():
-#         flavor = {x: y for (x, y) in key}
+# # def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
+# #     attributions = {}
+# #     vms = gen_vm_conf(node)
+# #     for key, value in vms.items():
+# #         flavor = {x: y for (x, y) in key}
 
-#         vm_id = str(uuid.uuid4())
-#         for vm_name in value:
-#             vm_id = str(uuid.uuid4())
-#             conf.add_machine(
-#                 roles=["master", "fog_node", "prom_agent", vm_id],
-#                 cluster=cluster,
-#                 number=1,
-#                 flavour_desc=flavor,
-#             )
+# #         for vm_name in value:
+# #             vm_id = str(uuid.uuid4())
+# #             conf.add_machine(
+# #                 roles=["master", "fog_node", "prom_agent", vm_id],
+# #                 cluster=cluster,
+# #                 number=1,
+# #                 flavour_desc=flavor,
+# #             )
 
-#             attributions[vm_name] = vm_id
+# #             attributions[vm_name] = vm_id
 
-#     return attributions
+# #     return attributions
 
 
 # def attributes_roles(vm_attributions, roles):
@@ -743,9 +752,9 @@ def up(force, env=None, **kwargs):
     env["roles"] = roles
     env["networks"] = networks
 
-    netem = en.NetemHTB()
-
+    netem = en.Netem()
     env["netem"] = netem
+    establish_netem(env)
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
@@ -786,10 +795,23 @@ def iot_emulation(env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            "(docker rm iot_emulation || true) && docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
+            "(docker stop iot_emulation || true) && (docker rm iot_emulation || true) && docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
+
+
+# @cli.command()
+# @enostask()
+# def network(env=None):
+#     # drop_netem(env)
+#     # establish_netem(env)
+#     netem = env["netem"]
+#     roles = env["roles"]
+
+#     netem.add_constraints("delay 10ms", roles["fog_node"], symetric=True)
+#     netem.deploy()
+#     netem.validate()
 
 
 def establish_netem(env):
@@ -800,14 +822,14 @@ def establish_netem(env):
     gen_net(NETWORK, netem, roles)
 
     # Connect the extremities to the echo server
-    for extremity in EXTREMITIES:
-        netem.add_constraints(
-            src=roles[extremity],
-            dest=roles["iot_emulation"],
-            delay="0ms",
-            rate="1gbit",
-            symmetric=True,
-        )
+    # for extremity in EXTREMITIES:
+    #     netem.add_constraints(
+    #         src=roles[extremity],
+    #         dest=roles["iot_emulation"],
+    #         delay="0ms",
+    #         rate="1gbit",
+    #         symmetric=True,
+    #     )
 
     netem.deploy()
     netem.validate()
@@ -828,7 +850,8 @@ def gen_net(node, netem, roles):
         netem.add_constraints(
             src=roles[node["name"]],
             dest=roles[child["name"]],
-            delay=str(child["latency"]) + "ms",
+            # delay=str(child["latency"]) + "ms",
+            delay=str(0) + "ms",
             rate="1gbit",
             symetric=True,
         )
@@ -840,7 +863,6 @@ def gen_net(node, netem, roles):
 def monitoring(env=None, **kwargs):
     """Remove the constraints on the network links"""
     roles = env["roles"]
-    drop_netem(env)
     monitor = mon.TPGMonitoring(
         collector=roles["prom_master"][0],
         agent=roles["prom_agent"],
@@ -851,7 +873,6 @@ def monitoring(env=None, **kwargs):
     )
     monitor.deploy()
     env["monitor"] = monitor
-    # establish_netem(env)
 
 
 @cli.command()
@@ -890,7 +911,6 @@ def gen_conf(node, parent_id, parent_ip, ids):
 @enostask()
 def k3s_deploy(env=None, **kwargs):
     roles = env["roles"]
-    drop_netem(env)
 
     en.run_command(
         "k3s kubectl delete -f /tmp/node_conf.yaml || true",
@@ -1079,7 +1099,7 @@ def tunnels(env=None, all=False, **kwargs):
                 address = role.address
                 print(f"Opening to {address}")
                 open_tunnel(address, 31112)  # OpenFaas
-                open_tunnel(address, 3030)  # Fog Node
+                open_tunnel(address, 3003)  # Fog Node
                 open_tunnel(
                     address,
                     8001,
@@ -1089,7 +1109,7 @@ def tunnels(env=None, all=False, **kwargs):
         tun = {}  # out_port, (res of tunnels())
         flag = False
         for role in roles["market"]:
-            res = open_tunnel(role.address, 8000)  # Market
+            res = open_tunnel(role.address, 3008)  # Market
             if flag == False:
                 tun[8080] = res
                 flag = True
@@ -1099,7 +1119,7 @@ def tunnels(env=None, all=False, **kwargs):
         if "monitor" in env:
             tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
         if "iot_emulation" in env["roles"]:
-            tun[3030] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3030)
+            tun[3003] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
 
         # The os.setsid() is passed in the argument preexec_fn so
         # it's run after the fork() and before  exec() to run the shell.
@@ -1144,7 +1164,7 @@ def latency(src, dest, env=None):
     dest = roles[dest][0]
 
     res = en.run_command(
-        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3030/api/health" <<'EOF'
+        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3003/api/health" <<'EOF'
    time_namelookup:  %{{time_namelookup}}s\\n
       time_connect:  %{{time_connect}}s\\n
    time_appconnect:  %{{time_appconnect}}s\\n

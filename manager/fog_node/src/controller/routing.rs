@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use model::domain::routing::Packet;
 use model::view::routing::{Route, RouteLinking};
-use serde_json::value::RawValue;
+use serde_json::Value;
 
 use crate::service::routing::Router;
 
@@ -29,7 +29,7 @@ pub async fn route_linking(
 pub async fn post_forward_function_routing(
     packet: Packet,
     router: &Arc<dyn Router>,
-) -> anyhow::Result<Box<RawValue>> {
+) -> anyhow::Result<Value> {
     trace!("post forward routing from packet {:?}", packet);
     let start = Instant::now();
     let res = router.forward(packet).await.map_err(|e| anyhow::anyhow!(e));

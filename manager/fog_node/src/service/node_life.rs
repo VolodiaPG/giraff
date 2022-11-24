@@ -100,8 +100,7 @@ impl NodeLife for NodeLifeImpl {
         self.router
             .forward(Packet::Market {
                 resource_uri: "register".to_string(),
-                data:         serde_json::value::to_raw_value(&register)
-                    .unwrap(),
+                data:         serde_json::value::to_value(&register).unwrap(),
             })
             .await?;
         Ok(())

@@ -57,6 +57,7 @@
             docker
             just
             pkg-config
+            jq
             openssl
             rust-analyzer
             cargo-outdated

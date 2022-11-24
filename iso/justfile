@@ -1,6 +1,6 @@
 # Entrypoint, run deploy and then tunnels
 _default:
-    @just --choose
+    @just --list
     
 build-iso:
     nix build .#nixosConfigurations.isoimage.config.system.build.isoImage
@@ -19,7 +19,9 @@ vm clean="false":
     
     export SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
     
-    if {{clean}} || ! test -e "$NIX_DISK_IMAGE"
+    EXISTS=$(! {{clean}} && test -e "$NIX_DISK_IMAGE")
+
+    if ! EXISTS
     then
         qemu-img create -f qcow2 "$NIX_DISK_IMAGE" 4G
     fi
@@ -32,7 +34,9 @@ vm clean="false":
         sleep 1
     done
     
-    $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+    if ! EXISTS
+    then
+        $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
                     && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
                     && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
                     && helm repo update \
@@ -44,6 +48,7 @@ vm clean="false":
                         --set alertmanager.image=ghcr.io/volodiapg/alertmanager:latest \
                         --set stan.image=ghcr.io/volodiapg/nats-streaming:latest \
                         --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"
+    fi
     
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do

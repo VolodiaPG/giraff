@@ -3,6 +3,7 @@ use std::net::IpAddr;
 
 use async_trait::async_trait;
 
+use dashmap::DashMap;
 use drpc::client::Client;
 use drpc::codec::{BinCodec, JsonCodec};
 use model::{FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort};
@@ -10,7 +11,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 
 use model::domain::routing::Packet;
-use serde_json::value::RawValue;
+use serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -33,7 +34,7 @@ pub trait Routing: Debug + Sync + Send {
         ip: &IpAddr,
         port: &FogNodeRPCPort,
         packet: &Packet,
-    ) -> Result<Box<RawValue>, Error>;
+    ) -> Result<Value, Error>;
 
     /// Forward to the url to be handled by arbitrary route, on another node
     async fn forward_to_fog_node_url<'a, 'b, T>(
@@ -42,7 +43,7 @@ pub trait Routing: Debug + Sync + Send {
         node_port: &FogNodeHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Box<RawValue>, Error>
+    ) -> Result<Value, Error>
     where
         T: Serialize + Send + Sync;
 
@@ -53,20 +54,24 @@ pub trait Routing: Debug + Sync + Send {
         node_port: &MarketHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Box<RawValue>, Error>
+    ) -> Result<Value, Error>
     where
         T: Serialize + Send + Sync;
 }
 
 #[derive(Debug, Default)]
-pub struct RoutingImpl;
+pub struct RoutingImpl {
+    dialed_up: DashMap<String, Client<JsonCodec>>,
+}
 
 impl RoutingImpl {
+    pub fn new() -> Self { Self { dialed_up: DashMap::new() } }
+
     async fn forward_to<'a, T>(
         &self,
         data: &'a T,
         full_url: &'a str,
-    ) -> Result<Box<RawValue>, Error>
+    ) -> Result<Value, Error>
     where
         T: Serialize + Send + Sync,
     {
@@ -93,12 +98,20 @@ impl Routing for RoutingImpl {
         ip: &IpAddr,
         port: &FogNodeRPCPort,
         packet: &Packet,
-    ) -> Result<Box<RawValue>, Error> {
-        trace!("RPC-ing to routing on {}:{}...", ip, port);
-        let c = Client::<JsonCodec>::dial(&format!("{}:{}", ip, port))
-            .await
-            .unwrap();
-        c.call("routing", packet).await.map_err(Error::from)
+    ) -> Result<Value, Error> {
+        let key = format!("{}:{}", ip, port);
+        trace!("RPC-ing to routing on {}...", key);
+        let mut client = self.dialed_up.get(&key);
+
+        if client.is_none() {
+            let c = Client::<JsonCodec>::dial(&key).await.unwrap();
+            self.dialed_up.insert(key.clone(), c);
+            client = self.dialed_up.get(&key);
+        }
+
+        let client = client.unwrap();
+
+        client.call("routing", packet).await.map_err(Error::from)
     }
 
     #[instrument(level = "trace", skip(self, data))]
@@ -108,7 +121,7 @@ impl Routing for RoutingImpl {
         node_port: &FogNodeHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Box<RawValue>, Error>
+    ) -> Result<Value, Error>
     where
         T: Serialize + Send + Sync,
     {
@@ -125,7 +138,7 @@ impl Routing for RoutingImpl {
         node_port: &MarketHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Box<RawValue>, Error>
+    ) -> Result<Value, Error>
     where
         T: Serialize + Send + Sync,
     {
