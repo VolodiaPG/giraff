@@ -2,13 +2,13 @@
 name = "live"
 version = "0.1.0"
 description = "Experiment facilities for the Fog"
-authors = ["VolodiaPG <volodia.parol-guarino@protonmail.com>"]
+authors = ["Volodia PAROL-GUARINO <volodia.parol-guarino@proton.me>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-enoslib = { version = "^8.0.0*", allow-prereleases = true }
-click = "^8.1.3"
+python = ">=3.11,<4.0"
+enoslib = {version = "^8.0", extras = ["vagrant"]}
+click = "^8.1"
 
 [tool.poetry.dev-dependencies]
 

@@ -1,10 +1,9 @@
 import base64
+from datetime import datetime
 import logging
-import math
 import os
 import signal
 import subprocess
-import tempfile
 from time import sleep
 import uuid
 from collections import defaultdict
@@ -21,6 +20,7 @@ from grid5000 import Grid5000
 from grid5000.cli import auth
 
 from monitoring import monitoring as mon
+from k3s import K3s
 
 log = logging.getLogger("rich")
 
@@ -70,9 +70,13 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxied-fog-node-3030
-      port: 3030
-      targetPort: 3030
+    - name: proxied-fog-node-3003
+      port: 3003
+      targetPort: 3003
+      protocol: TCP
+    - name: proxied-fog-node-3004
+      port: 3004
+      targetPort: 3004
       protocol: TCP
   selector:
     app: fog-node
@@ -94,6 +98,7 @@ spec:
       labels:
         app: fog-node
     spec:
+      shareProcessNamespace: true
       serviceAccountName: fog-node
       automountServiceAccountToken: true
       containers:
@@ -115,13 +120,33 @@ spec:
         - name: OPENFAAS_PORT
           value: "8080"
         - name: ROCKET_PORT
-          value: "3030"
+          value: "3003"
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
         - name: CONFIG
           value: "{conf}"
+        - name: LOG_CONFIG_PATH
+          value: "/var/log"
+        - name: LOG_CONFIG_FILENAME
+          value: "stdout.log"
+        - name: RUST_LOG
+          value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
         ports:
-        - containerPort: 3030
+        - containerPort: 3003
+        - containerPort: 3004
+        volumeMounts:
+        - name: log-storage-fog-node
+          mountPath: /var/log
+      - name: sidecar-logs
+        image: ghcr.io/volodiapg/busybox:latest
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        volumeMounts:
+        - name: log-storage-fog-node
+          readOnly: true
+          mountPath: /mnt/log
+      volumes:
+      - name: log-storage-fog-node
+        emptyDir: {{}}
 """
 
 MARKET_DEPLOYMENT = """apiVersion: v1
@@ -134,9 +159,9 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-    - name: proxied-market-8000
-      port: 8000
-      targetPort: 8000
+    - name: proxied-market-3008
+      port: 3008
+      targetPort: 3008
       protocol: TCP
   selector:
     app: market
@@ -162,18 +187,34 @@ spec:
       - name: market
         image: ghcr.io/volodiapg/market:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 3008
         env:
         - name: ROCKET_ADDRESS
           value: "0.0.0.0"
+        - name: ROCKET_PORT
+          value: "3008"
+        volumeMounts:
+        - name: log-storage-market
+          mountPath: /var/log
+      - name: sidecar-logs
+        image: ghcr.io/volodiapg/busybox:latest
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        volumeMounts:
+        - name: log-storage-market
+          readOnly: true
+          mountPath: /mnt/log
+      volumes:
+      - name: log-storage-market
+        emptyDir: {}
 """
 
 MARKET_CONNECTED_NODE = """MarketConnected (
     market_ip: "{market_ip}",
-    market_port: 8000,
+    market_port: "3008",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030,
+    my_public_port_http: "3003",
+    my_public_port_rpc: "3004",
     tags: ["node_to_market", "{name}"],
 )
 
@@ -182,137 +223,140 @@ MARKET_CONNECTED_NODE = """MarketConnected (
 NODE_CONNECTED_NODE = """NodeConnected (
     parent_id: "{parent_id}",
     parent_node_ip: "{parent_ip}",
-    parent_node_port: 3030,
+    parent_node_port_http: "3003",
+    parent_node_port_rpc: "3004",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port: 3030,
+    my_public_port_http: "3003",
+    my_public_port_rpc: "3004",
     tags: ["node_to_node", "{name}"],
 )
 
 """
 
-# NETWORK = {
-#     "name": "market",
-#     "flavor": {"core": 10, "mem": 1024 * 16},
-#     "children": [
-#         {
-#             "name": "caveirac",
-#             "flavor": {"core": 4, "mem": 1024 * 4},
-#             "latency": 150
-#         },
-#         {
-#             "name": "brest",
-#             "flavor": {"core": 2, "mem": 1024 * 2},
-#             "latency": 50
-#         },
-#     ]
-# }
-
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 4}
-# TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 4}
-# TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
+TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 2}
+TIER_2_FLAVOR = {"core": 2, "mem": 1024 * 2}
+TIER_1_FLAVOR = {"core": 2, "mem": 1024 * 2}
 
 NETWORK = {
     "name": "market",
-    "flavor": TIER_3_FLAVOR,#{"core": 10, "mem": 1024 * 16},
+    "flavor": TIER_1_FLAVOR,
     "children": [
         {
             "name": "paris",
-            "flavor": TIER_3_FLAVOR,
-            "latency": 50,
+            "flavor": TIER_1_FLAVOR,
+            "latency": 25,
             "children": [
                 {
-                    "name": "rennes",
+                    "name": "st-greg-5",
                     "flavor": TIER_3_FLAVOR,
-                    "latency": 150,
-                    "children": [
-                        {
-                            "name": "rennes-50",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 50,
-                            "children": [
-                                {
-                                    "name": "st-greg-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "st-greg-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "rennes-75",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 75,
-                            "children": [
-                                {
-                                    "name": "cesson-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "cesson-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    "name": "nantes",
-                    "flavor": TIER_3_FLAVOR,
-                    "latency": 100,
-                    "children": [
-                        {
-                            "name": "nantes-50",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 50,
-                            "children": [
-                                {
-                                    "name": "clisson-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "clisson-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "nantes-75",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 75,
-                            "children": [
-                                {
-                                    "name": "cholet-50",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 50,
-                                },
-                                {
-                                    "name": "cholet-75",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 75,
-                                },
-                            ],
-                        },
-                    ],
+                    "latency": 25,
                 },
             ],
-        }
+        },
     ],
 }
+# NETWORK = {
+#     "name": "market",
+#     "flavor": TIER_1_FLAVOR,#{"core": 10, "mem": 1024 * 16},
+#     "children": [
+#         {
+#             "name": "paris",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 50,
+#             "children": [
+#                 {
+#                     "name": "rennes",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 150,
+#                     "children": [
+#                         {
+#                             "name": "rennes-50",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 50,
+#                             "children": [
+#                                 {
+#                                     "name": "st-greg-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "st-greg-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "rennes-75",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 75,
+#                             "children": [
+#                                 {
+#                                     "name": "cesson-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "cesson-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "nantes",
+#                     "flavor": TIER_3_FLAVOR,
+#                     "latency": 100,
+#                     "children": [
+#                         {
+#                             "name": "nantes-50",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 50,
+#                             "children": [
+#                                 {
+#                                     "name": "clisson-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "clisson-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "nantes-75",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 75,
+#                             "children": [
+#                                 {
+#                                     "name": "cholet-50",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 50,
+#                                 },
+#                                 {
+#                                     "name": "cholet-75",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 75,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         }
+#     ],
+# }
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": 18 - 1, "mem": 1024 * (96 - 2)},
-    "paravance": {"core": 2 * 8 - 1, "mem": 1024 * (128 - 2)},
-    "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 2)},
+    "gros": {"core": 18 - 2, "mem": 1024 * (96 - 4)},
+    "paravance": {"core": 2 * 8 - 2, "mem": 1024 * (128 - 4)},
+    "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
 }
 
 
@@ -379,48 +423,73 @@ def get_aliases_from_ip(env):
     ret = {}
     for node in FOG_NODES:
         role = roles[node]
-        alias = role[0].address + ":3030"
+        alias = role[0].address + ":3003"
         ret[alias] = node
-    ret[roles["market"][0].address + ":3030"] = "market"
+    ret[roles["market"][0].address + ":3003"] = "market"
 
     return ret
 
 
-def log_cmd(env, results):
-    if results.filter(status=STATUS_FAILED):
-        for data in results.filter(status=STATUS_FAILED).data:
-            data = data.payload
-            if data["stdout"]:
-                log.error(data["stdout"])
-            if data["stderr"]:
-                log.error(data["stderr"])
+def log_cmd(env, results_list):
+    # if results.filter(status=STATUS_FAILED):
+    #     for data in results.filter(status=STATUS_FAILED).data:
+    #         data = data.payload
+    #         if data["stdout"]:
+    #             log.error(data["stdout"])
+    #         if data["stderr"]:
+    #             log.error(data["stderr"])
 
-    if results.filter(status=STATUS_OK):
-        for data in results.filter(status=STATUS_OK).data:
+    # if results.filter(status=STATUS_OK):
+    now = datetime.now()
+    current_time = now.strftime("%Y-%m-%d-%H-%M-%S")
+    prefix_dir = f"{os.getcwd()}/logs"
+    prefix_simlink = f"{os.getcwd()}"
+    try:
+        os.mkdir(prefix_dir)
+    except FileExistsError:
+        pass
+    path = f"{prefix_dir}/{current_time}"
+    os.mkdir(path)
+    try:
+        os.remove(f"{prefix_simlink}/logs-latest")
+    except (FileExistsError, FileNotFoundError):
+        pass
+    os.symlink(path, f"{prefix_simlink}/logs-latest")
+    aliases = {}
+    for results in results_list:
+        for data in results.filter(status=STATUS_OK) + results.filter(
+            status=STATUS_FAILED
+        ):
             host = data.host
             data = data.payload
+            alias_name = get_aliases(env).get(host, host)
+            aliases[alias_name] = aliases.get(alias_name, -1) + 1
+            alias_name = alias_name + (
+                "" if aliases[alias_name] == 0 else "." + str(aliases[alias_name])
+            )
+
             if data["stdout"]:
-                print(data["stdout"])
-                try:
-                    with tempfile.NamedTemporaryFile(
-                        dir="/tmp", delete=False
-                    ) as tmpfile:
-                        with open(tmpfile.name, "w") as file:
-                            file.write(data["stdout"])
-                        alias_name = get_aliases(env).get(host, host)
-                        subprocess.run(
-                            [
-                                "mprocs",
-                                "--server",
-                                "127.0.0.1:4050",
-                                "--ctl",
-                                f'{{c: add-proc, cmd: "echo {alias_name} && cat {tmpfile.name} | tail -n 900 && sleep 1"}}',
-                            ]
-                        )
-                except:
-                    log.warning("Cannot use mprocs to output nice things organized.")
+                # print(data["stdout"])
+                with open(path + "/" + alias_name + ".log", "w") as file:
+                    file.write(data["stdout"])
+
             if data["stderr"]:
+                with open(path + "/" + alias_name + ".err", "w") as file:
+                    file.write(data["stderr"])
                 log.error(data["stderr"])
+
+            try:
+                subprocess.run(
+                    [
+                        "mprocs",
+                        "--server",
+                        "127.0.0.1:4050",
+                        "--ctl",
+                        f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
+                    ]
+                )
+            except:
+                log.warning("Cannot use mprocs to output nice things organized.")
 
 
 def open_tunnel(address, port, rest_of_url=""):
@@ -439,25 +508,7 @@ def cli(**kwargs):
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
-    en.init_logging()
-
-
-@cli.command()
-@click.option("--g5k_user", required=True, help="G5K username")
-@click.option("--force", is_flag=True, help="force overwrite")
-def init(g5k_user, force):
-    """Initialize the grid5000 connection options."""
-    conf_file = Path.home() / ".python-grid5000.yaml"
-
-    if not conf_file.exists() or force:
-        # will prompt for the password and write the authentication file
-        auth(g5k_user)
-
-        conf_file.chmod(0o600)
-
-    _ = Grid5000.from_yaml(conf_file)
-
-    en.check()
+    en.init_logging(level=logging.INFO)
 
 
 def gen_vm_conf(node):
@@ -488,7 +539,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
             core_used += core
             mem_used += mem
 
-            if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
+            if core_used >= nb_cpu_per_host or mem_used >= mem_total_per_host:
                 if nb_vms == 0:
                     raise Exception(
                         "The VM requires more resources than the node can provide"
@@ -590,14 +641,16 @@ def up(force, env=None, **kwargs):
     env["roles"] = roles
     env["networks"] = networks
 
-    netem = en.NetemHTB()
+    print("Setting up network...")
 
-    env["netem"] = netem
+    # netem = en.Netem()
+    # env["netem"] = netem
+    # establish_netem(env)
 
-    establish_netem(env)
+    print("Setting up k3s and FaaS...")
 
-    k3s = en.K3s(master=roles["master"], agent=list())
-
+    # k3s = en.K3s(master=roles["master"], agent=list())
+    k3s = K3s(master=roles["master"], agent=list())
     k3s.deploy()
 
     with actions(roles=roles["master"], gather_facts=False) as p:
@@ -615,49 +668,66 @@ def up(force, env=None, **kwargs):
             ),
             task_name="[master] Installing OpenFaaS",
         )
-        # p.shell(
-        #     f"export KUBECONFIG={KUBECONFIG_LOCATION_K3S} && kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'",
-        #     task_name="token",
-        # )
         p.shell(
             f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
             background=True,
         )
-    # env["k3s-token"] = [res.stdout for res in p.results.filter(task="token")]
 
+
+@cli.command()
+@enostask()
+def iot_emulation(env=None, **kwargs):
+    roles = env["roles"]
     # Deploy the echo node
-    with en.Docker(agent=roles["iot_emulation"]):
-        with actions(roles=roles["iot_emulation"]) as p:
-            p.shell(
-                "docker run -p 3030:3030 ghcr.io/volodiapg/iot_emulation:latest",
-                task_name="Run iot_emulation on the endpoints",
-                background=True,
-            )
+    with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
+        p.shell(
+            "(docker stop iot_emulation || true) && (docker rm iot_emulation || true) && docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest",
+            task_name="Run iot_emulation on the endpoints",
+            background=True,
+        )
+
+
+@cli.command()
+@enostask()
+def network(env=None):
+    if "netem" in env:
+        netem = env["netem"]
+        netem.destroy()
+        
+    netem = en.Netem()
+    env["netem"] = netem
+    roles = env["roles"]
+
+    netem.add_constraints("delay 10ms", roles["fog_node"], symetric=True)
+    netem.deploy()
+    # netem.validate()
 
 
 def establish_netem(env):
     netem = env["netem"]
     roles = env["roles"]
 
-     # generate the network
+    # generate the network
     gen_net(NETWORK, netem, roles)
 
     # Connect the extremities to the echo server
-    for extremity in EXTREMITIES:
-        netem.add_constraints(
-            src=roles[extremity],
-            dest=roles["iot_emulation"],
-            delay="0ms",
-            rate="1gbit",
-            symetric=True,
-        )
+    # for extremity in EXTREMITIES:
+    #     netem.add_constraints(
+    #         src=roles[extremity],
+    #         dest=roles["iot_emulation"],
+    #         delay="0ms",
+    #         rate="1gbit",
+    #         symmetric=True,
+    #     )
 
     netem.deploy()
-    # netem.validate()
+    netem.validate()
+
 
 def drop_netem(env):
     netem = env["netem"]
     netem.destroy()
+
 
 def gen_net(node, netem, roles):
     children = node["children"] if "children" in node else []
@@ -669,7 +739,8 @@ def gen_net(node, netem, roles):
         netem.add_constraints(
             src=roles[node["name"]],
             dest=roles[child["name"]],
-            delay=str(child["latency"]) + "ms",
+            # delay=str(child["latency"]) + "ms",
+            delay=str(0) + "ms",
             rate="1gbit",
             symetric=True,
         )
@@ -681,7 +752,6 @@ def gen_net(node, netem, roles):
 def monitoring(env=None, **kwargs):
     """Remove the constraints on the network links"""
     roles = env["roles"]
-    drop_netem(env)
     monitor = mon.TPGMonitoring(
         collector=roles["prom_master"][0],
         agent=roles["prom_agent"],
@@ -692,7 +762,6 @@ def monitoring(env=None, **kwargs):
     )
     monitor.deploy()
     env["monitor"] = monitor
-    establish_netem(env)
 
 
 @cli.command()
@@ -731,7 +800,6 @@ def gen_conf(node, parent_id, parent_ip, ids):
 @enostask()
 def k3s_deploy(env=None, **kwargs):
     roles = env["roles"]
-    drop_netem(env)
 
     en.run_command(
         "k3s kubectl delete -f /tmp/node_conf.yaml || true",
@@ -740,7 +808,7 @@ def k3s_deploy(env=None, **kwargs):
     )
 
     en.run_command(
-        "k3s kubectl delete -f /tmp/market.yaml || true",
+        "(k3s kubectl delete -f /tmp/market.yaml || true) && sleep 30",
         roles=roles["master"],
         task_name="Removing existing market software",
     )
@@ -791,7 +859,7 @@ def k3s_deploy(env=None, **kwargs):
             roles=roles["master"],
             task_name="Deploying fog_node software",
         )
-        log_cmd(env, res)
+        log_cmd(env, [res])
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
@@ -809,16 +877,16 @@ def k3s_deploy(env=None, **kwargs):
             roles=roles["market"],
             task_name="Deploying market software",
         )
-        log_cmd(env, res)
+        log_cmd(env, [res])
     except EnosFailedHostsError as err:
         for host in err.hosts:
             payload = host.payload
-            if payload["stdout"]:
-                print(payload["stdout"])
-            if payload["stderr"]:
+            if "stdout" in payload and payload["stdout"]:
+                print(payload["sdout"])
+            if "stderr" in payload and payload["stderr"]:
                 log.error(payload["stderr"])
 
-    establish_netem(env)
+    # establish_netem(env)
 
 
 @cli.command()
@@ -831,7 +899,7 @@ def health(env=None, all=False, **kwargs):
     if all:
         command = "kubectl get deployments --all-namespaces"
     res = en.run_command(command, roles=roles["master"])
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -841,7 +909,7 @@ def functions(env=None, **kwargs):
     res = en.run_command(
         "kubectl get deployments -n openfaas-fn", roles=roles["master"]
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -849,10 +917,10 @@ def functions(env=None, **kwargs):
 def toto(env=None, **kwargs):
     roles = env["roles"]
     res = en.run_command(
-        "kubectl logs deployment/primes -n openfaas-fn | tail -n 1000",
+        "k3s kubectl get pods -A",
         roles=roles["master"],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
@@ -860,15 +928,31 @@ def toto(env=None, **kwargs):
 @enostask()
 def logs(env=None, all=False, **kwargs):
     roles = env["roles"]
-    if all:
-        res = en.run_command(
-            "kubectl logs deployment/fog-node -n openfaas", roles=roles["master"]
-        )
-        log_cmd(env, res)
 
-    res = en.run_command(
-        "kubectl logs deployment/market -n openfaas", roles=roles["market"]
+    res = []
+
+    res.append(
+        en.run_command(
+            "k3s kubectl logs deployment/market -n openfaas --container sidecar-logs",
+            roles=roles["market"],
+        )
     )
+    res.append(
+        en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
+    )
+    if all:
+        res.append(
+            en.run_command(
+                "k3s kubectl logs deployment/fog-node -n openfaas --container sidecar-logs",
+                roles=roles["master"],
+            )
+        )
+        res.append(
+            en.run_command(
+                "k3s kubectl logs deployment/fog-node -n openfaas --container fog-node",
+                roles=roles["master"],
+            )
+        )
     log_cmd(env, res)
 
 
@@ -885,7 +969,7 @@ def openfaas_login(env=None, file=None, **kwargs):
         'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo)',
         roles=roles["master"],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
     if file:
         with open(file, "w") as f:
             f.write(str(res.filter(status=STATUS_OK).data[0].payload["stdout"]) + "\n")
@@ -902,8 +986,9 @@ def tunnels(env=None, all=False, **kwargs):
         if all:
             for role in roles["master"]:
                 address = role.address
+                print(f"Opening to {address}")
                 open_tunnel(address, 31112)  # OpenFaas
-                open_tunnel(address, 3030)  # Fog Node
+                open_tunnel(address, 3003)  # Fog Node
                 open_tunnel(
                     address,
                     8001,
@@ -913,14 +998,17 @@ def tunnels(env=None, all=False, **kwargs):
         tun = {}  # out_port, (res of tunnels())
         flag = False
         for role in roles["market"]:
-            res = open_tunnel(role.address, 8000)  # Market
+            res = open_tunnel(role.address, 3008)  # Market
             if flag == False:
                 tun[8080] = res
                 flag = True
 
-        tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
-        tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
-        tun[3030] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3030)
+        if "prom_master" in env["roles"]:
+            tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
+        if "monitor" in env:
+            tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
+        if "iot_emulation" in env["roles"]:
+            tun[3003] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
 
         # The os.setsid() is passed in the argument preexec_fn so
         # it's run after the fork() and before  exec() to run the shell.
@@ -965,7 +1053,7 @@ def latency(src, dest, env=None):
     dest = roles[dest][0]
 
     res = en.run_command(
-        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3030/api/health" <<'EOF'
+        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3003/api/health" <<'EOF'
    time_namelookup:  %{{time_namelookup}}s\\n
       time_connect:  %{{time_connect}}s\\n
    time_appconnect:  %{{time_appconnect}}s\\n
@@ -977,7 +1065,7 @@ time_starttransfer:  %{{time_starttransfer}}s\\n
 EOF""",
         roles=[src],
     )
-    log_cmd(env, res)
+    log_cmd(env, [res])
 
 
 @cli.command()
