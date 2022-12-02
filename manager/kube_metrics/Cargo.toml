@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-base64 = { version = "0.13.0", default-features = false, features = [
-    "alloc", # for base64::decode_config and base64::encode_config
-] }
 bytes = "1.2.0"
 chrono = "0.4"
 k8s-openapi = { version = "0.16.0", features = ["v1_25"] }

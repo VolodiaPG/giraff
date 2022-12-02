@@ -1,4 +1,4 @@
-use drpc::codec::{BinCodec, JsonCodec};
+use drpc::codec::{JsonCodec};
 use drpc::server::Server;
 use model::domain::routing::Packet;
 use model::FogNodeRPCPort;

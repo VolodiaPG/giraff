@@ -193,7 +193,7 @@ where
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self, packet))]
     async fn forward(&self, packet: Packet) -> Result<Value, Error> {
         trace!("Forwarding packet...");
         match packet {

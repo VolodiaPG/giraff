@@ -3,6 +3,13 @@
 extern crate log;
 extern crate rocket;
 
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
+
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 use std::env;
 use std::sync::Arc;
 

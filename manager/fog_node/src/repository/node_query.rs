@@ -99,7 +99,7 @@ impl NodeQuery for NodeQueryRESTImpl {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self))]
+    #[instrument(level = "trace", skip(self, request))]
     async fn request_neighbor_bid(
         &self,
         request: &BidRequest,

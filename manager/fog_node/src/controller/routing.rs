@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::service::routing::Router;
 
-#[instrument(level = "trace")]
+#[instrument(level = "trace", skip(router, route))]
 pub async fn register_route(
     router: &Arc<dyn Router>,
     route: Route,
@@ -16,7 +16,7 @@ pub async fn register_route(
     router.register_function_route(route).await.map_err(|e| anyhow::anyhow!(e))
 }
 
-#[instrument(level = "trace")]
+#[instrument(level = "trace", skip(router, linking))]
 pub async fn route_linking(
     router: &Arc<dyn Router>,
     linking: RouteLinking,
@@ -25,7 +25,7 @@ pub async fn route_linking(
     router.route_linking(linking, false).await.map_err(|e| anyhow::anyhow!(e))
 }
 
-#[instrument(level = "trace")]
+#[instrument(level = "trace", skip(packet, router))]
 pub async fn post_forward_function_routing(
     packet: Packet,
     router: &Arc<dyn Router>,

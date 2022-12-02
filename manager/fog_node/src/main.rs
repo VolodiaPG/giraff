@@ -3,6 +3,12 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
+
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 use crate::handler_http::*;
 use crate::handler_rpc::serve_rpc;
@@ -341,7 +347,7 @@ fn main() {
     debug!("Tracing initialized.");
 
     tokio::runtime::Builder::new_multi_thread()
-        // .worker_threads(num_cpus::get() * 2)
+        .worker_threads(num_cpus::get() * 2)
         .enable_all()
         .build()
         .expect("build runtime failed")

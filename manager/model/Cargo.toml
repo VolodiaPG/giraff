@@ -6,9 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.58"
 async-trait = "0.1.56"
-base64 = { version = "0.13.0", default-features = false, features = [
-    "alloc", # for base64::decode_config and base64::encode_config
-] }
 bytes = "1.2.0"
 chrono = "0.4"
 dashmap = "5.4.0"
