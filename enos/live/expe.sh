@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
 MAX=$1
 TARGET_NODE=$2
@@ -8,23 +8,39 @@ IOT_LOCAL_PORT=$5
 IOT_URL=$6
 TARGET_REMOTE_IP=$7
 
-# configs_mem=("50 MB" "150 MB" "500 MB")
-configs_mem=("50 MB")
+# Colors
+RED='\033[0;31m'
+ORANGE='\033[0;33m'
+PURPLE='\033[0;34m'
+DGRAY='\033[0;30m'
+GREEN='\033[0;32m'
+NC='\033[0m' # No Color
 
-# configs_cpu=("100 millicpu" "150 millicpu" "500 millicpu")
-configs_cpu=("100 millicpu")
+#configs_mem=("50" "150" "500") # megabytes
+configs_mem=("100")
+
+configs_latency=("1000") # ms
+
+#configs_cpu=("100" "150" "500") #millicpu
+configs_cpu=("200")
 
 size=${#configs_cpu[@]}
+
+iot_requests_body=()
 
 for ii in $(seq 1 $MAX)
 do
 	function_id=$(printf "%03d" $ii)
 
-	echo $function_id
 
 	index=$(($ii % $size))
 	mem="${configs_mem[$index]}"
 	cpu="${configs_cpu[$index]}"
+	latency="${configs_latency[$index]}"
+	docker_fn_name='echo'
+	function_name="$docker_fn_name-$function_id-$latency-$cpu-$mem"
+	
+	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
 	FUNCTION_ID=$(curl --request PUT \
   --url "http://localhost:$PORT/api/function" \
@@ -32,15 +48,15 @@ do
   --data '{
 	"sla": {
 		"storage": "0 MB",
-		"memory": "'"$mem"'",
-		"cpu": "'"$cpu"'",
-		"latencyMax": "1 s",
+		"memory": "'"$mem"' MB",
+		"cpu": "'"$cpu"' millicpu",
+		"latencyMax": "'"$latency"' ms",
 		"dataInputMaxSize": "1 GB",
 		"dataOutputMaxSize": "1 GB",
 		"maxTimeBeforeHot": "10 s",
 		"reevaluationPeriod": "1 hour",
-		"functionImage": "ghcr.io/volodiapg/echo:latest",
-		"functionLiveName": "echo-'"$function_id"'",
+		"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
+		"functionLiveName": "'"$function_name"'",
 		"dataFlow": [
 			{
 				"from": {
@@ -52,20 +68,30 @@ do
 	},
 	"targetNode": "'"$TARGET_NODE"'"
   }')
-	echo $FUNCTION_ID
+	echo -e $FUNCTION_ID
 	FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
-	echo $FUNCTION_ID
+	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
-	sleep $DELAY
+	iot_requests_body+=('{
+	"iotUrl": "http://'$IOT_URL':3003/api/print",
+	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3003/api/routing",
+	"functionId": "'$FUNCTION_ID'",
+	"tag": "'"$function_name"'"
+  	}')
+done
 
+echo -e "${NC}Waiting $DELAY seconds" # RED for the following
+
+sleep $DELAY
+
+echo -e "${PURPLE}Instanciating echoes from Iot platform for all the functions instanciated ${RED}" # RED for the following
+
+for body in "${iot_requests_body[@]}"
+do	
   	curl --request PUT \
   --url http://localhost:$IOT_LOCAL_PORT/api/cron \
   --header 'Content-Type: application/json' \
-  --data '{
-	"iotUrl": "http://'$IOT_URL':3030/api/print",
-	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3030/api/routing",
-	"functionId": "'$FUNCTION_ID'",
-	"tag": "echo-'"$function_id"'"
-  }'
+  --data "$body"
+echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
 
 done
