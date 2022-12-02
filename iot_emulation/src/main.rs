@@ -3,10 +3,17 @@ extern crate core;
 extern crate tracing;
 extern crate rocket;
 
+#[cfg(feature = "mimalloc")]
+use mimalloc::MiMalloc;
+
+#[cfg(feature = "mimalloc")]
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
 use tracing_forest::ForestLayer;
-use tracing_subscriber::prelude::*;
+use tracing_subscriber::{prelude::*, fmt};
 use tracing_subscriber::EnvFilter;
 
 use std::future::Future;
@@ -110,7 +117,7 @@ pub async fn print(
     debug!("Elapsed (after being received): {}ms", elapsed.num_milliseconds());
     HTTP_PRINT_HISTOGRAM
         .with_label_values(&[&payload.data.tag])
-        .observe(elapsed.num_seconds().abs() as f64);
+        .observe(elapsed.num_milliseconds().abs() as f64 / 100.0);
 
     let elapsed = now - payload.timestamp;
     debug!(
@@ -119,7 +126,7 @@ pub async fn print(
     );
     HTTP_TIME_TO_PROCESS_HISTOGRAM
         .with_label_values(&[&payload.data.tag])
-        .observe(elapsed.num_seconds().abs() as f64);
+        .observe(elapsed.num_milliseconds().abs() as f64 / 100.0);
     let elapsed = now - start;
     debug!(
         "Elapsed (after being contacted back): {}ms",
@@ -166,7 +173,6 @@ async fn delete_cron(
     skip(prom_timers, config),
     fields(tag=%config.tag)
 )]
-#[instrument(level = "trace")]
 async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
     let id = Uuid::new_v4();
     let tag = config.tag.clone();
@@ -177,14 +183,14 @@ async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
             to:   config.function_id.clone(),
             data: &serde_json::value::to_raw_value(&CronPayload {
                 address_to_call: config.iot_url.clone(),
-                data:            Payload { tag: tag.clone(), id },
+                data:            Payload { tag: tag.clone(), id: id.clone() },
             })
             .unwrap(),
         })
         .unwrap(),
     );
 
-    prom_timers.insert(id.clone(), chrono::offset::Utc::now());
+    prom_timers.insert(id, chrono::offset::Utc::now());
     let res = res.send();
 
     info!("Ping sent to {:?}.", tag);
@@ -241,6 +247,7 @@ fn main() {
 
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
+        // .with(fmt::Layer::default())
         .with(ForestLayer::default())
         .init();
 
@@ -250,7 +257,7 @@ fn main() {
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        // .worker_threads(num_cpus::get() * 2)
+        .worker_threads(num_cpus::get() * 2)
         .build()
         .expect("build runtime failed")
         .block_on(async {
