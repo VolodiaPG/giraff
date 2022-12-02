@@ -1,0 +1,4 @@
+{
+    "crates.listPreReleases": true,
+    "python.formatting.provider": "black",
+}
