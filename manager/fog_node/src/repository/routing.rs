@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use dashmap::DashMap;
 use drpc::client::Client;
-use drpc::codec::{BinCodec, JsonCodec};
+use drpc::codec::JsonCodec;
 use model::{FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort};
 use reqwest::StatusCode;
 use serde::Serialize;

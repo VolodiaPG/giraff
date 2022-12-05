@@ -333,23 +333,35 @@ fn main() {
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = env::var("LOG_CONFIG_FILENAME")
         .unwrap_or_else(|_| "fog_node.log".to_string());
-    let file_appender =
-        tracing_appender::rolling::never(log_config_path, log_config_filename);
+    let file_appender = tracing_appender::rolling::never(
+        log_config_path,
+        log_config_filename.clone(),
+    );
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
+
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
+        .with_service_name(log_config_filename)
+        .install_simple()
+        .expect("Failed to initialize tracer");
 
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
         .with(ForestLayer::default())
         .with(fmt::Layer::default().with_writer(non_blocking_file))
-        .init();
+        .with(tracing_opentelemetry::layer().with_tracer(tracer))
+        .try_init()
+        .expect("Failed to register tracer with registry");
 
     debug!("Tracing initialized.");
 
     tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(num_cpus::get() * 2)
+        // .worker_threads(num_cpus::get() * 2)
+        .worker_threads(1)
         .enable_all()
         .build()
         .expect("build runtime failed")
         .block_on(rocket());
+
+    opentelemetry::global::shutdown_tracer_provider();
 }

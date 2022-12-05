@@ -86,6 +86,7 @@ fn main() {
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        .worker_threads(1)
         .build()
         .expect("build runtime failed")
         .block_on(rocket());

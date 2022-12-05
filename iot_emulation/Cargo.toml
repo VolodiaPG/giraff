@@ -14,19 +14,22 @@ mimalloc = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version =  "0.4.23", features = ["serde"]}
+chrono = { version = "0.4.23", features = ["serde"] }
 dashmap = "5.4.0"
 lazy_static = "1.4.0"
 mimalloc = { version = "0.1.32", default-features = false }
 num_cpus = "1.14.0"
-reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
-rocket = { version = "0.5.0-rc.2", features = ["json"]}
+opentelemetry = "0.18"
+reqwest = { version = "0.11.11", features = ["json"] }
+opentelemetry-jaeger = "0.17.0"
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_prometheus = "0.10.0-rc.3"
 serde = { version = "1.0.139", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
 tokio = { version = "1.20.0", features = ["full"] }
 tracing = "0.1.37"
+tracing-forest = { version = "0.1.5", features = ["tokio"] }
 tracing-futures = "0.2.5"
-tracing-subscriber = {version = "0.3", features = ["env-filter"]}
-tracing-forest = { version = "0.1.5", features = ["tokio"]}
+tracing-opentelemetry = "0.18.0"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }

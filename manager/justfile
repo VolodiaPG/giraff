@@ -1,4 +1,4 @@
-KUBECONFIG := "../iso/vm.kubeconfig"
+KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
 
 # Default command when no verb specified
@@ -95,30 +95,62 @@ run_fog_node node_type:
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     if node_type == "market":
         env_vars['ROCKET_PORT'] = "3030"
-    env_vars['KUBECONFIG'] = "{{KUBECONFIG}}"
     env_vars['OPENFAAS_USERNAME'] = "admin"
-    env_vars['OPENFAAS_PASSWORD'] = subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo')
+    env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
 
-    env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
+    env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
 
-    cmd = f'''cargo build --bin fog_node \
-        && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
+    cmd = f'''#cargo build --bin fog_node \
+        # && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
+        {env_str} cargo run --bin fog_node
         '''
     print(cmd)
     os.system(cmd)
 
+    # env_str = " ".join([f'--env {key}="{value}"' for key, value in env_vars.items()])
+
+    # cmd = f'''docker build -t fog_node:latest . \
+    #         && docker run -it --expose=3000-4000 --mount type=bind,source="{{KUBECONFIG}}",target=/kubeconfig --env KUBECONFIG=/kubeconfig {env_str} fog_node 
+    #     '''
+
+jaeger:
+    (docker stop jaeger || true)
+    (docker rm jaeger || true)
+    docker run -d --name jaeger \
+        -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+        -p 5775:5775/udp \
+        -p 6831:6831/udp \
+        -p 6832:6832/udp \
+        -p 5778:5778 \
+        -p 16686:16686 \
+        -p 14268:14268 \
+        -p 9411:9411 \
+        jaegertracing/all-in-one:1.6
+
 run_all:
-    just run_fog_node market
-    just run_fog_node node_1
-    just run_fog_node node_2
-    just run_fog_node node_3
-    just run_market
+    mprocs "just jaeger" \
+    "just run_fog_node market" \
+    "just run_fog_node node_1" \
+    "just run_fog_node node_2" \
+    "just run_fog_node node_3" \
+    "just run_market"
 
 expe target_node_uuid n='50' delay='30' market_local_port='8000' iot_local_port='30080':
     cd ../iso/enos \
     && ./expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} 127.0.0.1 127.0.0.1
+
+# Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
+k3d:
+    k3d cluster create -c k3d.cluster.yaml
+    arkade install openfaas
+    kubectl rollout status deployment gateway -n openfaas --timeout=90s
+    kubectl port-forward -n openfaas svc/gateway 8080:8080
+
+k3d-clean:
+    k3d cluster stop fog-node
+    k3d cluster delete fog-node
 
 # Build the project as a docker image. Flavors are [default, naive, perftools]
 docker $flavor="default":

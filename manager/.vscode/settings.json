@@ -1,4 +1,9 @@
 {
     "editor.formatOnSave": true,
     "crates.listPreReleases": true,
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#102E2D",
+        "titleBar.activeBackground": "#16403F",
+        "titleBar.activeForeground": "#F5FBFB"
+    },
 }

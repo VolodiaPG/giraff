@@ -4,7 +4,8 @@
         "vadimcn.vscode-lldb",
         "iliazeus.vscode-ansi",
         "skellock.just",
-        "arrterian.nix-env-selector",
-        "jnoortheen.nix-ide",
+        "tamasfe.even-better-toml",
+        "serayuzgur.crates",
+        "mindaro.mindaro"
     ]
 }

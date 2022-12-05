@@ -13,7 +13,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
 use tracing_forest::ForestLayer;
-use tracing_subscriber::{prelude::*, fmt};
+use tracing_subscriber::{prelude::*};
 use tracing_subscriber::EnvFilter;
 
 use std::future::Future;
@@ -245,11 +245,17 @@ async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
 fn main() {
     std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
 
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
+    .with_service_name("iot_emulation")
+    .install_simple()
+    .expect("Failed to initialize tracer");
+
     tracing_subscriber::registry()
         .with(EnvFilter::from_default_env())
-        // .with(fmt::Layer::default())
         .with(ForestLayer::default())
-        .init();
+        .with(tracing_opentelemetry::layer().with_tracer(tracer))
+        .try_init()
+        .expect("Failed to register tracer with registry");
 
     debug!("Tracing initialized.");
 
@@ -257,7 +263,8 @@ fn main() {
 
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .worker_threads(num_cpus::get() * 2)
+        // .worker_threads(num_cpus::get() * 2)
+        .worker_threads(1)
         .build()
         .expect("build runtime failed")
         .block_on(async {
