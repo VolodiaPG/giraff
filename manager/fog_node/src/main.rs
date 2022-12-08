@@ -5,6 +5,7 @@ extern crate core;
 extern crate tracing;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use rocket::launch;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -116,8 +117,31 @@ fn function_life_factory(
 }
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
+#[launch]
+async fn rocket() -> _ {
+    // Env variable LOG_CONFIG_PATH points at the path where
+    // LOG_CONFIG_FILENAME is located
+    let log_config_path =
+        env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
+    // Env variable LOG_CONFIG_FILENAME names the log file
+    let log_config_filename = env::var("LOG_CONFIG_FILENAME")
+        .unwrap_or_else(|_| "fog_node.log".to_string());
+    let file_appender = tracing_appender::rolling::never(
+        log_config_path,
+        log_config_filename.clone(),
+    );
+    let (non_blocking_file, _guard) =
+        tracing_appender::non_blocking(file_appender);
 
-async fn rocket() {
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(ForestLayer::default())
+        .with(fmt::Layer::default().with_writer(non_blocking_file))
+        .try_init()
+        .expect("Failed to register tracer with registry");
+
+    debug!("Tracing initialized.");
+
     let port_openfaas = env::var("OPENFAAS_PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
@@ -237,7 +261,19 @@ async fn rocket() {
     let my_port_http = node_situation.get_my_public_port_http();
     env::set_var("ROCKET_PORT", my_port_http.to_string());
 
-    let rocket = rocket::build()
+    tokio::spawn(register_to_market(
+        node_life_service.clone(),
+        node_situation.clone(),
+    ));
+    tokio::spawn(loop_jobs(
+        init(neighbor_monitor_service.clone(), k8s_repo).await,
+    ));
+    tokio::spawn(serve_rpc(
+        node_situation.get_my_public_port_rpc(),
+        router_service.clone(),
+    ));
+
+    rocket::build()
         .attach(prometheus.clone())
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
@@ -250,8 +286,10 @@ async fn rocket() {
         )
         .manage(node_life_service.clone()
             as Arc<dyn crate::service::node_life::NodeLife>)
-        .manage(neighbor_monitor_service.clone()
-            as Arc<dyn crate::service::neighbor_monitor::NeighborMonitor>)
+        .manage(
+            neighbor_monitor_service
+                as Arc<dyn crate::service::neighbor_monitor::NeighborMonitor>,
+        )
         .mount(
             "/",
             make_swagger_ui(&SwaggerUIConfig {
@@ -272,26 +310,6 @@ async fn rocket() {
                 health
             ],
         )
-        .ignite()
-        .await
-        .expect("Rocket failed to ignite")
-        .launch();
-
-    let handle = tokio::spawn(rocket);
-    tokio::spawn(register_to_market(
-        node_life_service,
-        node_situation.clone(),
-    ));
-    tokio::spawn(loop_jobs(init(neighbor_monitor_service, k8s_repo).await));
-    tokio::spawn(serve_rpc(
-        node_situation.get_my_public_port_rpc(),
-        router_service,
-    ));
-
-    let _ = handle
-        .await
-        .expect("Cannot join tasks concurrently")
-        .expect("Rocket launch failed");
 }
 
 async fn register_to_market(
@@ -323,45 +341,4 @@ async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
         }
         interval.tick().await;
     }
-}
-
-fn main() {
-    // Env variable LOG_CONFIG_PATH points at the path where
-    // LOG_CONFIG_FILENAME is located
-    let log_config_path =
-        env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
-    // Env variable LOG_CONFIG_FILENAME names the log file
-    let log_config_filename = env::var("LOG_CONFIG_FILENAME")
-        .unwrap_or_else(|_| "fog_node.log".to_string());
-    let file_appender = tracing_appender::rolling::never(
-        log_config_path,
-        log_config_filename.clone(),
-    );
-    let (non_blocking_file, _guard) =
-        tracing_appender::non_blocking(file_appender);
-
-    let tracer = opentelemetry_jaeger::new_agent_pipeline()
-        .with_service_name(log_config_filename)
-        .install_simple()
-        .expect("Failed to initialize tracer");
-
-    tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(ForestLayer::default())
-        .with(fmt::Layer::default().with_writer(non_blocking_file))
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .expect("Failed to register tracer with registry");
-
-    debug!("Tracing initialized.");
-
-    tokio::runtime::Builder::new_multi_thread()
-        // .worker_threads(num_cpus::get() * 2)
-        .worker_threads(1)
-        .enable_all()
-        .build()
-        .expect("build runtime failed")
-        .block_on(rocket());
-
-    opentelemetry::global::shutdown_tracer_provider();
 }

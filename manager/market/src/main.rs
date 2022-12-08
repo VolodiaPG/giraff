@@ -5,6 +5,7 @@ extern crate rocket;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use rocket::launch;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -24,7 +25,11 @@ mod handler;
 mod repository;
 mod service;
 
-async fn rocket() {
+#[launch]
+async fn rocket() -> _ {
+    env::set_var("RUST_LOG", "info, market=trace, model=trace");
+    env_logger::init();
+
     let fog_node = Arc::new(FogNodeImpl::new());
     let fog_node_communication =
         Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
@@ -48,7 +53,7 @@ async fn rocket() {
         fog_node_communication,
     ));
 
-    let _ = rocket::build()
+    rocket::build()
         .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
         .manage(
             fog_node_network_service
@@ -72,22 +77,4 @@ async fn rocket() {
                 health
             ],
         )
-        .ignite()
-        .await
-        .expect("Rocket failed to ignite")
-        .launch()
-        .await
-        .expect("Rocket launch failed");
-}
-
-fn main() {
-    env::set_var("RUST_LOG", "info, market=trace, model=trace");
-    env_logger::init();
-
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(1)
-        .build()
-        .expect("build runtime failed")
-        .block_on(rocket());
 }

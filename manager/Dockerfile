@@ -5,21 +5,21 @@ RUN apt-get update \
 
 WORKDIR /workplace
 
-ADD . .
+COPY . .
 
 RUN mkdir -p bin/release
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workplace/target \
     --mount=type=cache,target=/usr/local/rustup \
-    cargo build $flavor --target=x86_64-unknown-linux-gnu \
+    touch fog_node/src/main.rs market/src/main.rs && \
+    cargo build --release --target=x86_64-unknown-linux-gnu \
     && cp target/x86_64-unknown-linux-gnu/release/fog_node bin/release/ \
     && cp target/x86_64-unknown-linux-gnu/release/market bin/release/
 
 FROM gcr.io/distroless/cc as market-default
 COPY --from=build /workplace/bin/release/market .
 EXPOSE 3003/tcp
-EXPOSE 3004/tcp
 CMD ["./market"]
 
 FROM gcr.io/distroless/cc as fog_node-default

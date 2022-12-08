@@ -7,8 +7,7 @@ _default:
 
 # Build a target (market or fog_node)
 build *FLAGS:
-    cargo build --package manager --bin market {{FLAGS}}
-    cargo build --package manager --bin fog_node {{FLAGS}}
+    cargo build {{FLAGS}}
 
 # Run cargo check
 check *FLAGS:
@@ -24,12 +23,12 @@ clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
-run_market:
+run_market *FLAGS:
    export ROCKET_PORT=8000
-   cargo run --bin market
+   cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type:
+run_fog_node node_type *FLAGS:
     #!/usr/bin/env python3
     import os
     import base64
@@ -102,10 +101,7 @@ run_fog_node node_type:
 
     env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
 
-    cmd = f'''#cargo build --bin fog_node \
-        # && code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"
-        {env_str} cargo run --bin fog_node
-        '''
+    cmd = f'{env_str} cargo run --bin fog_node {{FLAGS}}'
     print(cmd)
     os.system(cmd)
 
@@ -129,17 +125,15 @@ jaeger:
         -p 9411:9411 \
         jaegertracing/all-in-one:1.6
 
-run_all:
-    mprocs "just jaeger" \
-    "just run_fog_node market" \
-    "just run_fog_node node_1" \
-    "just run_fog_node node_2" \
-    "just run_fog_node node_3" \
-    "just run_market"
+run_all *FLAGS: (build FLAGS)
+    mprocs "just run_fog_node market {{FLAGS}}" \
+    "just run_fog_node node_1 {{FLAGS}}" \
+    "just run_fog_node node_2 {{FLAGS}}" \
+    "just run_fog_node node_3 {{FLAGS}}" \
+    "just run_market {{FLAGS}}"
 
-expe target_node_uuid n='50' delay='30' market_local_port='8000' iot_local_port='30080':
-    cd ../iso/enos \
-    && ./expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} 127.0.0.1 127.0.0.1
+expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3034':
+    ../enos/live/expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} {{localhost_ip}} 127.0.0.1 {{first_node_port}}
 
 # Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
 k3d:
@@ -149,29 +143,10 @@ k3d:
     kubectl port-forward -n openfaas svc/gateway 8080:8080
 
 k3d-clean:
-    k3d cluster stop fog-node
-    k3d cluster delete fog-node
+    k3d cluster stop fog-node || true
+    k3d cluster delete fog-node || true
 
-# Build the project as a docker image. Flavors are [default, naive, perftools]
 docker $flavor="default":
-    #!/usr/bin/env bash
-    echo "Building flavor: $flavor"
-    if [ $flavor = naive ]; then
-        nix build .#docker_fog_node_naive
-    elif [ $flavor = perftools ]; then
-        nix build .#docker_fog_node_perftools
-    else
-        nix build .#docker_fog_node
-    fi
-    docker load < result
-
-    nix build .#docker_market
-    docker load < result
-
-    #nix build .#docker_perftools
-    #docker load < result
-
-docker_native user $flavor="default":
     #!/usr/bin/env bash
     set -e
 
@@ -190,17 +165,10 @@ _push image user:
     docker push ghcr.io/{{user}}/{{image}}
 
 # Push docker images to ghcr. See `docker` for flavors to build
-ghcr_native user flavor="default":
-    @just docker_native {{flavor}}
-    just _push fog_node:latest {{user}}
-    just _push market:latest {{user}}
-
-# Push docker images to ghcr. See `docker` for flavors to build
 ghcr user flavor="default":
     @just docker {{flavor}}
     just _push fog_node:latest {{user}}
     just _push market:latest {{user}}
-    just _push perftools:latest {{user}}
 
 # Cleans
 clean:

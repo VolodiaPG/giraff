@@ -101,17 +101,18 @@ impl Routing for RoutingImpl {
     ) -> Result<Value, Error> {
         let key = format!("{}:{}", ip, port);
         trace!("RPC-ing to routing on {}...", key);
-        let mut client = self.dialed_up.get(&key);
+        // let mut client = self.dialed_up.get(&key);
 
-        if client.is_none() {
-            let c = Client::<JsonCodec>::dial(&key).await.unwrap();
-            self.dialed_up.insert(key.clone(), c);
-            client = self.dialed_up.get(&key);
-        }
+        // if client.is_none() {
+        // let c = Client::<JsonCodec>::dial(&key).await.unwrap();
+        // self.dialed_up.insert(key.clone(), c);
+        // client = self.dialed_up.get(&key);
+        // }
+        let mut client = Client::<JsonCodec>::dial(&key).await.unwrap();
 
-        let client = client.unwrap();
-
-        client.call("routing", packet).await.map_err(Error::from)
+        let res = client.call("routing", packet).await.map_err(Error::from);
+        client.shutdown().await;
+        res
     }
 
     #[instrument(level = "trace", skip(self, data))]

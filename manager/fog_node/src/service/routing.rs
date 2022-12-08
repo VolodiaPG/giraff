@@ -224,6 +224,15 @@ where
                                     data: payload,
                                 },
                             )
+                            // .forward_to_fog_node_url(
+                            //     &next.ip,
+                            //     &next.port_http,
+                            //     &"routing",
+                            //     &Packet::FaaSFunction {
+                            //         to:   to.to_owned(),
+                            //         data: payload,
+                            //     },
+                            // )
                             .await?)
                     }
                     Direction::CurrentNode => {
@@ -294,6 +303,16 @@ where
                                 data,
                             },
                         )
+                        // .forward_to_fog_node_url(
+                        //     &next.ip,
+                        //     &next.port_http,
+                        //     &"routing",
+                        //     &Packet::FogNode {
+                        //         route_to_stack: route_to,
+                        //         resource_uri: resource_uri.to_owned(),
+                        //         data,
+                        //     },
+                        // )
                         .await?)
                 }
             }
@@ -322,7 +341,7 @@ where
                         &resource_uri,
                         &data
                     );
-                    let (ip, _, port) =
+                    let (ip, _port, port) =
                         self.node_situation.get_parent_node_address().unwrap();
                     Ok(self
                         .routing
@@ -331,6 +350,12 @@ where
                             &port,
                             &Packet::Market { resource_uri, data },
                         )
+                        // .forward_to_fog_node_url(
+                        //     &ip,
+                        //     &port,
+                        //     &"routing",
+                        //     &Packet::Market { resource_uri, data },
+                        // )
                         .await?)
                 }
             }

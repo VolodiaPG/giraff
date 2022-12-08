@@ -24,8 +24,11 @@ lazy_static = "1.4.0"
 log = "0.4.17"
 mimalloc = { version = "0.1.32", default-features = false }
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
-reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
-rocket = "0.5.0-rc.2"
+reqwest = { version = "0.11.11", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+rocket = { version = "0.5.0-rc.2", features = ["json", "uuid"] }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger", "uuid"] }
 ron = "0.8.0"
 schemars = "0.8"
