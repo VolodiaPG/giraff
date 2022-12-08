@@ -4,5 +4,4 @@ cachedir/
 enos_*/
 tmp*
 out.*
-prometheus/
 *.tar.gz

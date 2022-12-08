@@ -7,6 +7,7 @@ PORT=$4
 IOT_LOCAL_PORT=$5
 IOT_URL=$6
 TARGET_REMOTE_IP=$7
+FIRST_NODE_PORT=$8
 
 # Colors
 RED='\033[0;31m'
@@ -22,7 +23,7 @@ configs_mem=("100")
 configs_latency=("1000") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("200")
+configs_cpu=("50")
 
 size=${#configs_cpu[@]}
 
@@ -73,8 +74,8 @@ do
 	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
 	iot_requests_body+=('{
-	"iotUrl": "http://'$IOT_URL':3003/api/print",
-	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':3003/api/routing",
+	"iotUrl": "http://'$IOT_URL':'$IOT_LOCAL_PORT'/api/print",
+	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':'$FIRST_NODE_PORT'/api/routing",
 	"functionId": "'$FUNCTION_ID'",
 	"tag": "'"$function_name"'"
   	}')

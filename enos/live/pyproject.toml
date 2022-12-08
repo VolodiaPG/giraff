@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-enoslib = {version = "^8.0", extras = ["vagrant"]}
+enoslib = "^8.0"
 click = "^8.1"
 
 [tool.poetry.dev-dependencies]

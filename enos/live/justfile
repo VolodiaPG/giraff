@@ -33,7 +33,7 @@ endpoints:
 _is_connected city_name_node_target market_local_port:
     #!/usr/bin/env bash
     if [[ $(curl -s "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
-        echo "{{city_name_node_target}} is connected ✅"
+        echo "✅ {{city_name_node_target}} is connected"
     else
         echo "❌"
     fi
@@ -43,14 +43,14 @@ is_connected city_name_node_target market_local_port='8080':
 
 
 # expe to target node_id for n repetitions with a delay between each
-expe city_name_node_target n='50' delay='30' market_local_port='8080' iot_local_port='3003':
+expe city_name_node_target n='50' delay='30' market_local_port='8080' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     NODE_TARGET=$(curl "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
     NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     echo "iot -> $IOT_IP"
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
-    ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP
+    ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP {{first_node_port}}
 
 # Delete the Job on grid'5000 and local EnosLib files
 clean:
