@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:experimental
 FROM rust@sha256:916fa3bc4599b3e394b03662452a853be8565fac7a8ed91bef62319dd549599d as build
-
 RUN apt-get update \
-    && update-ca-certificates
+	&& apt-get install -y libssl-dev pkg-config \
+	&& update-ca-certificates
 
 WORKDIR /workplace
 
@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 	--mount=type=cache,target=/workplace/target \
 	--mount=type=cache,target=/usr/local/rustup \
 	cargo build --release --target=x86_64-unknown-linux-gnu \
-    && cp target/x86_64-unknown-linux-gnu/release/iot_emulation bin/
+	&& cp target/x86_64-unknown-linux-gnu/release/iot_emulation bin/
 
 FROM gcr.io/distroless/cc as iot_emulation-default
 COPY --from=build /workplace/bin/iot_emulation .

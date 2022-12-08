@@ -12,6 +12,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
+use tokio::task::yield_now;
 use tracing_forest::ForestLayer;
 use tracing_subscriber::{prelude::*};
 use tracing_subscriber::EnvFilter;
@@ -23,7 +24,7 @@ use std::time::Duration;
 
 use lazy_static::lazy_static;
 use rocket::serde::json::Json;
-use rocket::{delete, post, put, routes, State};
+use rocket::{delete, post, put, routes, State, launch};
 use rocket_prometheus::prometheus::{register_histogram_vec, HistogramVec};
 use rocket_prometheus::PrometheusMetrics;
 use serde::{Deserialize, Serialize};
@@ -113,6 +114,9 @@ pub async fn print(
 
     info!("{:?}", payload);
     let now = chrono::offset::Utc::now();
+
+    yield_now().await;
+
     let elapsed = now - start;
     debug!("Elapsed (after being received): {}ms", elapsed.num_milliseconds());
     HTTP_PRINT_HISTOGRAM
@@ -146,7 +150,7 @@ async fn put_cron(
     let prom_timers = prom_timers.inner().clone();
     let tag = config.tag.clone();
     info!(
-        "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}",
+        "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}.",
         config.first_node_url, config.tag, config.iot_url
     );
 
@@ -205,7 +209,8 @@ async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
     }
 }
 
-async fn rocket(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
+#[launch]
+async fn rocket() -> _ {
     // Id of the request; Histogram that started w/ that request
     let prom_timers = Arc::new(dashmap::DashMap::<Uuid, DateTime<Utc>>::new());
 
@@ -216,18 +221,26 @@ async fn rocket(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
         prometheus.registry().register(Box::new(metric.clone())).unwrap();
     }
 
-    let _ = rocket::build()
+    std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
+
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(ForestLayer::default())
+        .try_init()
+        .expect("Failed to register tracer with registry");
+
+    debug!("Tracing initialized.");
+
+    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
+    
+    tokio::spawn(forever(jobs.clone()));
+
+    rocket::build()
         .attach(prometheus.clone())
         .manage(jobs.clone())
         .manage(prom_timers)
         .mount("/api", routes![print, put_cron, delete_cron])
         .mount("/metrics", prometheus)
-        .ignite()
-        .await
-        .expect("Rocket failed to ignite")
-        .launch()
-        .await
-        .expect("Rocket launch failed");
 }
 
 async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
@@ -237,40 +250,9 @@ async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
         interval.tick().await;
         for value in jobs.iter() {
             let val = value.value().clone();
-            tokio::spawn(val());
+            tokio::spawn(async move {
+                val().await
+            });
         }
     }
-}
-
-fn main() {
-    std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
-
-    let tracer = opentelemetry_jaeger::new_agent_pipeline()
-    .with_service_name("iot_emulation")
-    .install_simple()
-    .expect("Failed to initialize tracer");
-
-    tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(ForestLayer::default())
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .expect("Failed to register tracer with registry");
-
-    debug!("Tracing initialized.");
-
-    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
-
-    tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        // .worker_threads(num_cpus::get() * 2)
-        .worker_threads(1)
-        .build()
-        .expect("build runtime failed")
-        .block_on(async {
-            tokio::spawn(forever(jobs.clone()));
-            let handle = tokio::spawn(rocket(jobs));
-
-            handle.await.expect("handle failed");
-        });
 }

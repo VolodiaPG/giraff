@@ -5,6 +5,9 @@ edition = "2021"
 
 [profile.release]
 strip = true
+lto = true
+opt-level = 3
+codegen-units = 1
 
 [features]
 default = ["mimalloc"]
@@ -19,9 +22,7 @@ dashmap = "5.4.0"
 lazy_static = "1.4.0"
 mimalloc = { version = "0.1.32", default-features = false }
 num_cpus = "1.14.0"
-opentelemetry = "0.18"
 reqwest = { version = "0.11.11", features = ["json"] }
-opentelemetry-jaeger = "0.17.0"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_prometheus = "0.10.0-rc.3"
 serde = { version = "1.0.139", features = ["derive", "rc"] }
@@ -30,6 +31,5 @@ tokio = { version = "1.20.0", features = ["full"] }
 tracing = "0.1.37"
 tracing-forest = { version = "0.1.5", features = ["tokio"] }
 tracing-futures = "0.2.5"
-tracing-opentelemetry = "0.18.0"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
