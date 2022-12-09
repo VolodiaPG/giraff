@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use reqwest::Response;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_tracing::TracingMiddleware;
 use serde::Serialize;
 
 use model::dto::node::NodeDescription;
@@ -16,6 +18,8 @@ use crate::NodeSituation;
 pub enum Error {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    ReqwestMiddleware(#[from] reqwest_middleware::Error),
     #[error("The request failed with error code: {0}")]
     RequestStatus(reqwest::StatusCode),
     #[error(
@@ -44,11 +48,17 @@ pub trait NodeQuery: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeQueryRESTImpl {
     node_situation: Arc<dyn NodeSituation>,
+    client:         ClientWithMiddleware,
 }
 
 impl NodeQueryRESTImpl {
     pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self {
-        Self { node_situation }
+        Self {
+            node_situation,
+            client: ClientBuilder::new(reqwest::Client::new())
+                .with(TracingMiddleware::default())
+                .build(),
+        }
     }
 
     async fn post<T: Serialize>(
@@ -56,8 +66,7 @@ impl NodeQueryRESTImpl {
         url: &str,
         data: &T,
     ) -> Result<Response, Error> {
-        let client = reqwest::Client::new();
-        let response = client.post(url).json(data).send().await?;
+        let response = self.client.post(url).json(data).send().await?;
         if response.status().is_success() {
             trace!("Node has been registered to parent or market node");
             Ok(response)

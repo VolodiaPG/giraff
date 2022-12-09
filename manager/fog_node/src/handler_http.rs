@@ -1,109 +1,99 @@
+use crate::controller::ControllerError;
 use crate::service::function_life::FunctionLife;
-use crate::service::routing::Router;
+use crate::service::node_life;
+use crate::service::routing::{self, Router};
 use crate::{controller, NodeLife};
-use helper::handler::Resp;
-use helper::respond;
+use actix_web::web::{self, Data};
+use actix_web::HttpResponse;
 use model::domain::routing::Packet;
-use model::view::auction::{BidProposals, BidRequestOwned};
+use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
 use model::view::routing::{Route, RouteLinking};
 use model::BidId;
-use rocket::serde::json::Json;
-use rocket::{head, post, State};
-use rocket_okapi::openapi;
-use serde_json::Value;
+use serde::Deserialize;
 use std::sync::Arc;
 
+impl actix_web::error::ResponseError for ControllerError {}
+impl actix_web::error::ResponseError for routing::Error {}
+impl actix_web::error::ResponseError for node_life::Error {}
+
 /// Return a bid for the SLA.
-#[openapi]
-#[post("/bid", data = "<payload>")]
 pub async fn post_bid(
-    payload: Json<BidRequestOwned>,
-    function: &State<Arc<dyn FunctionLife>>,
-) -> Resp<BidProposals> {
-    respond!(controller::auction::bid_on(payload.0, function.inner()).await)
+    payload: web::Json<BidRequestOwned>,
+    function: Data<Arc<dyn FunctionLife>>,
+) -> Result<HttpResponse, ControllerError> {
+    let res = controller::auction::bid_on(payload.0, &function).await?;
+    Ok(HttpResponse::Ok().json(res))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostBidAcceptParams {
+    id: BidId,
 }
 
 /// Second function called after [post_bid] if the bid is accepted and the
 /// transaction starts. Will then proceed to provision the SLA and thus, the
 /// function.
-#[openapi]
-#[post("/bid/<id>")]
 pub async fn post_bid_accept(
-    id: BidId,
-    function: &State<Arc<dyn FunctionLife>>,
-) -> Resp {
-    respond!(
-        controller::auction::provision_from_bid(id, function.inner()).await
-    )
+    params: web::Path<PostBidAcceptParams>,
+    function: Data<Arc<dyn FunctionLife>>,
+) -> Result<HttpResponse, ControllerError> {
+    let res =
+        controller::auction::provision_from_bid(params.id.clone(), &function)
+            .await?;
+    Ok(HttpResponse::Ok().json(res))
 }
 
 /// Routes the request to the correct URL and node.
-#[openapi]
-#[post("/routing", data = "<packet>")]
 pub async fn post_routing(
-    packet: Json<Packet>,
-    router: &State<Arc<dyn Router>>,
-) -> Result<(), helper::handler::Error> {
+    packet: web::Json<Packet>,
+    router: Data<Arc<dyn Router>>,
+) -> Result<HttpResponse, ControllerError> {
     controller::routing::post_async_forward_function_routing(
         packet.0,
-        router.inner().clone(),
+        router.get_ref().clone(),
     )
     .await;
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 /// Routes the request to the correct URL and node.
-#[openapi]
-#[post("/sync-routing", data = "<packet>")]
 pub async fn post_sync_routing(
-    packet: Json<Packet>,
-    router: &State<Arc<dyn Router>>,
-) -> Result<Value, helper::handler::Error> {
-    Ok(serde_json::to_value(
-        controller::routing::post_sync_forward_function_routing(
-            packet.0,
-            router.inner().clone(),
-        )
-        .await?,
-    )?)
+    packet: web::Json<Packet>,
+    router: Data<Arc<dyn Router>>,
+) -> Result<HttpResponse, ControllerError> {
+    let res = controller::routing::post_sync_forward_function_routing(
+        packet.0,
+        router.get_ref().clone(),
+    )
+    .await?;
+    Ok(HttpResponse::Ok().json(res))
 }
 
 /// Register a route.
-#[openapi]
-#[post("/register_route", data = "<route>")]
 pub async fn post_register_route(
-    router: &State<Arc<dyn Router>>,
-    route: Json<Route>,
-) -> Resp {
-    respond!(
-        controller::routing::register_route(router.inner(), route.0).await
-    )
+    route: web::Json<Route>,
+    router: Data<Arc<dyn Router>>,
+) -> Result<HttpResponse, ControllerError> {
+    controller::routing::register_route(&router, route.0).await?;
+    Ok(HttpResponse::Ok().finish())
 }
 
-#[openapi]
-#[post("/route_linking", data = "<linking>")]
 pub async fn post_route_linking(
-    router: &State<Arc<dyn Router>>,
-    linking: Json<RouteLinking>,
-) -> Resp {
-    respond!(
-        controller::routing::route_linking(router.inner(), linking.0).await
-    )
+    route_linking: web::Json<RouteLinking>,
+    router: Data<Arc<dyn Router>>,
+) -> Result<HttpResponse, ControllerError> {
+    controller::routing::route_linking(&router, route_linking.0).await?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 /// Register a child node to this one
-#[openapi]
-#[post("/register", data = "<payload>")]
 pub async fn post_register_child_node(
-    payload: Json<RegisterNode>,
-    router: &State<Arc<dyn NodeLife>>,
-) -> Resp {
-    respond!(
-        controller::node::register_child_node(payload.0, router.inner()).await
-    )
+    payload: web::Json<RegisterNode>,
+    router: Data<Arc<dyn NodeLife>>,
+) -> Result<HttpResponse, ControllerError> {
+    controller::node::register_child_node(payload.0, &router).await?;
+    Ok(HttpResponse::Ok().finish())
 }
 
-#[openapi]
-#[head("/health")]
-pub fn health() {}
+pub async fn health() -> HttpResponse { HttpResponse::Ok().finish() }

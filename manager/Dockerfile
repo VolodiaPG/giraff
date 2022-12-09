@@ -18,11 +18,13 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/x86_64-unknown-linux-gnu/release/market bin/release/
 
 FROM gcr.io/distroless/cc as market-default
+USER 1003
 COPY --from=build /workplace/bin/release/market .
 EXPOSE 3003/tcp
 CMD ["./market"]
 
 FROM gcr.io/distroless/cc as fog_node-default
+USER 1003
 COPY --from=build /workplace/bin/release/fog_node .
 EXPOSE 3003/tcp
 EXPOSE 3004/tcp

@@ -119,6 +119,11 @@ jaeger:
         -p 9411:9411 \
         jaegertracing/all-in-one:1.6
 
+zipkin:
+    (docker stop zipkin || true)
+    (docker rm zipkin || true)
+    docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
+
 run_all *FLAGS: (build FLAGS)
     mprocs "just run_fog_node market {{FLAGS}}" \
     "just run_fog_node node_1 {{FLAGS}}" \

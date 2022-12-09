@@ -3,9 +3,16 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
+use actix_web::{middleware, web, App, HttpServer};
+use actix_web_prometheus::PrometheusMetricsBuilder;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-use rocket::launch;
+use opentelemetry::global;
+use opentelemetry::runtime::TokioCurrentThread;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use tracing::subscriber::set_global_default;
+use tracing::Subscriber;
+use tracing_log::LogTracer;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -23,24 +30,24 @@ use crate::repository::provisioned::ProvisionedHashMapImpl;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::auction::{Auction, AuctionImpl};
 use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
+use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
 
+use actix_web_opentelemetry::RequestTracing;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
-use rocket_okapi::openapi_get_routes;
-use rocket_okapi::swagger_ui::*;
-use rocket_prometheus::prometheus::GaugeVec;
-use rocket_prometheus::PrometheusMetrics;
+use prometheus::GaugeVec;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{fmt, EnvFilter, Registry};
 
 mod controller;
 mod handler_http;
@@ -116,9 +123,11 @@ fn function_life_factory(
     )
 }
 
-// TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
-#[launch]
-async fn rocket() -> _ {
+/// Compose multiple layers into a `tracing`'s subscriber.
+pub fn get_subscriber(
+    name: String,
+    env_filter: String,
+) -> impl Subscriber + Send + Sync {
     // Env variable LOG_CONFIG_PATH points at the path where
     // LOG_CONFIG_FILENAME is located
     let log_config_path =
@@ -133,12 +142,58 @@ async fn rocket() -> _ {
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
 
-    tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(ForestLayer::default())
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or(EnvFilter::new(env_filter));
+
+    let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
+        opentelemetry_jaeger::new_agent_pipeline()
+            .with_service_name(
+                env::var("LOG_CONFIG_FILENAME")
+                    .unwrap_or_else(|_| "fog_node.log".to_string()),
+            )
+            .install_batch(opentelemetry::runtime::Tokio)
+            .unwrap(),
+    );
+
+    Registry::default()
+        .with(env_filter)
         .with(fmt::Layer::default().with_writer(non_blocking_file))
-        .try_init()
-        .expect("Failed to register tracer with registry");
+        .with(tracing_leyer)
+        .with(ForestLayer::default())
+}
+
+/// Register a subscriber as global default to process span data.
+///
+/// It should only be called once!
+pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
+    LogTracer::init().expect("Failed to set logger");
+    set_global_default(subscriber).expect("Failed to set subscriber");
+}
+
+// TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
+// #[tokio::main]
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
+    global::set_text_map_propagator(TraceContextPropagator::new());
+
+    let subscriber = get_subscriber("fog_node".into(), "trace".into());
+    init_subscriber(subscriber);
+
+    // let _tracer = opentelemetry_zipkin::new_pipeline()
+    //     .with_service_name(
+    //         env::var("LOG_CONFIG_FILENAME")
+    //             .unwrap_or_else(|_| "fog_node.log".to_string()),
+    //     )
+    //     .install_batch(opentelemetry::runtime::Tokio)
+    //     .unwrap();
+    // let _tracer = opentelemetry_jaeger::new_agent_pipeline()
+    //     .with_service_name(
+    //         env::var("LOG_CONFIG_FILENAME")
+    //             .unwrap_or_else(|_| "fog_node.log".to_string()),
+    //     )
+    //     .install_batch(opentelemetry::runtime::Tokio)
+    //     .unwrap();
 
     debug!("Tracing initialized.");
 
@@ -239,7 +294,11 @@ async fn rocket() -> _ {
         info!("This node is a provider node");
     }
 
-    let prometheus = PrometheusMetrics::new();
+    let prometheus = PrometheusMetricsBuilder::new("api")
+        .endpoint("/metrics")
+        // .const_labels(labels)
+        .build()
+        .unwrap();
 
     let metrics: [&GaugeVec; 11] = [
         &prom_metrics::BID_GAUGE,
@@ -255,7 +314,7 @@ async fn rocket() -> _ {
         &prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE,
     ];
     for metric in metrics {
-        prometheus.registry().register(Box::new(metric.clone())).unwrap();
+        prometheus.registry.register(Box::new(metric.clone())).unwrap();
     }
 
     let my_port_http = node_situation.get_my_public_port_http();
@@ -268,49 +327,65 @@ async fn rocket() -> _ {
     tokio::spawn(loop_jobs(
         init(neighbor_monitor_service.clone(), k8s_repo).await,
     ));
-    tokio::spawn(serve_rpc(
-        node_situation.get_my_public_port_rpc(),
-        router_service.clone(),
-    ));
+    // tokio::spawn(serve_rpc(
+    //     node_situation.get_my_public_port_rpc(),
+    //     router_service.clone(),
+    // ));
 
-    rocket::build()
-        .attach(prometheus.clone())
-        .manage(auction_service as Arc<dyn crate::service::auction::Auction>)
-        .manage(faas_service as Arc<dyn crate::service::faas::FaaSBackend>)
-        .manage(
-            function_life_service
-                as Arc<dyn crate::service::function_life::FunctionLife>,
-        )
-        .manage(
-            router_service.clone() as Arc<dyn crate::service::routing::Router>
-        )
-        .manage(node_life_service.clone()
-            as Arc<dyn crate::service::node_life::NodeLife>)
-        .manage(
-            neighbor_monitor_service
-                as Arc<dyn crate::service::neighbor_monitor::NeighborMonitor>,
-        )
-        .mount(
-            "/",
-            make_swagger_ui(&SwaggerUIConfig {
-                url: "/api/openapi.json".to_owned(),
-                ..Default::default()
-            }),
-        )
-        .mount("/metrics", prometheus)
-        .mount(
-            "/api/",
-            openapi_get_routes![
-                post_bid,
-                post_bid_accept,
-                post_routing,
-                post_sync_routing,
-                post_register_route,
-                post_route_linking,
-                post_register_child_node,
-                health
-            ],
-        )
+    HttpServer::new(move || {
+        App::new()
+            .wrap(middleware::Compress::default())
+            .wrap(TracingLogger::default())
+            .wrap(RequestTracing::new())
+            .wrap(prometheus.clone())
+            .app_data(web::JsonConfig::default().limit(4096))
+            .app_data(web::Data::new(
+                auction_service.clone() as Arc<dyn Auction>
+            ))
+            .app_data(web::Data::new(
+                faas_service.clone() as Arc<dyn FaaSBackend>
+            ))
+            .app_data(web::Data::new(
+                function_life_service.clone() as Arc<dyn FunctionLife>
+            ))
+            .app_data(
+                web::Data::new(router_service.clone() as Arc<dyn Router>),
+            )
+            .app_data(web::Data::new(
+                node_life_service.clone() as Arc<dyn NodeLife>
+            ))
+            .app_data(web::Data::new(
+                neighbor_monitor_service.clone() as Arc<dyn NeighborMonitor>
+            ))
+            .service(
+                web::scope("/api")
+                    .route("/bid", web::post().to(post_bid))
+                    .route("/bid/{id}", web::post().to(post_bid_accept))
+                    .route("/routing", web::post().to(post_sync_routing))
+                    .route("/sync-routing", web::post().to(post_sync_routing))
+                    .route(
+                        "/register_route",
+                        web::post().to(post_register_route),
+                    )
+                    .route(
+                        "/route_linking",
+                        web::post().to(post_route_linking),
+                    )
+                    .route(
+                        "/register",
+                        web::post().to(post_register_child_node),
+                    )
+                    .route("/health", web::head().to(health)),
+            )
+    })
+    .bind(("0.0.0.0", my_port_http.into()))?
+    .run()
+    .await?;
+
+    // Ensure all spans have been reported
+    opentelemetry::global::shutdown_tracer_provider();
+
+    Ok(())
 }
 
 async fn register_to_market(

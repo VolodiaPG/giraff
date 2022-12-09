@@ -146,6 +146,11 @@ macro_rules! impl_port_encapsulation {
             }
         }
 
+        impl Into<u16> for $name {
+            #[inline(always)]
+            fn into(self) -> u16 { self.port }
+        }
+
         impl Serialize for $name {
             #[inline(always)]
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

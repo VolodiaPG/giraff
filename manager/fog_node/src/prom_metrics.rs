@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use rocket_prometheus::prometheus::{opts, GaugeVec};
+use prometheus::{opts, GaugeVec};
 
 macro_rules! PREFIX {
     () => {

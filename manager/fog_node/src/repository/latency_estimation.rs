@@ -4,10 +4,11 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
-use uom::si::f64::Time;
-
 use model::domain::rolling_avg::RollingAvg;
 use model::NodeId;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_tracing::TracingMiddleware;
+use uom::si::f64::Time;
 
 use crate::NodeSituation;
 
@@ -23,6 +24,8 @@ pub enum IndividualError {
     NodeNotFound(NodeId),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
 }
 
 #[derive(Debug)]
@@ -56,6 +59,7 @@ pub struct LatencyEstimationImpl {
     node_situation:     Arc<dyn NodeSituation>,
     outgoing_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
     incoming_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
+    client:             ClientWithMiddleware,
 }
 
 impl LatencyEstimationImpl {
@@ -64,6 +68,9 @@ impl LatencyEstimationImpl {
             node_situation,
             outgoing_latencies: Arc::new(dashmap::DashMap::new()),
             incoming_latencies: Arc::new(dashmap::DashMap::new()),
+            client: ClientBuilder::new(reqwest::Client::new())
+                .with(TracingMiddleware::default())
+                .build(),
         }
     }
 
@@ -81,9 +88,9 @@ impl LatencyEstimationImpl {
         let ip = desc.ip;
         let port = desc.port_http;
 
-        let client = reqwest::Client::new();
         let sent_at = Instant::now();
-        let _response = client
+        let _response = self
+            .client
             .head(format!("http://{}:{}/api/health", ip, port).as_str())
             .send()
             .await?;

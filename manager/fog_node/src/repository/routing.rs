@@ -6,6 +6,8 @@ use async_trait::async_trait;
 use model::domain::routing::Packet;
 use model::{FogNodeHTTPPort, MarketHTTPPort};
 use reqwest::StatusCode;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_tracing::TracingMiddleware;
 use serde::Serialize;
 
 use serde_json::Value;
@@ -14,6 +16,8 @@ use serde_json::Value;
 pub enum Error {
     #[error("Error forwarding the payload: {0}")]
     Forwarding(#[from] reqwest::Error),
+    #[error(transparent)]
+    ReqwestMiddleware(#[from] reqwest_middleware::Error),
     #[error("Next node {0} answered with code {1}: {2}")]
     ForwardingResponse(String, StatusCode, String),
     #[error(transparent)]
@@ -62,9 +66,10 @@ pub trait Routing: Debug + Sync + Send {
         T: Serialize + Send + Sync;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RoutingImpl {
     // dialed_up: DashMap<String, Client<JsonCodec>>,
+    client: ClientWithMiddleware,
 }
 
 impl RoutingImpl {
@@ -72,7 +77,11 @@ impl RoutingImpl {
         //     Self {
         //     // dialed_up: DashMap::new()
         //  }
-        Self {}
+        Self {
+            client: ClientBuilder::new(reqwest::Client::new())
+                .with(TracingMiddleware::default())
+                .build(),
+        }
     }
 
     async fn forward_to<'a, T>(
@@ -83,8 +92,7 @@ impl RoutingImpl {
     where
         T: Serialize + Send + Sync,
     {
-        let client = reqwest::Client::new();
-        let res = client.post(full_url).json(data).send().await?;
+        let res = self.client.post(full_url).json(data).send().await?;
 
         if res.status().is_success() {
             res.json().await.map_err(Error::from)
