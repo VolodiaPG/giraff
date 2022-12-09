@@ -1,6 +1,6 @@
 # Run the echo server
 run $ROCKET_PORT="30080" $ROCKET_ADDRESS="0.0.0.0":
-	cargo run --release
+	cargo run
 
 # Build the project as a docker image
 docker:
