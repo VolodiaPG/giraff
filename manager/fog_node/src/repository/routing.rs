@@ -41,7 +41,7 @@ pub trait Routing: Debug + Sync + Send {
         ip: &IpAddr,
         port: &FogNodeHTTPPort,
         packet: &Packet,
-    ) -> Result<Value, Error>;
+    ) -> Result<Option<Value>, Error>;
 
     /// Forward to the url to be handled by arbitrary route, on another node
     async fn forward_to_fog_node_url<'a, 'b, T>(
@@ -50,7 +50,7 @@ pub trait Routing: Debug + Sync + Send {
         node_port: &FogNodeHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Value, Error>
+    ) -> Result<Option<Value>, Error>
     where
         T: Serialize + Send + Sync;
 
@@ -61,7 +61,7 @@ pub trait Routing: Debug + Sync + Send {
         node_port: &MarketHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Value, Error>
+    ) -> Result<Option<Value>, Error>
     where
         T: Serialize + Send + Sync;
 }
@@ -88,14 +88,14 @@ impl RoutingImpl {
         &self,
         data: &'a T,
         full_url: &'a str,
-    ) -> Result<Value, Error>
+    ) -> Result<Option<Value>, Error>
     where
         T: Serialize + Send + Sync,
     {
         let res = self.client.post(full_url).json(data).send().await?;
 
         if res.status().is_success() {
-            res.json().await.map_err(Error::from)
+            Ok(res.json().await.ok())
         } else {
             Err(Error::ForwardingResponse(
                 full_url.to_string(),
@@ -137,7 +137,7 @@ impl Routing for RoutingImpl {
         ip: &IpAddr,
         port: &FogNodeHTTPPort,
         packet: &Packet,
-    ) -> Result<Value, Error> {
+    ) -> Result<Option<Value>, Error> {
         let url = match packet {
             Packet::FaaSFunction { .. } => {
                 format!("http://{}:{}/api/routing", ip, port)
@@ -156,7 +156,7 @@ impl Routing for RoutingImpl {
         node_port: &FogNodeHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Value, Error>
+    ) -> Result<Option<Value>, Error>
     where
         T: Serialize + Send + Sync,
     {
@@ -173,7 +173,7 @@ impl Routing for RoutingImpl {
         node_port: &MarketHTTPPort,
         resource_uri: &'b str,
         data: &'a T,
-    ) -> Result<Value, Error>
+    ) -> Result<Option<Value>, Error>
     where
         T: Serialize + Send + Sync,
     {

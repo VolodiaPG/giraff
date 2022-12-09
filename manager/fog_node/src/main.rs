@@ -361,7 +361,8 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
                     .route("/bid/{id}", web::post().to(post_bid_accept))
-                    .route("/routing", web::post().to(post_sync_routing))
+                    .route("/routing", web::post().to(post_routing))
+                    // .route("/routing", web::post().to(post_sync_routing))
                     .route("/sync-routing", web::post().to(post_sync_routing))
                     .route(
                         "/register_route",

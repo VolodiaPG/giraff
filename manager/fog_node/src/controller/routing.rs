@@ -30,7 +30,7 @@ pub async fn route_linking(
 pub async fn post_sync_forward_function_routing(
     packet: Packet,
     router: Arc<dyn Router>,
-) -> Result<Value, Error> {
+) -> Result<Option<Value>, Error> {
     trace!("post forward routing from packet {:?}", packet);
     let start = Instant::now();
     let res = router.forward(packet).await;

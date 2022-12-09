@@ -52,7 +52,7 @@ pub trait Router: Debug + Send + Sync {
     ) -> Result<(), Error>;
 
     /// Forward payloads to a neighbour node
-    async fn forward(&self, packet: Packet) -> Result<Value, Error>;
+    async fn forward(&self, packet: Packet) -> Result<Option<Value>, Error>;
 }
 
 #[derive(Debug)]
@@ -194,7 +194,7 @@ where
     }
 
     #[instrument(level = "trace", skip(self, packet))]
-    async fn forward(&self, packet: Packet) -> Result<Value, Error> {
+    async fn forward(&self, packet: Packet) -> Result<Option<Value>, Error> {
         trace!("Forwarding packet...");
         match packet {
             Packet::FaaSFunction { to, data: payload } => {
