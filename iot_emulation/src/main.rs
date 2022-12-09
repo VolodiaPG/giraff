@@ -12,7 +12,7 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
-use tokio::task::yield_now;
+use reqwest::Client;
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
@@ -155,7 +155,8 @@ async fn put_cron(
     let job: CronFn = Box::new(move || {
         let prom_timers = prom_timers.clone();
         let config = config.clone();
-        Box::pin(ping(prom_timers, config))
+        let client = reqwest::Client::new();
+        Box::pin(ping(prom_timers, config, client))
     });
 
     cron_jobs.insert(tag, Arc::new(job));
@@ -175,21 +176,20 @@ async fn delete_cron(
     skip(prom_timers, config),
     fields(tag=%config.tag)
 )]
-async fn ping(prom_timers: PromTimer, config: Arc<StartCron>) {
+async fn ping(prom_timers: PromTimer, config: Arc<StartCron>, client: Client) {
     let id = Uuid::new_v4();
     let tag = config.tag.clone();
     info!("Sending a ping to {:?}...", tag.clone());
 
-    let res = reqwest::Client::new().post(config.first_node_url.clone()).body(
-        serde_json::to_string(&Packet::FaaSFunction {
+    let res = client.post(config.first_node_url.clone()).json(
+        &Packet::FaaSFunction {
             to:   config.function_id.clone(),
             data: &serde_json::value::to_raw_value(&CronPayload {
                 address_to_call: config.iot_url.clone(),
                 data:            Payload { tag: tag.clone(), id: id.clone() },
             })
             .unwrap(),
-        })
-        .unwrap(),
+        },
     );
 
     prom_timers.insert(id, chrono::offset::Utc::now());
