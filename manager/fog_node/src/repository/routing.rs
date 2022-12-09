@@ -4,8 +4,6 @@ use std::net::IpAddr;
 use async_trait::async_trait;
 
 use dashmap::DashMap;
-use drpc::client::Client;
-use drpc::codec::JsonCodec;
 use model::{FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort};
 use reqwest::StatusCode;
 use serde::Serialize;
@@ -29,12 +27,12 @@ pub enum Error {
 #[async_trait]
 pub trait Routing: Debug + Sync + Send {
     /// Forward to the url to be handled by the routing service of the node
-    async fn forward_to_routing(
-        &self,
-        ip: &IpAddr,
-        port: &FogNodeRPCPort,
-        packet: &Packet,
-    ) -> Result<Value, Error>;
+    // async fn forward_to_routing(
+    //     &self,
+    //     ip: &IpAddr,
+    //     port: &FogNodeRPCPort,
+    //     packet: &Packet,
+    // ) -> Result<Value, Error>;
 
     /// Forward to the url to be handled by arbitrary route, on another node
     async fn forward_to_fog_node_url<'a, 'b, T>(
@@ -92,28 +90,28 @@ impl RoutingImpl {
 
 #[async_trait]
 impl Routing for RoutingImpl {
-    #[instrument(level = "trace", skip(self, packet))]
-    async fn forward_to_routing(
-        &self,
-        ip: &IpAddr,
-        port: &FogNodeRPCPort,
-        packet: &Packet,
-    ) -> Result<Value, Error> {
-        let key = format!("{}:{}", ip, port);
-        trace!("RPC-ing to routing on {}...", key);
-        // let mut client = self.dialed_up.get(&key);
+    // #[instrument(level = "trace", skip(self, packet))]
+    // async fn forward_to_routing(
+    //     &self,
+    //     ip: &IpAddr,
+    //     port: &FogNodeRPCPort,
+    //     packet: &Packet,
+    // ) -> Result<Value, Error> {
+    //     let key = format!("{}:{}", ip, port);
+    //     trace!("RPC-ing to routing on {}...", key);
+    //     // let mut client = self.dialed_up.get(&key);
 
-        // if client.is_none() {
-        // let c = Client::<JsonCodec>::dial(&key).await.unwrap();
-        // self.dialed_up.insert(key.clone(), c);
-        // client = self.dialed_up.get(&key);
-        // }
-        let mut client = Client::<JsonCodec>::dial(&key).await.unwrap();
+    //     // if client.is_none() {
+    //     // let c = Client::<JsonCodec>::dial(&key).await.unwrap();
+    //     // self.dialed_up.insert(key.clone(), c);
+    //     // client = self.dialed_up.get(&key);
+    //     // }
+    //     let mut client = Client::<JsonCodec>::dial(&key).await.unwrap();
 
-        let res = client.call("routing", packet).await.map_err(Error::from);
-        client.shutdown().await;
-        res
-    }
+    //     let res = client.call("routing", packet).await.map_err(Error::from);
+    //     client.shutdown().await;
+    //     res
+    // }
 
     #[instrument(level = "trace", skip(self, data))]
     async fn forward_to_fog_node_url<'a, 'b, T>(

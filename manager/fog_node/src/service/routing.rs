@@ -216,23 +216,23 @@ where
                             })?;
                         Ok(self
                             .routing
-                            .forward_to_routing(
-                                &next.ip,
-                                &next.port_rpc,
-                                &Packet::FaaSFunction {
-                                    to:   to.to_owned(),
-                                    data: payload,
-                                },
-                            )
-                            // .forward_to_fog_node_url(
+                            // .forward_to_routing(
                             //     &next.ip,
-                            //     &next.port_http,
-                            //     &"routing",
+                            //     &next.port_rpc,
                             //     &Packet::FaaSFunction {
                             //         to:   to.to_owned(),
                             //         data: payload,
                             //     },
                             // )
+                            .forward_to_fog_node_url(
+                                &next.ip,
+                                &next.port_http,
+                                &"routing",
+                                &Packet::FaaSFunction {
+                                    to:   to.to_owned(),
+                                    data: payload,
+                                },
+                            )
                             .await?)
                     }
                     Direction::CurrentNode => {
@@ -294,25 +294,25 @@ where
                         })?;
                     Ok(self
                         .routing
-                        .forward_to_routing(
-                            &next.ip,
-                            &next.port_rpc,
-                            &Packet::FogNode {
-                                route_to_stack: route_to,
-                                resource_uri: resource_uri.to_owned(),
-                                data,
-                            },
-                        )
-                        // .forward_to_fog_node_url(
+                        // .forward_to_routing(
                         //     &next.ip,
-                        //     &next.port_http,
-                        //     &"routing",
+                        //     &next.port_rpc,
                         //     &Packet::FogNode {
                         //         route_to_stack: route_to,
                         //         resource_uri: resource_uri.to_owned(),
                         //         data,
                         //     },
                         // )
+                        .forward_to_fog_node_url(
+                            &next.ip,
+                            &next.port_http,
+                            &"routing",
+                            &Packet::FogNode {
+                                route_to_stack: route_to,
+                                resource_uri: resource_uri.to_owned(),
+                                data,
+                            },
+                        )
                         .await?)
                 }
             }
