@@ -225,6 +225,11 @@ NETWORK = {
                             "flavor": TIER_3_FLAVOR,
                             "latency": 5,
                         },
+                        {
+                            "name": "st-greg-10",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 10,
+                        },
                     ],
                 }
             ],

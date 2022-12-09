@@ -339,31 +339,11 @@ def network(env=None):
     roles = env["roles"]
 
     netem.add_constraints("delay 20ms", roles["fog_node"], symetric=True)
+    netem.add_constraints("delay 0ms", roles["iot_emulation"], symetric=True)
     # gen_net(NETWORK, netem, roles)
 
     netem.deploy()
     # netem.validate()
-
-
-def establish_netem(env):
-    netem = env["netem"]
-    roles = env["roles"]
-
-    # generate the network
-    gen_net(NETWORK, netem, roles)
-
-    # Connect the extremities to the echo server
-    # for extremity in EXTREMITIES:
-    #     netem.add_constraints(
-    #         src=roles[extremity],
-    #         dest=roles["iot_emulation"],
-    #         delay="0ms",
-    #         rate="1gbit",
-    #         symmetric=True,
-    #     )
-
-    netem.deploy()
-    netem.validate()
 
 
 def drop_netem(env):
@@ -639,7 +619,7 @@ def tunnels(env=None, all=False, **kwargs):
         for role in roles["market"]:
             res = open_tunnel(role.address, 3008)  # Market
             if flag == False:
-                tun[8080] = res
+                tun[8088] = res
                 flag = True
 
         if "prom_master" in env["roles"]:

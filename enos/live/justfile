@@ -12,6 +12,7 @@ deploy $CLUSTER="gros" +FLAGS='':
     {{RUN}} k3s-deploy
     {{RUN}} monitoring
     {{RUN}} iot-emulation
+    {{RUN}} network
 
 local:
     @just deploy "" --vagrant
@@ -38,12 +39,12 @@ _is_connected city_name_node_target market_local_port:
         echo "❌"
     fi
 
-is_connected city_name_node_target market_local_port='8080':
+is_connected city_name_node_target market_local_port='8088':
     @watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
 
 # expe to target node_id for n repetitions with a delay between each
-expe city_name_node_target n='50' delay='30' market_local_port='8080' iot_local_port='3003' first_node_port='3003':
+expe city_name_node_target n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     NODE_TARGET=$(curl "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
     NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
