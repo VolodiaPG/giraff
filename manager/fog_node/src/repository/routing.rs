@@ -3,12 +3,11 @@ use std::net::IpAddr;
 
 use async_trait::async_trait;
 
-use dashmap::DashMap;
-use model::{FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort};
+use model::domain::routing::Packet;
+use model::{FogNodeHTTPPort, MarketHTTPPort};
 use reqwest::StatusCode;
 use serde::Serialize;
 
-use model::domain::routing::Packet;
 use serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
@@ -19,8 +18,6 @@ pub enum Error {
     ForwardingResponse(String, StatusCode, String),
     #[error(transparent)]
     Serialization(#[from] serde_json::Error),
-    #[error(transparent)]
-    RPCForwarding(#[from] drpc::Error),
 }
 
 /// Behaviour of the routing
@@ -33,6 +30,14 @@ pub trait Routing: Debug + Sync + Send {
     //     port: &FogNodeRPCPort,
     //     packet: &Packet,
     // ) -> Result<Value, Error>;
+
+    /// Forward to the url to be handled by the routing service of the node
+    async fn forward_to_routing(
+        &self,
+        ip: &IpAddr,
+        port: &FogNodeHTTPPort,
+        packet: &Packet,
+    ) -> Result<Value, Error>;
 
     /// Forward to the url to be handled by arbitrary route, on another node
     async fn forward_to_fog_node_url<'a, 'b, T>(
@@ -59,11 +64,16 @@ pub trait Routing: Debug + Sync + Send {
 
 #[derive(Debug, Default)]
 pub struct RoutingImpl {
-    dialed_up: DashMap<String, Client<JsonCodec>>,
+    // dialed_up: DashMap<String, Client<JsonCodec>>,
 }
 
 impl RoutingImpl {
-    pub fn new() -> Self { Self { dialed_up: DashMap::new() } }
+    pub fn new() -> Self {
+        //     Self {
+        //     // dialed_up: DashMap::new()
+        //  }
+        Self {}
+    }
 
     async fn forward_to<'a, T>(
         &self,
@@ -112,6 +122,24 @@ impl Routing for RoutingImpl {
     //     client.shutdown().await;
     //     res
     // }
+
+    #[instrument(level = "trace", skip(self, packet))]
+    async fn forward_to_routing(
+        &self,
+        ip: &IpAddr,
+        port: &FogNodeHTTPPort,
+        packet: &Packet,
+    ) -> Result<Value, Error> {
+        let url = match packet {
+            Packet::FaaSFunction { .. } => {
+                format!("http://{}:{}/api/routing", ip, port)
+            }
+            Packet::FogNode { .. } | Packet::Market { .. } => {
+                format!("http://{}:{}/api/sync-routing", ip, port)
+            }
+        };
+        self.forward_to(packet, &url).await
+    }
 
     #[instrument(level = "trace", skip(self, data))]
     async fn forward_to_fog_node_url<'a, 'b, T>(

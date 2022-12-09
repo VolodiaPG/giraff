@@ -105,12 +105,6 @@ run_fog_node node_type *FLAGS:
     print(cmd)
     os.system(cmd)
 
-    # env_str = " ".join([f'--env {key}="{value}"' for key, value in env_vars.items()])
-
-    # cmd = f'''docker build -t fog_node:latest . \
-    #         && docker run -it --expose=3000-4000 --mount type=bind,source="{{KUBECONFIG}}",target=/kubeconfig --env KUBECONFIG=/kubeconfig {env_str} fog_node 
-    #     '''
-
 jaeger:
     (docker stop jaeger || true)
     (docker rm jaeger || true)

@@ -84,7 +84,11 @@ impl NodeCommunicationThroughRoutingImpl {
         Ok((ip, port))
     }
 
-    async fn call_routing(&self, packet: Packet) -> Result<Bytes, Error> {
+    async fn _call_routing(
+        &self,
+        packet: Packet,
+        sync: bool,
+    ) -> Result<Bytes, Error> {
         let (ip, port) = match &packet {
             Packet::FogNode { route_to_stack, .. } => {
                 self.get_address_of_first_node(route_to_stack).await?
@@ -92,7 +96,11 @@ impl NodeCommunicationThroughRoutingImpl {
             _ => return Err(Error::WrongPacketType),
         };
         let client = reqwest::Client::new();
-        let url = format!("http://{}:{}/api/routing", ip, port);
+        let url = if sync {
+            format!("http://{}:{}/api/sync-routing", ip, port)
+        } else {
+            format!("http://{}:{}/api/sync-routing", ip, port)
+        };
         trace!("Posting to {}", &url);
         let response = client.post(&url).json(&packet).send().await?;
 
@@ -104,6 +112,15 @@ impl NodeCommunicationThroughRoutingImpl {
                 response.text().await.ok(),
             ))
         }
+    }
+
+    async fn call_routing(&self, packet: Packet) -> Result<(), Error> {
+        self._call_routing(packet, false).await?;
+        Ok(())
+    }
+
+    async fn call_sync_routing(&self, packet: Packet) -> Result<Bytes, Error> {
+        self._call_routing(packet, true).await
     }
 }
 
@@ -124,7 +141,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
             route_to_stack: self.network.get_route_to_node(to).await,
         };
 
-        Ok(serde_json::from_slice(&self.call_routing(data).await?)?)
+        Ok(serde_json::from_slice(&self.call_sync_routing(data).await?)?)
     }
 
     async fn take_offer(

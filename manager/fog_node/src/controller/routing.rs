@@ -4,6 +4,7 @@ use std::time::Instant;
 use model::domain::routing::Packet;
 use model::view::routing::{Route, RouteLinking};
 use serde_json::Value;
+use tokio::task;
 
 use crate::service::routing::Router;
 
@@ -26,9 +27,9 @@ pub async fn route_linking(
 }
 
 #[instrument(level = "trace", skip(packet, router))]
-pub async fn post_forward_function_routing(
+pub async fn post_sync_forward_function_routing(
     packet: Packet,
-    router: &Arc<dyn Router>,
+    router: Arc<dyn Router>,
 ) -> anyhow::Result<Value> {
     trace!("post forward routing from packet {:?}", packet);
     let start = Instant::now();
@@ -37,4 +38,14 @@ pub async fn post_forward_function_routing(
     debug!("Elapsed: {:?}", elapsed);
     trace!("{:?}", res);
     res
+}
+
+#[instrument(level = "trace", skip(packet, router))]
+pub async fn post_async_forward_function_routing(
+    packet: Packet,
+    router: Arc<dyn Router>,
+) -> () {
+    task::spawn(async {
+        post_sync_forward_function_routing(packet, router).await
+    });
 }

@@ -216,7 +216,15 @@ where
                             })?;
                         Ok(self
                             .routing
-                            // .forward_to_routing(
+                            .forward_to_routing(
+                                &next.ip,
+                                &next.port_http,
+                                &Packet::FaaSFunction {
+                                    to:   to.to_owned(),
+                                    data: payload,
+                                },
+                            )
+                            // .forward_to_fog_node_url(
                             //     &next.ip,
                             //     &next.port_rpc,
                             //     &Packet::FaaSFunction {
@@ -294,7 +302,16 @@ where
                         })?;
                     Ok(self
                         .routing
-                        // .forward_to_routing(
+                        .forward_to_routing(
+                            &next.ip,
+                            &next.port_http,
+                            &Packet::FogNode {
+                                route_to_stack: route_to,
+                                resource_uri: resource_uri.to_owned(),
+                                data,
+                            },
+                        )
+                        // .forward_to_fog_node_url(
                         //     &next.ip,
                         //     &next.port_rpc,
                         //     &Packet::FogNode {
@@ -341,7 +358,7 @@ where
                         &resource_uri,
                         &data
                     );
-                    let (ip, _port, port) =
+                    let (ip, port, _port) =
                         self.node_situation.get_parent_node_address().unwrap();
                     Ok(self
                         .routing

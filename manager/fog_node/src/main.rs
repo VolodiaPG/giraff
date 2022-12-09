@@ -304,6 +304,7 @@ async fn rocket() -> _ {
                 post_bid,
                 post_bid_accept,
                 post_routing,
+                post_sync_routing,
                 post_register_route,
                 post_route_linking,
                 post_register_child_node,

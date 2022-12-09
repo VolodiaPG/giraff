@@ -44,11 +44,26 @@ pub async fn post_bid_accept(
 pub async fn post_routing(
     packet: Json<Packet>,
     router: &State<Arc<dyn Router>>,
+) -> Result<(), helper::handler::Error> {
+    controller::routing::post_async_forward_function_routing(
+        packet.0,
+        router.inner().clone(),
+    )
+    .await;
+    Ok(())
+}
+
+/// Routes the request to the correct URL and node.
+#[openapi]
+#[post("/sync-routing", data = "<packet>")]
+pub async fn post_sync_routing(
+    packet: Json<Packet>,
+    router: &State<Arc<dyn Router>>,
 ) -> Result<Value, helper::handler::Error> {
     Ok(serde_json::to_value(
-        controller::routing::post_forward_function_routing(
+        controller::routing::post_sync_forward_function_routing(
             packet.0,
-            router.inner(),
+            router.inner().clone(),
         )
         .await?,
     )?)
