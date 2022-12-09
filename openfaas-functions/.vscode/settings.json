@@ -1,3 +1,7 @@
 {
-    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#47222B",
+        "titleBar.activeBackground": "#63303C",
+        "titleBar.activeForeground": "#FCF9FA"
+    }
 }
