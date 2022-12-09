@@ -126,7 +126,7 @@ run_all *FLAGS: (build FLAGS)
     "just run_fog_node node_3 {{FLAGS}}" \
     "just run_market {{FLAGS}}"
 
-expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3034':
+expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3003':
     ../enos/live/expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} {{localhost_ip}} 127.0.0.1 {{first_node_port}}
 
 # Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
