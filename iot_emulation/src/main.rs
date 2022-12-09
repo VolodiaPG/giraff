@@ -14,7 +14,7 @@ use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
 use tokio::task::yield_now;
 use tracing_forest::ForestLayer;
-use tracing_subscriber::{prelude::*};
+use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 use std::future::Future;
@@ -24,7 +24,7 @@ use std::time::Duration;
 
 use lazy_static::lazy_static;
 use rocket::serde::json::Json;
-use rocket::{delete, post, put, routes, State, launch};
+use rocket::{delete, launch, post, put, routes, State};
 use rocket_prometheus::prometheus::{register_histogram_vec, HistogramVec};
 use rocket_prometheus::PrometheusMetrics;
 use serde::{Deserialize, Serialize};
@@ -114,8 +114,6 @@ pub async fn print(
 
     info!("{:?}", payload);
     let now = chrono::offset::Utc::now();
-
-    yield_now().await;
 
     let elapsed = now - start;
     debug!("Elapsed (after being received): {}ms", elapsed.num_milliseconds());
@@ -232,7 +230,7 @@ async fn rocket() -> _ {
     debug!("Tracing initialized.");
 
     let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
-    
+
     tokio::spawn(forever(jobs.clone()));
 
     rocket::build()
@@ -250,9 +248,7 @@ async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
         interval.tick().await;
         for value in jobs.iter() {
             let val = value.value().clone();
-            tokio::spawn(async move {
-                val().await
-            });
+            tokio::spawn(async move { val().await });
         }
     }
 }
