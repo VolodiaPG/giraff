@@ -2,7 +2,6 @@ use core::str::FromStr;
 use std::fmt;
 
 use lazy_static::lazy_static;
-use rocket::request::FromParam;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::*;
 use schemars::JsonSchema;
@@ -94,17 +93,6 @@ macro_rules! impl_id_encapsulation {
                 }
 
                 deserializer.deserialize_str(MyVisitor)
-            }
-        }
-
-        impl<'a> FromParam<'a> for $name {
-            type Error = <uuid::Uuid as std::str::FromStr>::Err;
-
-            /// A value is successfully parsed if `param` is a properly
-            /// formatted Uuid. Otherwise, an error is returned.
-            #[inline(always)]
-            fn from_param(param: &'a str) -> Result<$name, Self::Error> {
-                param.parse()
             }
         }
 

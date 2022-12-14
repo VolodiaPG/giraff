@@ -3,23 +3,22 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
-use actix_web::{middleware, web, App, HttpServer};
-use actix_web_prometheus::PrometheusMetricsBuilder;
+
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-use opentelemetry::global;
-use opentelemetry::runtime::TokioCurrentThread;
-use opentelemetry::sdk::propagation::TraceContextPropagator;
-use tracing::subscriber::set_global_default;
-use tracing::Subscriber;
-use tracing_log::LogTracer;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
+use actix_web::{middleware, web, App, HttpServer};
+use opentelemetry::global;
+use opentelemetry::sdk::propagation::TraceContextPropagator;
+use tracing::subscriber::set_global_default;
+use tracing::Subscriber;
+use tracing_log::LogTracer;
+
 use crate::handler_http::*;
-use crate::handler_rpc::serve_rpc;
 use crate::repeated_tasks::init;
 use crate::repository::latency_estimation::LatencyEstimationImpl;
 use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
@@ -38,7 +37,7 @@ use crate::service::routing::{Router, RouterImpl};
 use actix_web_opentelemetry::RequestTracing;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
-use prometheus::GaugeVec;
+use prometheus::{GaugeVec, TextEncoder};
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
@@ -123,6 +122,19 @@ fn function_life_factory(
     )
 }
 
+pub async fn metrics() -> actix_web::HttpResponse {
+    let encoder = TextEncoder::new();
+    let mut buffer: String = "".to_string();
+    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
+        return actix_web::HttpResponse::InternalServerError()
+            .body("Failed to encode prometheus metrics");
+    }
+
+    actix_web::HttpResponse::Ok()
+        .insert_header(actix_web::http::header::ContentType::plaintext())
+        .body(buffer)
+}
+
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
     name: String,
@@ -147,10 +159,7 @@ pub fn get_subscriber(
 
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
         opentelemetry_jaeger::new_agent_pipeline()
-            .with_service_name(
-                env::var("LOG_CONFIG_FILENAME")
-                    .unwrap_or_else(|_| "fog_node.log".to_string()),
-            )
+            .with_service_name(name)
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
     );
@@ -171,29 +180,16 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 }
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
-// #[tokio::main]
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
-    // global::set_text_map_propagator(opentelemetry_jaeger::Propagator::new());
     global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let subscriber = get_subscriber("fog_node".into(), "trace".into());
+    let subscriber = get_subscriber(
+        env::var("LOG_CONFIG_FILENAME")
+            .unwrap_or_else(|_| "fog_node.log".to_string()),
+        "trace".into(),
+    );
     init_subscriber(subscriber);
-
-    // let _tracer = opentelemetry_zipkin::new_pipeline()
-    //     .with_service_name(
-    //         env::var("LOG_CONFIG_FILENAME")
-    //             .unwrap_or_else(|_| "fog_node.log".to_string()),
-    //     )
-    //     .install_batch(opentelemetry::runtime::Tokio)
-    //     .unwrap();
-    // let _tracer = opentelemetry_jaeger::new_agent_pipeline()
-    //     .with_service_name(
-    //         env::var("LOG_CONFIG_FILENAME")
-    //             .unwrap_or_else(|_| "fog_node.log".to_string()),
-    //     )
-    //     .install_batch(opentelemetry::runtime::Tokio)
-    //     .unwrap();
 
     debug!("Tracing initialized.");
 
@@ -294,29 +290,6 @@ async fn main() -> std::io::Result<()> {
         info!("This node is a provider node");
     }
 
-    let prometheus = PrometheusMetricsBuilder::new("api")
-        .endpoint("/metrics")
-        // .const_labels(labels)
-        .build()
-        .unwrap();
-
-    let metrics: [&GaugeVec; 11] = [
-        &prom_metrics::BID_GAUGE,
-        &prom_metrics::MEMORY_USAGE_GAUGE,
-        &prom_metrics::MEMORY_ALLOCATABLE_GAUGE,
-        &prom_metrics::CPU_USAGE_GAUGE,
-        &prom_metrics::CPU_ALLOCATABLE_GAUGE,
-        &prom_metrics::MEMORY_USED_GAUGE,
-        &prom_metrics::MEMORY_AVAILABLE_GAUGE,
-        &prom_metrics::CPU_USED_GAUGE,
-        &prom_metrics::CPU_AVAILABLE_GAUGE,
-        &prom_metrics::LATENCY_NEIGHBORS_GAUGE,
-        &prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE,
-    ];
-    for metric in metrics {
-        prometheus.registry.register(Box::new(metric.clone())).unwrap();
-    }
-
     let my_port_http = node_situation.get_my_public_port_http();
     env::set_var("ROCKET_PORT", my_port_http.to_string());
 
@@ -332,12 +305,13 @@ async fn main() -> std::io::Result<()> {
     //     router_service.clone(),
     // ));
 
+    info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
+
     HttpServer::new(move || {
         App::new()
             .wrap(middleware::Compress::default())
             .wrap(TracingLogger::default())
             .wrap(RequestTracing::new())
-            .wrap(prometheus.clone())
             .app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(
                 auction_service.clone() as Arc<dyn Auction>
@@ -357,12 +331,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(
                 neighbor_monitor_service.clone() as Arc<dyn NeighborMonitor>
             ))
+            .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
                     .route("/bid/{id}", web::post().to(post_bid_accept))
-                    // .route("/routing", web::post().to(post_routing))
-                    .route("/routing", web::post().to(post_sync_routing))
+                    .route("/routing", web::post().to(post_routing))
                     .route("/sync-routing", web::post().to(post_sync_routing))
                     .route(
                         "/register_route",
@@ -379,7 +353,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/health", web::head().to(health)),
             )
     })
-    .bind(("0.0.0.0", my_port_http.into()))?
+    .bind(("0.0.0.0", my_port_http.clone().into()))?
     .run()
     .await?;
 

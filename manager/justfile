@@ -24,8 +24,7 @@ clippy:
 
 # Run the market
 run_market *FLAGS:
-   export ROCKET_PORT=8000
-   cargo run --bin market {{FLAGS}}
+   SERVER_PORT=8000 cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node node_type *FLAGS:
@@ -134,6 +133,9 @@ k3d:
     k3d cluster create -c k3d.cluster.yaml
     arkade install openfaas
     kubectl rollout status deployment gateway -n openfaas --timeout=90s
+    @just k3d-forward
+
+k3d-forward:
     kubectl port-forward -n openfaas svc/gateway 8080:8080
 
 k3d-clean:

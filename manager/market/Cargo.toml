@@ -10,6 +10,8 @@ default = ["mimalloc"]
 mimalloc = []
 
 [dependencies]
+actix-web = "4.2.1"
+actix-web-opentelemetry = "0.13.0"
 anyhow = "1.0.58"
 async-trait = "0.1.56"
 base64 = { version = "0.13.0", default-features = false, features = [
@@ -23,20 +25,28 @@ lazy-regex = "2.3.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
 mimalloc = { version = "0.1.32", default-features = false }
-okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
-reqwest = { version = "0.11.11", default-features = false, features = [
-    "json",
-    "rustls-tls",
-] }
-rocket = { version = "0.5.0-rc.2", features = ["json", "uuid"] }
-rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger", "uuid"] }
+opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.17.0", features = [
+    "reqwest_collector_client",
+    "rt-tokio",
+], default-features = false }
+reqwest = { version = "0.11.11", default-features = false, features = ["json"] }
+reqwest-middleware = "0.2.0"
+reqwest-tracing = { version = "0.4.0", features = ["opentelemetry_0_18"] }
 ron = "0.8.0"
 schemars = "0.8"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
 serde_with = "2.0.0"
 thiserror = "1.0.31"
-tokio = { version = "1.20.1", features = ["rt-multi-thread", "time", "sync"] }
+tokio = { version = "1.20.1", features = ["full"] }
+tracing = "0.1.37"
+tracing-actix-web = { version = "0.6.2", features = ["opentelemetry_0_18"] }
+tracing-appender = "0.2"
+tracing-forest = { version = "0.1.5", features = ["tokio"] }
+tracing-log = "0.1.3"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+tracing-opentelemetry = "0.18.0"
 uom = { version = "0.33.0", default-features = false, features = [
     "f64",
     "si",

@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workplace/target \
     --mount=type=cache,target=/usr/local/rustup \
     touch fog_node/src/main.rs market/src/main.rs && \
-    cargo build --release --target=x86_64-unknown-linux-gnu \
+    cargo build --release --target=x86_64-unknown-linux-gnu --features async_routes \
     && cp target/x86_64-unknown-linux-gnu/release/fog_node bin/release/ \
     && cp target/x86_64-unknown-linux-gnu/release/market bin/release/
 
@@ -21,6 +21,7 @@ FROM gcr.io/distroless/cc as market-default
 USER 1003
 COPY --from=build /workplace/bin/release/market .
 EXPOSE 3003/tcp
+ENV SERVER_PORT 3003
 CMD ["./market"]
 
 FROM gcr.io/distroless/cc as fog_node-default

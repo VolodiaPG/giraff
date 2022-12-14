@@ -19,7 +19,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM gcr.io/distroless/cc as iot_emulation-default
 COPY --from=build /workplace/bin/iot_emulation .
 
-ENV ROCKET_PORT 3003
-ENV ROCKET_ADDRESS 0.0.0.0
+ENV SERVER_PORT 3003
 EXPOSE 3003/tcp
 CMD ["./iot_emulation"]

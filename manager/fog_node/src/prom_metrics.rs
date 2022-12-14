@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use prometheus::{opts, GaugeVec};
+use prometheus::{opts, register_gauge_vec, GaugeVec};
 
 macro_rules! PREFIX {
     () => {
@@ -10,7 +10,7 @@ macro_rules! PREFIX {
 lazy_static! {
     /// Histogram of ["function_name", "bid_id"]
     pub static ref BID_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(), "bids"), "Bids placed for submitted SLA"),
             &["function_name", "bid_id"],
         )
@@ -18,7 +18,7 @@ lazy_static! {
     };
 
     pub static ref MEMORY_ALLOCATABLE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"memory_allocatable"), "Memory allocatable on fog_node"),
             &["name"],
         )
@@ -26,7 +26,7 @@ lazy_static! {
     };
 
     pub static ref MEMORY_USAGE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"memory_usage"), "Memory usage on fog_node"),
                         &["name"],
 
@@ -35,7 +35,7 @@ lazy_static! {
     };
 
     pub static ref CPU_ALLOCATABLE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"cpu_allocatable"), "CPU allocatable on fog_node"),
                         &["name"],
 
@@ -44,7 +44,7 @@ lazy_static! {
     };
 
      pub static ref CPU_USAGE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"cpu_usage"), "CPU usage on fog_node"),
                         &["name"],
 
@@ -53,7 +53,7 @@ lazy_static! {
     };
 
     pub static ref MEMORY_AVAILABLE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"memory_available"), "Memory available on fog_node (from fog_node's perspective)"),
             &["name"],
         )
@@ -61,7 +61,7 @@ lazy_static! {
     };
 
     pub static ref MEMORY_USED_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"memory_used"), "Memory used on fog_node (from fog_node's perspective)"),
                         &["name"],
 
@@ -70,7 +70,7 @@ lazy_static! {
     };
 
     pub static ref CPU_AVAILABLE_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"cpu_available"), "CPU available on fog_node (from fog_node's perspective)"),
                         &["name"],
 
@@ -79,7 +79,7 @@ lazy_static! {
     };
 
      pub static ref CPU_USED_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"cpu_used"), "CPU used on fog_node (from fog_node's perspective)"),
                         &["name"],
 
@@ -88,7 +88,7 @@ lazy_static! {
     };
 
      pub static ref LATENCY_NEIGHBORS_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"neighbors_latency"), "Latency with neighbors (parent & children)"),
                         &["instance_to"],
 
@@ -97,7 +97,7 @@ lazy_static! {
     };
 
     pub static ref LATENCY_NEIGHBORS_AVG_GAUGE: GaugeVec = {
-        GaugeVec::new(
+        register_gauge_vec!(
             opts!(concat!(PREFIX!(),"neighbors_latency_rolling_avg"), "Latency with neighbors (parent & children) average computed on the node"),
                         &["instance_to"],
 

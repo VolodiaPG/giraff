@@ -5,6 +5,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use bytes::Bytes;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_tracing::TracingMiddleware;
 use uom::si::f64::Time;
 use uom::si::time::second;
 
@@ -21,6 +23,8 @@ use crate::repository::fog_node::FogNode;
 pub enum Error {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    #[error(transparent)]
+    ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
     #[error(transparent)]
     Serialize(#[from] serde_json::Error),
     #[error("The stack route is empty.")]
@@ -61,10 +65,18 @@ pub trait NodeCommunication: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeCommunicationThroughRoutingImpl {
     network: Arc<dyn FogNode>,
+    client:  ClientWithMiddleware,
 }
 
 impl NodeCommunicationThroughRoutingImpl {
-    pub fn new(network: Arc<dyn FogNode>) -> Self { Self { network } }
+    pub fn new(network: Arc<dyn FogNode>) -> Self {
+        Self {
+            network,
+            client: ClientBuilder::new(reqwest::Client::new())
+                .with(TracingMiddleware::default())
+                .build(),
+        }
+    }
 
     async fn get_address_of_first_node(
         &self,
@@ -95,14 +107,13 @@ impl NodeCommunicationThroughRoutingImpl {
             }
             _ => return Err(Error::WrongPacketType),
         };
-        let client = reqwest::Client::new();
         let url = if sync {
             format!("http://{}:{}/api/sync-routing", ip, port)
         } else {
             format!("http://{}:{}/api/sync-routing", ip, port)
         };
         trace!("Posting to {}", &url);
-        let response = client.post(&url).json(&packet).send().await?;
+        let response = self.client.post(&url).json(&packet).send().await?;
 
         if response.status().is_success() {
             Ok(response.bytes().await?)

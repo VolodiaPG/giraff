@@ -1,7 +1,6 @@
 use crate::controller::ControllerError;
 use crate::service::function_life::FunctionLife;
-use crate::service::node_life;
-use crate::service::routing::{self, Router};
+use crate::service::routing::Router;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
@@ -14,8 +13,6 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 impl actix_web::error::ResponseError for ControllerError {}
-impl actix_web::error::ResponseError for routing::Error {}
-impl actix_web::error::ResponseError for node_life::Error {}
 
 /// Return a bid for the SLA.
 pub async fn post_bid(
@@ -49,12 +46,19 @@ pub async fn post_routing(
     packet: web::Json<Packet>,
     router: Data<Arc<dyn Router>>,
 ) -> Result<HttpResponse, ControllerError> {
-    controller::routing::post_async_forward_function_routing(
-        packet.0,
-        router.get_ref().clone(),
-    )
-    .await;
-    Ok(HttpResponse::Ok().finish())
+    #[cfg(feature = "async_routes")]
+    {
+        controller::routing::post_async_forward_function_routing(
+            packet.0,
+            router.get_ref().clone(),
+        )
+        .await;
+        Ok(HttpResponse::Ok().finish())
+    }
+    #[cfg(not(feature = "async_routes"))]
+    {
+        post_sync_routing(packet, router).await
+    }
 }
 
 /// Routes the request to the correct URL and node.

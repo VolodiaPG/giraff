@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -59,9 +58,9 @@ pub async fn register_node(
 /// Get all the provisioned functions from the database
 pub async fn get_functions(
     faas_service: &Arc<dyn crate::service::faas::FogNodeFaaS>,
-) -> Result<HashMap<NodeId, Vec<AcceptedBid>>, Infallible> {
+) -> HashMap<NodeId, Vec<AcceptedBid>> {
     trace!("getting functions");
-    Ok(faas_service.get_functions().await)
+    faas_service.get_functions().await
 }
 
 /// Get all the connected nodes that have registered here
