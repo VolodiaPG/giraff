@@ -118,6 +118,11 @@ pub struct StartCron {
     pub tag:            String,
 }
 
+#[instrument(
+    level = "trace",
+    skip(prom_timers),
+    fields(tag=%payload.data.tag)
+)]
 pub async fn print(
     payload: Json<ResponseFromEcho>,
     prom_timers: Data<PromTimer>,
