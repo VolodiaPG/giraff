@@ -134,9 +134,9 @@ macro_rules! impl_port_encapsulation {
             }
         }
 
-        impl Into<u16> for $name {
+        impl From<$name> for u16 {
             #[inline(always)]
-            fn into(self) -> u16 { self.port }
+            fn from(port: $name) -> u16 { port.port }
         }
 
         impl Serialize for $name {

@@ -120,9 +120,9 @@ mod k8s_impl {
         Complete(&'a str),
     }
 
-    fn parse_quantity<'a, T>(
+    fn parse_quantity<T>(
         quantity: &str,
-        missing_unit: &MissingUnitType<'a>,
+        missing_unit: &MissingUnitType,
     ) -> Result<T, Error>
     where
         T: FromStr,

@@ -360,7 +360,7 @@ async fn main() -> std::io::Result<()> {
                     .route("/health", web::head().to(health)),
             )
     })
-    .bind(("0.0.0.0", my_port_http.clone().into()))?
+    .bind(("0.0.0.0", my_port_http.into()))?
     .run()
     .await?;
 

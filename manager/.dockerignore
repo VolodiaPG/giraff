@@ -6,3 +6,5 @@ Dockerfile
 *.yaml
 justfile
 *.example
+.git
+*.log

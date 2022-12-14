@@ -163,7 +163,7 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
         let data = Packet::FogNode {
             route_to_stack: self.network.get_route_to_node(to).await,
             resource_uri:   format!("bid/{}", bid.id),
-            data:           serde_json::value::to_value(&())?,
+            data:           serde_json::value::to_value(())?,
         };
 
         self.call_routing(data).await?;
