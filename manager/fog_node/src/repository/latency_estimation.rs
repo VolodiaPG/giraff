@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use async_trait::async_trait;
+use model::domain::median::Median;
 use model::domain::rolling_avg::RollingAvg;
 use model::NodeId;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -50,15 +51,15 @@ pub trait LatencyEstimation: Debug + Sync + Send {
     /// Make the requests to the neighbors to get the Latency to our children +
     /// parent.
     async fn latency_to_neighbors(&self) -> Result<(), Error>;
-    async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time>;
-    async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time>;
+    async fn get_latency_to(&self, id: &NodeId) -> Option<Time>;
+    async fn get_latency_from(&self, id: &NodeId) -> Option<Time>;
 }
 
 #[derive(Debug)]
 pub struct LatencyEstimationImpl {
     node_situation:     Arc<dyn NodeSituation>,
-    outgoing_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
-    incoming_latencies: Arc<dashmap::DashMap<NodeId, RollingAvg>>,
+    outgoing_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
+    incoming_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
     client:             ClientWithMiddleware,
 }
 
@@ -140,11 +141,15 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     .with_label_values(&[&format!("{}:{}", ip, port)])
                     .set(outgoing.value);
 
-                if let Some(lat) = self.outgoing_latencies.get(&node) {
-                    crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
-                        .with_label_values(&[&format!("{}:{}", ip, port)])
-                        .set(lat.get_avg().value);
-                }
+                let Some(lat) = self.outgoing_latencies.get(&node) else {
+                    return Ok(());
+                };
+                let Some(median) = lat.get_median() else {
+                    return Ok(());
+                };
+                crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
+                    .with_label_values(&[&format!("{}:{}", ip, port)])
+                    .set(median.value);
                 Ok(())
             });
         }
@@ -169,25 +174,25 @@ impl LatencyEstimation for LatencyEstimationImpl {
         Ok(())
     }
 
-    async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies.get(id).map(|avg| avg.get_avg())
+    async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
+        self.outgoing_latencies.get(id).map(|x| x.get_median()).flatten()
     }
 
-    async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time> {
-        self.incoming_latencies.get(id).map(|avg| avg.get_avg())
+    async fn get_latency_from(&self, id: &NodeId) -> Option<Time> {
+        self.incoming_latencies.get(id).map(|x| x.get_median()).flatten()
     }
 }
 
 impl LatencyEstimationImpl {
     fn update_latency(
-        map: &dashmap::DashMap<NodeId, RollingAvg>,
+        map: &dashmap::DashMap<NodeId, Median>,
         key: &NodeId,
         value: Time,
     ) {
         let mut entry = map
             .get(key)
             .map(|entry| entry.value().clone())
-            .unwrap_or_else(RollingAvg::default);
+            .unwrap_or_else(Median::default);
         entry.update(value);
         map.insert(key.clone(), entry);
     }

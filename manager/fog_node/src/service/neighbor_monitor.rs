@@ -37,10 +37,10 @@ impl NeighborMonitor for NeighborMonitorImpl {
     }
 
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.rtt_estimation.get_latency_to_avg(id).await
+        self.rtt_estimation.get_latency_to(id).await
     }
 
     async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time> {
-        self.rtt_estimation.get_latency_from_avg(id).await
+        self.rtt_estimation.get_latency_from(id).await
     }
 }
