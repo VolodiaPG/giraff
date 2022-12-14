@@ -37,11 +37,10 @@ use crate::service::routing::{Router, RouterImpl};
 use actix_web_opentelemetry::RequestTracing;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
-use prometheus::{TextEncoder};
+use prometheus::TextEncoder;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tokio::time;
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
@@ -152,10 +151,8 @@ pub fn get_subscriber(
     let collector_port =
         env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
 
-    let file_appender = tracing_appender::rolling::never(
-        log_config_path,
-        log_config_filename,
-    );
+    let file_appender =
+        tracing_appender::rolling::never(log_config_path, log_config_filename);
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
 
@@ -393,11 +390,11 @@ async fn register_to_market(
     info!("Registered to market and parent.");
 }
 
-async fn loop_jobs(jobs: Arc<RwLock<Vec<repeated_tasks::CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(5));
+async fn loop_jobs(jobs: Vec<repeated_tasks::CronFn>) {
+    let mut interval = time::interval(Duration::from_secs(15));
 
     loop {
-        for value in jobs.read().await.iter() {
+        for value in jobs.iter() {
             tokio::spawn(value());
         }
         interval.tick().await;

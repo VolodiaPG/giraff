@@ -7,7 +7,6 @@ use crate::service::neighbor_monitor::NeighborMonitor;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub type CronFn =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
@@ -15,15 +14,15 @@ pub type CronFn =
 pub async fn init(
     neighbor_monitor: Arc<dyn NeighborMonitor>,
     k8s_repo: Arc<dyn K8s>,
-) -> Arc<RwLock<Vec<CronFn>>> {
-    let jobs: Arc<RwLock<Vec<CronFn>>> = Arc::new(RwLock::new(Vec::new()));
+) -> Vec<CronFn> {
+    let mut jobs: Vec<CronFn> = Vec::new();
 
-    jobs.write().await.push(Box::new(move || {
+    jobs.push(Box::new(move || {
         let neighbor_monitor = neighbor_monitor.clone();
         Box::pin(ping(neighbor_monitor))
     }));
 
-    jobs.write().await.push(Box::new(move || {
+    jobs.push(Box::new(move || {
         let k8s_repo = k8s_repo.clone();
         Box::pin(measure(k8s_repo))
     }));
