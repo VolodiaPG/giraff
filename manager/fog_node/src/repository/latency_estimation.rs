@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use model::domain::median::Median;
-use model::domain::rolling_avg::RollingAvg;
+
 use model::NodeId;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_tracing::TracingMiddleware;
@@ -175,11 +175,11 @@ impl LatencyEstimation for LatencyEstimationImpl {
     }
 
     async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies.get(id).map(|x| x.get_median()).flatten()
+        self.outgoing_latencies.get(id).and_then(|x| x.get_median())
     }
 
     async fn get_latency_from(&self, id: &NodeId) -> Option<Time> {
-        self.incoming_latencies.get(id).map(|x| x.get_median()).flatten()
+        self.incoming_latencies.get(id).and_then(|x| x.get_median())
     }
 }
 

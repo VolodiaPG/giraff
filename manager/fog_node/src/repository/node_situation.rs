@@ -59,7 +59,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 } => {
                     if parent_id == id {
                         return Some(NodeDescription {
-                            ip:        parent_node_ip.clone(),
+                            ip:        *parent_node_ip,
                             port_http: parent_node_port_http.clone(),
                             port_rpc:  parent_node_port_rpc.clone(),
                         });
@@ -96,7 +96,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
                 parent_node_port_rpc,
                 ..
             } => Some((
-                parent_node_ip.clone(),
+                *parent_node_ip,
                 parent_node_port_http.clone(),
                 parent_node_port_rpc.clone(),
             )),
@@ -107,7 +107,7 @@ impl NodeSituation for NodeSituationHashSetImpl {
     fn get_market_node_address(&self) -> Option<(IpAddr, MarketHTTPPort)> {
         match &self.database.situation {
             MarketConnected { market_ip, market_port, .. } => {
-                Some((market_ip.clone(), market_port.clone()))
+                Some((*market_ip, market_port.clone()))
             }
             _ => None,
         }

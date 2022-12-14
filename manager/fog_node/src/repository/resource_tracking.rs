@@ -75,9 +75,7 @@ impl ResourceTrackingImpl {
             .collect();
         let resources_available = resources_available?;
 
-        let resources_used: dashmap::DashMap<_, _> = aggregated_metrics
-            .iter()
-            .map(|(name, _)| {
+        let resources_used: dashmap::DashMap<_, _> = aggregated_metrics.keys().map(|name| {
                 (
                     name.clone(),
                     (

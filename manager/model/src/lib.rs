@@ -199,12 +199,6 @@ macro_rules! impl_port_encapsulation {
                 .into()
             }
         }
-
-        impl Ord for $name {
-            fn cmp(&self, other: &Self) -> Ordering {
-                self.port.cmp(&other.port)
-            }
-        }
     };
 }
 
