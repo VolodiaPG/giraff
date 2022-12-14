@@ -9,11 +9,12 @@ COPY . .
 
 RUN mkdir -p bin/release
 
+# --features async_routes 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/workplace/target \
     --mount=type=cache,target=/usr/local/rustup \
     touch fog_node/src/main.rs market/src/main.rs && \
-    cargo build --release --target=x86_64-unknown-linux-gnu --features async_routes \
+    cargo build --release --target=x86_64-unknown-linux-gnu \
     && cp target/x86_64-unknown-linux-gnu/release/fog_node bin/release/ \
     && cp target/x86_64-unknown-linux-gnu/release/market bin/release/
 
