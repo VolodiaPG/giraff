@@ -43,10 +43,14 @@ pub fn get_subscriber(
         env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = env::var("LOG_CONFIG_FILENAME")
-        .unwrap_or_else(|_| "fog_node.log".to_string());
+        .unwrap_or_else(|_| "market.log".to_string());
+    let collector_ip =
+        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
+    let collector_port =
+        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
     let file_appender = tracing_appender::rolling::never(
         log_config_path,
-        log_config_filename.clone(),
+        log_config_filename,
     );
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
@@ -55,8 +59,13 @@ pub fn get_subscriber(
         .unwrap_or(EnvFilter::new(env_filter));
 
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
-        opentelemetry_jaeger::new_agent_pipeline()
+        opentelemetry_jaeger::new_collector_pipeline()
             .with_service_name(name)
+            .with_endpoint(format!(
+                "http://{}:{}/api/traces",
+                collector_ip, collector_port
+            ))
+            .with_reqwest()
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
     );

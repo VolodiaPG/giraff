@@ -16,7 +16,10 @@ use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::{register_gauge_vec, register_histogram_vec, GaugeVec, HistogramVec, TextEncoder};
+use prometheus::{
+    register_gauge_vec, register_histogram_vec, GaugeVec, HistogramVec,
+    TextEncoder,
+};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_tracing::TracingMiddleware;
 use tracing::subscriber::set_global_default;
@@ -38,7 +41,8 @@ use serde_json::value::RawValue;
 use tokio::time;
 use uuid::Uuid;
 
-type CronFn = Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+type CronFn =
+    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 type PromTimer = Arc<dashmap::DashMap<Uuid, DateTime<Utc>>>;
 
@@ -73,7 +77,7 @@ lazy_static! {
 pub enum Packet<'a> {
     #[serde(rename = "faasFunction")]
     FaaSFunction {
-        to: Uuid,
+        to:   Uuid,
         #[serde(borrow)]
         data: &'a RawValue,
     },
@@ -83,7 +87,7 @@ pub enum Packet<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
     tag: String,
-    id: Uuid,
+    id:  Uuid,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -91,14 +95,14 @@ pub struct Payload {
 pub struct ResponseFromEcho {
     #[serde(with = "ts_microseconds")]
     timestamp: DateTime<Utc>,
-    data: Payload,
+    data:      Payload,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct CronPayload {
     address_to_call: String,
-    data: Payload,
+    data:            Payload,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -108,13 +112,16 @@ pub struct FaaSPacket {}
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartCron {
-    pub iot_url: String,
+    pub iot_url:        String,
     pub first_node_url: String,
-    pub function_id: Uuid,
-    pub tag: String,
+    pub function_id:    Uuid,
+    pub tag:            String,
 }
 
-pub async fn print(payload: Json<ResponseFromEcho>, prom_timers: Data<PromTimer>) -> HttpResponse {
+pub async fn print(
+    payload: Json<ResponseFromEcho>,
+    prom_timers: Data<PromTimer>,
+) -> HttpResponse {
     let Some(start) = prom_timers.get(&payload.data.id).map(|x|*x.value()) else {
         warn!("Received a print that was discarded");
         return HttpResponse::BadRequest().finish();
@@ -186,24 +193,25 @@ async fn put_cron(
     skip(prom_timers, config),
     fields(tag=%config.tag)
 )]
-async fn ping(prom_timers: PromTimer, config: Arc<StartCron>, client: ClientWithMiddleware) {
+async fn ping(
+    prom_timers: PromTimer,
+    config: Arc<StartCron>,
+    client: ClientWithMiddleware,
+) {
     let id = Uuid::new_v4();
     let tag = config.tag.clone();
     info!("Sending a ping to {:?}...", tag.clone());
 
-    let res = client
-        .post(config.first_node_url.clone())
-        .json(&Packet::FaaSFunction {
-            to: config.function_id.clone(),
+    let res = client.post(config.first_node_url.clone()).json(
+        &Packet::FaaSFunction {
+            to:   config.function_id.clone(),
             data: &serde_json::value::to_raw_value(&CronPayload {
                 address_to_call: config.iot_url.clone(),
-                data: Payload {
-                    tag: tag.clone(),
-                    id: id.clone(),
-                },
+                data:            Payload { tag: tag.clone(), id: id.clone() },
             })
             .unwrap(),
-        });
+        },
+    );
 
     prom_timers.insert(id, chrono::offset::Utc::now());
     let res = res.send();
@@ -223,11 +231,9 @@ async fn ping(prom_timers: PromTimer, config: Arc<StartCron>, client: ClientWith
 pub async fn metrics() -> HttpResponse {
     let encoder = TextEncoder::new();
     let mut buffer: String = "".to_string();
-    if encoder
-        .encode_utf8(&prometheus::gather(), &mut buffer)
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().body("Failed to encode prometheus metrics");
+    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
+        return HttpResponse::InternalServerError()
+            .body("Failed to encode prometheus metrics");
     }
 
     HttpResponse::Ok()
@@ -248,11 +254,25 @@ async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
-pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Send + Sync {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(env_filter));
+pub fn get_subscriber(
+    name: String,
+    env_filter: String,
+) -> impl Subscriber + Send + Sync {
+    let collector_ip = std::env::var("COLLECTOR_IP")
+        .unwrap_or_else(|_| "localhost".to_string());
+    let collector_port = std::env::var("COLLECTOR_PORT")
+        .unwrap_or_else(|_| "14268".to_string());
+
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or(EnvFilter::new(env_filter));
 
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
-        opentelemetry_jaeger::new_agent_pipeline()
+        opentelemetry_jaeger::new_collector_pipeline()
+            .with_endpoint(format!(
+                "http://{}:{}/api/traces",
+                collector_ip, collector_port
+            ))
+            .with_reqwest()
             .with_service_name(name)
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
@@ -282,7 +302,8 @@ async fn main() -> std::io::Result<()> {
 
     debug!("Tracing initialized.");
 
-    let my_port = std::env::var("SERVER_PORT").expect("Please specfify SERVER_PORT env variable");
+    let my_port = std::env::var("SERVER_PORT")
+        .expect("Please specfify SERVER_PORT env variable");
     // Id of the request; Histogram that started w/ that request
     let prom_timers = Arc::new(dashmap::DashMap::<Uuid, DateTime<Utc>>::new());
 

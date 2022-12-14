@@ -37,7 +37,7 @@ use crate::service::routing::{Router, RouterImpl};
 use actix_web_opentelemetry::RequestTracing;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
-use prometheus::{GaugeVec, TextEncoder};
+use prometheus::{TextEncoder};
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
@@ -147,9 +147,14 @@ pub fn get_subscriber(
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = env::var("LOG_CONFIG_FILENAME")
         .unwrap_or_else(|_| "fog_node.log".to_string());
+    let collector_ip =
+        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
+    let collector_port =
+        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
+
     let file_appender = tracing_appender::rolling::never(
         log_config_path,
-        log_config_filename.clone(),
+        log_config_filename,
     );
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
@@ -158,7 +163,12 @@ pub fn get_subscriber(
         .unwrap_or(EnvFilter::new(env_filter));
 
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
-        opentelemetry_jaeger::new_agent_pipeline()
+        opentelemetry_jaeger::new_collector_pipeline()
+            .with_endpoint(format!(
+                "http://{}:{}/api/traces",
+                collector_ip, collector_port
+            ))
+            .with_reqwest()
             .with_service_name(name)
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
