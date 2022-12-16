@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 use std::net::IpAddr;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
 use model::domain::routing::Packet;
 use model::{FogNodeHTTPPort, MarketHTTPPort};
 use reqwest::StatusCode;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_tracing::TracingMiddleware;
+use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
 
 use serde_json::Value;
@@ -68,21 +68,11 @@ pub trait Routing: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct RoutingImpl {
-    // dialed_up: DashMap<String, Client<JsonCodec>>,
-    client: ClientWithMiddleware,
+    client: Arc<ClientWithMiddleware>,
 }
 
 impl RoutingImpl {
-    pub fn new() -> Self {
-        //     Self {
-        //     // dialed_up: DashMap::new()
-        //  }
-        Self {
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(TracingMiddleware::default())
-                .build(),
-        }
-    }
+    pub fn new(client: Arc<ClientWithMiddleware>) -> Self { Self { client } }
 
     async fn forward_to<'a, T>(
         &self,
@@ -93,6 +83,8 @@ impl RoutingImpl {
         T: Serialize + Send + Sync,
     {
         let res = self.client.post(full_url).json(data).send().await?;
+
+        trace!("Sent.");
 
         if res.status().is_success() {
             Ok(res.json().await.ok())

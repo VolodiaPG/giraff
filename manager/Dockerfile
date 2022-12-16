@@ -7,7 +7,7 @@ WORKDIR /workplace-manager
 
 COPY . .
 
-RUN mkdir -p bin/release
+RUN mkdir -p /output
 
 # --features async_routes 
 RUN --mount=type=cache,target=/usr/local/cargo/registry \

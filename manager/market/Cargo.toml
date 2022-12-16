@@ -30,7 +30,7 @@ opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false }
-reqwest = { version = "0.11.11", default-features = false, features = ["json"] }
+reqwest = { version = "0.11.11", features = ["json", "gzip"] }
 reqwest-middleware = "0.2.0"
 reqwest-tracing = { version = "0.4.0", features = ["opentelemetry_0_18"] }
 ron = "0.8.0"

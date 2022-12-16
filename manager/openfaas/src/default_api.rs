@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use log::trace;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_tracing::TracingMiddleware;
+use reqwest_middleware::ClientWithMiddleware;
 use std::fmt::Debug;
+use std::sync::Arc;
 use tracing::instrument;
 
 use super::{configuration, Error};
@@ -11,19 +11,15 @@ use crate::models::{FunctionDefinition, FunctionListEntry};
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {
     configuration: configuration::Configuration,
-    client:        ClientWithMiddleware,
+    client:        Arc<ClientWithMiddleware>,
 }
 
 impl DefaultApiClient {
     pub fn new(
         configuration: configuration::Configuration,
+        client: Arc<ClientWithMiddleware>,
     ) -> DefaultApiClient {
-        DefaultApiClient {
-            configuration,
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(TracingMiddleware::default())
-                .build(),
-        }
+        DefaultApiClient { configuration, client }
     }
 }
 
@@ -94,8 +90,9 @@ impl DefaultApi for DefaultApiClient {
         function_name: &str,
         input: String,
     ) -> Result<(), Error<String>> {
+        // TODO back to async
         let uri_str = format!(
-            "{}/async-function/{}",
+            "{}/function/{}",
             self.configuration.base_path, function_name
         );
         trace!("Requesting {}", uri_str);

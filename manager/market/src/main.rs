@@ -13,6 +13,8 @@ use actix_web::{middleware, web, App, HttpServer};
 use actix_web_opentelemetry::RequestTracing;
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use reqwest_middleware::ClientBuilder;
+use reqwest_tracing::TracingMiddleware;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_actix_web::TracingLogger;
@@ -48,10 +50,8 @@ pub fn get_subscriber(
         env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
     let collector_port =
         env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
-    let file_appender = tracing_appender::rolling::never(
-        log_config_path,
-        log_config_filename,
-    );
+    let file_appender =
+        tracing_appender::rolling::never(log_config_path, log_config_filename);
     let (non_blocking_file, _guard) =
         tracing_appender::non_blocking(file_appender);
 
@@ -98,10 +98,16 @@ async fn main() -> std::io::Result<()> {
     let my_port_http = env::var("SERVER_PORT")
         .expect("Please specify SERVER_PORT env variable");
 
+    let http_client = Arc::new(
+        ClientBuilder::new(reqwest::Client::new())
+            .with(TracingMiddleware::default())
+            .build(),
+    );
+
     let fog_node = Arc::new(FogNodeImpl::new());
     let fog_node_communication =
         Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
-            fog_node.clone(),
+            fog_node.clone(), http_client
         ));
     let auction_process =
         Arc::new(crate::repository::auction::SecondPriceAuction::new());

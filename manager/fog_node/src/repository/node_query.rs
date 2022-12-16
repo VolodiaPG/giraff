@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use reqwest::Response;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_tracing::TracingMiddleware;
+use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
 
 use model::dto::node::NodeDescription;
@@ -48,17 +47,15 @@ pub trait NodeQuery: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeQueryRESTImpl {
     node_situation: Arc<dyn NodeSituation>,
-    client:         ClientWithMiddleware,
+    client:         Arc<ClientWithMiddleware>,
 }
 
 impl NodeQueryRESTImpl {
-    pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self {
-        Self {
-            node_situation,
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(TracingMiddleware::default())
-                .build(),
-        }
+    pub fn new(
+        node_situation: Arc<dyn NodeSituation>,
+        client: Arc<ClientWithMiddleware>,
+    ) -> Self {
+        Self { node_situation, client }
     }
 
     async fn post<T: Serialize>(

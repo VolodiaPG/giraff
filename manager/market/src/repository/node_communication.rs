@@ -5,8 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use bytes::Bytes;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_tracing::TracingMiddleware;
+use reqwest_middleware::ClientWithMiddleware;
 use uom::si::f64::Time;
 use uom::si::time::second;
 
@@ -65,17 +64,15 @@ pub trait NodeCommunication: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeCommunicationThroughRoutingImpl {
     network: Arc<dyn FogNode>,
-    client:  ClientWithMiddleware,
+    client:  Arc<ClientWithMiddleware>,
 }
 
 impl NodeCommunicationThroughRoutingImpl {
-    pub fn new(network: Arc<dyn FogNode>) -> Self {
-        Self {
-            network,
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(TracingMiddleware::default())
-                .build(),
-        }
+    pub fn new(
+        network: Arc<dyn FogNode>,
+        client: Arc<ClientWithMiddleware>,
+    ) -> Self {
+        Self { network, client }
     }
 
     async fn get_address_of_first_node(

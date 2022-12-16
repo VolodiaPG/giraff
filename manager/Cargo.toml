@@ -1,8 +1,8 @@
 [workspace]
 members = ["fog_node", "market", "helper", "model", "kube_metrics", "openfaas"]
 
-[profile.release]
-strip = true
-lto = true
-opt-level = 3
-codegen-units = 1
+# [profile.release]
+# strip = true
+# lto = true
+# opt-level = 3
+# codegen-units = 1

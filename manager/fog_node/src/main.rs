@@ -14,6 +14,8 @@ static GLOBAL: MiMalloc = MiMalloc;
 use actix_web::{middleware, web, App, HttpServer};
 use opentelemetry::global;
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use reqwest_middleware::ClientBuilder;
+use reqwest_tracing::TracingMiddleware;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_log::LogTracer;
@@ -224,13 +226,22 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
     info!("Loaded config from CONFIG env variable.");
 
+    let http_client = Arc::new(
+        ClientBuilder::new(reqwest::Client::new())
+            .with(TracingMiddleware::default())
+            .build(),
+    );
+
     let auth = username.map(|username| (username, password));
 
     // Repositories
-    let client = Arc::new(DefaultApiClient::new(Configuration {
-        base_path:  format!("http://{}:{}", ip_openfaas, port_openfaas),
-        basic_auth: auth,
-    }));
+    let client = Arc::new(DefaultApiClient::new(
+        Configuration {
+            base_path:  format!("http://{}:{}", ip_openfaas, port_openfaas),
+            basic_auth: auth,
+        },
+        http_client.clone(),
+    ));
 
     let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituationHashSetImpl::new(
@@ -239,7 +250,10 @@ async fn main() -> std::io::Result<()> {
 
     info!("Current node ID is {}", node_situation.get_my_id());
     info!("Current node has been tagged {:?}", node_situation.get_my_tags());
-    let node_query = Arc::new(NodeQueryRESTImpl::new(node_situation.clone()));
+    let node_query = Arc::new(NodeQueryRESTImpl::new(
+        node_situation.clone(),
+        http_client.clone(),
+    ));
     let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
     let k8s_repo = Arc::new(k8s_factory());
     let resource_tracking_repo = Arc::new(
@@ -272,7 +286,7 @@ async fn main() -> std::io::Result<()> {
             ),
         ),
         node_situation.clone(),
-        Arc::new(crate::repository::routing::RoutingImpl::new()),
+        Arc::new(crate::repository::routing::RoutingImpl::new(http_client.clone())),
         faas_service.clone(),
         client.clone(),
     ));
