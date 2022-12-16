@@ -170,9 +170,11 @@ async fn put_cron(
     config: Json<StartCron>,
     cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
     prom_timers: Data<PromTimer>,
+    client: Data<Arc<ClientWithMiddleware>>,
 ) -> HttpResponse {
     let config = Arc::new(config.0);
     let prom_timers = prom_timers.get_ref().clone();
+    let client = client.get_ref().clone();
     let tag = config.tag.clone();
     info!(
         "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}.",
@@ -182,9 +184,7 @@ async fn put_cron(
     let job: CronFn = Box::new(move || {
         let prom_timers = prom_timers.clone();
         let config = config.clone();
-        let client = ClientBuilder::new(reqwest::Client::new())
-            .with(TracingMiddleware::default())
-            .build();
+        let client = client.clone();
         Box::pin(ping(prom_timers, config, client))
     });
 
@@ -201,7 +201,7 @@ async fn put_cron(
 async fn ping(
     prom_timers: PromTimer,
     config: Arc<StartCron>,
-    client: ClientWithMiddleware,
+    client: Arc<ClientWithMiddleware>,
 ) {
     let id = Uuid::new_v4();
     let tag = config.tag.clone();
@@ -219,10 +219,10 @@ async fn ping(
     );
 
     prom_timers.insert(id, chrono::offset::Utc::now());
-    let res = res.send();
+    let res = res.send().await;
 
     info!("Ping sent to {:?}.", tag);
-    if let Err(err) = res.await {
+    if let Err(err) = res {
         warn!(
             "Discarded measure because something went wrong sending a \
              message using config {:?}, error is {:?}",
@@ -316,6 +316,12 @@ async fn main() -> std::io::Result<()> {
 
     tokio::spawn(forever(jobs.clone()));
 
+    let http_client = Arc::new(
+        ClientBuilder::new(reqwest::Client::new())
+            .with(TracingMiddleware::default())
+            .build(),
+    );
+
     HttpServer::new(move || {
         App::new()
             .wrap(middleware::Compress::default())
@@ -324,6 +330,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(jobs.clone()))
             .app_data(web::Data::new(prom_timers.clone()))
+            .app_data(web::Data::new(http_client.clone()))
             .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
