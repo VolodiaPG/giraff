@@ -186,10 +186,9 @@ V(net_won)$size <- bids_won$n * 2
 plot(net_won, layout = layout_as_tree)
 ```
 Plot the free cpu
-
 ```{r}
-cpu_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_usage.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
-cpu_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_allocatable.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+cpu_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_used.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+cpu_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_cpu_available.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
 
 cpu_free <- cpu_used %>%
   inner_join(cpu_avail, by = c("instance", "timestamp")) %>%
@@ -210,8 +209,8 @@ ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
 Plot the free memory
 
 ```{r}
-mem_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_usage.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
-mem_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_allocatable.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+mem_used <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_used.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
+mem_avail <- read.csv2(file = paste(METRICS_PATH, "fog_node_memory_available.csv", sep = "/"), header = TRUE, sep = "\t") %>% prepare()
 
 mem_free <- mem_used %>%
   inner_join(mem_avail, by = c("instance", "timestamp")) %>%
@@ -240,7 +239,7 @@ mutate(free = (value.y - value.x) / 1e09) %>%
   select(instance, timestamp, free, free_percent)
 
 mem_free %>%
-  ggplot(aes(x = timestamp, y = free_percent, color = instance)) +
+  ggplot(aes(x = timestamp, y = free, color = instance)) +
   geom_step() +
   # geom_point() +
   labs(x = "Time", y = "Free memory (%)", title = "Free memory in fog_nodes over time", subtitle = "As seen by the inside of the fog node software")
@@ -264,6 +263,13 @@ latency %>%
 geom_smooth() +
   labs(x = "Time", y = "Latency (s)", title = "Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
   facet_grid(rows = vars(instance))+
+  scale_color_viridis(discrete = TRUE, option = "D") +
+  scale_fill_viridis(discrete = TRUE) 
+
+latency %>%
+  ggplot(aes(x = timestamp, y = value, color = instance_to)) +
+geom_point() +
+  labs(x = "Time", y = "Latency (s)", title = "Evolution of perceived latency from a node to its neighbors over time", subtitle = "Each row is a “from”") +
   scale_color_viridis(discrete = TRUE, option = "D") +
   scale_fill_viridis(discrete = TRUE) 
 
@@ -349,10 +355,12 @@ bids_function %>%
 
 
 ```{r}
-toto <- read.csv2(file = "metrics/iot_emulation_http_request_to_processing_echo_duration_seconds_print_sum.csv", header = TRUE, sep = "\t") %>%
+toto <-
+  read.csv2(file = "metrics/iot_emulation_http_request_to_processing_echo_duration_seconds_print_sum.csv", header = TRUE, sep = "\t") %>%
   prepare()
 
-titi <- read.csv2(file = "metrics/iot_emulation_http_request_to_processing_echo_duration_seconds_print_count.csv", header = TRUE, sep = "\t") %>%
+titi <-
+  read.csv2(file = "metrics/iot_emulation_http_request_to_processing_echo_duration_seconds_print_count.csv", header = TRUE, sep = "\t") %>%
   prepare()
 
 
@@ -361,29 +369,23 @@ latencies <- toto %>%
   select(latency) %>%
   distinct() %>%
   filter(!is.na(latency))
-# %>%
-# filter(latency == 100)
 
 tutu <- toto %>%
-  inner_join(titi, by = c("instance", "job", "timestamp", "timestamp_raw", "tag"), ) %>%
-  # filter(tag=="echo-001-100-10-10") %>%
-# group_by(timestamp_raw) %>%
-  # mutate(avg = (value.x / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE))) / (value.y / (max(timestamp_raw, na.rm = TRUE) - min(timestamp_raw, na.rm = TRUE)))) %>%
+  inner_join(titi,
+             by = c("instance", "job", "timestamp", "timestamp_raw", "tag"),
+  ) %>%
   group_by(tag) %>%
-  # mutate(avg = value.x / value.y) %>%
-  # mutate(avg_5last = zoo::rollmean(value.x / value.y, k = 5, fill = NA)) %>%
-  mutate(new_x = value.x - dplyr::lag(x = value.x, n = 1, 
-                                            order_by = timestamp)) %>% 
-  mutate(new_y = value.y - dplyr::lag(x = value.y, n = 1, 
-                                              order_by = timestamp)) %>% 
-  mutate(new_avg = new_x / new_y) %>% 
-  # select(timestamp, avg, tag) %>%
-  # filter(!is.na(avg)) %>%
+  mutate(new_x = value.x - dplyr::lag(x = value.x, n = 1,
+                                      order_by = timestamp)) %>%
+  mutate(new_y = value.y - dplyr::lag(x = value.y, n = 1,
+                   
+                   order_by = timestamp)) %>%
+  mutate(new_avg = new_x / new_y) %>%
   mutate(function_name = tag) %>%
   mutate(latency = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 4]) %>%
   mutate(index = stringr::str_match(function_name, "(.+)-(.+)-([0-9]+)-([0-9]+)-([0-9]+)") %>% .[, 3]) %>%
-  inner_join(bids_function %>% select(function_name, winner), by=c("function_name"))
-  # select(timestamp, avg, tag, winner)
+  inner_join(bids_function %>% select(function_name, winner),
+             by = c("function_name"))
 
 tata <- tutu %>%
   group_by(winner, timestamp, latency) %>%
@@ -392,62 +394,132 @@ tata <- tutu %>%
 for (selected_latency in latencies$latency)
 {
   print(selected_latency)
- 
   
-print(
-  tutu %>% filter(latency == selected_latency) %>%
-  select(function_name) %>%
-  distinct()
-)
-
-
-print(
-  tutu %>% filter(latency == selected_latency) %>% group_by(tag) %>% mutate(count = max(value.y)) %>% select(index, winner, count, latency) %>% distinct() %>%
-  ggplot(aes(x = index, y = count, group = index, color = winner, label = latency)) +
-geom_col() +
-  labs(x = "Function id", y = "Number of echo requests", title = "Number of requests made to each functions (back in forth=2×latency)", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency"))+
-scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE) 
-)
-
-print(
-  tutu %>% filter(latency == selected_latency) %>%
-  ggplot(aes(x = winner, y = new_avg, group = winner, color = winner, label = latency)) +
-  geom_violin() +
-labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
-  scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE)
-)
-
-print(
-  tutu %>% filter(latency == selected_latency) %>%
-    group_by(function_name) %>%
-  ggplot(aes(x = timestamp, y = new_avg, group = index, color = winner, label = latency)) +
-  geom_smooth() +
-labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
-  scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE) 
-)
-
-print(
-  tata %>% filter(latency == selected_latency) %>%
-    group_by(winner) %>%
-  ggplot(aes(x = timestamp, y = avg, group = winner, color = winner, label = latency)) +
-  geom_point(size=0.25) +
-    geom_smooth(alpha=0.25) +
-labs(x = "time", y = "Avg lat. (s)", title = "Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
-  scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE) 
-)
+  
+  print(
+    tutu %>% filter(latency == selected_latency) %>%
+      select(function_name) %>%
+      distinct()
+  )
+  
+  
+  # print(
+  #   tutu %>% filter(latency == selected_latency) %>% 
+  #     group_by(tag) %>%
+  #     mutate(count = max(value.y)) %>%
+  #     select(index, winner, count, latency) %>%
+  #     distinct() %>%
+  #     ggplot(
+  #       aes(
+  #         x = index,
+  #         y = count,
+  #         group = index,
+  #         color = winner,
+  #         label = latency
+  #       )
+  #     ) +
+  #     geom_col() +
+  #     labs(
+  #       x = "Function id",
+  #       y = "Number of echo requests",
+  #       title = "Number of requests made to each functions (back in forth=2×latency)",
+  #       subtitle = paste("Color matches the winner's —", selected_latency, "ms latency")
+  #     ) +
+  #     scale_color_viridis(discrete = TRUE, option = "D") +
+  #     scale_fill_viridis(discrete = TRUE)
+  # )
+  
+  # print(
+  #   tutu %>% 
+  #     filter(latency == selected_latency) %>%
+  #     ggplot(
+  #       aes(
+  #         x = winner,
+  #         y = new_avg,
+  #         group = winner,
+  #         color = winner,
+  #         label = latency
+  #       )
+  #     ) +
+  #     geom_violin() +
+  #     labs(
+  #       x = "time",
+  #       y = "Avg lat. (s)",
+  #       title = "Latencies of echo for each functions (back in forth=2×latency).",
+  #       subtitle = paste("Color matches the winner's —", selected_latency, "ms latency")
+  #     ) +
+  #     scale_color_viridis(discrete = TRUE, option = "D") +
+  #     scale_fill_viridis(discrete = TRUE)
+  # )
+  
+  print(
+    tutu %>%
+      filter(latency == selected_latency) %>%
+      group_by(function_name) %>%
+      ggplot(
+        aes(
+          x = timestamp,
+          y = new_avg,
+          group = index,
+          color = function_name,
+          label = latency
+        )
+      ) +
+      geom_point() +
+      labs(
+        x = "time",
+        y = "Avg lat. (s)",
+        title = "Latencies of echo for each functions (back in forth=2×latency).",
+        subtitle = paste("Color matches the winner's —", selected_latency, "ms latency")
+      ) +
+      scale_color_viridis(discrete = TRUE, option = "D") +
+      scale_fill_viridis(discrete = TRUE)
+  )
+  
+  # print(
+  #   tata %>%
+  #     filter(latency == selected_latency) %>%
+  #     group_by(winner) %>%
+  #     ggplot(
+  #       aes(
+  #         x = timestamp,
+  #         y = avg,
+  #         group = winner,
+  #         color = winner,
+  #         label = latency
+  #       )
+  #     ) +
+  #     geom_point() +
+  #     labs(
+  #       x = "time",
+  #       y = "Avg lat. (s)",
+  #       title = "Latencies of echo for each functions (back in forth=2×latency).",
+  #       subtitle = paste("Color matches the winner's —", selected_latency, "ms latency")
+  #     ) +
+  #     scale_color_viridis(discrete = TRUE, option = "D") +
+  #     scale_fill_viridis(discrete = TRUE)
+  # )
 }
 print(
   tata %>%
     group_by(winner) %>%
-  ggplot(aes(x = timestamp, y = avg, group = winner, color = winner, label = latency)) +
-  geom_point(size=0.25) +
-    geom_smooth(alpha=0.25) +
-labs(x = "time", y = "Avg lat. (s)", title = "ALL Latencies of echo for each functions (back in forth=2×latency).", subtitle = paste("Color matches the winner's —",selected_latency,"ms latency")) +
-  scale_color_viridis(discrete = TRUE, option = "D") +
-  scale_fill_viridis(discrete = TRUE) 
+    ggplot(
+      aes(
+        x = timestamp,
+        y = avg,
+        group = winner,
+        color = winner,
+        # label = latency
+      )
+    ) +
+    geom_point() +
+    labs(
+      x = "time",
+      y = "Avg lat. (s)",
+      title = "ALL Latencies of echo for each functions (back in forth=2×latency).",
+      subtitle = paste("Color matches the winner's —", selected_latency, "ms latency")
+    ) +
+    scale_color_viridis(discrete = TRUE, option = "D") +
+    scale_fill_viridis(discrete = TRUE)
 )
 ```

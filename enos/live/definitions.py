@@ -87,18 +87,18 @@ spec:
           value: "gateway.openfaas"
         - name: OPENFAAS_PORT
           value: "8080"
-        - name: ROCKET_PORT
-          value: "3003"
-        - name: ROCKET_ADDRESS
-          value: "0.0.0.0"
         - name: CONFIG
           value: "{conf}"
         - name: LOG_CONFIG_PATH
           value: "/var/log"
         - name: LOG_CONFIG_FILENAME
-          value: "stdout.log"
+          value: "{node_name}.log"
         - name: RUST_LOG
           value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
+        - name: COLLECTOR_IP
+          value: "{collector_ip}"
+        - name: COLLECTOR_PORT
+          value: "14268"
         ports:
         - containerPort: 3003
         - containerPort: 3004
@@ -107,7 +107,7 @@ spec:
           mountPath: /var/log
       - name: sidecar-logs
         image: ghcr.io/volodiapg/busybox:latest
-        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/{node_name}.log']
         volumeMounts:
         - name: log-storage-fog-node
           readOnly: true
@@ -156,24 +156,34 @@ spec:
         image: ghcr.io/volodiapg/market:latest
         ports:
         - containerPort: 3008
+        - containerPort: 6831
+        - containerPort: 6832
         env:
-        - name: ROCKET_ADDRESS
-          value: "0.0.0.0"
-        - name: ROCKET_PORT
+        - name: LOG_CONFIG_PATH
+          value: "/var/log"
+        - name: LOG_CONFIG_FILENAME
+          value: "market.log"
+        - name: RUST_LOG
+          value: "warn,market=trace"
+        - name: SERVER_PORT
           value: "3008"
+        - name: COLLECTOR_IP
+          value: "{collector_ip}"
+        - name: COLLECTOR_PORT
+          value: "14268"
         volumeMounts:
         - name: log-storage-market
           mountPath: /var/log
       - name: sidecar-logs
         image: ghcr.io/volodiapg/busybox:latest
-        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/stdout.log']
+        args: [/bin/sh, -c, 'tail -n+1 -F /mnt/log/market.log']
         volumeMounts:
         - name: log-storage-market
           readOnly: true
           mountPath: /mnt/log
       volumes:
       - name: log-storage-market
-        emptyDir: {}
+        emptyDir: {{}}
 """
 
 MARKET_CONNECTED_NODE = """MarketConnected (
@@ -229,6 +239,11 @@ NETWORK = {
                             "name": "st-greg-10",
                             "flavor": TIER_3_FLAVOR,
                             "latency": 10,
+                        },
+                        {
+                            "name": "st-greg-1",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 1,
                         },
                     ],
                 }

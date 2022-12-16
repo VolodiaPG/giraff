@@ -18,12 +18,12 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 #configs_mem=("50" "150" "500") # megabytes
-configs_mem=("150" "150" "150")
+configs_mem=("100" "100" "100" "100")
 
-configs_latency=("50" "50" "50") # ms
+configs_latency=("500" "100" "50" "10") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("50" "50" "50")
+configs_cpu=("25" "25" "25" "25")
 
 size=${#configs_cpu[@]}
 

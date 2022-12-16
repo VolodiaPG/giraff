@@ -16,8 +16,6 @@ import enoslib as en
 from enoslib import enostask
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions
 from enoslib.errors import EnosFailedHostsError
-from grid5000 import Grid5000
-from grid5000.cli import auth
 
 from monitoring import monitoring as mon
 from k3s import K3s
@@ -279,7 +277,7 @@ def up(force, env=None, **kwargs):
     k3s = K3s(master=roles["master"], agent=list())
     k3s.deploy()
 
-    docker = en.Docker(agent=roles["iot_emulation"])
+    docker = en.Docker(agent=roles["iot_emulation"] + roles["prom_master"])
     docker.deploy()
 
     with actions(roles=roles["master"], gather_facts=False) as p:
@@ -295,7 +293,7 @@ def up(force, env=None, **kwargs):
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
                     && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
                     && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
-                    && helm repo update \
+                    &&  helm repo update \
                     && helm upgrade openfaas --install openfaas/openfaas \
                         --namespace openfaas  \
                         --set functionNamespace=openfaas-fn \
@@ -320,7 +318,10 @@ def iot_emulation(env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            "(docker stop iot_emulation || true) && (docker rm iot_emulation || true) && docker pull ghcr.io/volodiapg/iot_emulation:latest && docker run --name iot_emulation -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest",
+            f"""(docker stop iot_emulation || true) \
+                && (docker rm iot_emulation || true) \
+                && docker pull ghcr.io/volodiapg/iot_emulation:latest \
+                && docker run --name iot_emulation --env COLLECTOR_IP={roles["prom_master"][0].address} -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
@@ -334,16 +335,16 @@ def network(env=None):
         netem.destroy()
 
     netem = en.Netem()
-    # netem = en.NetemHTB()
+    netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]
 
-    netem.add_constraints("delay 20ms", roles["fog_node"], symetric=True)
-    netem.add_constraints("delay 0ms", roles["iot_emulation"], symetric=True)
-    # gen_net(NETWORK, netem, roles)
+    # netem.add_constraints("delay 20ms", roles["fog_node"], symetric=True)
+    # netem.add_constraints("delay 0ms", roles["iot_emulation"], symetric=True)
+    gen_net(NETWORK, netem, roles)
 
     netem.deploy()
-    # netem.validate()
+    netem.validate()
 
 
 def drop_netem(env):
@@ -374,6 +375,10 @@ def gen_net(node, netem, roles):
 def monitoring(env=None, **kwargs):
     """Remove the constraints on the network links"""
     roles = env["roles"]
+    if "monitor" in roles:
+        monitor = env["monitor"]
+        monitor.destroy()
+
     monitor = mon.TPGMonitoring(
         collector=roles["prom_master"][0],
         agent=roles["prom_agent"],
@@ -384,6 +389,22 @@ def monitoring(env=None, **kwargs):
     )
     monitor.deploy()
     env["monitor"] = monitor
+
+    with actions(roles=roles["prom_master"], gather_facts=False) as p:
+        p.shell(
+            """(docker stop jaeger || true)
+            (docker rm jaeger || true)
+            docker run -d --name jaeger \
+                -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+                -p 5775:5775/udp \
+                -p 6831:6831/udp \
+                -p 6832:6832/udp \
+                -p 5778:5778 \
+                -p 16686:16686 \
+                -p 14268:14268 \
+                -p 9411:9411 \
+                jaegertracing/all-in-one:1.6"""
+        )
 
 
 @cli.command()
@@ -466,11 +487,17 @@ def k3s_deploy(env=None, **kwargs):
 
     for (name, conf) in confs:
         deployment = FOG_NODE_DEPLOYMENT.format(
-            conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8")
+            conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
+            collector_ip=roles["prom_master"][0].address,
+            node_name=name,
         )
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
-    roles[NETWORK["name"]][0].set_extra(market_deployment=MARKET_DEPLOYMENT)
+    roles[NETWORK["name"]][0].set_extra(
+        market_deployment=MARKET_DEPLOYMENT.format(
+            collector_ip=roles["prom_master"][0].address
+        )
+    )
 
     try:
         res = en.run_command(
@@ -557,6 +584,12 @@ def logs(env=None, all=False, **kwargs):
         )
     )
     res.append(
+        en.run_command(
+            "k3s kubectl logs deployment/market -n openfaas --container market",
+            roles=roles["market"],
+        )
+    )
+    res.append(
         en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
     )
     if all:
@@ -624,6 +657,7 @@ def tunnels(env=None, all=False, **kwargs):
 
         if "prom_master" in env["roles"]:
             tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
+            tun[9096] = open_tunnel(env["roles"]["prom_master"][0].address, 16686)
         if "monitor" in env:
             tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
         if "iot_emulation" in env["roles"]:
