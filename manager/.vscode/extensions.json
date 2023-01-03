@@ -5,7 +5,6 @@
         "iliazeus.vscode-ansi",
         "skellock.just",
         "tamasfe.even-better-toml",
-        "serayuzgur.crates",
-        "mindaro.mindaro"
+        "serayuzgur.crates"
     ]
 }
