@@ -23,7 +23,7 @@ pub enum Error {
     NodeQuery(#[from] crate::repository::node_query::Error),
     #[error("Cannot get latency of node {0}")]
     CannotGetLatency(NodeId),
-    #[cfg(feature = "bottom_up_placement")]
+    #[cfg(feature = "edge_first")]
     #[error("No candidates were found or returned an Ok result")]
     NoCandidatesRetained,
 }
@@ -47,10 +47,10 @@ pub trait FunctionLife: Send + Sync {
     ) -> Result<(), Error>;
 }
 
-#[cfg(not(feature = "bottom_up_placement"))]
+#[cfg(not(feature = "edge_first"))]
 pub use auction_placement::*;
 
-#[cfg(not(feature = "bottom_up_placement"))]
+#[cfg(not(feature = "edge_first"))]
 mod auction_placement {
     use crate::service::auction;
 
@@ -194,10 +194,10 @@ mod auction_placement {
     }
 }
 
-#[cfg(feature = "bottom_up_placement")]
-pub use bottom_up_placement::*;
+#[cfg(feature = "edge_first")]
+pub use edge_first::*;
 
-#[cfg(feature = "bottom_up_placement")]
+#[cfg(feature = "edge_first")]
 mod bottom_up_placement {
     use super::*;
 

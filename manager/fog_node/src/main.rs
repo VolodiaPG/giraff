@@ -92,9 +92,9 @@ fn k8s_factory() -> k8s {
     k8s::new()
 }
 
-#[cfg(feature = "bottom_up_placement")]
+#[cfg(feature = "edge_first")]
 use crate::service::function_life::FunctionLifeBottomUpImpl as FunctionLifeService;
-#[cfg(not(feature = "bottom_up_placement"))]
+#[cfg(not(feature = "edge_first"))]
 use crate::service::function_life::FunctionLifeImpl as FunctionLifeService;
 
 fn function_life_factory(
@@ -104,12 +104,12 @@ fn function_life_factory(
     neighbor_monitor_service: Arc<dyn NeighborMonitor>,
     node_query: Arc<dyn NodeQuery>,
 ) -> FunctionLifeService {
-    #[cfg(feature = "bottom_up_placement")]
+    #[cfg(feature = "edge_first")]
     {
         debug!("Using bottom-up placement");
     }
 
-    #[cfg(not(feature = "bottom_up_placement"))]
+    #[cfg(not(feature = "edge_first"))]
     {
         info!("Using default placement");
     }

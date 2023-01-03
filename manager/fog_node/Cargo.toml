@@ -8,7 +8,7 @@ default = ["mimalloc"]
 # Enables fake implementation of kubernetes not to rely on a true one
 fake_k8s = []
 # Enable the bottom up placement method (placing at Edge first)
-bottom_up_placement = []
+edge_first = []
 # Enable mimalloc
 mimalloc = []
 # Enable async routes (returns Ok then transmit), might break tracing
