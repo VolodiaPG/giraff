@@ -16,10 +16,11 @@ import enoslib as en
 from enoslib import enostask
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions
 from enoslib.errors import EnosFailedHostsError
-
+from grid5000.cli import auth
 from monitoring import monitoring as mon
 from k3s import K3s
 from definitions import *
+from grid5000 import Grid5000
 
 log = logging.getLogger("rich")
 
@@ -201,6 +202,22 @@ def attributes_roles(vm_attributions, roles):
         roles[vm] = [roles[instance_id][count[instance_id]]]
         count[instance_id] += 1
 
+@cli.command()
+@click.option("--g5k_user", required=True, help="G5K username")
+@click.option("--force", is_flag=True, help="force overwrite")
+def init(g5k_user, force):
+    """Initialize the grid5000 connection options."""
+    conf_file = Path.home() / ".python-grid5000.yaml"
+
+    if not conf_file.exists() or force:
+        # will prompt for the password and write the authentication file
+        auth(g5k_user)
+
+        conf_file.chmod(0o600)
+
+    _ = Grid5000.from_yaml(conf_file)
+
+    en.check()
 
 @cli.command()
 @click.option("--force", is_flag=True, help="destroy and up")

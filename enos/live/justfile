@@ -4,6 +4,21 @@ RUN := "poetry run python integration.py"
 _default:
     @just --list
 
+init user *FLAGS:
+    #!/usr/bin/env bash
+    
+    cat <<EOF > ~/.ssh/config
+    Host !access.grid5000.fr *.grid5000.fr
+    User {{user}}
+    ProxyJump {{user}}@access.grid5000.fr
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    ForwardAgent yes
+    EOF
+
+    {{RUN}} init --g5k_user={{user}} {{FLAGS}}
+
+
 mprocs:
     mprocs --server 127.0.0.1:4050
 
