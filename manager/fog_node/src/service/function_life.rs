@@ -26,6 +26,9 @@ pub enum Error {
     #[cfg(feature = "edge_first")]
     #[error("No candidates were found or returned an Ok result")]
     NoCandidatesRetained,
+    #[cfg(feature = "cloud_only")]
+    #[error("No cloud was found or returned an Ok result")]
+    NoCloudAvailable,
 }
 
 #[async_trait]
@@ -310,6 +313,96 @@ mod bottom_up_placement {
             };
 
             Ok(BidProposals { bids: vec![bid] })
+        }
+
+        async fn validate_bid_and_provision_function(
+            &self,
+            id: BidId,
+        ) -> Result<(), Error> {
+            let record = self.auction.validate_bid(&id).await?;
+            self.function.provision_function(id, record).await?;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "cloud_only")]
+pub use cloud_only::*;
+
+#[cfg(feature = "cloud_only")]
+mod cloud_only {
+    use super::*;
+
+    pub struct FunctionLifeCloudOnlyImpl {
+        function:         Arc<dyn FaaSBackend>,
+        auction:          Arc<dyn Auction>,
+        node_situation:   Arc<dyn NodeSituation>,
+        neighbor_monitor: Arc<dyn NeighborMonitor>,
+        node_query:       Arc<dyn NodeQuery>,
+    }
+
+    impl FunctionLifeCloudOnlyImpl {
+        pub fn new(
+            function: Arc<dyn FaaSBackend>,
+            auction: Arc<dyn Auction>,
+            node_situation: Arc<dyn NodeSituation>,
+            neighbor_monitor: Arc<dyn NeighborMonitor>,
+            node_query: Arc<dyn NodeQuery>,
+        ) -> Self {
+            debug!("Built using FunctionLifeCloudOnlyImpl service");
+            Self {
+                function,
+                auction,
+                node_situation,
+                neighbor_monitor,
+                node_query,
+            }
+        }
+    }
+
+    #[async_trait]
+    impl FunctionLife for FunctionLifeCloudOnlyImpl {
+        /// Here the operation will be sequential, first looking to place on a
+        /// bottom node, or a child at least, and only then to consider
+        /// itself as a candidate
+        async fn bid_on_new_function_and_transmit(
+            &self,
+            sla: &Sla,
+            from: NodeId,
+            accumulated_latency: Time,
+        ) -> Result<BidProposals, Error> {
+            match self.node_situation.get_parent_id() {
+                Some(parent) => {
+                    let bid = self
+                        .node_query
+                        .request_neighbor_bid(
+                            &BidRequest {
+                                sla,
+                                node_origin: self.node_situation.get_my_id(),
+                                accumulated_latency,
+                            },
+                            parent,
+                        )
+                        .await?;
+                    if !bid.bids.is_empty() {
+                        return Ok(bid);
+                    }
+
+                    Err(Error::NoCloudAvailable)
+                }
+                None => {
+                    let Ok((id, record)) =self.auction.bid_on(sla.clone()).await else {
+                        return Err(Error::NoCloudAvailable);
+                    };
+                    Ok(BidProposals {
+                        bids: vec![BidProposal {
+                            node_id: self.node_situation.get_my_id(),
+                            id,
+                            bid: record.bid,
+                        }],
+                    })
+                }
+            }
         }
 
         async fn validate_bid_and_provision_function(

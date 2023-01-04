@@ -7,12 +7,15 @@ edition = "2021"
 default = ["mimalloc"]
 # Enables fake implementation of kubernetes not to rely on a true one
 fake_k8s = []
-# Enable the bottom up placement method (placing at Edge first)
-edge_first = []
 # Enable mimalloc
 mimalloc = []
 # Enable async routes (returns Ok then transmit), might break tracing
 async_routes = []
+
+# Enable the bottom up placement method (placing at Edge first)
+edge_first = []
+# Cloud only allocation
+cloud_only = []
 
 [dependencies]
 actix-web = "4.2.1"
