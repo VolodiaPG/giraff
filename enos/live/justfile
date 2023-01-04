@@ -1,4 +1,5 @@
 RUN := "poetry run python integration.py"
+DOCKER := "podman"
 
 # Entrypoint, run deploy and then tunnels
 _default:
@@ -6,7 +7,6 @@ _default:
 
 init user *FLAGS:
     #!/usr/bin/env bash
-    
     cat <<EOF > ~/.ssh/config
     Host !access.grid5000.fr *.grid5000.fr
     User {{user}}
@@ -82,3 +82,6 @@ logs *FLAGS:
 
 latency src dest:
 	{{RUN}} latency --src {{src}} --dest {{dest}}
+
+lab:
+    {{DOCKER}} run -it -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan:z jupyter/r-notebook:latest

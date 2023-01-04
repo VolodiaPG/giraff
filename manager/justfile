@@ -1,5 +1,6 @@
 KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
+DOCKER := "podman"
 
 # Default command when no verb specified
 _default:
@@ -105,9 +106,9 @@ run_fog_node node_type *FLAGS:
     os.system(cmd)
 
 jaeger:
-    (docker stop jaeger || true)
-    (docker rm jaeger || true)
-    docker run -d --name jaeger \
+    ({{DOCKER}} stop jaeger || true)
+    ({{DOCKER}} rm jaeger || true)
+    {{DOCKER}} run -d --name jaeger \
         -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
         -p 5775:5775/udp \
         -p 6831:6831/udp \
@@ -142,22 +143,22 @@ k3d-clean:
     k3d cluster stop fog-node || true
     k3d cluster delete fog-node || true
 
-docker *FLAGS:
+container *FLAGS:
     #!/usr/bin/env bash
     set -e
     echo "Building with flags: {{FLAGS}}"
 
-    docker build -t fog_node:latest --target fog_node --build-arg FLAGS="{{FLAGS}}" .
-    docker build -t market:latest --target market --build-arg FLAGS="{{FLAGS}}" .
+    {{DOCKER}} build -t fog_node:latest --target fog_node --build-arg FLAGS="{{FLAGS}}" .
+    {{DOCKER}} build -t market:latest --target market --build-arg FLAGS="{{FLAGS}}" .
 
 # Push an image to ghcr
 _push image user:
-    docker tag {{image}} ghcr.io/{{user}}/{{image}}
-    docker push ghcr.io/{{user}}/{{image}}
+    {{DOCKER}} tag {{image}} ghcr.io/{{user}}/{{image}}
+    {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
-# Push docker images to ghcr.
+# Push container images to ghcr.
 ghcr user *FLAGS:
-    @just docker {{FLAGS}}
+    @just container {{FLAGS}}
     just _push fog_node:latest {{user}}
     just _push market:latest {{user}}
 
