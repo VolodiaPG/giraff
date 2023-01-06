@@ -47,9 +47,9 @@ impl NodeSituation for NodeSituationHashSetImpl {
     }
 
     fn get_fog_node_neighbor(&self, id: &NodeId) -> Option<NodeDescription> {
-        let ret = self.database.children.get(id);
-        if ret.is_none() {
-            match &self.database.situation {
+        match self.database.children.get(id).map(|x| x.clone()) {
+            Some(x) => Some(x),
+            None => match &self.database.situation {
                 NodeConnected {
                     parent_node_ip,
                     parent_node_port_http,
@@ -58,17 +58,18 @@ impl NodeSituation for NodeSituationHashSetImpl {
                     ..
                 } => {
                     if parent_id == id {
-                        return Some(NodeDescription {
+                        Some(NodeDescription {
                             ip:        *parent_node_ip,
                             port_http: parent_node_port_http.clone(),
                             port_rpc:  parent_node_port_rpc.clone(),
-                        });
+                        })
+                    } else {
+                        None
                     }
                 }
-                MarketConnected { .. } => (),
-            }
+                MarketConnected { .. } => None,
+            },
         }
-        ret.map(|x| x.clone())
     }
 
     fn get_my_id(&self) -> NodeId { self.database.my_id.clone() }
