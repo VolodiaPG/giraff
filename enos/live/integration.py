@@ -202,6 +202,7 @@ def attributes_roles(vm_attributions, roles):
         roles[vm] = [roles[instance_id][count[instance_id]]]
         count[instance_id] += 1
 
+
 @cli.command()
 @click.option("--g5k_user", required=True, help="G5K username")
 @click.option("--force", is_flag=True, help="force overwrite")
@@ -218,6 +219,7 @@ def init(g5k_user, force):
     _ = Grid5000.from_yaml(conf_file)
 
     en.check()
+
 
 @cli.command()
 @click.option("--force", is_flag=True, help="destroy and up")
@@ -420,7 +422,7 @@ def monitoring(env=None, **kwargs):
                 -p 16686:16686 \
                 -p 14268:14268 \
                 -p 9411:9411 \
-                jaegertracing/all-in-one:1.6"""
+                quay.io/jaegertracing/all-in-one:1.41"""
         )
 
 

@@ -222,8 +222,8 @@ NETWORK = {
     "children": [
         {
             "name": "paris",
-            "flavor": TIER_2_FLAVOR,
-            "latency": 5,
+            "flavor": TIER_1_FLAVOR,
+            "latency": 25,
             "children": [
                 {
                     "name": "rennes",
@@ -231,19 +231,26 @@ NETWORK = {
                     "latency": 25,
                     "children": [
                         {
-                            "name": "st-greg-5",
+                            "name": "st-greg",
                             "flavor": TIER_3_FLAVOR,
                             "latency": 5,
-                        },
-                        {
-                            "name": "st-greg-10",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 10,
-                        },
-                        {
-                            "name": "st-greg-1",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 1,
+                            "children": [
+                                {
+                                    "name": "st-greg-5",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                },
+                                {
+                                    "name": "st-greg-10",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 10,
+                                },
+                                {
+                                    "name": "st-greg-1",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 1,
+                                },
+                            ],
                         },
                     ],
                 }
