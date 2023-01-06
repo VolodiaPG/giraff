@@ -204,9 +204,6 @@ where
                     .ok_or_else(|| Error::UnknownBidId(to.to_owned()))?;
 
                 match node_to {
-                    // TODO: optimization: is it possible to send the packet
-                    // directly to the node? w/o redoing the
-                    // same structure, what impact?
                     Direction::NextNode(next) => {
                         let next = self
                             .node_situation
