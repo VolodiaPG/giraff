@@ -36,7 +36,7 @@ local:
 refresh:
     {{RUN}} iot-emulation
     {{RUN}} k3s-deploy
-    # {{RUN}} monitoring
+    {{RUN}} monitoring
 
 # Open SSH tunnels
 tunnels +FLAGS='':
