@@ -22,6 +22,7 @@ use prometheus::{
 };
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_tracing::TracingMiddleware;
+use tokio::sync::RwLock;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_actix_web::TracingLogger;
@@ -38,7 +39,7 @@ use std::time::Duration;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
-use tokio::time;
+use tokio::time::{self, Interval};
 use uuid::Uuid;
 
 type CronFn =
@@ -246,14 +247,40 @@ pub async fn metrics() -> HttpResponse {
         .body(buffer)
 }
 
-async fn forever(jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>) {
-    let mut interval = time::interval(Duration::from_secs(5));
+#[derive(Deserialize)]
+pub struct IntervalQuery {
+    interval_ms: u64,
+}
+
+pub async fn post_interval(
+    query: web::Query<IntervalQuery>,
+    request_interval: Data<Arc<RwLock<u64>>>,
+) -> HttpResponse {
+    let mut request_interval = request_interval.write().await;
+    *request_interval = query.interval_ms;
+
+    HttpResponse::Ok().finish()
+}
+
+async fn forever(
+    jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>,
+    request_interval: Arc<RwLock<u64>>,
+) {
+    let mut interval: Interval;
+    {
+        let interval_time = request_interval.read().await;
+        interval = time::interval(Duration::from_millis(*interval_time));
+    }
 
     loop {
         interval.tick().await;
         for value in jobs.iter() {
             let val = value.value().clone();
             tokio::spawn(async move { val().await });
+        }
+        {
+            let interval_time = request_interval.read().await;
+            interval = time::interval(Duration::from_millis(*interval_time));
         }
     }
 }
@@ -314,7 +341,9 @@ async fn main() -> std::io::Result<()> {
 
     let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
 
-    tokio::spawn(forever(jobs.clone()));
+    let request_interval = Arc::new(RwLock::new(5000));
+
+    tokio::spawn(forever(jobs.clone(), request_interval.clone()));
 
     let http_client = Arc::new(
         ClientBuilder::new(reqwest::Client::new())
@@ -331,11 +360,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(jobs.clone()))
             .app_data(web::Data::new(prom_timers.clone()))
             .app_data(web::Data::new(http_client.clone()))
+            .app_data(web::Data::new(request_interval.clone()))
             .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
                     .route("/print", web::post().to(print))
-                    .route("/cron", web::put().to(put_cron)),
+                    .route("/cron", web::put().to(put_cron))
+                    .route("/interval", web::post().to(post_interval)),
             )
     })
     .bind(("0.0.0.0", my_port.parse().unwrap()))?

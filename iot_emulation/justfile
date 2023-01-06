@@ -1,16 +1,18 @@
+DOCKER := "podman"
+
 # Run the echo server
 run $SERVER_PORT="30080":
 	cargo run
 
 # Build the project as a docker image
-docker:
-    docker build --target iot_emulation-default -t iot_emulation:latest .
+container:
+    {{DOCKER}} build --target iot_emulation-default -t iot_emulation:latest .
 
 # Push an image to ghcr
 _push image user:
-    docker tag {{image}} ghcr.io/{{user}}/{{image}}
-    docker push ghcr.io/{{user}}/{{image}}
+    {{DOCKER}} tag {{image}} ghcr.io/{{user}}/{{image}}
+    {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
 # Push docker images to ghcr
-ghcr user: docker
+ghcr user: container
     just _push iot_emulation:latest {{user}}

@@ -1,5 +1,6 @@
 {
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+    "peacock.remoteColor": "#ff3d00",
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#ff6433",
         "activityBar.background": "#ff6433",
@@ -19,5 +20,5 @@
         "titleBar.inactiveBackground": "#ff3d0099",
         "titleBar.inactiveForeground": "#e7e7e799"
     },
-    "peacock.remoteColor": "#ff3d00"
+    "peacock.color": "#ff3d00"
 }

@@ -1,4 +1,5 @@
 [toolchain]
-channel = "nightly-2022-11-29"
+channel = "nightly-2022-12-16"
 targets = [ "x86_64-unknown-linux-gnu" ]
+components = [ "rustfmt" ]
 profile = "minimal"
