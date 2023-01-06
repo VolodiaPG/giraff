@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use log::trace;
 use reqwest_middleware::ClientWithMiddleware;
+use serde_json::Value;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::instrument;
@@ -35,7 +36,7 @@ pub trait DefaultApi: Debug + Sync + Send {
     async fn async_function_name_post(
         &self,
         function_name: &str,
-        input: String,
+        input: &Value,
     ) -> Result<(), Error<String>>;
 }
 
@@ -88,7 +89,7 @@ impl DefaultApi for DefaultApiClient {
     async fn async_function_name_post(
         &self,
         function_name: &str,
-        input: String,
+        input: &Value,
     ) -> Result<(), Error<String>> {
         // TODO back to async
         let uri_str = format!(
@@ -97,7 +98,7 @@ impl DefaultApi for DefaultApiClient {
         );
         trace!("Requesting {}", uri_str);
 
-        let mut builder = self.client.post(&uri_str).body(input);
+        let mut builder = self.client.post(&uri_str).json(input);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());

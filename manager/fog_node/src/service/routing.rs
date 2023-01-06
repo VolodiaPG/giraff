@@ -224,14 +224,6 @@ where
                                     data: payload,
                                 },
                             )
-                            // .forward_to_fog_node_url(
-                            //     &next.ip,
-                            //     &next.port_rpc,
-                            //     &Packet::FaaSFunction {
-                            //         to:   to.to_owned(),
-                            //         data: payload,
-                            //     },
-                            // )
                             .await?)
                     }
                     Direction::CurrentNode => {
@@ -245,13 +237,12 @@ where
                         self.faas_api
                             .async_function_name_post(
                                 &record.function_name,
-                                serde_json::to_string(&payload)?,
+                                &payload,
                             )
                             .await
                             .map_err(Error::from)?;
                         let elapsed = start.elapsed();
                         debug!("Call to OpenFaaS elapsed: {:?}", elapsed);
-                        // TODO check if that doesn't cause any harm
                         Ok(serde_json::from_str("{}").unwrap())
                     }
                 }
@@ -302,15 +293,6 @@ where
                                 data,
                             },
                         )
-                        // .forward_to_fog_node_url(
-                        //     &next.ip,
-                        //     &next.port_rpc,
-                        //     &Packet::FogNode {
-                        //         route_to_stack: route_to,
-                        //         resource_uri: resource_uri.to_owned(),
-                        //         data,
-                        //     },
-                        // )
                         .await?)
                 }
             }
@@ -348,12 +330,6 @@ where
                             &port,
                             &Packet::Market { resource_uri, data },
                         )
-                        // .forward_to_fog_node_url(
-                        //     &ip,
-                        //     &port,
-                        //     &"routing",
-                        //     &Packet::Market { resource_uri, data },
-                        // )
                         .await?)
                 }
             }
