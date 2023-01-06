@@ -84,8 +84,6 @@ impl RoutingImpl {
     {
         let res = self.client.post(full_url).json(data).send().await?;
 
-        trace!("Sent.");
-
         if res.status().is_success() {
             Ok(res.json().await.ok())
         } else {
