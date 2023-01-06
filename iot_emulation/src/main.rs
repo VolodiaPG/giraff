@@ -259,6 +259,8 @@ pub async fn post_interval(
     let mut request_interval = request_interval.write().await;
     *request_interval = query.interval_ms;
 
+    debug!("Request interval set to {}", request_interval);
+
     HttpResponse::Ok().finish()
 }
 
@@ -267,20 +269,32 @@ async fn forever(
     request_interval: Arc<RwLock<u64>>,
 ) {
     let mut interval: Interval;
+    let mut last_period;
     {
-        let interval_time = request_interval.read().await;
-        interval = time::interval(Duration::from_millis(*interval_time));
+        last_period = *request_interval.read().await;
     }
+    interval = time::interval(Duration::from_millis(last_period));
 
     loop {
         interval.tick().await;
+        debug!(
+            "Spawning {} ping tasks after interval of {}ms",
+            jobs.len(),
+            last_period
+        );
+
         for value in jobs.iter() {
             let val = value.value().clone();
             tokio::spawn(async move { val().await });
         }
+
+        let period;
         {
-            let interval_time = request_interval.read().await;
-            interval = time::interval(Duration::from_millis(*interval_time));
+            period = *request_interval.read().await;
+        }
+        if last_period != period {
+            interval = time::interval(Duration::from_millis(period));
+            last_period = period;
         }
     }
 }
