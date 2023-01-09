@@ -254,7 +254,7 @@ def up(force, env=None, **kwargs):
             roles=["prom_agent", "iot_emulation"],
             cluster=cluster,
             number=1,
-            flavour="large",
+            flavour_desc={"core": 14, "mem": 90},
         )
     )
 
