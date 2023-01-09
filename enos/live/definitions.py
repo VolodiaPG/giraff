@@ -94,7 +94,7 @@ spec:
         - name: LOG_CONFIG_FILENAME
           value: "{node_name}.log"
         - name: RUST_LOG
-          value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
+          value: "warn,fog_node=info,openfaas=info,kube_metrics=info,helper=info"
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: COLLECTOR_PORT
