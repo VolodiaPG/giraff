@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+#[cfg(not(feature = "cloud_only"))]
 use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::Time;
 
@@ -21,8 +22,6 @@ pub enum Error {
     FaaS(#[from] crate::service::faas::Error),
     #[error(transparent)]
     NodeQuery(#[from] crate::repository::node_query::Error),
-    #[error("Cannot get latency of node {0}")]
-    CannotGetLatency(NodeId),
     #[cfg(feature = "edge_first")]
     #[error("No candidates were found or returned an Ok result")]
     NoCandidatesRetained,
@@ -50,10 +49,10 @@ pub trait FunctionLife: Send + Sync {
     ) -> Result<(), Error>;
 }
 
-#[cfg(not(feature = "edge_first"))]
+#[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
 pub use auction_placement::*;
 
-#[cfg(not(feature = "edge_first"))]
+#[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
 mod auction_placement {
     use crate::service::auction;
 
@@ -101,15 +100,16 @@ mod auction_placement {
                 if neighbor == from {
                     continue;
                 }
-                let latency_outbound = self
+                let Some(latency_outbound) = self
                     .neighbor_monitor
                     .get_latency_to_avg(&neighbor)
                     .await
-                    .ok_or_else(|| {
-                        Error::CannotGetLatency(neighbor.clone())
-                    })?;
+                    else {
+                        warn!("Cannot get Latency of {}", neighbor);
+                        continue;
+                    };
                 if latency_outbound + accumulated_latency > sla.latency_max {
-                    trace!(
+                    debug!(
                         "Skipping neighbor {} because latency is too high \
                          ({}, a total of {}).",
                         neighbor,
@@ -201,10 +201,10 @@ mod auction_placement {
 pub use edge_first::*;
 
 #[cfg(feature = "edge_first")]
-mod bottom_up_placement {
+mod edge_first {
     use super::*;
 
-    pub struct FunctionLifeBottomUpImpl {
+    pub struct FunctionLifeEdgeFirstImpl {
         function:         Arc<dyn FaaSBackend>,
         auction:          Arc<dyn Auction>,
         node_situation:   Arc<dyn NodeSituation>,
@@ -212,7 +212,7 @@ mod bottom_up_placement {
         node_query:       Arc<dyn NodeQuery>,
     }
 
-    impl FunctionLifeBottomUpImpl {
+    impl FunctionLifeEdgeFirstImpl {
         pub fn new(
             function: Arc<dyn FaaSBackend>,
             auction: Arc<dyn Auction>,
@@ -220,7 +220,7 @@ mod bottom_up_placement {
             neighbor_monitor: Arc<dyn NeighborMonitor>,
             node_query: Arc<dyn NodeQuery>,
         ) -> Self {
-            debug!("Built using FunctionLifeBottomUpImpl service");
+            debug!("Built using FunctionLifeEdgeFirstImpl service");
             Self {
                 function,
                 auction,
@@ -238,17 +238,18 @@ mod bottom_up_placement {
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
-            for neighbor in self.node_situation.get_neighbors().await {
+            for neighbor in self.node_situation.get_neighbors() {
                 if neighbor == from {
                     continue;
                 }
-                let latency_outbound = self
-                    .neighbor_monitor
-                    .get_latency_to_avg(&neighbor)
-                    .await
-                    .ok_or_else(|| {
-                        Error::CannotGetLatency(neighbor.clone())
-                    })?;
+                let Some(latency_outbound) = self
+                .neighbor_monitor
+                .get_latency_to_avg(&neighbor)
+                .await
+                else {
+                    warn!("Cannot get Latency of {}", neighbor);
+                    continue;
+                };
                 if latency_outbound + accumulated_latency > sla.latency_max {
                     trace!(
                         "Skipping neighbor {} because latency is too high \
@@ -267,7 +268,7 @@ mod bottom_up_placement {
                     .request_neighbor_bid(
                         &BidRequest {
                             sla,
-                            node_origin: self.node_situation.get_my_id().await,
+                            node_origin: self.node_situation.get_my_id(),
                             accumulated_latency: accumulated_latency
                                 + latency_outbound,
                         },
@@ -284,7 +285,7 @@ mod bottom_up_placement {
     }
 
     #[async_trait]
-    impl FunctionLife for FunctionLifeBottomUpImpl {
+    impl FunctionLife for FunctionLifeEdgeFirstImpl {
         /// Here the operation will be sequential, first looking to place on a
         /// bottom node, or a child at least, and only then to consider
         /// itself as a candidate
@@ -298,7 +299,7 @@ mod bottom_up_placement {
                 self.auction.bid_on(sla.clone()).await
             {
                 BidProposal {
-                    node_id: self.node_situation.get_my_id().await,
+                    node_id: self.node_situation.get_my_id(),
                     id,
                     bid: record.bid,
                 }
@@ -334,11 +335,10 @@ mod cloud_only {
     use super::*;
 
     pub struct FunctionLifeCloudOnlyImpl {
-        function:         Arc<dyn FaaSBackend>,
-        auction:          Arc<dyn Auction>,
-        node_situation:   Arc<dyn NodeSituation>,
-        neighbor_monitor: Arc<dyn NeighborMonitor>,
-        node_query:       Arc<dyn NodeQuery>,
+        function:       Arc<dyn FaaSBackend>,
+        auction:        Arc<dyn Auction>,
+        node_situation: Arc<dyn NodeSituation>,
+        node_query:     Arc<dyn NodeQuery>,
     }
 
     impl FunctionLifeCloudOnlyImpl {
@@ -346,17 +346,11 @@ mod cloud_only {
             function: Arc<dyn FaaSBackend>,
             auction: Arc<dyn Auction>,
             node_situation: Arc<dyn NodeSituation>,
-            neighbor_monitor: Arc<dyn NeighborMonitor>,
+            _neighbor_monitor: Arc<dyn NeighborMonitor>,
             node_query: Arc<dyn NodeQuery>,
         ) -> Self {
             debug!("Built using FunctionLifeCloudOnlyImpl service");
-            Self {
-                function,
-                auction,
-                node_situation,
-                neighbor_monitor,
-                node_query,
-            }
+            Self { function, auction, node_situation, node_query }
         }
     }
 
@@ -368,7 +362,7 @@ mod cloud_only {
         async fn bid_on_new_function_and_transmit(
             &self,
             sla: &Sla,
-            from: NodeId,
+            _from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
             match self.node_situation.get_parent_id() {

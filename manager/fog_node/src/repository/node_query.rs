@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use reqwest::Response;
-use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
 
 use model::dto::node::NodeDescription;
@@ -13,10 +12,16 @@ use model::NodeId;
 
 use crate::NodeSituation;
 
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    #[cfg(feature = "jaeger")]
     #[error(transparent)]
     ReqwestMiddleware(#[from] reqwest_middleware::Error),
     #[error("The request failed with error code: {0}")]
@@ -47,13 +52,13 @@ pub trait NodeQuery: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeQueryRESTImpl {
     node_situation: Arc<dyn NodeSituation>,
-    client:         Arc<ClientWithMiddleware>,
+    client:         Arc<HttpClient>,
 }
 
 impl NodeQueryRESTImpl {
     pub fn new(
         node_situation: Arc<dyn NodeSituation>,
-        client: Arc<ClientWithMiddleware>,
+        client: Arc<HttpClient>,
     ) -> Self {
         Self { node_situation, client }
     }

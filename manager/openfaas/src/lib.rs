@@ -12,6 +12,7 @@ where
 {
     #[error("OpenFaaS Reqwest failed with error: {0}")]
     Reqwest(reqwest::Error),
+    #[cfg(feature = "jaeger")]
     #[error("OpenFaaS Reqwest failed with error (from middleware): {0}")]
     ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
     #[error("OpenFaas Serde request json conversion failed with error: {0}")]

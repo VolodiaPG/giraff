@@ -1,6 +1,5 @@
 use async_trait::async_trait;
 use log::trace;
-use reqwest_middleware::ClientWithMiddleware;
 use serde_json::Value;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -9,16 +8,21 @@ use tracing::instrument;
 use super::{configuration, Error};
 use crate::models::{FunctionDefinition, FunctionListEntry};
 
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
+
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {
     configuration: configuration::Configuration,
-    client:        Arc<ClientWithMiddleware>,
+    client:        Arc<HttpClient>,
 }
 
 impl DefaultApiClient {
     pub fn new(
         configuration: configuration::Configuration,
-        client: Arc<ClientWithMiddleware>,
+        client: Arc<HttpClient>,
     ) -> DefaultApiClient {
         DefaultApiClient { configuration, client }
     }

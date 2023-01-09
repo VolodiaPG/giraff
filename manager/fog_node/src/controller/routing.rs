@@ -4,6 +4,7 @@ use std::time::Instant;
 use model::domain::routing::Packet;
 use model::view::routing::{Route, RouteLinking};
 use serde_json::Value;
+#[cfg(feature = "async_routes")]
 use tokio::task;
 
 use crate::service::routing::{Error, Router};
@@ -40,6 +41,7 @@ pub async fn post_sync_forward_function_routing(
     res
 }
 
+#[cfg(feature = "async_routes")]
 #[instrument(level = "trace", skip(packet, router))]
 pub async fn post_async_forward_function_routing(
     packet: Packet,

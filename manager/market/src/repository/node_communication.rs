@@ -5,7 +5,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use bytes::Bytes;
-use reqwest_middleware::ClientWithMiddleware;
 use uom::si::f64::Time;
 use uom::si::time::second;
 
@@ -18,10 +17,16 @@ use model::{FogNodeHTTPPort, NodeId};
 
 use crate::repository::fog_node::FogNode;
 
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
+    #[cfg(feature = "jaeger")]
     #[error(transparent)]
     ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
     #[error(transparent)]
@@ -64,14 +69,11 @@ pub trait NodeCommunication: Debug + Sync + Send {
 #[derive(Debug)]
 pub struct NodeCommunicationThroughRoutingImpl {
     network: Arc<dyn FogNode>,
-    client:  Arc<ClientWithMiddleware>,
+    client:  Arc<HttpClient>,
 }
 
 impl NodeCommunicationThroughRoutingImpl {
-    pub fn new(
-        network: Arc<dyn FogNode>,
-        client: Arc<ClientWithMiddleware>,
-    ) -> Self {
+    pub fn new(network: Arc<dyn FogNode>, client: Arc<HttpClient>) -> Self {
         Self { network, client }
     }
 

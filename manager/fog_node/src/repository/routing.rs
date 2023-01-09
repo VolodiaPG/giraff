@@ -7,15 +7,20 @@ use async_trait::async_trait;
 use model::domain::routing::Packet;
 use model::{FogNodeHTTPPort, MarketHTTPPort};
 use reqwest::StatusCode;
-use reqwest_middleware::ClientWithMiddleware;
 use serde::Serialize;
 
 use serde_json::Value;
+
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Error forwarding the payload: {0}")]
     Forwarding(#[from] reqwest::Error),
+    #[cfg(feature = "jaeger")]
     #[error(transparent)]
     ReqwestMiddleware(#[from] reqwest_middleware::Error),
     #[error("Next node {0} answered with code {1}: {2}")]
@@ -68,11 +73,11 @@ pub trait Routing: Debug + Sync + Send {
 
 #[derive(Debug)]
 pub struct RoutingImpl {
-    client: Arc<ClientWithMiddleware>,
+    client: Arc<HttpClient>,
 }
 
 impl RoutingImpl {
-    pub fn new(client: Arc<ClientWithMiddleware>) -> Self { Self { client } }
+    pub fn new(client: Arc<HttpClient>) -> Self { Self { client } }
 
     async fn forward_to<'a, T>(
         &self,

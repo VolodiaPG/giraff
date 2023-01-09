@@ -12,10 +12,18 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 
 use actix_web::{middleware, web, App, HttpServer};
+
+#[cfg(feature = "jaeger")]
+use actix_web_opentelemetry::RequestTracing;
+#[cfg(feature = "jaeger")]
 use opentelemetry::global;
+#[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+#[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
+#[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
+
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_log::LogTracer;
@@ -36,7 +44,6 @@ use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 use crate::service::routing::{Router, RouterImpl};
 
-use actix_web_opentelemetry::RequestTracing;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
 use prometheus::TextEncoder;
@@ -44,14 +51,16 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
+
+#[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
+
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
 
 mod controller;
 mod handler_http;
-mod handler_rpc;
 mod prom_metrics;
 mod repeated_tasks;
 mod repository;
@@ -92,10 +101,10 @@ fn k8s_factory() -> k8s {
     k8s::new()
 }
 
-#[cfg(feature = "edge_first")]
-use crate::service::function_life::FunctionLifeBottomUpImpl as FunctionLifeService;
 #[cfg(feature = "cloud_only")]
 use crate::service::function_life::FunctionLifeCloudOnlyImpl as FunctionLifeService;
+#[cfg(feature = "edge_first")]
+use crate::service::function_life::FunctionLifeEdgeFirstImpl as FunctionLifeService;
 #[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
 use crate::service::function_life::FunctionLifeImpl as FunctionLifeService;
 
@@ -108,15 +117,15 @@ fn function_life_factory(
 ) -> FunctionLifeService {
     #[cfg(feature = "edge_first")]
     {
-        debug!("Using bottom-up placement");
+        info!("Using bottom-up placement");
     }
-    #[cfg(not(feature = "edge_first"))]
-    {
-        info!("Using default placement");
-    }
-    #[cfg(not(feature = "cloud_only"))]
+    #[cfg(feature = "cloud_only")]
     {
         info!("Using cloud only placement");
+    }
+    #[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
+    {
+        info!("Using default placement");
     }
 
     FunctionLifeService::new(
@@ -143,7 +152,7 @@ pub async fn metrics() -> actix_web::HttpResponse {
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
-    name: String,
+    _name: String,
     env_filter: String,
 ) -> impl Subscriber + Send + Sync {
     // Env variable LOG_CONFIG_PATH points at the path where
@@ -153,10 +162,6 @@ pub fn get_subscriber(
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = env::var("LOG_CONFIG_FILENAME")
         .unwrap_or_else(|_| "fog_node.log".to_string());
-    let collector_ip =
-        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
-    let collector_port =
-        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
 
     let file_appender =
         tracing_appender::rolling::never(log_config_path, log_config_filename);
@@ -166,6 +171,13 @@ pub fn get_subscriber(
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or(EnvFilter::new(env_filter));
 
+    #[cfg(feature = "jaeger")]
+    let collector_ip =
+        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
+    #[cfg(feature = "jaeger")]
+    let collector_port =
+        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
+    #[cfg(feature = "jaeger")]
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
         opentelemetry_jaeger::new_collector_pipeline()
             .with_endpoint(format!(
@@ -173,16 +185,19 @@ pub fn get_subscriber(
                 collector_ip, collector_port
             ))
             .with_reqwest()
-            .with_service_name(name)
+            .with_service_name(_name)
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
     );
 
-    Registry::default()
+    let reg = Registry::default()
         .with(env_filter)
-        .with(fmt::Layer::default().with_writer(non_blocking_file))
-        .with(tracing_leyer)
-        .with(ForestLayer::default())
+        .with(fmt::Layer::default().with_writer(non_blocking_file));
+
+    #[cfg(feature = "jaeger")]
+    let reg = reg.with(tracing_leyer);
+
+    reg.with(ForestLayer::default())
 }
 
 /// Register a subscriber as global default to process span data.
@@ -196,6 +211,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let subscriber = get_subscriber(
@@ -231,11 +247,15 @@ async fn main() -> std::io::Result<()> {
         .unwrap();
     info!("Loaded config from CONFIG env variable.");
 
+    #[cfg(feature = "jaeger")]
     let http_client = Arc::new(
         ClientBuilder::new(reqwest::Client::new())
             .with(TracingMiddleware::default())
             .build(),
     );
+
+    #[cfg(not(feature = "jaeger"))]
+    let http_client = Arc::new(reqwest::Client::new());
 
     let auth = username.map(|username| (username, password));
 
@@ -270,8 +290,10 @@ async fn main() -> std::io::Result<()> {
     );
     let auction_repo =
         Arc::new(crate::repository::auction::AuctionImpl::new());
-    let latency_estimation_repo =
-        Arc::new(LatencyEstimationImpl::new(node_situation.clone()));
+    let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(
+        node_situation.clone(),
+        http_client.clone(),
+    ));
 
     // Services
     let auction_service = Arc::new(
@@ -326,19 +348,17 @@ async fn main() -> std::io::Result<()> {
     tokio::spawn(loop_jobs(
         init(neighbor_monitor_service.clone(), k8s_repo).await,
     ));
-    // tokio::spawn(serve_rpc(
-    //     node_situation.get_my_public_port_rpc(),
-    //     router_service.clone(),
-    // ));
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
     HttpServer::new(move || {
-        App::new()
-            .wrap(middleware::Compress::default())
-            .wrap(TracingLogger::default())
-            .wrap(RequestTracing::new())
-            .app_data(web::JsonConfig::default().limit(4096))
+        let app = App::new().wrap(middleware::Compress::default());
+
+        #[cfg(feature = "jaeger")]
+        let app =
+            app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
+
+        app.app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(
                 auction_service.clone() as Arc<dyn Auction>
             ))
@@ -384,6 +404,7 @@ async fn main() -> std::io::Result<()> {
     .await?;
 
     // Ensure all spans have been reported
+    #[cfg(feature = "jaeger")]
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())

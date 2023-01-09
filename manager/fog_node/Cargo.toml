@@ -11,6 +11,15 @@ fake_k8s = []
 mimalloc = []
 # Enable async routes (returns Ok then transmit), might break tracing
 async_routes = []
+# Enable jaeger
+jaeger = [
+    "opentelemetry",
+    "opentelemetry-jaeger",
+    "reqwest-middleware",
+    "reqwest-tracing",
+    "tracing-opentelemetry",
+    "tracing-actix-web",
+]
 
 # Enable the bottom up placement method (placing at Edge first)
 edge_first = []
@@ -35,15 +44,17 @@ lazy-regex = "2.3.1"
 lazy_static = "1.4.0"
 mimalloc = { version = "0.1.32", default-features = false }
 num_cpus = "1.14.0"
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
+opentelemetry = { version = "0.18.0", features = ["rt-tokio"], optional = true }
 opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
-], default-features = false }
+], default-features = false, optional = true }
 prometheus = "0.13.3"
 reqwest = { version = "0.11.12", features = ["json", "gzip"] }
-reqwest-middleware = "0.2.0"
-reqwest-tracing = { version = "0.4.0", features = ["opentelemetry_0_18"] }
+reqwest-middleware = { version = "0.2.0", optional = true }
+reqwest-tracing = { version = "0.4.0", features = [
+    "opentelemetry_0_18",
+], optional = true }
 ron = "0.8.0"
 schemars = "0.8.11"
 serde = { version = "1.0.147", features = ["derive", "rc"] }
@@ -52,12 +63,14 @@ serde_with = "2.0.1"
 thiserror = "1.0.37"
 tokio = { version = "1.21.2", features = ["full"] }
 tracing = "0.1.37"
-tracing-actix-web = { version = "0.7.1", features = ["opentelemetry_0_18"] }
+tracing-actix-web = { version = "0.7.1", features = [
+    "opentelemetry_0_18",
+], optional = true }
 tracing-appender = "0.2"
 tracing-forest = { version = "0.1.5", features = ["tokio"] }
 tracing-log = "0.1.3"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-opentelemetry = "0.18.0"
+tracing-opentelemetry = { version = "0.18.0", optional = true }
 uom = { version = "0.33.0", default-features = false, features = [
     "f64",
     "si",

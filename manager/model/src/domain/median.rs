@@ -1,7 +1,6 @@
 use uom::si::f64::Time;
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Median {
     points: Vec<Time>,
 }
@@ -12,8 +11,6 @@ impl Median {
 
     pub fn get_median(&self) -> Option<Time> { median(&self.points) }
 }
-
-
 
 use std::cmp::Ordering;
 

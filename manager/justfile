@@ -11,9 +11,14 @@ build *FLAGS:
     cargo build {{FLAGS}}
 
 # Run cargo check
-check *FLAGS:
-    cargo check --package manager --bin market {{FLAGS}}
-    cargo check --package manager --bin fog_node {{FLAGS}}
+check:
+    cargo check
+    cargo check --features async_routes
+
+    cargo check --features edge_first
+    cargo check --features cloud_only
+    
+    cargo check --features jaeger
 
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check_deps:

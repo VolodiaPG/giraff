@@ -7,11 +7,14 @@ use async_trait::async_trait;
 use model::domain::median::Median;
 
 use model::NodeId;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
-use reqwest_tracing::TracingMiddleware;
 use uom::si::f64::Time;
 
 use crate::NodeSituation;
+
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -25,6 +28,7 @@ pub enum IndividualError {
     NodeNotFound(NodeId),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
+    #[cfg(feature = "jaeger")]
     #[error(transparent)]
     ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
 }
@@ -60,18 +64,19 @@ pub struct LatencyEstimationImpl {
     node_situation:     Arc<dyn NodeSituation>,
     outgoing_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
     incoming_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
-    client:             ClientWithMiddleware,
+    client:             Arc<HttpClient>,
 }
 
 impl LatencyEstimationImpl {
-    pub fn new(node_situation: Arc<dyn NodeSituation>) -> Self {
+    pub fn new(
+        node_situation: Arc<dyn NodeSituation>,
+        client: Arc<HttpClient>,
+    ) -> Self {
         Self {
             node_situation,
             outgoing_latencies: Arc::new(dashmap::DashMap::new()),
             incoming_latencies: Arc::new(dashmap::DashMap::new()),
-            client: ClientBuilder::new(reqwest::Client::new())
-                .with(TracingMiddleware::default())
-                .build(),
+            client,
         }
     }
 
