@@ -39,7 +39,7 @@ do
 	cpu="${configs_cpu[$index]}"
 	latency="${configs_latency[$index]}"
 	docker_fn_name='echo'
-	function_name="$docker_fn_name-$function_id-$latency-$cpu-$mem"
+	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
 	
 	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
