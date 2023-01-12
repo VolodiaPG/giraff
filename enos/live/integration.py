@@ -254,7 +254,8 @@ def up(force, env=None, **kwargs):
             roles=["prom_agent", "iot_emulation"],
             cluster=cluster,
             number=1,
-            flavour_desc={"core": 14, "mem": 90},
+            flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
+            # flavour="large",
         )
     )
 
@@ -328,6 +329,12 @@ def up(force, env=None, **kwargs):
             f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
             background=True,
         )
+
+        # Installs tools
+        with actions(roles=roles["prom_agent"], gather_facts=False) as p:
+            p.apt(
+                pkg=["htop", "iftop", "nethogs"],
+            )
 
 
 @cli.command()
