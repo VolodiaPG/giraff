@@ -212,9 +212,9 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 4}
-TIER_2_FLAVOR = {"core": 4, "mem": 1024 * 8}
-TIER_1_FLAVOR = {"core": 8, "mem": 1024 * 16}
+TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 4}
+TIER_2_FLAVOR = {"core": 8, "mem": 1024 * 8}
+TIER_1_FLAVOR = {"core": 14, "mem": 1024 * 16}
 
 NETWORK = {
     "name": "market",
@@ -223,17 +223,22 @@ NETWORK = {
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
-            "latency": 25,
+            "latency": 30,
             "children": [
+                {
+                    "name": "nantes",
+                    "flavor": TIER_2_FLAVOR,
+                    "latency": 25,
+                },
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
-                    "latency": 25,
+                    "latency": 20,
                     "children": [
                         {
                             "name": "st-greg",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 5,
+                            "latency": 10,
                             "children": [
                                 {
                                     "name": "st-greg-5",
@@ -252,107 +257,34 @@ NETWORK = {
                                 },
                             ],
                         },
+                        {
+                            "name": "cesson",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 7,
+                            "children": [
+                                {
+                                    "name": "cesson-5",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                },
+                                {
+                                    "name": "cesson-10",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 10,
+                                },
+                                {
+                                    "name": "cesson-1",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 1,
+                                },
+                            ],
+                        },
                     ],
-                }
+                },
             ],
         },
     ],
 }
-# NETWORK = {
-#     "name": "market",
-#     "flavor": TIER_1_FLAVOR,#{"core": 10, "mem": 1024 * 16},
-#     "children": [
-#         {
-#             "name": "paris",
-#             "flavor": TIER_1_FLAVOR,
-#             "latency": 50,
-#             "children": [
-#                 {
-#                     "name": "rennes",
-#                     "flavor": TIER_2_FLAVOR,
-#                     "latency": 150,
-#                     "children": [
-#                         {
-#                             "name": "rennes-50",
-#                             "flavor": TIER_3_FLAVOR,
-#                             "latency": 50,
-#                             "children": [
-#                                 {
-#                                     "name": "st-greg-50",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 50,
-#                                 },
-#                                 {
-#                                     "name": "st-greg-75",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 75,
-#                                 },
-#                             ],
-#                         },
-#                         {
-#                             "name": "rennes-75",
-#                             "flavor": TIER_3_FLAVOR,
-#                             "latency": 75,
-#                             "children": [
-#                                 {
-#                                     "name": "cesson-50",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 50,
-#                                 },
-#                                 {
-#                                     "name": "cesson-75",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 75,
-#                                 },
-#                             ],
-#                         },
-#                     ],
-#                 },
-#                 {
-#                     "name": "nantes",
-#                     "flavor": TIER_3_FLAVOR,
-#                     "latency": 100,
-#                     "children": [
-#                         {
-#                             "name": "nantes-50",
-#                             "flavor": TIER_3_FLAVOR,
-#                             "latency": 50,
-#                             "children": [
-#                                 {
-#                                     "name": "clisson-50",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 50,
-#                                 },
-#                                 {
-#                                     "name": "clisson-75",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 75,
-#                                 },
-#                             ],
-#                         },
-#                         {
-#                             "name": "nantes-75",
-#                             "flavor": TIER_3_FLAVOR,
-#                             "latency": 75,
-#                             "children": [
-#                                 {
-#                                     "name": "cholet-50",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 50,
-#                                 },
-#                                 {
-#                                     "name": "cholet-75",
-#                                     "flavor": TIER_3_FLAVOR,
-#                                     "latency": 75,
-#                                 },
-#                             ],
-#                         },
-#                     ],
-#                 },
-#             ],
-#         }
-#     ],
-# }
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
