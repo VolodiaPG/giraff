@@ -396,7 +396,7 @@ async fn main() -> std::io::Result<()> {
                         "/register",
                         web::post().to(post_register_child_node),
                     )
-                    .route("/health", web::head().to(health)),
+                    .route("/health", web::get().to(health)),
             )
     })
     .bind(("0.0.0.0", my_port_http.into()))?

@@ -97,7 +97,7 @@ impl LatencyEstimationImpl {
         let sent_at = Instant::now();
         let _response = self
             .client
-            .head(format!("http://{}:{}/api/health", ip, port).as_str())
+            .get(format!("http://{}:{}/api/health", ip, port).as_str())
             .send()
             .await?;
         let elapsed = sent_at.elapsed().as_millis();
