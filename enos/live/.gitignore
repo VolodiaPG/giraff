@@ -1,3 +1,4 @@
 logs-latest
 *.html
 .Rhistory
+ark*
