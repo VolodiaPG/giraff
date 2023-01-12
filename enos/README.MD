@@ -1,14 +1,10 @@
 # EnosLib
 
 Enoslib is a library that enables the use of Grid'5000 for multiple purposes:
-- Build a container image for the application in `generate`
 - Deploy a live environment for experimenting in `live`
 
 ## Installation
 1. Install poetry
-    ```shell
-    yay -S python-poetry-git
-    ```
 2. Install the packages
     ```shell
     poetry install
