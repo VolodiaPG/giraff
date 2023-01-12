@@ -11,20 +11,24 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 use actix_web::web::{Data, Json};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+#[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
+#[cfg(feature = "jaeger")]
 use opentelemetry::global;
+#[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::{
-    register_gauge_vec, register_histogram_vec, GaugeVec, HistogramVec,
-    TextEncoder,
-};
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
+#[cfg(feature = "jaeger")]
+use reqwest_middleware::ClientBuilder;
+#[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
 use tokio::sync::RwLock;
+use tokio::task::yield_now;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
+#[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
 use tracing_log::LogTracer;
@@ -42,8 +46,13 @@ use serde_json::value::RawValue;
 use tokio::time::{self, Interval};
 use uuid::Uuid;
 
+#[cfg(feature = "jaeger")]
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+#[cfg(not(feature = "jaeger"))]
+type HttpClient = reqwest::Client;
+
 type CronFn =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
+    Box<dyn Fn(u64) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 type PromTimer = Arc<dashmap::DashMap<Uuid, DateTime<Utc>>>;
 
@@ -52,7 +61,7 @@ lazy_static! {
         "iot_emulation_http_request_duration_seconds_print",
         "The HTTP request latencies in seconds for the /print route, tagged \
          with the content `tag`.",
-        &["tag"]
+        &["tag", "period"]
     )
     .unwrap();
 
@@ -60,17 +69,17 @@ lazy_static! {
         "iot_emulation_http_request_to_processing_echo_duration_seconds_print",
         "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
          with the content `tag`.",
-        &["tag"]
+        &["tag", "period"]
     )
     .unwrap();
 
-    static ref HTTP_TIME_TO_PROCESS_GAUGE: GaugeVec = register_gauge_vec!(
-        "iot_emulation_http_request_to_processing_echo_duration_seconds_print_gauge",
-        "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
-         with the content `tag`.",
-        &["tag"]
-    )
-    .unwrap();
+    // static ref HTTP_TIME_TO_PROCESS_GAUGE: GaugeVec = register_gauge_vec!(
+    //     "iot_emulation_http_request_to_processing_echo_duration_seconds_print_gauge",
+    //     "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
+    //      with the content `tag`.",
+    //     &["tag", "period"]
+    // )
+    // .unwrap();
 }
 
 #[derive(Debug, Serialize)]
@@ -87,8 +96,9 @@ pub enum Packet<'a> {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    tag: String,
-    id:  Uuid,
+    tag:    String,
+    id:     Uuid,
+    period: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -128,40 +138,49 @@ pub async fn print(
     payload: Json<ResponseFromEcho>,
     prom_timers: Data<PromTimer>,
 ) -> HttpResponse {
-    let Some(start) = prom_timers.get(&payload.data.id).map(|x|*x.value()) else {
+    let now = chrono::offset::Utc::now();
+
+    yield_now().await; // Yield because other requests need to be timestamped before pursuing
+
+    trace!("{:?}", payload);
+
+    let Some(sent_at) = prom_timers.get(&payload.data.id).map(|x|*x.value()) else {
         warn!("Received a print that was discarded");
         return HttpResponse::BadRequest().finish();
     };
 
-    info!("{:?}", payload);
-    let now = chrono::offset::Utc::now();
-
-    let elapsed_http = now - start;
+    let elapsed_http = now - sent_at;
     debug!(
         "Elapsed (after being received): {}ms",
         elapsed_http.num_milliseconds()
     );
-    let elapsed_function = now - payload.timestamp;
+    let elapsed_function = payload.timestamp - sent_at;
 
     debug!(
         "Elapsed (start of processing by echo): {}ms",
         elapsed_function.num_milliseconds()
     );
 
-    info!("Measured {:?} ({:?})", payload.data.id, payload.data.tag);
-
     tokio::spawn(async move {
         HTTP_PRINT_HISTOGRAM
-            .with_label_values(&[&payload.data.tag])
-            .observe(elapsed_http.num_milliseconds().abs() as f64 / 100.0);
+            .with_label_values(&[
+                &payload.data.tag,
+                &payload.data.period.to_string(),
+            ])
+            .observe(elapsed_http.num_milliseconds().abs() as f64 / 1000.0);
 
         HTTP_TIME_TO_PROCESS_HISTOGRAM
-            .with_label_values(&[&payload.data.tag])
-            .observe(elapsed_function.num_milliseconds().abs() as f64 / 100.0);
+            .with_label_values(&[
+                &payload.data.tag,
+                &payload.data.period.to_string(),
+            ])
+            .observe(
+                elapsed_function.num_milliseconds().abs() as f64 / 1000.0,
+            );
 
-        HTTP_TIME_TO_PROCESS_GAUGE
-            .with_label_values(&[&payload.data.tag])
-            .set(elapsed_function.num_milliseconds().abs() as f64 / 100.0);
+        // HTTP_TIME_TO_PROCESS_GAUGE
+        //     .with_label_values(&[&payload.data.tag])
+        //     .set(elapsed_function.num_milliseconds().abs() as f64 / 100.0);
     });
 
     HttpResponse::Ok().finish()
@@ -171,7 +190,7 @@ async fn put_cron(
     config: Json<StartCron>,
     cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
     prom_timers: Data<PromTimer>,
-    client: Data<Arc<ClientWithMiddleware>>,
+    client: Data<Arc<HttpClient>>,
 ) -> HttpResponse {
     let config = Arc::new(config.0);
     let prom_timers = prom_timers.get_ref().clone();
@@ -182,11 +201,11 @@ async fn put_cron(
         config.first_node_url, config.tag, config.iot_url
     );
 
-    let job: CronFn = Box::new(move || {
+    let job: CronFn = Box::new(move |period| {
         let prom_timers = prom_timers.clone();
         let config = config.clone();
         let client = client.clone();
-        Box::pin(ping(prom_timers, config, client))
+        Box::pin(ping(prom_timers, config, client, period))
     });
 
     cron_jobs.insert(tag, Arc::new(job));
@@ -202,7 +221,8 @@ async fn put_cron(
 async fn ping(
     prom_timers: PromTimer,
     config: Arc<StartCron>,
-    client: Arc<ClientWithMiddleware>,
+    client: Arc<HttpClient>,
+    period: u64,
 ) {
     let id = Uuid::new_v4();
     let tag = config.tag.clone();
@@ -213,7 +233,11 @@ async fn ping(
             to:   config.function_id.clone(),
             data: &serde_json::value::to_raw_value(&CronPayload {
                 address_to_call: config.iot_url.clone(),
-                data:            Payload { tag: tag.clone(), id: id.clone() },
+                data:            Payload {
+                    tag: tag.clone(),
+                    id: id.clone(),
+                    period,
+                },
             })
             .unwrap(),
         },
@@ -268,50 +292,65 @@ async fn forever(
     jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>,
     request_interval: Arc<RwLock<u64>>,
 ) {
-    let mut interval: Interval;
+    // let mut interval: Interval;
     let mut last_period;
     {
         last_period = *request_interval.read().await;
     }
-    interval = time::interval(Duration::from_millis(last_period));
+    // interval = time::interval(Duration::from_millis(last_period));
 
     loop {
-        interval.tick().await;
-        debug!(
+        // interval.tick().await;
+        info!(
             "Spawning {} ping tasks after interval of {}ms",
             jobs.len(),
             last_period
         );
 
-        for value in jobs.iter() {
-            let val = value.value().clone();
-            tokio::spawn(async move { val().await });
+        if !jobs.is_empty() {
+            let mut send_interval = time::interval(Duration::from_micros(
+                last_period * 1000 / (jobs.len() as u64),
+            ));
+
+            let jobs_collected: Vec<Arc<CronFn>> =
+                jobs.iter().map(|x| x.value().clone()).collect();
+
+            for value in jobs_collected {
+                tokio::spawn(async move { value(last_period).await });
+                send_interval.tick().await;
+            }
         }
 
-        let period;
         {
-            period = *request_interval.read().await;
+            last_period = *request_interval.read().await;
         }
-        if last_period != period {
-            interval = time::interval(Duration::from_millis(period));
-            last_period = period;
-        }
+
+        // let period;
+        // {
+        //     period = *request_interval.read().await;
+        // }
+        // if last_period != period {
+        //     interval = time::interval(Duration::from_millis(period));
+        //     last_period = period;
+        // }
     }
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
-    name: String,
+    _name: String,
     env_filter: String,
 ) -> impl Subscriber + Send + Sync {
-    let collector_ip = std::env::var("COLLECTOR_IP")
-        .unwrap_or_else(|_| "localhost".to_string());
-    let collector_port = std::env::var("COLLECTOR_PORT")
-        .unwrap_or_else(|_| "14268".to_string());
-
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or(EnvFilter::new(env_filter));
 
+    #[cfg(feature = "jaeger")]
+    let collector_ip = std::env::var("COLLECTOR_IP")
+        .unwrap_or_else(|_| "localhost".to_string());
+    #[cfg(feature = "jaeger")]
+    let collector_port = std::env::var("COLLECTOR_PORT")
+        .unwrap_or_else(|_| "14268".to_string());
+    #[cfg(feature = "jaeger")]
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
         opentelemetry_jaeger::new_collector_pipeline()
             .with_endpoint(format!(
@@ -319,15 +358,17 @@ pub fn get_subscriber(
                 collector_ip, collector_port
             ))
             .with_reqwest()
-            .with_service_name(name)
+            .with_service_name(_name)
             .install_batch(opentelemetry::runtime::Tokio)
             .unwrap(),
     );
 
-    tracing_subscriber::Registry::default()
-        .with(env_filter)
-        .with(tracing_leyer)
-        .with(ForestLayer::default())
+    let reg = tracing_subscriber::Registry::default().with(env_filter);
+
+    #[cfg(feature = "jaeger")]
+    let reg = reg.with(tracing_leyer);
+
+    reg.with(ForestLayer::default())
 }
 
 /// Register a subscriber as global default to process span data.
@@ -341,6 +382,8 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
+
+    #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let subscriber = get_subscriber("iot_emulation".into(), "trace".into());
@@ -359,18 +402,24 @@ async fn main() -> std::io::Result<()> {
 
     tokio::spawn(forever(jobs.clone(), request_interval.clone()));
 
+    #[cfg(feature = "jaeger")]
     let http_client = Arc::new(
         ClientBuilder::new(reqwest::Client::new())
             .with(TracingMiddleware::default())
             .build(),
     );
 
+    #[cfg(not(feature = "jaeger"))]
+    let http_client = Arc::new(reqwest::Client::new());
+
     HttpServer::new(move || {
-        App::new()
-            .wrap(middleware::Compress::default())
-            .wrap(TracingLogger::default())
-            .wrap(RequestTracing::new())
-            .app_data(web::JsonConfig::default().limit(4096))
+        let app = App::new().wrap(middleware::Compress::default());
+
+        #[cfg(feature = "jaeger")]
+        let app =
+            app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
+
+        app.app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(jobs.clone()))
             .app_data(web::Data::new(prom_timers.clone()))
             .app_data(web::Data::new(http_client.clone()))
@@ -388,6 +437,7 @@ async fn main() -> std::io::Result<()> {
     .await?;
 
     // Ensure all spans have been reported
+    #[cfg(feature = "jaeger")]
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())

@@ -3,44 +3,58 @@ name = "iot_emulation"
 version = "0.1.0"
 edition = "2021"
 
-# [profile.release]
-# strip = true
-# lto = true
-# opt-level = 3
-# codegen-units = 1
+[profile.release]
+strip = true
+lto = true
+opt-level = 3
+codegen-units = 1
 
 [features]
 default = ["mimalloc"]
 # Enable mimalloc
 mimalloc = []
+# Enable jaeger
+jaeger = [
+    "actix-web-opentelemetry",
+    "opentelemetry",
+    "opentelemetry-jaeger",
+    "reqwest-tracing",
+    "reqwest-middleware",
+    "tracing-actix-web",
+    "tracing-opentelemetry",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 actix-web = "4.2.1"
-actix-web-opentelemetry = "0.13.0"
+actix-web-opentelemetry = { version = "0.13.0", optional = true }
 # actix-web-prom = "0.6.0"
 chrono = { version = "0.4.23", features = ["serde"] }
 dashmap = "5.4.0"
 lazy_static = "1.4.0"
 mimalloc = { version = "0.1.32", default-features = false }
 num_cpus = "1.14.0"
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
+opentelemetry = { version = "0.18.0", features = ["rt-tokio"], optional = true }
 opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
-], default-features = false }
+], default-features = false, optional = true }
 prometheus = "0.13.3"
 reqwest = { version = "0.11.11", features = ["json", "gzip"] }
-reqwest-middleware = "0.2.0"
-reqwest-tracing = { version = "0.4.0", features = ["opentelemetry_0_18"] }
+reqwest-middleware = { version = "0.2.0", optional = true }
+reqwest-tracing = { version = "0.4.0", features = [
+    "opentelemetry_0_18",
+], optional = true }
 serde = { version = "1.0.139", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
 tokio = { version = "1.20.0", features = ["full"] }
 tracing = "0.1.37"
-tracing-actix-web = { version = "0.6.2", features = ["opentelemetry_0_18"] }
+tracing-actix-web = { version = "0.7.2", features = [
+    "opentelemetry_0_18",
+], optional = true }
 tracing-forest = { version = "0.1.5", features = ["tokio"] }
 tracing-log = "0.1.3"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-opentelemetry = "0.18.0"
+tracing-opentelemetry = { version = "0.18.0", optional = true }
 uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
