@@ -7,7 +7,6 @@ use actix_web::HttpResponse;
 use model::domain::routing::Packet;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
-use model::view::routing::{Route, RouteLinking};
 use model::BidId;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -72,23 +71,6 @@ pub async fn post_sync_routing(
     )
     .await?;
     Ok(HttpResponse::Ok().json(res))
-}
-
-/// Register a route.
-pub async fn post_register_route(
-    route: web::Json<Route>,
-    router: Data<Arc<dyn Router>>,
-) -> Result<HttpResponse, ControllerError> {
-    controller::routing::register_route(&router, route.0).await?;
-    Ok(HttpResponse::Ok().finish())
-}
-
-pub async fn post_route_linking(
-    route_linking: web::Json<RouteLinking>,
-    router: Data<Arc<dyn Router>>,
-) -> Result<HttpResponse, ControllerError> {
-    controller::routing::route_linking(&router, route_linking.0).await?;
-    Ok(HttpResponse::Ok().finish())
 }
 
 /// Register a child node to this one

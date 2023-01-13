@@ -103,29 +103,6 @@ impl RoutingImpl {
 
 #[async_trait]
 impl Routing for RoutingImpl {
-    // #[instrument(level = "trace", skip(self, packet))]
-    // async fn forward_to_routing(
-    //     &self,
-    //     ip: &IpAddr,
-    //     port: &FogNodeRPCPort,
-    //     packet: &Packet,
-    // ) -> Result<Value, Error> {
-    //     let key = format!("{}:{}", ip, port);
-    //     trace!("RPC-ing to routing on {}...", key);
-    //     // let mut client = self.dialed_up.get(&key);
-
-    //     // if client.is_none() {
-    //     // let c = Client::<JsonCodec>::dial(&key).await.unwrap();
-    //     // self.dialed_up.insert(key.clone(), c);
-    //     // client = self.dialed_up.get(&key);
-    //     // }
-    //     let mut client = Client::<JsonCodec>::dial(&key).await.unwrap();
-
-    //     let res = client.call("routing", packet).await.map_err(Error::from);
-    //     client.shutdown().await;
-    //     res
-    // }
-
     #[instrument(level = "trace", skip(self, packet))]
     async fn forward_to_routing(
         &self,
@@ -133,14 +110,7 @@ impl Routing for RoutingImpl {
         port: &FogNodeHTTPPort,
         packet: &Packet,
     ) -> Result<Option<Value>, Error> {
-        let url = match packet {
-            Packet::FaaSFunction { .. } => {
-                format!("http://{}:{}/api/routing", ip, port)
-            }
-            Packet::FogNode { .. } | Packet::Market { .. } => {
-                format!("http://{}:{}/api/sync-routing", ip, port)
-            }
-        };
+        let url = format!("http://{}:{}/api/sync-routing", ip, port);
         self.forward_to(packet, &url).await
     }
 

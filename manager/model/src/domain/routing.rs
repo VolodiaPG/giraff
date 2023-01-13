@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{BidId, NodeId};
+use crate::NodeId;
 
 /// Describe a Route from a Fog node to another in the network
 #[derive(Debug)]
@@ -34,12 +34,6 @@ pub struct FogSegment {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Packet {
-    #[serde(rename = "faasFunction")]
-    FaaSFunction {
-        to:   BidId, // TODO check wether its better an id or a name
-        #[schemars(schema_with = "schema_function")]
-        data: Value,
-    },
     FogNode {
         route_to_stack: Vec<NodeId>,
         resource_uri:   String,

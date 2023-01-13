@@ -308,14 +308,10 @@ async fn main() -> std::io::Result<()> {
         provisioned_repo.clone(),
     ));
     let router_service = Arc::new(RouterImpl::new(
-        Arc::new(
-            crate::repository::faas_routing_table::FaaSRoutingTableHashMap::new(
-            ),
-        ),
         node_situation.clone(),
-        Arc::new(crate::repository::routing::RoutingImpl::new(http_client.clone())),
-        faas_service.clone(),
-        client.clone(),
+        Arc::new(crate::repository::routing::RoutingImpl::new(
+            http_client.clone(),
+        )),
     ));
     let node_life_service = Arc::new(NodeLifeImpl::new(
         router_service.clone(),
@@ -384,14 +380,6 @@ async fn main() -> std::io::Result<()> {
                     .route("/bid/{id}", web::post().to(post_bid_accept))
                     .route("/routing", web::post().to(post_routing))
                     .route("/sync-routing", web::post().to(post_sync_routing))
-                    .route(
-                        "/register_route",
-                        web::post().to(post_register_route),
-                    )
-                    .route(
-                        "/route_linking",
-                        web::post().to(post_route_linking),
-                    )
                     .route(
                         "/register",
                         web::post().to(post_register_child_node),
