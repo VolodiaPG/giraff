@@ -1,10 +1,8 @@
 use crate::controller::ControllerError;
 use crate::service::function_life::FunctionLife;
-use crate::service::routing::Router;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
-use model::domain::routing::Packet;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
 use model::BidId;
@@ -37,39 +35,6 @@ pub async fn post_bid_accept(
     let res =
         controller::auction::provision_from_bid(params.id.clone(), &function)
             .await?;
-    Ok(HttpResponse::Ok().json(res))
-}
-
-/// Routes the request to the correct URL and node.
-pub async fn post_routing(
-    packet: web::Json<Packet>,
-    router: Data<Arc<dyn Router>>,
-) -> Result<HttpResponse, ControllerError> {
-    #[cfg(feature = "async_routes")]
-    {
-        controller::routing::post_async_forward_function_routing(
-            packet.0,
-            router.get_ref().clone(),
-        )
-        .await;
-        Ok(HttpResponse::Ok().finish())
-    }
-    #[cfg(not(feature = "async_routes"))]
-    {
-        post_sync_routing(packet, router).await
-    }
-}
-
-/// Routes the request to the correct URL and node.
-pub async fn post_sync_routing(
-    packet: web::Json<Packet>,
-    router: Data<Arc<dyn Router>>,
-) -> Result<HttpResponse, ControllerError> {
-    let res = controller::routing::post_sync_forward_function_routing(
-        packet.0,
-        router.get_ref().clone(),
-    )
-    .await?;
     Ok(HttpResponse::Ok().json(res))
 }
 

@@ -9,8 +9,6 @@ default = ["mimalloc"]
 fake_k8s = []
 # Enable mimalloc
 mimalloc = []
-# Enable async routes (returns Ok then transmit), might break tracing
-async_routes = []
 # Enable jaeger
 jaeger = [
     "opentelemetry",

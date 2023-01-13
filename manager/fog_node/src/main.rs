@@ -42,7 +42,6 @@ use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
 use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
-use crate::service::routing::{Router, RouterImpl};
 
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
@@ -307,14 +306,7 @@ async fn main() -> std::io::Result<()> {
         client.clone(),
         provisioned_repo.clone(),
     ));
-    let router_service = Arc::new(RouterImpl::new(
-        node_situation.clone(),
-        Arc::new(crate::repository::routing::RoutingImpl::new(
-            http_client.clone(),
-        )),
-    ));
     let node_life_service = Arc::new(NodeLifeImpl::new(
-        router_service.clone(),
         node_situation.clone(),
         node_query.clone(),
     ));
@@ -364,9 +356,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(
                 function_life_service.clone() as Arc<dyn FunctionLife>
             ))
-            .app_data(
-                web::Data::new(router_service.clone() as Arc<dyn Router>),
-            )
             .app_data(web::Data::new(
                 node_life_service.clone() as Arc<dyn NodeLife>
             ))
@@ -378,8 +367,6 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
                     .route("/bid/{id}", web::post().to(post_bid_accept))
-                    .route("/routing", web::post().to(post_routing))
-                    .route("/sync-routing", web::post().to(post_sync_routing))
                     .route(
                         "/register",
                         web::post().to(post_register_child_node),

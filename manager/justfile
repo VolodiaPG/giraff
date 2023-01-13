@@ -13,7 +13,6 @@ build *FLAGS:
 # Run cargo check
 check:
     cargo check
-    cargo check --features async_routes
 
     cargo check --features edge_first
     cargo check --features cloud_only

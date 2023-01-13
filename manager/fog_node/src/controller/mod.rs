@@ -7,8 +7,6 @@ pub enum ControllerError {
     #[error(transparent)]
     Function(#[from] crate::service::function_life::Error),
     #[error(transparent)]
-    Router(#[from] crate::service::routing::Error),
-    #[error(transparent)]
     NodeLife(#[from] crate::service::node_life::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
@@ -16,4 +14,3 @@ pub enum ControllerError {
 
 pub(crate) mod auction;
 pub(crate) mod node;
-pub(crate) mod routing;

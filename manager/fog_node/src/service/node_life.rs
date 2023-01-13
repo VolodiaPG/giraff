@@ -3,12 +3,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use model::domain::routing::Packet;
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
 use model::{FogNodeHTTPPort, FogNodeRPCPort};
 
-use crate::{NodeQuery, NodeSituation, Router};
+use crate::{NodeQuery, NodeSituation};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -18,8 +17,6 @@ pub enum Error {
     ParentDoesntExist,
     #[error(transparent)]
     NodeQuery(#[from] crate::repository::node_query::Error),
-    #[error(transparent)]
-    Routing(#[from] crate::service::routing::Error),
     #[error(
         "Trying to register/pass a register message for a market node,but it \
          should not happen since the market node is always on top of the \
@@ -48,18 +45,16 @@ pub trait NodeLife: Send + Sync {
 
 #[derive(Debug)]
 pub struct NodeLifeImpl {
-    router:         Arc<dyn Router>,
     node_situation: Arc<dyn NodeSituation>,
     node_query:     Arc<dyn NodeQuery>,
 }
 
 impl NodeLifeImpl {
     pub fn new(
-        router: Arc<dyn Router>,
         node_situation: Arc<dyn NodeSituation>,
         node_query: Arc<dyn NodeQuery>,
     ) -> Self {
-        Self { router, node_situation, node_query }
+        Self { node_situation, node_query }
     }
 }
 
@@ -97,12 +92,7 @@ impl NodeLife for NodeLifeImpl {
             }
         }
 
-        self.router
-            .forward(Packet::Market {
-                resource_uri: "register".to_string(),
-                data:         serde_json::value::to_value(&register).unwrap(),
-            })
-            .await?;
+        self.node_query.register_to_parent(register).await?;
         Ok(())
     }
 
