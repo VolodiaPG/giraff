@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
+use std::net::IpAddr;
 
-use crate::dto::auction::ChosenBid;
+use crate::FogNodeHTTPPort;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
@@ -42,7 +43,7 @@ pub struct Bid {
 /// The accepted bid
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct AcceptedBid {
-    pub chosen:    ChosenBid,
+    pub chosen:    InstanciatedBid,
     pub proposals: BidProposals,
     pub sla:       Sla,
 }
@@ -72,3 +73,11 @@ impl PartialEq for BidProposal {
 }
 
 impl Eq for BidProposal {}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct InstanciatedBid {
+    pub bid:   BidProposal,
+    pub ip:    IpAddr,
+    pub port:  FogNodeHTTPPort,
+    pub price: f64,
+}

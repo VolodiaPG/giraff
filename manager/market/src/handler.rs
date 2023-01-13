@@ -14,10 +14,17 @@ pub async fn put_function(
     payload: Json<PutSla>,
     auction_service: Data<Arc<dyn crate::service::auction::Auction>>,
     faas_service: Data<Arc<dyn crate::service::faas::FogNodeFaaS>>,
+    fog_node_network: Data<
+        Arc<dyn crate::service::fog_node_network::FogNodeNetwork>,
+    >,
 ) -> Result<HttpResponse, ControllerError> {
-    let res =
-        controller::start_auction(payload.0, &auction_service, &faas_service)
-            .await?;
+    let res = controller::start_auction(
+        payload.0,
+        &auction_service,
+        &faas_service,
+        &fog_node_network,
+    )
+    .await?;
     Ok(HttpResponse::Ok().json(res))
 }
 

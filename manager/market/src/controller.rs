@@ -4,13 +4,16 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use model::domain::auction::AuctionResult;
-use model::view::auction::AcceptedBid;
+use model::dto::node::NodeRecord;
+use model::view::auction::{AcceptedBid, InstanciatedBid};
 use model::view::node::{GetFogNodes, RegisterNode};
 use model::view::sla::PutSla;
 use model::NodeId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
+    #[error("Failed to retrieve the record of the node {0}")]
+    RecordOfNodeNotFound(NodeId),
     #[error(transparent)]
     Auction(#[from] crate::service::auction::Error),
     #[error(transparent)]
@@ -27,6 +30,9 @@ pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<dyn crate::service::auction::Auction>,
     faas_service: &Arc<dyn crate::service::faas::FogNodeFaaS>,
+    fog_node_network: &Arc<
+        dyn crate::service::fog_node_network::FogNodeNetwork,
+    >,
 ) -> Result<AcceptedBid, ControllerError> {
     trace!("put sla: {:?}", payload);
 
@@ -37,8 +43,20 @@ pub async fn start_auction(
     let AuctionResult { chosen_bid } =
         auction_service.do_auction(&proposals).await?;
 
-    let accepted =
-        AcceptedBid { chosen: chosen_bid, proposals, sla: payload.sla };
+    let Some(NodeRecord {ip:Some(ip), port_http:Some(port), ..}) = fog_node_network.get_node(&chosen_bid.bid.node_id).await else {
+        return Err(ControllerError::RecordOfNodeNotFound(chosen_bid.bid.node_id));
+    };
+
+    let accepted = AcceptedBid {
+        chosen: InstanciatedBid {
+            bid: chosen_bid.bid,
+            price: chosen_bid.price,
+            ip,
+            port,
+        },
+        proposals,
+        sla: payload.sla,
+    };
 
     faas_service.provision_function(accepted.clone()).await?;
 

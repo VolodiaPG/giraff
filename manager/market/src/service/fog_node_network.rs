@@ -26,6 +26,9 @@ pub trait FogNodeNetwork: Debug + Sync + Send {
     /// Get all the connected nodes
     async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>; // TODO danger !
 
+    /// Get all the connected nodes
+    async fn get_node(&self, node: &NodeId) -> Option<NodeRecord>;
+
     /// Get a solution to establish a [Route] between two points in the Fog
     /// network
     async fn get_route(
@@ -70,6 +73,10 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
 
     async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
         self.fog_node.get_nodes().await
+    }
+
+    async fn get_node(&self, node: &NodeId) -> Option<NodeRecord> {
+        self.fog_node.get(node).await.map(|x| x.data)
     }
 
     async fn get_route(
