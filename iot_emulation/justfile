@@ -1,5 +1,8 @@
 DOCKER := "podman"
 
+_default:
+    @just --list
+
 # Run the echo server
 run $SERVER_PORT="30080":
 	cargo run
