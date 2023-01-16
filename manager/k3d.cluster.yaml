@@ -6,7 +6,7 @@ metadata:
 kubeAPI: # same as `--api-port myhost.my.domain:6445` (where the name would resolve to 127.0.0.1)
   hostIP: "127.0.0.1" # where the Kubernetes API will be listening on
   hostPort: "6445" # where the Kubernetes API listening port will be mapped to on your host system
-image: rancher/k3s:v1.20.4-k3s1 # same as `--image rancher/k3s:v1.20.4-k3s1`
+image: rancher/k3s:v1.26.0-k3s2 # same as `--image rancher/k3s:v1.20.4-k3s1`
 token: superSecretToken # same as `--token superSecretToken`
 ports:
   - port: 443:443 # TLS

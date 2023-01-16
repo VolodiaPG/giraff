@@ -51,7 +51,7 @@ pub fn get_subscriber(
         env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = env::var("LOG_CONFIG_FILENAME")
-        .unwrap_or_else(|_| "market".to_string());
+        .unwrap_or_else(|_| "marketplace.log".to_string());
 
     let file_appender =
         tracing_appender::rolling::never(log_config_path, log_config_filename);
