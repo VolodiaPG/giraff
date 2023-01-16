@@ -261,7 +261,7 @@ async fn main() -> std::io::Result<()> {
     // Repositories
     let client = Arc::new(DefaultApiClient::new(
         Configuration {
-            base_path:  format!("http://{}:{}", ip_openfaas, port_openfaas),
+            base_path:  format!("http://{ip_openfaas}:{port_openfaas}"),
             basic_auth: auth,
         },
         http_client.clone(),

@@ -139,7 +139,7 @@ mod k8s_impl {
         //.ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
         let unit = match missing_unit {
-            MissingUnitType::Suffix(suffix) => format!("{}{}", prefix, suffix),
+            MissingUnitType::Suffix(suffix) => format!("{prefix}{suffix}"),
             MissingUnitType::Complete(complete) => complete.to_string(),
         };
 

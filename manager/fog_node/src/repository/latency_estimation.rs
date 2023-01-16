@@ -97,7 +97,7 @@ impl LatencyEstimationImpl {
         let sent_at = Instant::now();
         let _response = self
             .client
-            .get(format!("http://{}:{}/api/health", ip, port).as_str())
+            .get(format!("http://{ip}:{port}/api/health").as_str())
             .send()
             .await?;
         let elapsed = sent_at.elapsed().as_millis();
@@ -143,7 +143,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
                 let ip = desc.ip;
                 let port = desc.port_http;
                 crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
-                    .with_label_values(&[&format!("{}:{}", ip, port)])
+                    .with_label_values(&[&format!("{ip}:{port}")])
                     .set(outgoing.value);
 
                 let Some(lat) = self.outgoing_latencies.get(&node) else {
@@ -153,7 +153,7 @@ impl LatencyEstimation for LatencyEstimationImpl {
                     return Ok(());
                 };
                 crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
-                    .with_label_values(&[&format!("{}:{}", ip, port)])
+                    .with_label_values(&[&format!("{ip}:{port}")])
                     .set(median.value);
                 Ok(())
             });

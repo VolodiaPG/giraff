@@ -93,13 +93,13 @@ impl NodeQuery for NodeQueryRESTImpl {
                 .node_situation
                 .get_market_node_address()
                 .ok_or(Error::NoURIToUpper)?;
-            format!("http://{}:{}/api/register", addr, port)
+            format!("http://{addr}:{port}/api/register")
         } else {
             let (addr, port, _) = self
                 .node_situation
                 .get_parent_node_address()
                 .ok_or(Error::NoURIToUpper)?;
-            format!("http://{}:{}/api/register", addr, port)
+            format!("http://{addr}:{port}/api/register")
         };
 
         trace!("Registering to {}", url);
@@ -123,7 +123,7 @@ impl NodeQuery for NodeQueryRESTImpl {
 
         Ok(self
             .post(
-                format!("http://{}:{}/api/bid", ip, port_http).as_str(),
+                format!("http://{ip}:{port_http}/api/bid").as_str(),
                 request,
             )
             .await?
