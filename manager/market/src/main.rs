@@ -123,10 +123,17 @@ async fn main() -> std::io::Result<()> {
     let http_client = Arc::new(reqwest::Client::new());
 
     let fog_node = Arc::new(FogNodeImpl::new());
-    let fog_node_communication =
-        Arc::new(crate::repository::node_communication::NodeCommunicationThroughRoutingImpl::new(
-            fog_node.clone(), http_client
+    let fog_node_network_service =
+        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(
+            fog_node.clone(),
         ));
+
+    let fog_node_communication = Arc::new(
+        crate::repository::node_communication::NodeCommunicationImpl::new(
+            fog_node_network_service.clone(),
+            http_client,
+        ),
+    );
     let auction_process =
         Arc::new(crate::repository::auction::SecondPriceAuction::new());
 
@@ -135,13 +142,8 @@ async fn main() -> std::io::Result<()> {
         auction_process,
         fog_node_communication.clone(),
     ));
-    let fog_node_network_service =
-        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(
-            fog_node.clone(),
-        ));
     let faas_service = Arc::new(service::faas::FogNodeFaaSImpl::new(
         fog_node,
-        fog_node_network_service.clone(),
         fog_node_communication,
     ));
 

@@ -1,29 +1,32 @@
 use std::fmt::Debug;
-use std::net::IpAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use bytes::Bytes;
 use uom::si::f64::Time;
 use uom::si::time::second;
 
-use model::domain::routing::Packet;
 use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
-use model::view::routing::Route;
-use model::{FogNodeHTTPPort, NodeId};
+use model::NodeId;
 
-use crate::repository::fog_node::FogNode;
+use crate::service::fog_node_network::FogNodeNetwork;
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 #[cfg(not(feature = "jaeger"))]
 type HttpClient = reqwest::Client;
 
+#[cfg(feature = "jaeger")]
+type HttpRequestBuilder = reqwest_middleware::RequestBuilder;
+#[cfg(not(feature = "jaeger"))]
+type HttpRequestBuilder = reqwest::RequestBuilder;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Failed to retrieve the record of the node {0}")]
+    RecordOfNodeNotFound(NodeId),
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
     #[cfg(feature = "jaeger")]
@@ -31,19 +34,6 @@ pub enum Error {
     ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
     #[error(transparent)]
     Serialize(#[from] serde_json::Error),
-    #[error("The stack route is empty.")]
-    EmptyRoutingStack,
-    #[error("Routing failed with status code {0}: {1:?}")]
-    ErrorStatus(reqwest::StatusCode, Option<String>),
-    #[error("Packets can only be sent to fog nodes. (Wrong packet type)")]
-    WrongPacketType,
-    #[error("Cannot found the fog node with the id {0}.")]
-    NodeIdNotFound(NodeId),
-    #[error(
-        "The fog node with the id {0} doesn't have a valid ip address and/or \
-         port."
-    )]
-    NodeIpNotFound(NodeId),
 }
 #[async_trait]
 pub trait NodeCommunication: Debug + Sync + Send {
@@ -58,100 +48,57 @@ pub trait NodeCommunication: Debug + Sync + Send {
         to: NodeId,
         bid: &BidProposal,
     ) -> Result<(), Error>;
-
-    async fn establish_route(
-        &self,
-        starting_from: NodeId,
-        route: Route,
-    ) -> Result<(), Error>;
 }
 
 #[derive(Debug)]
-pub struct NodeCommunicationThroughRoutingImpl {
-    network: Arc<dyn FogNode>,
+pub struct NodeCommunicationImpl {
+    network: Arc<dyn FogNodeNetwork>,
     client:  Arc<HttpClient>,
 }
 
-impl NodeCommunicationThroughRoutingImpl {
-    pub fn new(network: Arc<dyn FogNode>, client: Arc<HttpClient>) -> Self {
+impl NodeCommunicationImpl {
+    pub fn new(
+        network: Arc<dyn FogNodeNetwork>,
+        client: Arc<HttpClient>,
+    ) -> Self {
         Self { network, client }
     }
 
-    async fn get_address_of_first_node(
+    /// Sends to <ip:port from nodeId>/api/<route>
+    async fn send(
         &self,
-        route_stack: &[NodeId],
-    ) -> Result<(IpAddr, FogNodeHTTPPort), Error> {
-        let node = route_stack.first().ok_or(Error::EmptyRoutingStack)?;
-        let NodeRecord { ip, port_http, .. } = self
-            .network
-            .get(route_stack.last().ok_or(Error::EmptyRoutingStack)?)
-            .await
-            .ok_or_else(|| Error::NodeIdNotFound(node.clone()))?
-            .data;
-
-        let ip = ip.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
-        let port =
-            port_http.ok_or_else(|| Error::NodeIpNotFound(node.clone()))?;
-        Ok((ip, port))
-    }
-
-    async fn _call_routing(
-        &self,
-        packet: Packet,
-        sync: bool,
-    ) -> Result<Bytes, Error> {
-        let (ip, port) = match &packet {
-            Packet::FogNode { route_to_stack, .. } => {
-                self.get_address_of_first_node(route_to_stack).await?
-            }
-            _ => return Err(Error::WrongPacketType),
+        to: &NodeId,
+        route: &str,
+    ) -> Result<HttpRequestBuilder, Error> {
+        let Some(NodeRecord {ip:Some(ip), port_http:Some(port), ..}) = self.network.get_node(to).await else {
+            return Err(Error::RecordOfNodeNotFound(to.clone()));
         };
-        let url = if sync {
-            format!("http://{}:{}/api/sync-routing", ip, port)
-        } else {
-            format!("http://{}:{}/api/sync-routing", ip, port)
-        };
-        trace!("Posting to {}", &url);
-        let response = self.client.post(&url).json(&packet).send().await?;
 
-        if response.status().is_success() {
-            Ok(response.bytes().await?)
-        } else {
-            Err(Error::ErrorStatus(
-                response.status(),
-                response.text().await.ok(),
-            ))
-        }
-    }
-
-    async fn call_routing(&self, packet: Packet) -> Result<(), Error> {
-        self._call_routing(packet, false).await?;
-        Ok(())
-    }
-
-    async fn call_sync_routing(&self, packet: Packet) -> Result<Bytes, Error> {
-        self._call_routing(packet, true).await
+        Ok(self.client.post(format!("{ip}:{port}/api/{route}")))
     }
 }
 
 #[async_trait]
-impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
+impl NodeCommunication for NodeCommunicationImpl {
     async fn request_bids_from_node(
         &self,
         to: NodeId,
         sla: &'_ Sla,
     ) -> Result<BidProposals, Error> {
-        let data = Packet::FogNode {
-            resource_uri:   "bid".to_string(),
-            data:           serde_json::value::to_value(&BidRequest {
+        let resp: BidProposals = self
+            .send(&to, "bid")
+            .await?
+            .json(&BidRequest {
                 sla,
                 node_origin: to.clone(),
                 accumulated_latency: Time::new::<second>(0.0),
-            })?,
-            route_to_stack: self.network.get_route_to_node(to).await,
-        };
+            })
+            .send()
+            .await?
+            .json()
+            .await?;
 
-        Ok(serde_json::from_slice(&self.call_sync_routing(data).await?)?)
+        Ok(resp)
     }
 
     async fn take_offer(
@@ -159,31 +106,12 @@ impl NodeCommunication for NodeCommunicationThroughRoutingImpl {
         to: NodeId,
         bid: &BidProposal,
     ) -> Result<(), Error> {
-        let data = Packet::FogNode {
-            route_to_stack: self.network.get_route_to_node(to).await,
-            resource_uri:   format!("bid/{}", bid.id),
-            data:           serde_json::value::to_value(())?,
-        };
-
-        self.call_routing(data).await?;
-        Ok(())
-    }
-
-    async fn establish_route(
-        &self,
-        starting_from: NodeId,
-        route: Route,
-    ) -> Result<(), Error> {
-        let data = Packet::FogNode {
-            route_to_stack: self
-                .network
-                .get_route_to_node(starting_from)
-                .await,
-            resource_uri:   "register_route".to_string(),
-            data:           serde_json::value::to_value(&route)?,
-        };
-
-        self.call_routing(data).await?;
+        self.send(&to, &format!("bid/{}", bid.id))
+            .await?
+            .send()
+            .await?
+            .json()
+            .await?;
         Ok(())
     }
 }
