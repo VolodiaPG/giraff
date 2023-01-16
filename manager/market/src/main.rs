@@ -100,7 +100,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    env::set_var("RUST_LOG", "info, market=trace, model=trace");
+    env::set_var("RUST_LOG", "warn, market=trace, model=trace");
     #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
