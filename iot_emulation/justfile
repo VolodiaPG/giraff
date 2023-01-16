@@ -8,8 +8,8 @@ run $SERVER_PORT="30080":
 	cargo run --features jaeger
 
 # Build the project as a docker image
-container:
-    {{DOCKER}} build --target iot_emulation-default -t iot_emulation:latest .
+container *FLAGS:
+    {{DOCKER}} build --target iot_emulation-default -t iot_emulation:latest  --build-arg FLAGS="{{FLAGS}}" .
 
 # Push an image to ghcr
 _push image user:
@@ -17,7 +17,7 @@ _push image user:
     {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
 # Push docker images to ghcr
-ghcr user: container
+ghcr user *FLAGS: (container FLAGS)
     just _push iot_emulation:latest {{user}}
 
 check:
