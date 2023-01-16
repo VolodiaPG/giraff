@@ -5,7 +5,7 @@ _default:
 
 # Run the echo server
 run $SERVER_PORT="30080":
-	cargo run
+	cargo run --features jaeger
 
 # Build the project as a docker image
 container:

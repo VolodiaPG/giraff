@@ -280,17 +280,14 @@ async fn forever(
     jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>,
     request_interval: Arc<RwLock<u64>>,
 ) {
-    // let mut interval: Interval;
-    let mut last_period;
-    {
-        last_period = *request_interval.read().await;
-    }
+    let mut last_period = 0;
 
     loop {
         if !jobs.is_empty() {
             let mut send_interval = time::interval(Duration::from_micros(
                 last_period * 1000 / (jobs.len() as u64),
             ));
+            send_interval.tick().await;
 
             let jobs_collected: Vec<Arc<CronFn>> =
                 jobs.iter().map(|x| x.value().clone()).collect();
