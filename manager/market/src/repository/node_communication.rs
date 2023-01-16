@@ -74,7 +74,7 @@ impl NodeCommunicationImpl {
             return Err(Error::RecordOfNodeNotFound(to.clone()));
         };
 
-        Ok(self.client.post(format!("{ip}:{port_http}/api/{route}")))
+        Ok(self.client.post(format!("http://{ip}:{port_http}/api/{route}")))
     }
 }
 
