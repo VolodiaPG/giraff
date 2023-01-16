@@ -43,7 +43,7 @@ use std::time::Duration;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
-use tokio::time::{self, Interval};
+use tokio::time::{self};
 use uuid::Uuid;
 
 #[cfg(feature = "jaeger")]
@@ -72,14 +72,6 @@ lazy_static! {
         &["tag", "period"]
     )
     .unwrap();
-
-    // static ref HTTP_TIME_TO_PROCESS_GAUGE: GaugeVec = register_gauge_vec!(
-    //     "iot_emulation_http_request_to_processing_echo_duration_seconds_print_gauge",
-    //     "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
-    //      with the content `tag`.",
-    //     &["tag", "period"]
-    // )
-    // .unwrap();
 }
 
 #[derive(Debug, Serialize)]
@@ -177,10 +169,6 @@ pub async fn print(
             .observe(
                 elapsed_function.num_milliseconds().abs() as f64 / 1000.0,
             );
-
-        // HTTP_TIME_TO_PROCESS_GAUGE
-        //     .with_label_values(&[&payload.data.tag])
-        //     .set(elapsed_function.num_milliseconds().abs() as f64 / 100.0);
     });
 
     HttpResponse::Ok().finish()
@@ -297,16 +285,8 @@ async fn forever(
     {
         last_period = *request_interval.read().await;
     }
-    // interval = time::interval(Duration::from_millis(last_period));
 
     loop {
-        // interval.tick().await;
-        info!(
-            "Spawning {} ping tasks after interval of {}ms",
-            jobs.len(),
-            last_period
-        );
-
         if !jobs.is_empty() {
             let mut send_interval = time::interval(Duration::from_micros(
                 last_period * 1000 / (jobs.len() as u64),
@@ -324,15 +304,6 @@ async fn forever(
         {
             last_period = *request_interval.read().await;
         }
-
-        // let period;
-        // {
-        //     period = *request_interval.read().await;
-        // }
-        // if last_period != period {
-        //     interval = time::interval(Duration::from_millis(period));
-        //     last_period = period;
-        // }
     }
 }
 
