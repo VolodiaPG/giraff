@@ -115,10 +115,10 @@ pub struct FaaSPacket {}
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartCron {
-    pub iot_url:        String,
-    pub first_node_url: String,
-    pub function_id:    Uuid,
-    pub tag:            String,
+    pub function_id: Uuid,
+    pub iot_url:     String,
+    pub node_url:    String,
+    pub tag:         String,
 }
 
 #[instrument(
@@ -186,7 +186,7 @@ async fn put_cron(
     let tag = config.tag.clone();
     info!(
         "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}.",
-        config.first_node_url, config.tag, config.iot_url
+        config.node_url, config.tag, config.iot_url
     );
 
     let job: CronFn = Box::new(move |period| {
@@ -216,20 +216,10 @@ async fn ping(
     let tag = config.tag.clone();
     info!("Sending a ping to {:?}...", tag.clone());
 
-    let res = client.post(config.first_node_url.clone()).json(
-        &Packet::FaaSFunction {
-            to:   config.function_id.clone(),
-            data: &serde_json::value::to_raw_value(&CronPayload {
-                address_to_call: config.iot_url.clone(),
-                data:            Payload {
-                    tag: tag.clone(),
-                    id: id.clone(),
-                    period,
-                },
-            })
-            .unwrap(),
-        },
-    );
+    let res = client.post(&config.node_url).json(&CronPayload {
+        address_to_call: config.iot_url.clone(),
+        data:            Payload { tag: tag.clone(), id, period },
+    });
 
     prom_timers.insert(id, chrono::offset::Utc::now());
     let res = res.send().await;
@@ -242,7 +232,6 @@ async fn ping(
             config, err
         );
         prom_timers.remove(&id);
-        return;
     }
 }
 

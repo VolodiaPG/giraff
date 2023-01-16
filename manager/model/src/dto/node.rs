@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::view::auction::AcceptedBid;
-use crate::{BidId, FogNodeHTTPPort, MarketHTTPPort, NodeId};
+use crate::{BidId, FogNodeFaaSPort, FogNodeHTTPPort, MarketHTTPPort, NodeId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -21,6 +21,7 @@ pub struct NodeRecord {
     /// URI, only in the case of the market node
     pub ip:            IpAddr,
     pub port_http:     FogNodeHTTPPort,
+    pub port_faas:     FogNodeFaaSPort,
     pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
@@ -29,11 +30,13 @@ impl NodeRecord {
     pub fn new(
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
+        port_faas: FogNodeFaaSPort,
         tags: &[String],
     ) -> Self {
         Self {
             ip,
             port_http,
+            port_faas,
             tags: Vec::from(tags),
             accepted_bids: HashMap::new(),
         }
@@ -80,6 +83,7 @@ pub struct NodeSituationData {
     pub my_id:               NodeId,
     pub my_public_ip:        IpAddr,
     pub my_public_port_http: FogNodeHTTPPort,
+    pub my_public_port_faas: FogNodeFaaSPort,
     pub tags:                Vec<String>,
     pub children:            dashmap::DashMap<NodeId, NodeDescription>,
 }
@@ -127,8 +131,11 @@ impl NodeSituationDisk {
     }
 }
 
-impl From<NodeSituationDisk> for NodeSituationData {
-    fn from(disk: NodeSituationDisk) -> Self {
+impl NodeSituationData {
+    pub fn new(
+        disk: NodeSituationDisk,
+        my_public_port_faas: FogNodeFaaSPort,
+    ) -> Self {
         match disk {
             NodeSituationDisk::MarketConnected {
                 market_port,
@@ -142,6 +149,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port_http,
+                my_public_port_faas,
                 tags,
                 situation: NodeCategory::MarketConnected {
                     market_ip,
@@ -161,6 +169,7 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port_http,
+                my_public_port_faas,
                 tags,
                 situation: NodeCategory::NodeConnected {
                     parent_id,

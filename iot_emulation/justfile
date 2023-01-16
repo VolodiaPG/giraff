@@ -7,6 +7,9 @@ _default:
 run $SERVER_PORT="30080":
 	cargo run --features jaeger
 
+clippy:
+	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
+
 # Build the project as a docker image
 container *FLAGS:
     {{DOCKER}} build --target iot_emulation-default -t iot_emulation:latest  --build-arg FLAGS="{{FLAGS}}" .

@@ -15,6 +15,7 @@ use actix_web::{middleware, web, App, HttpServer};
 
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
+use model::FogNodeFaaSPort;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -226,6 +227,7 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .unwrap_or(8080);
+    let port_openfaas = FogNodeFaaSPort::from(port_openfaas);
     let ip_openfaas =
         env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     debug!("OpenFaaS uri: {}:{}", ip_openfaas, port_openfaas);
@@ -269,7 +271,7 @@ async fn main() -> std::io::Result<()> {
 
     let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituationHashSetImpl::new(
-        NodeSituationData::from(disk_data.unwrap()),
+        NodeSituationData::new(disk_data.unwrap(), port_openfaas),
     ));
 
     info!("Current node ID is {}", node_situation.get_my_id());
@@ -393,9 +395,11 @@ async fn register_to_market(
     let mut interval = time::interval(Duration::from_secs(5));
     let my_ip = node_situation.get_my_public_ip();
     let my_port_http = node_situation.get_my_public_port_http();
+    let my_port_faas = node_situation.get_my_public_port_faas();
 
-    while let Err(err) =
-        node_life.init_registration(my_ip, my_port_http.clone()).await
+    while let Err(err) = node_life
+        .init_registration(my_ip, my_port_http.clone(), my_port_faas.clone())
+        .await
     {
         warn!("Failed to register to market: {}", err.to_string());
         interval.tick().await;

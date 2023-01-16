@@ -7,7 +7,6 @@ PORT=$4
 IOT_LOCAL_PORT=$5
 IOT_URL=$6
 TARGET_REMOTE_IP=$7
-FIRST_NODE_PORT=$8
 
 # Colors
 RED='\033[0;31m'
@@ -70,12 +69,14 @@ do
 	"targetNode": "'"$TARGET_NODE"'"
   }')
 	echo -e $FUNCTION_ID
+	FAAS_IP=$(echo "$FUNCTION_ID" | jq -r .chosen.ip)
+	FAAS_PORT=$(echo "$FUNCTION_ID" | jq -r .chosen.port)
 	FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
 	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
 	iot_requests_body+=('{
 	"iotUrl": "http://'$IOT_URL':'$IOT_LOCAL_PORT'/api/print",
-	"firstNodeUrl": "http://'$TARGET_REMOTE_IP':'$FIRST_NODE_PORT'/api/routing",
+	"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'$function_name'-'$FUNCTION_ID'",
 	"functionId": "'$FUNCTION_ID'",
 	"tag": "'"$function_name"'"
   	}')

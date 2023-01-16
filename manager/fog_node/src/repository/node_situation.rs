@@ -3,7 +3,7 @@ use std::net::IpAddr;
 
 use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
-use model::{FogNodeHTTPPort, MarketHTTPPort, NodeId};
+use model::{FogNodeFaaSPort, FogNodeHTTPPort, MarketHTTPPort, NodeId};
 
 pub trait NodeSituation: Debug + Sync + Send {
     fn register(&self, id: NodeId, description: NodeDescription);
@@ -24,6 +24,8 @@ pub trait NodeSituation: Debug + Sync + Send {
     fn get_my_public_ip(&self) -> IpAddr;
     /// Get the public port associated with this server (HTTP)
     fn get_my_public_port_http(&self) -> FogNodeHTTPPort;
+    /// Get the public port associated with this server (HTTP)
+    fn get_my_public_port_faas(&self) -> FogNodeFaaSPort;
 }
 
 #[derive(Debug)]
@@ -117,5 +119,9 @@ impl NodeSituation for NodeSituationHashSetImpl {
 
     fn get_my_public_port_http(&self) -> FogNodeHTTPPort {
         self.database.my_public_port_http.clone()
+    }
+
+    fn get_my_public_port_faas(&self) -> FogNodeFaaSPort {
+        self.database.my_public_port_faas.clone()
     }
 }

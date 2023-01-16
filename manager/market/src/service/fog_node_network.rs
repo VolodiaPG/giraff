@@ -40,14 +40,29 @@ impl FogNodeNetworkHashTreeImpl {
 impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
     async fn register_node(&self, node: RegisterNode) -> Result<(), Error> {
         match node {
-            RegisterNode::MarketNode { node_id, ip, port_http, tags } => {
+            RegisterNode::MarketNode {
+                node_id,
+                ip,
+                port_http,
+                port_faas,
+                tags,
+            } => {
                 self.fog_node
-                    .append_root(node_id, ip, port_http, &tags)
+                    .append_root(node_id, ip, port_http, port_faas, &tags)
                     .await?;
             }
-            RegisterNode::Node { node_id, parent, tags, ip, port_http } => {
+            RegisterNode::Node {
+                node_id,
+                parent,
+                tags,
+                ip,
+                port_http,
+                port_faas,
+            } => {
                 self.fog_node
-                    .append_new_child(&parent, node_id, ip, port_http, &tags)
+                    .append_new_child(
+                        &parent, node_id, ip, port_http, port_faas, &tags,
+                    )
                     .await?;
             }
         }

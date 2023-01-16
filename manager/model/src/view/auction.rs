@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::net::IpAddr;
 
-use crate::FogNodeHTTPPort;
+use crate::FogNodeFaaSPort;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
@@ -78,6 +78,6 @@ impl Eq for BidProposal {}
 pub struct InstanciatedBid {
     pub bid:   BidProposal,
     pub ip:    IpAddr,
-    pub port:  FogNodeHTTPPort,
+    pub port:  FogNodeFaaSPort,
     pub price: f64,
 }

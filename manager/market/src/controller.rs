@@ -43,7 +43,7 @@ pub async fn start_auction(
     let AuctionResult { chosen_bid } =
         auction_service.do_auction(&proposals).await?;
 
-    let Some(NodeRecord {ip, port_http, ..}) = fog_node_network.get_node(&chosen_bid.bid.node_id).await else {
+    let Some(NodeRecord {ip, port_faas, ..}) = fog_node_network.get_node(&chosen_bid.bid.node_id).await else {
         return Err(ControllerError::RecordOfNodeNotFound(chosen_bid.bid.node_id));
     };
 
@@ -52,7 +52,7 @@ pub async fn start_auction(
             bid: chosen_bid.bid,
             price: chosen_bid.price,
             ip,
-            port: port_http,
+            port: port_faas,
         },
         proposals,
         sla: payload.sla,
