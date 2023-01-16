@@ -2,9 +2,6 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::future::join;
-
-use model::domain::routing::{FogSegment, RoutingStacks};
 use model::dto::node::NodeRecord;
 use model::view::node::RegisterNode;
 use model::NodeId;
@@ -15,8 +12,6 @@ use crate::repository::fog_node::FogNode;
 pub enum Error {
     #[error(transparent)]
     NodeUpdate(#[from] crate::repository::fog_node::Error),
-    #[error("No solution was found to route from {origin} to {dest}")]
-    NoRoutingSolution { origin: NodeId, dest: NodeId },
 }
 
 #[async_trait]
@@ -28,13 +23,6 @@ pub trait FogNodeNetwork: Debug + Sync + Send {
 
     /// Get all the connected nodes
     async fn get_node(&self, node: &NodeId) -> Option<NodeRecord>;
-
-    /// Get a solution to establish a [Route] between two points in the Fog
-    /// network
-    async fn get_route(
-        &self,
-        segment: FogSegment,
-    ) -> Result<RoutingStacks, Error>;
 }
 
 #[derive(Debug)]
@@ -52,19 +40,15 @@ impl FogNodeNetworkHashTreeImpl {
 impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
     async fn register_node(&self, node: RegisterNode) -> Result<(), Error> {
         match node {
-            RegisterNode::MarketNode {
-                node_id,
-                ip,
-                port_http,
-                port_rpc,
-                tags,
-            } => {
+            RegisterNode::MarketNode { node_id, ip, port_http, tags } => {
                 self.fog_node
-                    .append_root(node_id, ip, port_http, port_rpc, tags)
+                    .append_root(node_id, ip, port_http, &tags)
                     .await?;
             }
-            RegisterNode::Node { node_id, parent, tags, .. } => {
-                self.fog_node.append_new_child(&parent, node_id, tags).await?;
+            RegisterNode::Node { node_id, parent, tags, ip, port_http } => {
+                self.fog_node
+                    .append_new_child(&parent, node_id, ip, port_http, &tags)
+                    .await?;
             }
         }
 
@@ -77,51 +61,5 @@ impl FogNodeNetwork for FogNodeNetworkHashTreeImpl {
 
     async fn get_node(&self, node: &NodeId) -> Option<NodeRecord> {
         self.fog_node.get(node).await.map(|x| x.data)
-    }
-
-    async fn get_route(
-        &self,
-        segment: FogSegment,
-    ) -> Result<RoutingStacks, Error> {
-        let path_to_from =
-            self.fog_node.get_route_to_node(segment.from.clone());
-        let path_to_to = self.fog_node.get_route_to_node(segment.to.clone());
-        let (mut path_to_from, mut path_to_to) =
-            join(path_to_from, path_to_to).await;
-
-        // Remove common bits at the start (ie the end of the vec)
-        let mut last_common_node = None;
-        loop {
-            let from = path_to_from.last();
-            let to = path_to_to.last();
-
-            match (from, to) {
-                (Some(a), Some(b)) => {
-                    if a.eq(b) {
-                        path_to_from.pop();
-                        last_common_node = path_to_to.pop();
-                    } else {
-                        break;
-                    }
-                }
-                (None, None) | (None, Some(_)) | (Some(_), None) => break,
-            }
-        }
-
-        if let Some(least_common_ancestor) = last_common_node {
-            let stack = RoutingStacks {
-                least_common_ancestor,
-                stack_rev: path_to_from,
-                stack_asc: path_to_to,
-            };
-            trace!("{:?}", stack);
-
-            return Ok(stack);
-        }
-
-        Err(Error::NoRoutingSolution {
-            origin: segment.from,
-            dest:   segment.to,
-        })
     }
 }

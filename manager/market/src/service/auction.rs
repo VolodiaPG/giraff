@@ -21,7 +21,7 @@ pub trait Auction: Send + Sync {
     /// Call fog nodes for the bids. Will get their bid proposals
     async fn call_for_bids(
         &self,
-        leaf_node: NodeId,
+        to: NodeId,
         sla: &'_ Sla,
     ) -> Result<BidProposals, Error>;
 
@@ -52,15 +52,12 @@ impl AuctionImpl {
 impl Auction for AuctionImpl {
     async fn call_for_bids(
         &self,
-        leaf_node: NodeId,
+        to: NodeId,
         sla: &'_ Sla,
     ) -> Result<BidProposals, Error> {
         trace!("call for bids: {:?}", sla);
 
-        Ok(self
-            .node_communication
-            .request_bids_from_node(leaf_node, sla)
-            .await?)
+        Ok(self.node_communication.request_bids_from_node(to, sla).await?)
     }
 
     async fn do_auction(

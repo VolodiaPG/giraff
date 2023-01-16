@@ -200,8 +200,6 @@ macro_rules! impl_port_encapsulation {
 impl_id_encapsulation!(NodeId);
 impl_id_encapsulation!(BidId);
 
-// Port for fog node Rpc
-impl_port_encapsulation!(FogNodeRPCPort);
 // Port for fog node HTTP
 impl_port_encapsulation!(FogNodeHTTPPort);
 // Port for Market HTTP port

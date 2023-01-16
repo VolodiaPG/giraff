@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::view::auction::AcceptedBid;
-use crate::{BidId, FogNodeHTTPPort, FogNodeRPCPort, MarketHTTPPort, NodeId};
+use crate::{BidId, FogNodeHTTPPort, MarketHTTPPort, NodeId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -16,14 +16,28 @@ pub struct Node<T> {
     pub data: T,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeRecord {
     /// URI, only in the case of the market node
-    pub ip:            Option<IpAddr>,
-    pub port_http:     Option<FogNodeHTTPPort>,
-    pub port_rpc:      Option<FogNodeRPCPort>,
+    pub ip:            IpAddr,
+    pub port_http:     FogNodeHTTPPort,
     pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
+}
+
+impl NodeRecord {
+    pub fn new(
+        ip: IpAddr,
+        port_http: FogNodeHTTPPort,
+        tags: &[String],
+    ) -> Self {
+        Self {
+            ip,
+            port_http,
+            tags: Vec::from(tags),
+            accepted_bids: HashMap::new(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -45,7 +59,6 @@ impl From<Vec<NodeId>> for NodeIdList {
 pub struct NodeDescription {
     pub ip:        IpAddr,
     pub port_http: FogNodeHTTPPort,
-    pub port_rpc:  FogNodeRPCPort,
 }
 
 #[derive(Debug)]
@@ -58,7 +71,6 @@ pub enum NodeCategory {
         parent_id:             NodeId,
         parent_node_ip:        IpAddr,
         parent_node_port_http: FogNodeHTTPPort,
-        parent_node_port_rpc:  FogNodeRPCPort,
     },
 }
 
@@ -68,7 +80,6 @@ pub struct NodeSituationData {
     pub my_id:               NodeId,
     pub my_public_ip:        IpAddr,
     pub my_public_port_http: FogNodeHTTPPort,
-    pub my_public_port_rpc:  FogNodeRPCPort,
     pub tags:                Vec<String>,
     pub children:            dashmap::DashMap<NodeId, NodeDescription>,
 }
@@ -81,18 +92,15 @@ pub enum NodeSituationDisk {
         my_id:               NodeId,
         my_public_ip:        IpAddr,
         my_public_port_http: FogNodeHTTPPort,
-        my_public_port_rpc:  FogNodeRPCPort,
         tags:                Vec<String>,
     },
     NodeConnected {
         parent_id:             NodeId,
         parent_node_ip:        IpAddr,
         parent_node_port_http: FogNodeHTTPPort,
-        parent_node_port_rpc:  FogNodeRPCPort,
         my_id:                 NodeId,
         my_public_ip:          IpAddr,
         my_public_port_http:   FogNodeHTTPPort,
-        my_public_port_rpc:    FogNodeRPCPort,
         tags:                  Vec<String>,
     },
 }
@@ -128,14 +136,12 @@ impl From<NodeSituationDisk> for NodeSituationData {
                 my_id,
                 my_public_ip,
                 my_public_port_http,
-                my_public_port_rpc,
                 tags,
             } => NodeSituationData {
                 children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port_http,
-                my_public_port_rpc,
                 tags,
                 situation: NodeCategory::MarketConnected {
                     market_ip,
@@ -145,25 +151,21 @@ impl From<NodeSituationDisk> for NodeSituationData {
             NodeSituationDisk::NodeConnected {
                 parent_id,
                 parent_node_port_http,
-                parent_node_port_rpc,
                 parent_node_ip,
                 my_id,
                 my_public_ip,
                 my_public_port_http,
-                my_public_port_rpc,
                 tags,
             } => NodeSituationData {
                 children: dashmap::DashMap::new(),
                 my_id,
                 my_public_ip,
                 my_public_port_http,
-                my_public_port_rpc,
                 tags,
                 situation: NodeCategory::NodeConnected {
                     parent_id,
                     parent_node_ip,
                     parent_node_port_http,
-                    parent_node_port_rpc,
                 },
             },
         }

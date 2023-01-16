@@ -1,5 +1,5 @@
 KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
-RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
+RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace,market=trace"
 DOCKER := "podman"
 
 # Default command when no verb specified
@@ -29,7 +29,7 @@ clippy:
 
 # Run the market
 run_market *FLAGS:
-   SERVER_PORT=8000 cargo run --bin market {{FLAGS}}
+   SERVER_PORT=8000 RUST_LOG={{RUST_LOG}} cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node node_type *FLAGS:

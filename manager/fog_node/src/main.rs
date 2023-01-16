@@ -393,11 +393,9 @@ async fn register_to_market(
     let mut interval = time::interval(Duration::from_secs(5));
     let my_ip = node_situation.get_my_public_ip();
     let my_port_http = node_situation.get_my_public_port_http();
-    let my_port_rpc = node_situation.get_my_public_port_rpc();
 
-    while let Err(err) = node_life
-        .init_registration(my_ip, my_port_http.clone(), my_port_rpc.clone())
-        .await
+    while let Err(err) =
+        node_life.init_registration(my_ip, my_port_http.clone()).await
     {
         warn!("Failed to register to market: {}", err.to_string());
         interval.tick().await;

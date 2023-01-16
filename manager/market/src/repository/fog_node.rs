@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use model::dto::node::{Node, NodeIdList, NodeRecord};
 use model::view::auction::AcceptedBid;
-use model::{FogNodeHTTPPort, FogNodeRPCPort, NodeId};
+use model::{FogNodeHTTPPort, NodeId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -31,7 +31,9 @@ pub trait FogNode: Debug + Sync + Send {
         &self,
         parent: &NodeId,
         child: NodeId,
-        tags: Vec<String>,
+        ip: IpAddr,
+        port_http: FogNodeHTTPPort,
+        tags: &[String],
     ) -> Result<(), Error>;
     /// Append the root of the tree, i.e., will fail if not the first node in
     /// the whole tree, and will fail thereafter
@@ -40,8 +42,7 @@ pub trait FogNode: Debug + Sync + Send {
         root: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_rpc: FogNodeRPCPort,
-        tags: Vec<String>,
+        tags: &[String],
     ) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
     /// Return the stack, meaning the destination is at the bottom and the next
@@ -145,7 +146,9 @@ impl FogNode for FogNodeImpl {
         &self,
         parent: &NodeId,
         child: NodeId,
-        tags: Vec<String>,
+        ip: IpAddr,
+        port_http: FogNodeHTTPPort,
+        tags: &[String],
     ) -> Result<(), Error> {
         self.nodes
             .write()
@@ -161,7 +164,7 @@ impl FogNode for FogNodeImpl {
             Node {
                 parent:   Some(parent.clone()),
                 children: vec![],
-                data:     NodeRecord { tags, ..NodeRecord::default() },
+                data:     NodeRecord::new(ip, port_http, &tags),
             },
         );
         let result = self.check_tree().await;
@@ -203,21 +206,14 @@ impl FogNode for FogNodeImpl {
         root: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_rpc: FogNodeRPCPort,
-        tags: Vec<String>,
+        tags: &[String],
     ) -> Result<(), Error> {
         self.nodes.write().await.insert(
             root.clone(),
             Node {
                 parent:   None,
                 children: vec![],
-                data:     NodeRecord {
-                    ip: Some(ip),
-                    port_http: Some(port_http),
-                    port_rpc: Some(port_rpc),
-                    tags,
-                    ..NodeRecord::default()
-                },
+                data:     NodeRecord::new(ip, port_http, &tags),
             },
         );
         let res = self.check_tree().await;

@@ -70,11 +70,11 @@ impl NodeCommunicationImpl {
         to: &NodeId,
         route: &str,
     ) -> Result<HttpRequestBuilder, Error> {
-        let Some(NodeRecord {ip:Some(ip), port_http:Some(port), ..}) = self.network.get_node(to).await else {
+        let Some(NodeRecord {ip, port_http, ..}) = self.network.get_node(to).await else {
             return Err(Error::RecordOfNodeNotFound(to.clone()));
         };
 
-        Ok(self.client.post(format!("{ip}:{port}/api/{route}")))
+        Ok(self.client.post(format!("{ip}:{port_http}/api/{route}")))
     }
 }
 

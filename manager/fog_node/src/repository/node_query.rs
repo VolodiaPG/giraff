@@ -95,7 +95,7 @@ impl NodeQuery for NodeQueryRESTImpl {
                 .ok_or(Error::NoURIToUpper)?;
             format!("http://{addr}:{port}/api/register")
         } else {
-            let (addr, port, _) = self
+            let (addr, port) = self
                 .node_situation
                 .get_parent_node_address()
                 .ok_or(Error::NoURIToUpper)?;

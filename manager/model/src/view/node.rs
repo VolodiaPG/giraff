@@ -7,7 +7,7 @@ use std::net::IpAddr;
 
 use crate::dto::node::NodeRecord;
 use crate::view::auction::AcceptedBid;
-use crate::{BidId, FogNodeHTTPPort, FogNodeRPCPort};
+use crate::{BidId, FogNodeHTTPPort};
 use helper::chrono as chrono_helper;
 
 use super::super::NodeId;
@@ -56,7 +56,6 @@ pub enum RegisterNode {
         node_id:   NodeId,
         ip:        IpAddr,
         port_http: FogNodeHTTPPort,
-        port_rpc:  FogNodeRPCPort,
         tags:      Vec<String>,
     },
     Node {
@@ -64,7 +63,6 @@ pub enum RegisterNode {
         node_id:   NodeId,
         ip:        IpAddr,
         port_http: FogNodeHTTPPort,
-        port_rpc:  FogNodeRPCPort,
         tags:      Vec<String>,
     },
 }

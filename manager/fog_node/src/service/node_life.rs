@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
-use model::{FogNodeHTTPPort, FogNodeRPCPort};
+use model::FogNodeHTTPPort;
 
 use crate::{NodeQuery, NodeSituation};
 
@@ -37,7 +37,6 @@ pub trait NodeLife: Send + Sync {
         &self,
         my_ip: IpAddr,
         my_port_http: FogNodeHTTPPort,
-        my_port_rpc: FogNodeRPCPort,
     ) -> Result<(), Error>;
 }
 
@@ -64,21 +63,13 @@ impl NodeLife for NodeLifeImpl {
     ) -> Result<(), Error> {
         trace!("Registering child node");
         match &register {
-            RegisterNode::Node {
-                node_id,
-                parent,
-                ip,
-                port_http,
-                port_rpc,
-                ..
-            } => {
+            RegisterNode::Node { node_id, parent, ip, port_http, .. } => {
                 if &self.node_situation.get_my_id() == parent {
                     self.node_situation.register(
                         node_id.clone(),
                         NodeDescription {
                             ip:        *ip,
                             port_http: port_http.clone(),
-                            port_rpc:  port_rpc.clone(),
                         },
                     );
                 }
@@ -96,7 +87,6 @@ impl NodeLife for NodeLifeImpl {
         &self,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_rpc: FogNodeRPCPort,
     ) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market() {
@@ -104,14 +94,12 @@ impl NodeLife for NodeLifeImpl {
                 node_id: self.node_situation.get_my_id(),
                 ip,
                 port_http,
-                port_rpc,
                 tags: self.node_situation.get_my_tags(),
             }
         } else {
             RegisterNode::Node {
                 ip,
                 port_http,
-                port_rpc,
                 node_id: self.node_situation.get_my_id(),
                 parent: self
                     .node_situation
