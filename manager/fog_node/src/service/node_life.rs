@@ -11,8 +11,6 @@ use crate::{NodeQuery, NodeSituation};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("A node tried to register here, but I am not her parent")]
-    NotTheParent,
     #[error("This node has no parent (probably it is the market/root node)")]
     ParentDoesntExist,
     #[error(transparent)]
@@ -74,18 +72,16 @@ impl NodeLife for NodeLifeImpl {
                 port_rpc,
                 ..
             } => {
-                if &self.node_situation.get_my_id() != parent {
-                    return Err(Error::NotTheParent);
+                if &self.node_situation.get_my_id() == parent {
+                    self.node_situation.register(
+                        node_id.clone(),
+                        NodeDescription {
+                            ip:        *ip,
+                            port_http: port_http.clone(),
+                            port_rpc:  port_rpc.clone(),
+                        },
+                    );
                 }
-
-                self.node_situation.register(
-                    node_id.clone(),
-                    NodeDescription {
-                        ip:        *ip,
-                        port_http: port_http.clone(),
-                        port_rpc:  port_rpc.clone(),
-                    },
-                );
             }
             RegisterNode::MarketNode { .. } => {
                 return Err(Error::CannotRegisterMarketOnRegularNode)

@@ -105,8 +105,6 @@ impl NodeQuery for NodeQueryRESTImpl {
         trace!("Registering to {}", url);
         self.post(url.as_str(), &register).await?;
 
-        // Both the market and node APIs offer the same endpoint.
-
         Ok(())
     }
 
@@ -122,10 +120,7 @@ impl NodeQuery for NodeQueryRESTImpl {
             .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
 
         Ok(self
-            .post(
-                format!("http://{ip}:{port_http}/api/bid").as_str(),
-                request,
-            )
+            .post(format!("http://{ip}:{port_http}/api/bid").as_str(), request)
             .await?
             .json()
             .await?)
