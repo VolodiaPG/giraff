@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -324,6 +327,20 @@ def adjacency(node):
     for child in children:
         ret = {**ret, **adjacency(child)}
 
+    return ret
+
+
+def adjacency_undirected(node):
+    ret = defaultdict(lambda: [])
+
+    def fun(node):
+        children = node["children"] if "children" in node else []
+        for child in children:
+            ret[node["name"]] += [(child["name"], child["latency"])]
+            ret[child["name"]] += [(node["name"], child["latency"])]
+            fun(child)
+
+    fun(node)
     return ret
 
 

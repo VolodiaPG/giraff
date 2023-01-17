@@ -360,7 +360,7 @@ def network(env=None):
         netem = env["netem"]
         netem.destroy()
 
-    netem = en.Netem()
+    # netem = en.Netem()
     netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]
@@ -378,22 +378,28 @@ def drop_netem(env):
     netem.destroy()
 
 
-def gen_net(node, netem, roles):
-    children = node["children"] if "children" in node else []
+def gen_net(nodes, netem, roles):
+    adjacency = adjacency_undirected(nodes)
 
-    for child in children:
-        print(
-            f"Setting lat of {child['latency']} btw {node['name']} and {child['name']}"
-        )
-        netem.add_constraints(
-            src=roles[node["name"]],
-            dest=roles[child["name"]],
-            delay=str(child["latency"]) + "ms",
-            # delay=str(0) + "ms",
-            rate="1gbit",
-            symmetric=True,
-        )
-        gen_net(child, netem, roles)
+    def dfs(node):
+        vis[node] = 1
+        for child, latency in adjacency[node]:
+            if child not in vis:
+                subtree_cumul[child] = subtree_cumul[node] + latency
+                dfs(child)
+
+    for node_name in adjacency:
+        subtree_cumul = defaultdict(lambda: 0)
+        vis = {}
+        dfs(node_name)  # modifies subtree_cumul
+        for destination in subtree_cumul:
+            netem.add_constraints(
+                src=roles[node_name],
+                dest=roles[destination],
+                delay=str(subtree_cumul[destination]) + "ms",
+                rate="1gbit",
+                symmetric=True,
+            )
 
 
 @cli.command()
