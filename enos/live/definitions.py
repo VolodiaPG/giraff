@@ -209,8 +209,15 @@ NODE_CONNECTED_NODE = """NodeConnected (
 
 """
 
-TIER_3_FLAVOR = {"core": 4, "mem": 1024 * 4}
-TIER_2_FLAVOR = {"core": 8, "mem": 1024 * 8}
+# Remove a unit so that the hosts are not saturated
+NB_CPU_PER_MACHINE_PER_CLUSTER = {
+    "gros": {"core": 18 - 2, "mem": 1024 * (96 - 4)},
+    "paravance": {"core": 2 * 8 - 2, "mem": 1024 * (128 - 4)},
+    "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
+}
+
+TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 4}
+TIER_2_FLAVOR = {"core": 6, "mem": 1024 * 8}
 TIER_1_FLAVOR = {"core": 14, "mem": 1024 * 16}
 
 NETWORK = {
@@ -241,6 +248,7 @@ NETWORK = {
                                     "name": "st-greg-5",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 5,
+                                    "iot_connected": 0,
                                 },
                                 {
                                     "name": "st-greg-10",
@@ -283,13 +291,6 @@ NETWORK = {
     ],
 }
 
-# Remove a unit so that the hosts are not saturated
-NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": 18 - 2, "mem": 1024 * (96 - 4)},
-    "paravance": {"core": 2 * 8 - 2, "mem": 1024 * (128 - 4)},
-    "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
-}
-
 
 def flatten(container):
     for i in container:
@@ -316,6 +317,18 @@ def get_extremities_name(node):
     ret = [get_extremities_name(node) for node in children]
     if len(children) == 0:
         ret.append(name)
+
+    return ret
+
+
+def get_iot_connection(node):
+    name = node["name"]
+
+    children = node["children"] if "children" in node else []
+
+    ret = [get_iot_connection(node) for node in children]
+    if "iot_connected" in node:
+        ret.append((name, node["iot_connected"]))
 
     return ret
 
@@ -347,5 +360,8 @@ def adjacency_undirected(node):
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
 EXTREMITIES = list(
     flatten([get_extremities_name(child) for child in NETWORK["children"]])
+)
+IOT_CONNECTION = list(
+    flatten([get_iot_connection(child) for child in NETWORK["children"]])
 )
 ADJACENCY = adjacency(NETWORK)

@@ -325,11 +325,6 @@ def up(force, env=None, **kwargs):
             ),
             task_name="[master] Installing OpenFaaS",
         )
-        # p.shell(
-        #     f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
-        #     background=True,
-        # )
-
         # Installs tools
         with actions(roles=roles["prom_agent"], gather_facts=False) as p:
             p.apt(
@@ -373,13 +368,13 @@ def network(env=None):
     netem.validate()
 
 
-def drop_netem(env):
-    netem = env["netem"]
-    netem.destroy()
-
-
 def gen_net(nodes, netem, roles):
     adjacency = adjacency_undirected(nodes)
+
+    print(IOT_CONNECTION)
+    for name, latency in IOT_CONNECTION:
+        adjacency[name].append(("iot_emulation", latency))
+        adjacency["iot_emulation"].append((name, latency))
 
     def dfs(node):
         vis[node] = 1
@@ -393,13 +388,40 @@ def gen_net(nodes, netem, roles):
         vis = {}
         dfs(node_name)  # modifies subtree_cumul
         for destination in subtree_cumul:
+            # print(f"{node_name} -> {destination} = {subtree_cumul[destination]}")
             netem.add_constraints(
                 src=roles[node_name],
                 dest=roles[destination],
                 delay=str(subtree_cumul[destination]) + "ms",
                 rate="1gbit",
-                symmetric=True,
+                symmetric=False,
             )
+
+
+# @cli.command()
+# @enostask()
+# def check_net(env=None):
+#     roles = env["roles"]
+#     nodes = NETWORK
+#     adjacency = adjacency_undirected(nodes)
+
+#     def dfs(node):
+#         vis[node] = 1
+#         for child, latency in adjacency[node]:
+#             if child not in vis:
+#                 subtree_cumul[child] = subtree_cumul[node] + latency
+#                 dfs(child)
+
+#     for node_name in adjacency:
+#         subtree_cumul = defaultdict(lambda: 0)
+#         vis = {}
+#         dfs(node_name)  # modifies subtree_cumul
+#         for destination in subtree_cumul:
+#             res = en.run_command(f"ping -c 5 {roles[destination][0].address}", roles = ).stdout
+#             print(res)
+#             print(
+#                 f"{node_name} -> {destination} = {subtree_cumul[destination]} - {res} = {subtree_cumul[destination] - res}"
+#             )
 
 
 @cli.command()

@@ -24,10 +24,10 @@ mprocs:
 
 deploy $CLUSTER="gros" +FLAGS='':
     {{RUN}} up {{FLAGS}}
+    {{RUN}} network
     {{RUN}} monitoring
     {{RUN}} k3s-deploy
     {{RUN}} iot-emulation
-    {{RUN}} network
 
 local:
     @just deploy "" --vagrant
