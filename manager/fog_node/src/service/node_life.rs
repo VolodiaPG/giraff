@@ -5,7 +5,7 @@ use async_trait::async_trait;
 
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
-use model::{FogNodeFaaSPort, FogNodeHTTPPort};
+use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort};
 
 use crate::{NodeQuery, NodeSituation};
 
@@ -37,7 +37,7 @@ pub trait NodeLife: Send + Sync {
         &self,
         my_ip: IpAddr,
         my_port_http: FogNodeHTTPPort,
-        my_port_faas: FogNodeFaaSPort,
+        my_port_faas: FogNodeFaaSPortExternal,
     ) -> Result<(), Error>;
 }
 
@@ -88,7 +88,7 @@ impl NodeLife for NodeLifeImpl {
         &self,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
     ) -> Result<(), Error> {
         trace!("Init registration");
         let register = if self.node_situation.is_market() {

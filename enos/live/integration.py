@@ -242,7 +242,7 @@ def up(force, env=None, **kwargs):
     print(f"Deploying on {cluster}")
 
     conf = (
-        en.VMonG5kConf.from_settings(job_name="En0SLib FTW ❤️", walltime="1:00:00")
+        en.VMonG5kConf.from_settings(job_name="En0SLib FTW ❤️", walltime="2:00:00")
         .add_machine(
             roles=["master", "market", "prom_agent"],
             cluster=cluster,
@@ -325,10 +325,10 @@ def up(force, env=None, **kwargs):
             ),
             task_name="[master] Installing OpenFaaS",
         )
-        p.shell(
-            f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
-            background=True,
-        )
+        # p.shell(
+        #     f"k3s kubectl port-forward -n openfaas svc/gateway 8080:8080",
+        #     background=True,
+        # )
 
         # Installs tools
         with actions(roles=roles["prom_agent"], gather_facts=False) as p:
@@ -666,7 +666,7 @@ def tunnels(env=None, all=False, **kwargs):
                 address = role.address
                 print(f"Opening to {address}")
                 open_tunnel(address, 31112)  # OpenFaas
-                open_tunnel(address, 3003)  # Fog Node
+                open_tunnel(address, 30003)  # Fog Node
                 open_tunnel(
                     address,
                     8001,
@@ -676,7 +676,7 @@ def tunnels(env=None, all=False, **kwargs):
         tun = {}  # out_port, (res of tunnels())
         flag = False
         for role in roles["market"]:
-            res = open_tunnel(role.address, 3008)  # Market
+            res = open_tunnel(role.address, 30008)  # Market
             if flag == False:
                 tun[8088] = res
                 flag = True

@@ -36,16 +36,13 @@ metadata:
   labels:
     app: fog-node
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
-    - name: proxied-fog-node-3003
-      port: 3003
-      targetPort: 3003
+    - name: proxied-fog-node-30003
+      port: 30003
+      targetPort: 30003
       protocol: TCP
-    - name: proxied-fog-node-3004
-      port: 3004
-      targetPort: 3004
-      protocol: TCP
+      nodePort: 30003
   selector:
     app: fog-node
 ---
@@ -86,7 +83,7 @@ spec:
         - name: OPENFAAS_IP
           value: "gateway.openfaas"
         - name: OPENFAAS_PORT
-          value: "8080"
+          value: "31112"
         - name: CONFIG
           value: "{conf}"
         - name: LOG_CONFIG_PATH
@@ -94,14 +91,13 @@ spec:
         - name: LOG_CONFIG_FILENAME
           value: "{node_name}.log"
         - name: RUST_LOG
-          value: "warn,fog_node=info,openfaas=info,kube_metrics=info,helper=info"
+          value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: COLLECTOR_PORT
           value: "14268"
         ports:
-        - containerPort: 3003
-        - containerPort: 3004
+        - containerPort: 30003
         volumeMounts:
         - name: log-storage-fog-node
           mountPath: /var/log
@@ -125,12 +121,13 @@ metadata:
   labels:
     app: market
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
-    - name: proxied-market-3008
-      port: 3008
-      targetPort: 3008
+    - name: proxied-market-30008
+      port: 30008
+      targetPort: 30008
       protocol: TCP
+      nodePort: 30008
   selector:
     app: market
 ---
@@ -155,7 +152,7 @@ spec:
       - name: market
         image: ghcr.io/volodiapg/market:latest
         ports:
-        - containerPort: 3008
+        - containerPort: 30008
         - containerPort: 6831
         - containerPort: 6832
         env:
@@ -166,7 +163,7 @@ spec:
         - name: RUST_LOG
           value: "warn,market=trace"
         - name: SERVER_PORT
-          value: "3008"
+          value: "30008"
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: COLLECTOR_PORT
@@ -188,11 +185,10 @@ spec:
 
 MARKET_CONNECTED_NODE = """MarketConnected (
     market_ip: "{market_ip}",
-    market_port: "3008",
+    market_port: "30008",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port_http: "3003",
-    my_public_port_rpc: "3004",
+    my_public_port_http: "30003",
     tags: ["node_to_market", "{name}"],
 )
 
@@ -201,12 +197,10 @@ MARKET_CONNECTED_NODE = """MarketConnected (
 NODE_CONNECTED_NODE = """NodeConnected (
     parent_id: "{parent_id}",
     parent_node_ip: "{parent_ip}",
-    parent_node_port_http: "3003",
-    parent_node_port_rpc: "3004",
+    parent_node_port_http: "30003",
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
-    my_public_port_http: "3003",
-    my_public_port_rpc: "3004",
+    my_public_port_http: "30003",
     tags: ["node_to_node", "{name}"],
 )
 

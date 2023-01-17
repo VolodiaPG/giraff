@@ -15,7 +15,7 @@ use actix_web::{middleware, web, App, HttpServer};
 
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use model::FogNodeFaaSPort;
+use model::{FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -223,14 +223,24 @@ async fn main() -> std::io::Result<()> {
 
     debug!("Tracing initialized.");
 
-    let port_openfaas = env::var("OPENFAAS_PORT")
+    let port_openfaas_internal = env::var("OPENFAAS_PORT_INTERNAL")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .unwrap_or(8080);
-    let port_openfaas = FogNodeFaaSPort::from(port_openfaas);
+    let port_openfaas_external = env::var("OPENFAAS_PORT_EXTERNAL")
+        .unwrap_or_else(|_| "31112".to_string())
+        .parse::<u16>()
+        .unwrap_or(31112);
+    let port_openfaas_internal =
+        FogNodeFaaSPortInternal::from(port_openfaas_internal);
+    let port_openfaas_external =
+        FogNodeFaaSPortExternal::from(port_openfaas_external);
     let ip_openfaas =
         env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
-    debug!("OpenFaaS uri: {}:{}", ip_openfaas, port_openfaas);
+    debug!(
+        "OpenFaaS uri (internal): {}:{} (external port {})",
+        ip_openfaas, port_openfaas_internal, port_openfaas_external
+    );
 
     let username = env::var("OPENFAAS_USERNAME").ok();
     let password = env::var("OPENFAAS_PASSWORD").ok();
@@ -263,7 +273,9 @@ async fn main() -> std::io::Result<()> {
     // Repositories
     let client = Arc::new(DefaultApiClient::new(
         Configuration {
-            base_path:  format!("http://{ip_openfaas}:{port_openfaas}"),
+            base_path:  format!(
+                "http://{ip_openfaas}:{port_openfaas_internal}"
+            ),
             basic_auth: auth,
         },
         http_client.clone(),
@@ -271,7 +283,7 @@ async fn main() -> std::io::Result<()> {
 
     let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituationHashSetImpl::new(
-        NodeSituationData::new(disk_data.unwrap(), port_openfaas),
+        NodeSituationData::new(disk_data.unwrap(), port_openfaas_external),
     ));
 
     info!("Current node ID is {}", node_situation.get_my_id());

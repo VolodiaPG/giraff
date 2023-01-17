@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use model::dto::node::{Node, NodeIdList, NodeRecord};
 use model::view::auction::AcceptedBid;
-use model::{FogNodeFaaSPort, FogNodeHTTPPort, NodeId};
+use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort, NodeId};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -33,7 +33,7 @@ pub trait FogNode: Debug + Sync + Send {
         child: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
     ) -> Result<(), Error>;
     /// Append the root of the tree, i.e., will fail if not the first node in
@@ -43,7 +43,7 @@ pub trait FogNode: Debug + Sync + Send {
         root: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
     ) -> Result<(), Error>;
     /// Get all the [NodeId] up to the target node (included).
@@ -150,7 +150,7 @@ impl FogNode for FogNodeImpl {
         child: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
     ) -> Result<(), Error> {
         self.nodes
@@ -209,7 +209,7 @@ impl FogNode for FogNodeImpl {
         root: NodeId,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
     ) -> Result<(), Error> {
         self.nodes.write().await.insert(

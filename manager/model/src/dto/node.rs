@@ -5,7 +5,9 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 use crate::view::auction::AcceptedBid;
-use crate::{BidId, FogNodeFaaSPort, FogNodeHTTPPort, MarketHTTPPort, NodeId};
+use crate::{
+    BidId, FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
+};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -21,7 +23,7 @@ pub struct NodeRecord {
     /// URI, only in the case of the market node
     pub ip:            IpAddr,
     pub port_http:     FogNodeHTTPPort,
-    pub port_faas:     FogNodeFaaSPort,
+    pub port_faas:     FogNodeFaaSPortExternal,
     pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
@@ -30,7 +32,7 @@ impl NodeRecord {
     pub fn new(
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPort,
+        port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
     ) -> Self {
         Self {
@@ -83,7 +85,7 @@ pub struct NodeSituationData {
     pub my_id:               NodeId,
     pub my_public_ip:        IpAddr,
     pub my_public_port_http: FogNodeHTTPPort,
-    pub my_public_port_faas: FogNodeFaaSPort,
+    pub my_public_port_faas: FogNodeFaaSPortExternal,
     pub tags:                Vec<String>,
     pub children:            dashmap::DashMap<NodeId, NodeDescription>,
 }
@@ -134,7 +136,7 @@ impl NodeSituationDisk {
 impl NodeSituationData {
     pub fn new(
         disk: NodeSituationDisk,
-        my_public_port_faas: FogNodeFaaSPort,
+        my_public_port_faas: FogNodeFaaSPortExternal,
     ) -> Self {
         match disk {
             NodeSituationDisk::MarketConnected {

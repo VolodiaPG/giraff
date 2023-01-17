@@ -202,7 +202,8 @@ impl_id_encapsulation!(BidId);
 
 // Port for fog node FaaS HTTP endpoint (service running in parallel of
 // instance)
-impl_port_encapsulation!(FogNodeFaaSPort);
+impl_port_encapsulation!(FogNodeFaaSPortInternal);
+impl_port_encapsulation!(FogNodeFaaSPortExternal);
 // Port for fog node HTTP
 impl_port_encapsulation!(FogNodeHTTPPort);
 // Port for Market HTTP port

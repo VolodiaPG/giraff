@@ -48,7 +48,6 @@ run_fog_node node_type *FLAGS:
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3030",
-        my_public_port_rpc: "3031",
         tags: ["market connected"],
     )'''
 
@@ -56,11 +55,9 @@ run_fog_node node_type *FLAGS:
         parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         parent_node_ip: "127.0.0.1",
         parent_node_port_http: "3030",
-        parent_node_port_rpc: "3031",
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3032",
-        my_public_port_rpc: "3033",
         tags: ["node connected 1"],
     )'''
 
@@ -68,11 +65,9 @@ run_fog_node node_type *FLAGS:
         parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         parent_node_ip: "127.0.0.1",
         parent_node_port_http: "3032",
-        parent_node_port_rpc: "3033",
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3034",
-        my_public_port_rpc: "3035",
         tags: ["node connected 2"],
     )'''
 
@@ -81,11 +76,9 @@ run_fog_node node_type *FLAGS:
         parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         parent_node_ip: "127.0.0.1",
         parent_node_port_http: "3034",
-        parent_node_port_rpc: "3035",
         my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",
-        my_public_port_http: "3003",
-        my_public_port_rpc: "3037",
+        my_public_port_http: "3035",
         tags: ["node connected 3"],
     )'''
 
@@ -130,7 +123,7 @@ run_all *FLAGS: (build FLAGS)
     "just run_fog_node node_3 {{FLAGS}}" \
     "just run_market {{FLAGS}}"
 
-expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3003':
+expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3035':
     ../enos/live/expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} {{localhost_ip}} 127.0.0.1 {{first_node_port}}
 
 # Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1

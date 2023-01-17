@@ -49,6 +49,8 @@ impl FogNodeFaaSImpl {
 #[async_trait]
 impl FogNodeFaaS for FogNodeFaaSImpl {
     async fn provision_function(&self, bid: AcceptedBid) -> Result<(), Error> {
+        trace!("Provisioning function...");
+
         let node = bid.chosen.bid.node_id.clone();
         self.node_communication
             .take_offer(node.clone(), &bid.chosen.bid)
@@ -64,8 +66,6 @@ impl FogNodeFaaS for FogNodeFaaSImpl {
         let id = bid.chosen.bid.id.clone();
         record.accepted_bids.insert(id.clone(), bid);
         self.fog_node.update(&node, record).await;
-
-        trace!("Function has been placed");
 
         Ok(())
     }
