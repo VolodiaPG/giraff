@@ -48,9 +48,9 @@ def get_aliases_from_ip(env):
     ret = {}
     for node in FOG_NODES:
         role = roles[node]
-        alias = role[0].address + ":3003"
+        alias = role[0].address + ":30003"
         ret[alias] = node
-    ret[roles["market"][0].address + ":3003"] = "market"
+    ret[roles["market"][0].address + ":30003"] = "market"
 
     return ret
 
