@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  scrape_timeout: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: 
+        - "127.0.0.1:3030"
+        - "127.0.0.1:3032"
+        - "127.0.0.1:3034"
+        - "127.0.0.1:3035"
+        - "127.0.0.1:30080"

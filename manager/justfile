@@ -116,7 +116,20 @@ jaeger:
         -p 9411:9411 \
         jaegertracing/all-in-one:latest
 
-run_all *FLAGS: (build FLAGS)
+prometheus:
+    ({{DOCKER}} stop prometheus || true)
+    ({{DOCKER}} rm prometheus || true)
+    {{DOCKER}} run \
+        --net=host \
+        -v ./prometheus.yaml:/etc/prometheus/prometheus.yml:z \
+        prom/prometheus \
+        --config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/prometheus \
+        --web.console.libraries=/usr/share/prometheus/console_libraries \
+        --web.console.templates=/usr/share/prometheus/consoles \
+        --web.listen-address=:3090 
+
+run *FLAGS: (build FLAGS)
     mprocs "just run_fog_node market {{FLAGS}}" \
     "just run_fog_node node_1 {{FLAGS}}" \
     "just run_fog_node node_2 {{FLAGS}}" \
