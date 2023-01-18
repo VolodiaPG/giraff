@@ -14,8 +14,9 @@ scrape_configs:
       - targets:
       # metrics path defaults to /metrics
 {% for host in telegraf_targets %}
+        - "{{ host | ipwrap }}:30003"
+        - "{{ host | ipwrap }}:30008"
         - "{{ host | ipwrap }}:3003"
-        - "{{ host | ipwrap }}:3008"
         - "{{ host | ipwrap }}:9090"
         - "{{ host | ipwrap }}:{{ telegraf_port }}"
 {% endfor %}
