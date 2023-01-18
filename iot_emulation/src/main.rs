@@ -153,23 +153,19 @@ pub async fn print(
         elapsed_function.num_milliseconds()
     );
 
-    tokio::spawn(async move {
-        HTTP_PRINT_HISTOGRAM
-            .with_label_values(&[
-                &payload.data.tag,
-                &payload.data.period.to_string(),
-            ])
-            .observe(elapsed_http.num_milliseconds().abs() as f64 / 1000.0);
+    HTTP_PRINT_HISTOGRAM
+        .with_label_values(&[
+            &payload.data.tag,
+            &payload.data.period.to_string(),
+        ])
+        .observe(elapsed_http.num_milliseconds().abs() as f64 / 1000.0);
 
-        HTTP_TIME_TO_PROCESS_HISTOGRAM
-            .with_label_values(&[
-                &payload.data.tag,
-                &payload.data.period.to_string(),
-            ])
-            .observe(
-                elapsed_function.num_milliseconds().abs() as f64 / 1000.0,
-            );
-    });
+    HTTP_TIME_TO_PROCESS_HISTOGRAM
+        .with_label_values(&[
+            &payload.data.tag,
+            &payload.data.period.to_string(),
+        ])
+        .observe(elapsed_function.num_milliseconds().abs() as f64 / 1000.0);
 
     HttpResponse::Ok().finish()
 }
