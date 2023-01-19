@@ -12,7 +12,7 @@ use model::NodeId;
 pub enum Error {
     #[error("No winner were selected after the auction took place")]
     NoWinner,
-    #[error("Stack to targeted node is empty: {0}.")]
+    #[error("Failed to send the request to the first node: {0}.")]
     RequestFailed(#[from] crate::repository::node_communication::Error),
 }
 
