@@ -291,6 +291,11 @@ def up(force, env=None, **kwargs):
     # env["netem"] = netem
     # establish_netem(env)
 
+    k3s_setup(env)
+
+
+def k3s_setup(env=None):
+    roles = env["roles"]
     print("Setting up k3s and FaaS...")
 
     # k3s = en.K3s(master=roles["master"], agent=list())
@@ -330,6 +335,20 @@ def up(force, env=None, **kwargs):
             p.apt(
                 pkg=["htop", "iftop", "nethogs"],
             )
+
+
+def k3s_cleanup(env=None):
+    roles = env["roles"]
+    with actions(roles=roles["master"], gather_facts=False) as p:
+        p.shell("/usr/local/bin/k3s-uninstall.sh")
+        # p.shell("podman system prune --all --force")
+
+
+@cli.command()
+@enostask()
+def k3s_refresh(env=None):
+    k3s_cleanup(env)
+    k3s_setup(env)
 
 
 @cli.command()
