@@ -34,6 +34,7 @@ local:
 
 # Refresh the container images hosted by k3s on all deployed nodes
 refresh:
+    {{RUN}} k3s-refresh
     {{RUN}} iot-emulation
     {{RUN}} k3s-deploy
     {{RUN}} monitoring
@@ -68,10 +69,20 @@ expe city_name_node_target n='50' delay='30' market_local_port='8088' iot_local_
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
     ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP {{first_node_port}}
 
-scenario city_name_node_target wait_time='600' message_interval='10' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
-    just interval {{message_interval}}
+scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
+    just interval 1000
     sleep 5
     just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+    sleep {{wait_time}}
+    just interval 1000
+    sleep {{wait_time}}
+    just interval 500
+    sleep {{wait_time}}
+    just interval 100
+    sleep {{wait_time}}
+    just interval 50
+    sleep {{wait_time}}
+    just interval 10
     sleep {{wait_time}}
     just collect
 
