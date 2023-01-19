@@ -232,16 +232,24 @@ mod edge_first {
 
         /// Follow up the [Sla] to the neighbors, and ignore the path where it
         /// came from.
-        async fn follow_up_to_neighbors(
-            &self,
-            sla: &Sla,
+        async fn follow_up_to_neighbors<'a>(
+            &'a self,
+            sla: &'a Sla,
             from: NodeId,
             accumulated_latency: Time,
         ) -> Result<BidProposals, Error> {
-            for neighbor in self.node_situation.get_neighbors() {
-                if neighbor == from {
-                    continue;
-                }
+            // Filter nodes
+            let nodes: Vec<NodeId> = self
+                .node_situation
+                .get_neighbors()
+                .into_iter()
+                .filter(|node| node != &from)
+                .collect();
+
+            let mut latencies: Vec<(NodeId, Time)> = Vec::new();
+
+            // Get all latencies
+            for neighbor in nodes {
                 let Some(latency_outbound) = self
                 .neighbor_monitor
                 .get_latency_to_avg(&neighbor)
@@ -250,7 +258,10 @@ mod edge_first {
                     warn!("Cannot get Latency of {}", neighbor);
                     continue;
                 };
-                if latency_outbound + accumulated_latency > sla.latency_max {
+
+                let latency = latency_outbound + accumulated_latency;
+
+                if latency > sla.latency_max {
                     trace!(
                         "Skipping neighbor {} because latency is too high \
                          ({}).",
@@ -263,18 +274,28 @@ mod edge_first {
                     continue;
                 }
 
-                let bid = self
+                latencies.push((neighbor, latency))
+            }
+
+            // Sort by closest
+
+            latencies.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+
+            for (neighbor, accumulated_latency) in latencies {
+                let Ok(bid) = self
                     .node_query
                     .request_neighbor_bid(
                         &BidRequest {
                             sla,
                             node_origin: self.node_situation.get_my_id(),
                             accumulated_latency: accumulated_latency
-                                + latency_outbound,
+                                .to_owned(),
                         },
                         neighbor.clone(),
                     )
-                    .await?;
+                    .await else {
+                        continue
+                    };
                 if !bid.bids.is_empty() {
                     return Ok(bid);
                 }
@@ -307,10 +328,8 @@ mod edge_first {
                 let mut follow_up = self
                     .follow_up_to_neighbors(sla, from, accumulated_latency)
                     .await?;
-                let bid =
-                    follow_up.bids.pop().ok_or(Error::NoCandidatesRetained)?;
                 trace!("Transmitting bid to other node...");
-                bid
+                follow_up.bids.pop().ok_or(Error::NoCandidatesRetained)?
             };
 
             Ok(BidProposals { bids: vec![bid] })
