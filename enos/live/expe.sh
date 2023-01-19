@@ -17,26 +17,36 @@ GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
 #configs_mem=("50" "150" "500") # megabytes
-configs_mem=("300" "300" "300" "300")
+configs_mem="300"
 
-configs_latency=("200" "100" "50" "20") # ms
+configs_latency=("20" "50" "100" "150") # ms
 
 #configs_cpu=("100" "150" "500") #millicpu
-configs_cpu=("400" "400" "400" "400")
+configs_cpu="400"
 
 size=${#configs_cpu[@]}
 
 iot_requests_body=()
 
+lat_index=0
+
 for ii in $(seq 1 $MAX)
 do
 	function_id=$(printf "%03d" $ii)
 
+	if ! (( $ii % (  $MAX / ${#configs_latency[@]}) )) ; then
+		lat_index=$(($lat_index+1))
+		if [ $lat_index -ge ${#configs_latency[@]} ] ; then
+			echo -e "${ORANGE}Number of iterations asked would lead to categories having different population numbers. Stopping.${DGRAY}" # DGRAY for the following
+			break
+		fi
+	fi
 
-	index=$(($ii % $size))
-	mem="${configs_mem[$index]}"
-	cpu="${configs_cpu[$index]}"
-	latency="${configs_latency[$index]}"
+
+	# index=$(($ii % $size))
+	mem="$configs_mem"
+	cpu="$configs_cpu"
+	latency="${configs_latency[$lat_index]}"
 	docker_fn_name='echo'
 	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
 	
