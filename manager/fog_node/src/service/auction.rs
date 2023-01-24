@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use helper::uom_helper::cpu_ratio::cpu;
 use uom::si::f64::{Information, Ratio};
-use uom::si::information::gigabyte;
 
 use crate::prom_metrics::BID_GAUGE;
 use model::domain::sla::Sla;
@@ -76,15 +74,10 @@ impl AuctionImpl {
 
     /// Compute the bid value from the node environment
     async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
-        let (name, used_ram, used_cpu, available_ram, available_cpu) =
+        let (name, _used_ram, _used_cpu, available_ram, available_cpu) =
             self.get_a_node(sla).await?;
 
-        let cpu_left = available_cpu - used_cpu;
-        let ram_left = available_ram - used_ram;
-
-        let price = sla.memory / ram_left
-            * (Information::new::<gigabyte>(1.0) / available_ram)
-            + sla.cpu / cpu_left * (Ratio::new::<cpu>(1.0) / available_cpu);
+        let price = sla.memory / available_ram + sla.cpu / available_cpu;
 
         let price: f64 = price.into();
 
