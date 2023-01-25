@@ -108,6 +108,16 @@ struct CronPayload {
     data:            Payload,
 }
 
+#[derive(Debug, Clone)]
+pub struct Interval {
+    interval_ms: u64,
+    enabled:     bool,
+}
+
+impl Default for Interval {
+    fn default() -> Self { Self { interval_ms: 10000, enabled: false } }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FaaSPacket {}
@@ -245,32 +255,42 @@ pub async fn metrics() -> HttpResponse {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IntervalQuery {
     interval_ms: u64,
+    enabled:     bool,
+}
+
+impl From<IntervalQuery> for Interval {
+    fn from(value: IntervalQuery) -> Self {
+        Self { interval_ms: value.interval_ms, enabled: value.enabled }
+    }
 }
 
 pub async fn post_interval(
     query: web::Query<IntervalQuery>,
-    request_interval: Data<Arc<RwLock<u64>>>,
+    request_interval: Data<Arc<RwLock<Interval>>>,
 ) -> HttpResponse {
     let mut request_interval = request_interval.write().await;
-    *request_interval = query.interval_ms;
+    *request_interval = query.0.into();
 
-    debug!("Request interval set to {}", request_interval);
+    debug!("Request interval set to {:?}", request_interval);
 
     HttpResponse::Ok().finish()
 }
 
 async fn forever(
     jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>,
-    request_interval: Arc<RwLock<u64>>,
+    request_interval: Arc<RwLock<Interval>>,
 ) {
-    let mut last_period = 0;
-
     loop {
-        if !jobs.is_empty() {
+        let period;
+        {
+            period = request_interval.read().await.clone();
+        }
+        if period.enabled && !jobs.is_empty() {
             let mut send_interval = time::interval(Duration::from_micros(
-                last_period * 1000 / (jobs.len() as u64),
+                period.interval_ms * 1000 / (jobs.len() as u64),
             ));
             send_interval.tick().await;
 
@@ -278,14 +298,12 @@ async fn forever(
                 jobs.iter().map(|x| x.value().clone()).collect();
 
             for value in jobs_collected {
-                tokio::spawn(async move { value(last_period).await });
+                tokio::spawn(async move { value(period.interval_ms).await });
                 send_interval.tick().await;
             }
         }
 
-        {
-            last_period = *request_interval.read().await;
-        }
+        yield_now().await;
     }
 }
 
@@ -351,7 +369,7 @@ async fn main() -> std::io::Result<()> {
 
     let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
 
-    let request_interval = Arc::new(RwLock::new(5000));
+    let request_interval = Arc::new(RwLock::new(Interval::default()));
 
     tokio::spawn(forever(jobs.clone(), request_interval.clone()));
 
