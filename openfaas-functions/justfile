@@ -1,3 +1,5 @@
-faas target:
+faas target="echo":
+	#!/usr/bin/env bash
+	export DOCKER_BUILDKIT=1 
 	faas-cli build -f ./{{target}}.yml
 	faas-cli push -f ./{{target}}.yml
