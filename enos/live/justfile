@@ -69,22 +69,42 @@ expe city_name_node_target n='50' delay='30' market_local_port='8088' iot_local_
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
     ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP {{first_node_port}}
 
-scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
-    just interval 1000
-    sleep 5
-    just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
-    sleep {{wait_time}}
-    just interval 1000
-    sleep {{wait_time}}
-    just interval 500
-    sleep {{wait_time}}
-    just interval 100
-    sleep {{wait_time}}
-    just interval 50
-    sleep {{wait_time}}
-    just interval 10
-    sleep {{wait_time}}
-    just collect
+scenario city_name_node_target repetitions='1' wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
+    #!/usr/bin/env bash
+    set -ex
+    until [[ "$(just _is_connected {{city_name_node_target}} {{market_local_port}})" =~ "✅" ]]; do sleep 10; done
+    for ii in $(seq 1 {{repetitions}}); do
+        sleep 5
+        just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+        last_jj=10
+        for jj in $(seq 1000 -50 150); do
+            just interval $jj
+            sleep {{wait_time}}
+            just interval 0 false
+            sleep 10
+            last_jj=$jj
+        done
+
+        for jj in $(seq $last_jj -5 10); do
+            just interval $jj
+            sleep {{wait_time}}
+            just interval 0 false
+            sleep 10
+            last_jj=$jj
+        done
+
+        for jj in $(seq $last_jj -1 4); do
+            just interval $jj
+            sleep {{wait_time}}
+            just interval 0 false
+            sleep 10
+        done
+        
+        just collect
+        sleep 5
+        just refresh
+        until [[ "$(just _is_connected {{city_name_node_target}} {{market_local_port}})" =~ "✅" ]]; do sleep 10; done
+    done
 
 # Delete the Job on grid'5000 and local EnosLib files
 clean:
@@ -98,8 +118,12 @@ collect $port="9090" $period="1h":
 logs *FLAGS:
     {{RUN}} logs {{FLAGS}}
 
-interval period='20' iot_local_port='3003':
-    curl -X POST --url http://localhost:{{iot_local_port}}/api/interval?interval_ms={{period}}
+interval period='20' enabled='true' iot_local_port='3003':
+    curl -X POST --url "http://localhost:{{iot_local_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
 
 lab:
-    {{DOCKER}} run -it -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan/work jupyter/r-notebook:latest
+    chmod 777 experiment.ipynb
+    {{DOCKER}} run -it --name jupyter_lab -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan jupyter/r-notebook:latest
+
+lab_pdf:
+    {{DOCKER}} exec jupyter_lab "jupyter nbconvert experiment.ipynb --no-input --to pdf"
