@@ -2,3 +2,6 @@ logs-latest
 *.html
 .Rhistory
 ark*
+R/
+.local/
+.jupyter/
