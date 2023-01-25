@@ -230,11 +230,6 @@ NETWORK = {
             "latency": 30,
             "children": [
                 {
-                    "name": "nantes",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 25,
-                },
-                {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
                     "latency": 20,
@@ -247,8 +242,8 @@ NETWORK = {
                                 {
                                     "name": "st-greg-5",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                    "iot_connected": 0,
+                                    "latency": 3,  # ms
+                                    "iot_connected": 0,  # ms
                                 },
                                 {
                                     "name": "st-greg-10",
@@ -256,34 +251,34 @@ NETWORK = {
                                     "latency": 10,
                                 },
                                 {
-                                    "name": "st-greg-1",
+                                    "name": "st-greg-2",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 1,
+                                    "latency": 2,
                                 },
                             ],
                         },
-                        {
-                            "name": "cesson",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 7,
-                            "children": [
-                                {
-                                    "name": "cesson-5",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                },
-                                {
-                                    "name": "cesson-10",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 10,
-                                },
-                                {
-                                    "name": "cesson-1",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 1,
-                                },
-                            ],
-                        },
+                        # {
+                        #     "name": "cesson",
+                        #     "flavor": TIER_3_FLAVOR,
+                        #     "latency": 7,
+                        #     "children": [
+                        #         {
+                        #             "name": "cesson-5",
+                        #             "flavor": TIER_3_FLAVOR,
+                        #             "latency": 5,
+                        #         },
+                        #         {
+                        #             "name": "cesson-10",
+                        #             "flavor": TIER_3_FLAVOR,
+                        #             "latency": 10,
+                        #         },
+                        #         {
+                        #             "name": "cesson-1",
+                        #             "flavor": TIER_3_FLAVOR,
+                        #             "latency": 1,
+                        #         },
+                        #     ],
+                        # },
                     ],
                 },
             ],
