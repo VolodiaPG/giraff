@@ -5,3 +5,7 @@ ark*
 R/
 .local/
 .jupyter/
+measures/
+experiment.pdf
+experiment.html
+experiment.md
