@@ -177,6 +177,7 @@ async fn main() -> std::io::Result<()> {
             as Arc<dyn crate::service::auction::Auction>))
         .app_data(web::Data::new(fog_node_network_service.clone()
             as Arc<dyn crate::service::fog_node_network::FogNodeNetwork>))
+        .route("/metrics", web::get().to(metrics))
         .service(
             web::scope("/api")
                 .route("/function", web::put().to(put_function))
