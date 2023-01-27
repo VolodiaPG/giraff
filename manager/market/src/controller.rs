@@ -9,6 +9,7 @@ use model::view::auction::{AcceptedBid, InstanciatedBid};
 use model::view::node::{GetFogNodes, RegisterNode};
 use model::view::sla::PutSla;
 use model::NodeId;
+use tokio::time::Instant;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ControllerError {
@@ -36,6 +37,8 @@ pub async fn start_auction(
 ) -> Result<AcceptedBid, ControllerError> {
     trace!("put sla: {:?}", payload);
 
+    let started = Instant::now();
+
     let proposals = auction_service
         .call_for_bids(payload.target_node, &payload.sla)
         .await?;
@@ -59,6 +62,17 @@ pub async fn start_auction(
     };
 
     faas_service.provision_function(accepted.clone()).await?;
+
+    let finished = Instant::now();
+
+    let duration = finished - started;
+
+    crate::prom_metrics::FUNCTION_DEPLOYMENT_TIME_GAUGE
+        .with_label_values(&[
+            &accepted.sla.function_live_name,
+            &accepted.chosen.bid.id.to_string(),
+        ])
+        .set(duration.as_millis() as f64 / 1000.0);
 
     Ok(accepted)
 }

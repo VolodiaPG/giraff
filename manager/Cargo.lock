@@ -1513,6 +1513,7 @@ dependencies = [
  "model",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "prometheus",
  "reqwest",
  "reqwest-middleware",
  "reqwest-tracing",
