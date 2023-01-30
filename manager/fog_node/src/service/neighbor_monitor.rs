@@ -14,8 +14,8 @@ pub enum Error {
 #[async_trait]
 pub trait NeighborMonitor: Debug + Sync + Send {
     async fn ping_neighbors_rtt(&self) -> Result<(), Error>;
+    /// Gets the latency to a node, HTTP+TCP 3 way handshake
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time>;
-    async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time>;
 }
 
 #[derive(Debug)]
@@ -37,10 +37,6 @@ impl NeighborMonitor for NeighborMonitorImpl {
     }
 
     async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.rtt_estimation.get_latency_to(id).await
-    }
-
-    async fn get_latency_from_avg(&self, id: &NodeId) -> Option<Time> {
-        self.rtt_estimation.get_latency_from(id).await
+        self.rtt_estimation.get_latency_to(id).await.map(|x| x * 3.0)
     }
 }

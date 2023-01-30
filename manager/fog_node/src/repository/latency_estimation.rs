@@ -102,7 +102,10 @@ impl LatencyEstimationImpl {
             .await?;
         let elapsed = sent_at.elapsed().as_millis();
 
-        let latency = elapsed as f64 / 2.0;
+        // TCP+HTTP: travel time = 2 * outgoing + 2 * incoming
+        // here we suppose incoming = outgoing
+
+        let latency = elapsed as f64 / 4.0;
         let outgoing_latency =
             Time::new::<uom::si::time::millisecond>(latency);
         let incoming_latency = outgoing_latency;
