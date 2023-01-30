@@ -374,9 +374,11 @@ def network(env=None):
         netem = env["netem"]
         netem.destroy()
 
-    # netem = en.Netem()
-    netem = en.NetemHTB()
+    # netem = env["netem"]
+
+    netem = en.AccurateNetemHTB()
     env["netem"] = netem
+
     roles = env["roles"]
 
     # netem.add_constraints("delay 20ms", roles["fog_node"], symetric=True)
@@ -407,13 +409,15 @@ def gen_net(nodes, netem, roles):
         vis = {}
         dfs(node_name)  # modifies subtree_cumul
         for destination in subtree_cumul:
-            # print(f"{node_name} -> {destination} = {subtree_cumul[destination]}")
+            latency = subtree_cumul[destination]
+            print(f"{node_name} -> {destination} = {latency}")
             netem.add_constraints(
                 src=roles[node_name],
                 dest=roles[destination],
-                delay=str(subtree_cumul[destination]) + "ms",
+                delay=str(latency) + "ms",  # That's a really bad fix there...
+                # delay="20ms",
                 rate="1gbit",
-                symmetric=False,
+                symmetric=True,
             )
 
 
@@ -766,6 +770,19 @@ def endpoints(env=None, **kwargs):
         address = role.address
         print(f"{extremity} -> {address}")
 
+    print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
+
+
+@cli.command()
+@enostask()
+def ips(env=None, **kwargs):
+    roles = env["roles"]
+    for nodes in FOG_NODES:
+        role = roles[nodes][0]
+        address = role.address
+        print(f"{nodes} -> {address}")
+
+    print(f"---\nMarket IP -> {roles['market'][0].address}")
     print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
 

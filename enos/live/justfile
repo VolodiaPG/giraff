@@ -26,8 +26,8 @@ deploy $CLUSTER="gros" +FLAGS='':
     {{RUN}} up {{FLAGS}}
     {{RUN}} network
     {{RUN}} monitoring
-    {{RUN}} k3s-deploy
     {{RUN}} iot-emulation
+    {{RUN}} k3s-deploy
 
 local:
     @just deploy "" --vagrant
@@ -36,8 +36,8 @@ local:
 refresh:
     {{RUN}} k3s-refresh
     {{RUN}} iot-emulation
-    {{RUN}} k3s-deploy
     {{RUN}} monitoring
+    {{RUN}} k3s-deploy
 
 # Open SSH tunnels
 tunnels +FLAGS='':
@@ -78,7 +78,7 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
     sleep 10
 
-    last_jj=25
+    last_jj=50
     for jj in $(seq 1000 -300 $last_jj); do
         just interval $jj
         sleep {{wait_time}}
@@ -104,6 +104,7 @@ scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
     
     just refresh
+    sleep 60
 
     export configs_mem=200
     export configs_cpu=200
@@ -130,4 +131,4 @@ lab:
     {{DOCKER}} run -it --name jupyter_lab -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan jupyter/r-notebook:latest
 
 lab_pdf:
-    {{DOCKER}} exec jupyter_lab "jupyter nbconvert experiment.ipynb --no-input --to pdf"
+    {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf

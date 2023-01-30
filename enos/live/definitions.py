@@ -253,7 +253,7 @@ NETWORK = {
                                 {
                                     "name": "st-greg-2",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 2,
+                                    "latency": 3,
                                 },
                             ],
                         },
@@ -264,7 +264,7 @@ NETWORK = {
                         #     "children": [
                         #         {
                         #             "name": "cesson-5",
-                        #             "flavor": TIER_3_FLAVOR,
+                        #              "flavor": TIER_3_FLAVOR,
                         #             "latency": 5,
                         #         },
                         #         {
