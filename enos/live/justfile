@@ -128,6 +128,7 @@ interval period='20' enabled='true' iot_local_port='3003':
 
 lab:
     chmod 777 experiment.ipynb
+    {{DOCKER}} rm jupyter_lab || true
     {{DOCKER}} run -it --name jupyter_lab -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan jupyter/r-notebook:latest
 
 lab_pdf:
