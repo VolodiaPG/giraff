@@ -116,6 +116,7 @@ fn function_life_factory(
     node_situation: Arc<dyn NodeSituation>,
     neighbor_monitor_service: Arc<dyn NeighborMonitor>,
     node_query: Arc<dyn NodeQuery>,
+    resource_tracking: Arc<dyn ResourceTracking>,
 ) -> FunctionLifeService {
     #[cfg(feature = "edge_first")]
     {
@@ -136,6 +137,7 @@ fn function_life_factory(
         node_situation,
         neighbor_monitor_service,
         node_query,
+        resource_tracking,
     )
 }
 
@@ -363,6 +365,7 @@ async fn main() -> std::io::Result<()> {
         node_situation.clone(),
         neighbor_monitor_service.clone(),
         node_query.clone(),
+        resource_tracking_repo.clone(),
     ));
 
     if node_situation.is_market() {

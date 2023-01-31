@@ -9,6 +9,7 @@ use model::domain::sla::Sla;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::{BidId, NodeId};
 
+use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::auction::Auction;
 use crate::service::faas::FaaSBackend;
 use crate::service::neighbor_monitor::NeighborMonitor;
@@ -61,11 +62,12 @@ mod auction_placement {
     use futures::future::{join, try_join_all};
 
     pub struct FunctionLifeImpl {
-        function:         Arc<dyn FaaSBackend>,
-        auction:          Arc<dyn Auction>,
-        node_situation:   Arc<dyn NodeSituation>,
-        neighbor_monitor: Arc<dyn NeighborMonitor>,
-        node_query:       Arc<dyn NodeQuery>,
+        function:          Arc<dyn FaaSBackend>,
+        auction:           Arc<dyn Auction>,
+        node_situation:    Arc<dyn NodeSituation>,
+        neighbor_monitor:  Arc<dyn NeighborMonitor>,
+        node_query:        Arc<dyn NodeQuery>,
+        resource_tracking: Arc<dyn ResourceTracking>,
     }
 
     impl FunctionLifeImpl {
@@ -75,6 +77,7 @@ mod auction_placement {
             node_situation: Arc<dyn NodeSituation>,
             neighbor_monitor: Arc<dyn NeighborMonitor>,
             node_query: Arc<dyn NodeQuery>,
+            resource_tracking: Arc<dyn ResourceTracking>,
         ) -> Self {
             debug!("Built using FunctionLifeImpl service");
             Self {
@@ -83,6 +86,7 @@ mod auction_placement {
                 node_situation,
                 neighbor_monitor,
                 node_query,
+                resource_tracking,
             }
         }
 
@@ -191,7 +195,21 @@ mod auction_placement {
             id: BidId,
         ) -> Result<(), Error> {
             let record = self.auction.validate_bid(&id).await?;
+            let name = record.node.clone();
+            let sla_cpu = record.sla.cpu;
+            let sla_memory = record.sla.memory;
             self.function.provision_function(id, record).await?;
+            let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
+                warn!("Could not get tracked cpu and memory");
+                return Ok(());
+            };
+            let Ok(()) = self
+                .resource_tracking
+                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .await else {
+                    warn!("Could not set updated tracked cpu and memory");
+                    return Ok(());
+                };
             Ok(())
         }
     }
@@ -205,11 +223,12 @@ mod edge_first {
     use super::*;
 
     pub struct FunctionLifeEdgeFirstImpl {
-        function:         Arc<dyn FaaSBackend>,
-        auction:          Arc<dyn Auction>,
-        node_situation:   Arc<dyn NodeSituation>,
-        neighbor_monitor: Arc<dyn NeighborMonitor>,
-        node_query:       Arc<dyn NodeQuery>,
+        function:          Arc<dyn FaaSBackend>,
+        auction:           Arc<dyn Auction>,
+        node_situation:    Arc<dyn NodeSituation>,
+        neighbor_monitor:  Arc<dyn NeighborMonitor>,
+        node_query:        Arc<dyn NodeQuery>,
+        resource_tracking: Arc<dyn ResourceTracking>,
     }
 
     impl FunctionLifeEdgeFirstImpl {
@@ -219,6 +238,7 @@ mod edge_first {
             node_situation: Arc<dyn NodeSituation>,
             neighbor_monitor: Arc<dyn NeighborMonitor>,
             node_query: Arc<dyn NodeQuery>,
+            resource_tracking: Arc<dyn ResourceTracking>,
         ) -> Self {
             debug!("Built using FunctionLifeEdgeFirstImpl service");
             Self {
@@ -227,6 +247,7 @@ mod edge_first {
                 node_situation,
                 neighbor_monitor,
                 node_query,
+                resource_tracking,
             }
         }
 
@@ -340,7 +361,21 @@ mod edge_first {
             id: BidId,
         ) -> Result<(), Error> {
             let record = self.auction.validate_bid(&id).await?;
+            let name = record.node.clone();
+            let sla_cpu = record.sla.cpu;
+            let sla_memory = record.sla.memory;
             self.function.provision_function(id, record).await?;
+            let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
+                warn!("Could not get tracked cpu and memory");
+                return Ok(());
+            };
+            let Ok(()) = self
+                .resource_tracking
+                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .await else {
+                    warn!("Could not set updated tracked cpu and memory");
+                    return Ok(());
+                };
             Ok(())
         }
     }
@@ -354,10 +389,11 @@ mod cloud_only {
     use super::*;
 
     pub struct FunctionLifeCloudOnlyImpl {
-        function:       Arc<dyn FaaSBackend>,
-        auction:        Arc<dyn Auction>,
-        node_situation: Arc<dyn NodeSituation>,
-        node_query:     Arc<dyn NodeQuery>,
+        function:          Arc<dyn FaaSBackend>,
+        auction:           Arc<dyn Auction>,
+        node_situation:    Arc<dyn NodeSituation>,
+        node_query:        Arc<dyn NodeQuery>,
+        resource_tracking: Arc<dyn ResourceTracking>,
     }
 
     impl FunctionLifeCloudOnlyImpl {
@@ -367,9 +403,16 @@ mod cloud_only {
             node_situation: Arc<dyn NodeSituation>,
             _neighbor_monitor: Arc<dyn NeighborMonitor>,
             node_query: Arc<dyn NodeQuery>,
+            resource_tracking: Arc<dyn ResourceTracking>,
         ) -> Self {
             debug!("Built using FunctionLifeCloudOnlyImpl service");
-            Self { function, auction, node_situation, node_query }
+            Self {
+                function,
+                auction,
+                node_situation,
+                node_query,
+                resource_tracking,
+            }
         }
     }
 
@@ -423,7 +466,21 @@ mod cloud_only {
             id: BidId,
         ) -> Result<(), Error> {
             let record = self.auction.validate_bid(&id).await?;
+            let name = record.node.clone();
+            let sla_cpu = record.sla.cpu;
+            let sla_memory = record.sla.memory;
             self.function.provision_function(id, record).await?;
+            let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
+                warn!("Could not get tracked cpu and memory");
+                return Ok(());
+            };
+            let Ok(()) = self
+                .resource_tracking
+                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .await else {
+                    warn!("Could not set updated tracked cpu and memory");
+                    return Ok(());
+                };
             Ok(())
         }
     }
