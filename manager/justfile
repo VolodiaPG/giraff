@@ -93,6 +93,7 @@ run_fog_node node_type *FLAGS:
         env_vars['ROCKET_PORT'] = "3030"
     env_vars['OPENFAAS_USERNAME'] = "admin"
     env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
+    env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
 

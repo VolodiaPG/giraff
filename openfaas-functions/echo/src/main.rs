@@ -3,8 +3,8 @@ extern crate tracing;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
+use serde::Deserialize;
 use tracing::Subscriber;
 
 #[cfg(feature = "mimalloc")]
@@ -34,43 +34,37 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-#[cfg(feature = "jaeger")]
-type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
+lazy_static::lazy_static! {
+    static ref HTTP_TIME_TO_PROCESS_HISTOGRAM: HistogramVec = register_histogram_vec!(
+        "echo_function_http_request_to_processing_echo_duration_seconds_print",
+        "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
+         with the content `tag`.",
+        &["tag", "period"]
+    )
+    .unwrap();
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IncomingPayload {
-    address_to_call: String,
-    data:            Value,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct OutgoingPayload {
     #[serde(with = "ts_microseconds")]
-    timestamp: DateTime<Utc>,
-    data:      Value,
+    sent_at: DateTime<Utc>,
+    tag:     String,
+    period:  u64,
 }
 
-async fn handle(
-    payload: web::Json<IncomingPayload>,
-    http_client: web::Data<Arc<HttpClient>>,
-) -> HttpResponse {
-    if http_client
-        .post(payload.0.address_to_call)
-        .json(&OutgoingPayload {
-            timestamp: chrono::offset::Utc::now(),
-            data:      payload.0.data,
-        })
-        .send()
-        .await
-        .is_ok()
-    {
-        return HttpResponse::Ok().finish();
-    };
-    HttpResponse::InternalServerError().finish()
+async fn handle(payload: web::Json<IncomingPayload>) -> HttpResponse {
+    let now = chrono::offset::Utc::now();
+
+    let data = &payload.0;
+
+    let elapsed = now - data.sent_at;
+
+    HTTP_TIME_TO_PROCESS_HISTOGRAM
+        .with_label_values(&[&data.tag, &data.period.to_string()])
+        .observe(elapsed.num_milliseconds().abs() as f64 / 1000.0);
+
+    HttpResponse::Ok().finish()
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
@@ -118,6 +112,19 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
     set_global_default(subscriber).expect("Failed to set subscriber");
 }
 
+pub async fn metrics() -> HttpResponse {
+    let encoder = TextEncoder::new();
+    let mut buffer: String = "".to_string();
+    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
+        return HttpResponse::InternalServerError()
+            .body("Failed to encode prometheus metrics");
+    }
+
+    HttpResponse::Ok()
+        .insert_header(actix_web::http::header::ContentType::plaintext())
+        .body(buffer)
+}
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(feature = "jaeger")]
@@ -146,6 +153,7 @@ async fn main() -> std::io::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::Data::new(http_client.clone()))
+            .route("/metrics", web::get().to(metrics))
             .service(web::scope("/").route("", web::post().to(handle)))
     })
     .bind(("0.0.0.0", 3000))?

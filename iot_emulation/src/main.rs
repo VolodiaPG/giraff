@@ -2,6 +2,8 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
+use chrono::serde::ts_microseconds;
+use chrono::{DateTime, Utc};
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
@@ -13,13 +15,11 @@ use actix_web::web::{Data, Json};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use chrono::serde::ts_microseconds;
-use chrono::{DateTime, Utc};
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
+use prometheus::TextEncoder;
 #[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
@@ -40,10 +40,8 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use serde_json::value::RawValue;
-use tokio::time::{self};
+use tokio::time;
 use uuid::Uuid;
 
 #[cfg(feature = "jaeger")]
@@ -54,58 +52,13 @@ type HttpClient = reqwest::Client;
 type CronFn =
     Box<dyn Fn(u64) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
-type PromTimer = Arc<dashmap::DashMap<Uuid, DateTime<Utc>>>;
-
-lazy_static! {
-    static ref HTTP_PRINT_HISTOGRAM: HistogramVec = register_histogram_vec!(
-        "iot_emulation_http_request_duration_seconds_print",
-        "The HTTP request latencies in seconds for the /print route, tagged \
-         with the content `tag`.",
-        &["tag", "period"]
-    )
-    .unwrap();
-
-    static ref HTTP_TIME_TO_PROCESS_HISTOGRAM: HistogramVec = register_histogram_vec!(
-        "iot_emulation_http_request_to_processing_echo_duration_seconds_print",
-        "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
-         with the content `tag`.",
-        &["tag", "period"]
-    )
-    .unwrap();
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Packet<'a> {
-    #[serde(rename = "faasFunction")]
-    FaaSFunction {
-        to:   Uuid,
-        #[serde(borrow)]
-        data: &'a RawValue,
-    },
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
-    tag:    String,
-    id:     Uuid,
-    period: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResponseFromEcho {
     #[serde(with = "ts_microseconds")]
-    timestamp: DateTime<Utc>,
-    data:      Payload,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct CronPayload {
-    address_to_call: String,
-    data:            Payload,
+    sent_at: DateTime<Utc>,
+    tag:     String,
+    period:  u64,
 }
 
 #[derive(Debug, Clone)]
@@ -118,10 +71,6 @@ impl Default for Interval {
     fn default() -> Self { Self { interval_ms: 10000, enabled: false } }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FaaSPacket {}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartCron {
@@ -131,63 +80,12 @@ pub struct StartCron {
     pub tag:         String,
 }
 
-#[instrument(
-    level = "trace",
-    skip(prom_timers),
-    fields(tag=%payload.data.tag)
-)]
-pub async fn print(
-    payload: Json<ResponseFromEcho>,
-    prom_timers: Data<PromTimer>,
-) -> HttpResponse {
-    let now = chrono::offset::Utc::now();
-
-    yield_now().await; // Yield because other requests need to be timestamped before pursuing
-
-    trace!("{:?}", payload);
-
-    let Some(sent_at) = prom_timers.get(&payload.data.id).map(|x|*x.value()) else {
-        warn!("Received a print that was discarded");
-        return HttpResponse::BadRequest().finish();
-    };
-
-    let elapsed_http = now - sent_at;
-    debug!(
-        "Elapsed (after being received): {}ms",
-        elapsed_http.num_milliseconds()
-    );
-    let elapsed_function = payload.timestamp - sent_at;
-
-    debug!(
-        "Elapsed (start of processing by echo): {}ms",
-        elapsed_function.num_milliseconds()
-    );
-
-    HTTP_PRINT_HISTOGRAM
-        .with_label_values(&[
-            &payload.data.tag,
-            &payload.data.period.to_string(),
-        ])
-        .observe(elapsed_http.num_milliseconds().abs() as f64 / 1000.0);
-
-    HTTP_TIME_TO_PROCESS_HISTOGRAM
-        .with_label_values(&[
-            &payload.data.tag,
-            &payload.data.period.to_string(),
-        ])
-        .observe(elapsed_function.num_milliseconds().abs() as f64 / 1000.0);
-
-    HttpResponse::Ok().finish()
-}
-
 async fn put_cron(
     config: Json<StartCron>,
     cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
-    prom_timers: Data<PromTimer>,
     client: Data<Arc<HttpClient>>,
 ) -> HttpResponse {
     let config = Arc::new(config.0);
-    let prom_timers = prom_timers.get_ref().clone();
     let client = client.get_ref().clone();
     let tag = config.tag.clone();
     info!(
@@ -196,10 +94,9 @@ async fn put_cron(
     );
 
     let job: CronFn = Box::new(move |period| {
-        let prom_timers = prom_timers.clone();
         let config = config.clone();
         let client = client.clone();
-        Box::pin(ping(prom_timers, config, client, period))
+        Box::pin(ping(config, client, period))
     });
 
     cron_jobs.insert(tag, Arc::new(job));
@@ -209,35 +106,27 @@ async fn put_cron(
 
 #[instrument(
     level = "trace",
-    skip(prom_timers, config),
+    skip(config),
     fields(tag=%config.tag)
 )]
-async fn ping(
-    prom_timers: PromTimer,
-    config: Arc<StartCron>,
-    client: Arc<HttpClient>,
-    period: u64,
-) {
-    let id = Uuid::new_v4();
+async fn ping(config: Arc<StartCron>, client: Arc<HttpClient>, period: u64) {
     let tag = config.tag.clone();
     info!("Sending a ping to {:?}...", tag.clone());
 
-    let res = client.post(&config.node_url).json(&CronPayload {
-        address_to_call: config.iot_url.clone(),
-        data:            Payload { tag: tag.clone(), id, period },
+    let res = client.post(&config.node_url).json(&Payload {
+        tag,
+        sent_at: chrono::offset::Utc::now(),
+        period,
     });
 
-    prom_timers.insert(id, chrono::offset::Utc::now());
     let res = res.send().await;
 
-    info!("Ping sent to {:?}.", tag);
     if let Err(err) = res {
         warn!(
-            "Discarded measure because something went wrong sending a \
-             message using config {:?}, error is {:?}",
+            "Something went wrong sending a message using config {:?}, error \
+             is {:?}",
             config, err
         );
-        prom_timers.remove(&id);
     }
 }
 
@@ -365,7 +254,6 @@ async fn main() -> std::io::Result<()> {
     let my_port = std::env::var("SERVER_PORT")
         .expect("Please specfify SERVER_PORT env variable");
     // Id of the request; Histogram that started w/ that request
-    let prom_timers = Arc::new(dashmap::DashMap::<Uuid, DateTime<Utc>>::new());
 
     let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
 
@@ -392,13 +280,11 @@ async fn main() -> std::io::Result<()> {
 
         app.app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(jobs.clone()))
-            .app_data(web::Data::new(prom_timers.clone()))
             .app_data(web::Data::new(http_client.clone()))
             .app_data(web::Data::new(request_interval.clone()))
             .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
-                    .route("/print", web::post().to(print))
                     .route("/cron", web::put().to(put_cron))
                     .route("/interval", web::post().to(post_interval)),
             )

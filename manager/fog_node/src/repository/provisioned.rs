@@ -6,6 +6,7 @@ use model::BidId;
 pub trait Provisioned: Debug + Sync + Send {
     fn insert(&self, id: BidId, record: ProvisionedRecord);
     fn get(&self, id: &BidId) -> Option<ProvisionedRecord>;
+    fn get_all(&self) -> Vec<BidId>;
 }
 
 #[derive(Debug)]
@@ -24,5 +25,9 @@ impl Provisioned for ProvisionedHashMapImpl {
 
     fn get(&self, id: &BidId) -> Option<ProvisionedRecord> {
         self.database.get(id).map(|x| x.clone())
+    }
+
+    fn get_all(&self) -> Vec<BidId> {
+        self.database.iter().map(|x| x.key().clone()).collect()
     }
 }

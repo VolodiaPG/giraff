@@ -4,6 +4,8 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
+use bytes::Bytes;
+use futures::future::join_all;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
@@ -15,7 +17,7 @@ use actix_web::{middleware, web, App, HttpServer};
 
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use model::{FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
+use model::{BidId, FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -137,13 +139,42 @@ fn function_life_factory(
     )
 }
 
-pub async fn metrics() -> actix_web::HttpResponse {
+async fn get_other_metrics(
+    function: BidId,
+    faas: Arc<dyn FaaSBackend>,
+) -> Bytes {
+    match faas.get_metrics(&function).await {
+        Ok(Some(metrics)) => metrics,
+        Ok(None) => {
+            trace!("No metrics returned for {}", function);
+            Bytes::default()
+        }
+        Err(err) => {
+            warn!("Could not get metrics for function {}: {}", function, err);
+            Bytes::default()
+        }
+    }
+}
+
+pub async fn metrics(
+    faas: web::Data<Arc<dyn FaaSBackend>>,
+) -> actix_web::HttpResponse {
     let encoder = TextEncoder::new();
     let mut buffer: String = "".to_string();
     if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
         return actix_web::HttpResponse::InternalServerError()
             .body("Failed to encode prometheus metrics");
     }
+
+    let faas = faas.get_ref();
+
+    let others = faas
+        .get_provisioned_functions()
+        .into_iter()
+        .map(|function| get_other_metrics(function, faas.clone()));
+
+    let metrics = join_all(others).await.concat();
+    let buffer = [buffer.as_bytes(), &metrics].concat();
 
     actix_web::HttpResponse::Ok()
         .insert_header(actix_web::http::header::ContentType::plaintext())

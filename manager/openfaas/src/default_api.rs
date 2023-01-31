@@ -42,6 +42,10 @@ pub trait DefaultApi: Debug + Sync + Send {
         function_name: &str,
         input: &Value,
     ) -> Result<(), Error<String>>;
+    async fn functions_get_metrics(
+        &self,
+        function_name: &str,
+    ) -> Result<Option<bytes::Bytes>, Error<String>>;
 }
 
 #[async_trait]
@@ -113,6 +117,30 @@ impl DefaultApi for DefaultApiClient {
 
         if response.status().is_success() {
             Ok(())
+        } else {
+            Err(Error::from((response.status(), response.text().await)))
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    async fn functions_get_metrics(
+        &self,
+        function_name: &str,
+    ) -> Result<Option<bytes::Bytes>, Error<String>> {
+        let uri_str = format!(
+            "{}/function/{}/metrics",
+            self.configuration.base_path, function_name
+        );
+        trace!("Requesting {}", uri_str);
+
+        let builder = self.client.get(&uri_str);
+
+        trace!("Sending on {}", uri_str);
+        let response = builder.send().await?;
+        trace!("response: {:#?}", response);
+
+        if response.status().is_success() {
+            Ok(response.bytes().await.ok())
         } else {
             Err(Error::from((response.status(), response.text().await)))
         }

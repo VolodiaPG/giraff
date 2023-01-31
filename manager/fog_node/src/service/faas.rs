@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
+use bytes::Bytes;
 use model::dto::auction::BidRecord;
 use model::dto::faas::ProvisionedRecord;
 use model::BidId;
@@ -15,6 +16,8 @@ use crate::repository::provisioned::Provisioned as ProvisionedRepository;
 pub enum Error {
     #[error(transparent)]
     OpenFaaS(#[from] openfaas::Error<String>),
+    #[error("BidId {0} not found")]
+    IdNotFound(BidId),
 }
 
 #[async_trait]
@@ -26,10 +29,15 @@ pub trait FaaSBackend: Debug + Sync + Send {
         id: BidId,
         bid: BidRecord,
     ) -> Result<String, Error>;
+
+    async fn get_metrics(&self, id: &BidId) -> Result<Option<Bytes>, Error>;
+
     fn get_provisioned_function(
         &self,
         id: &BidId,
     ) -> Option<ProvisionedRecord>;
+
+    fn get_provisioned_functions(&self) -> Vec<BidId>;
 }
 
 #[derive(Debug)]
@@ -76,10 +84,22 @@ impl FaaSBackend for OpenFaaSBackend {
         Ok(function_name)
     }
 
+    async fn get_metrics(&self, id: &BidId) -> Result<Option<Bytes>, Error> {
+        let record = self
+            .get_provisioned_function(id)
+            .ok_or_else(|| Error::IdNotFound(id.clone()))?;
+
+        Ok(self.client.functions_get_metrics(&record.function_name).await?)
+    }
+
     fn get_provisioned_function(
         &self,
         id: &BidId,
     ) -> Option<ProvisionedRecord> {
         self.provisioned_functions.get(id)
+    }
+
+    fn get_provisioned_functions(&self) -> Vec<BidId> {
+        self.provisioned_functions.get_all()
     }
 }
