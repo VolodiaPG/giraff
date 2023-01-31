@@ -1,11 +1,15 @@
 DOCKER := "podman"
+server_port := env_var_or_default("SERVER_PORT", "30080")
 
 _default:
     @just --list
 
 # Run the echo server
-run $SERVER_PORT="30080":
-	cargo run --features jaeger
+run:
+    export SERVER_PORT={{server_port}} && cargo run --features jaeger
+
+interval period='20' enabled='true':
+    curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
 
 clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
