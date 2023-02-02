@@ -107,7 +107,13 @@ fn k8s_factory() -> k8s {
 use crate::service::function_life::FunctionLifeCloudOnlyImpl as FunctionLifeService;
 #[cfg(feature = "edge_first")]
 use crate::service::function_life::FunctionLifeEdgeFirstImpl as FunctionLifeService;
-#[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
+#[cfg(feature = "edge_ward")]
+use crate::service::function_life::FunctionLifeEdgeWardImpl as FunctionLifeService;
+#[cfg(not(any(
+    feature = "edge_first",
+    feature = "cloud_only",
+    feature = "edge_ward"
+)))]
 use crate::service::function_life::FunctionLifeImpl as FunctionLifeService;
 
 fn function_life_factory(
@@ -126,7 +132,15 @@ fn function_life_factory(
     {
         info!("Using cloud only placement");
     }
-    #[cfg(not(any(feature = "edge_first", feature = "cloud_only")))]
+    #[cfg(feature = "edge_ward")]
+    {
+        info!("Using edge ward placement");
+    }
+    #[cfg(not(any(
+        feature = "edge_first",
+        feature = "cloud_only",
+        feature = "edge_ward"
+    )))]
     {
         info!("Using default placement");
     }

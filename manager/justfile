@@ -16,6 +16,7 @@ check:
 
     just _check --features edge_first
     just _check --features cloud_only
+    just _check --features edge_ward
     
     just _check --features jaeger
 

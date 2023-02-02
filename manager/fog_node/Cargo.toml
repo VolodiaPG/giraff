@@ -23,6 +23,8 @@ jaeger = [
 edge_first = []
 # Cloud only allocation
 cloud_only = []
+# Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
+edge_ward = []
 
 [dependencies]
 actix-web = "4.2.1"
