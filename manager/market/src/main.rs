@@ -73,8 +73,7 @@ pub fn get_subscriber(
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
         opentelemetry_jaeger::new_collector_pipeline()
             .with_endpoint(format!(
-                "http://{}:{}/api/traces",
-                collector_ip, collector_port
+                "http://{collector_ip}:{collector_port}/api/traces"
             ))
             .with_reqwest()
             .with_service_name(_name)

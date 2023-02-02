@@ -167,7 +167,7 @@ impl FogNode for FogNodeImpl {
             Node {
                 parent:   Some(parent.clone()),
                 children: vec![],
-                data:     NodeRecord::new(ip, port_http, port_faas, &tags),
+                data:     NodeRecord::new(ip, port_http, port_faas, tags),
             },
         );
         let result = self.check_tree().await;
@@ -217,7 +217,7 @@ impl FogNode for FogNodeImpl {
             Node {
                 parent:   None,
                 children: vec![],
-                data:     NodeRecord::new(ip, port_http, port_faas, &tags),
+                data:     NodeRecord::new(ip, port_http, port_faas, tags),
             },
         );
         let res = self.check_tree().await;

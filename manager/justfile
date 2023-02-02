@@ -12,20 +12,21 @@ build *FLAGS:
 
 # Run cargo check
 check:
-    cargo check
+    just _check
 
-    cargo check --features edge_first
-    cargo check --features cloud_only
+    just _check --features edge_first
+    just _check --features cloud_only
     
-    cargo check --features jaeger
+    just _check --features jaeger
 
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check_deps:
 	cargo outdated -R
 	cargo udeps --all-targets
 
-clippy:
-	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
+_check *FLAGS:
+    cargo check
+    cargo clippy --fix --allow-staged --allow-dirty {{FLAGS}}  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
 run_market *FLAGS:
