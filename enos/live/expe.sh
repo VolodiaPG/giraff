@@ -34,19 +34,20 @@ for ii in $(seq 1 $MAX)
 do
 	function_id=$(printf "%03d" $ii)
 
-	if ! (( $ii % (  $MAX / ${#configs_latency[@]}) )) ; then
-		lat_index=$(($lat_index+1))
-		if [ $lat_index -ge ${#configs_latency[@]} ] ; then
-			echo -e "${ORANGE}Number of iterations asked would lead to categories having different population numbers. Stopping.${DGRAY}" # DGRAY for the following
-			break
-		fi
-	fi
+	# if ! (( $ii % (  $MAX / ${#configs_latency[@]}) )) ; then
+	# 	lat_index=$(($lat_index+1))
+	# 	if [ $lat_index -ge ${#configs_latency[@]} ] ; then
+	# 		echo -e "${ORANGE}Number of iterations asked would lead to categories having different population numbers. Stopping.${DGRAY}" # DGRAY for the following
+	# 		break
+	# 	fi
+	# fi
 
+	latency="$ii"
 
 	# index=$(($ii % $size))
 	mem="$configs_mem"
 	cpu="$configs_cpu"
-	latency="${configs_latency[$lat_index]}"
+	# latency="${configs_latency[$lat_index]}"
 	docker_fn_name='echo'
 	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
 	

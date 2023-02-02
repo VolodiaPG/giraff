@@ -22,7 +22,7 @@ init user *FLAGS:
 mprocs:
     mprocs --server 127.0.0.1:4050
 
-deploy $CLUSTER="gros" +FLAGS='':
+deploy $CLUSTER="paravance" +FLAGS='':
     {{RUN}} up {{FLAGS}}
     {{RUN}} network
     {{RUN}} monitoring
@@ -78,19 +78,19 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
     sleep 10
 
-    last_jj=50
+    last_jj=15
     for jj in $(seq 1000 -300 $last_jj); do
         just interval $jj
         sleep {{wait_time}}
         just interval 0 false
-        sleep 10
+        sleep 30
     done
 
-    for jj in $(seq $last_jj -1 2); do
+    for jj in $(seq $last_jj -1 5); do
         just interval $jj
         sleep {{wait_time}}
         just interval 0 false
-        sleep 10
+        sleep 30
     done
     
     just collect
@@ -98,17 +98,22 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
 scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     set -ex
-    
-    export configs_mem=100
-    export configs_cpu=100
-    just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
-    
-    just refresh
-    sleep 60
 
-    export configs_mem=200
-    export configs_cpu=200
-    just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+    for ii in $(seq 1 6); do
+        just deploy paravance --force
+        sleep 60
+
+        export configs_mem=50
+        export configs_cpu=50
+        just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+        
+        # just deploy
+        # sleep 60
+
+        # export configs_mem=400
+        # export configs_cpu=400
+        # just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+    done
 
 
 # Delete the Job on grid'5000 and local EnosLib files
@@ -130,6 +135,9 @@ lab:
     chmod 777 experiment.ipynb
     {{DOCKER}} rm jupyter_lab || true
     {{DOCKER}} run -it --name jupyter_lab -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan jupyter/r-notebook:latest
+
+lab_token:
+    {{DOCKER}} exec jupyter_lab jupyter lab list
 
 lab_pdf:
     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
