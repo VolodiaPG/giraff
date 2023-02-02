@@ -19,7 +19,7 @@ use actix_web_opentelemetry::RequestTracing;
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::TextEncoder;
+use prometheus::{register_counter_vec, CounterVec, TextEncoder};
 #[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
@@ -80,6 +80,15 @@ pub struct StartCron {
     pub tag:         String,
 }
 
+lazy_static::lazy_static! {
+    static ref HTTP_CRON_SEND_FAILS: CounterVec = register_counter_vec!(
+        "iot_emulation_http_request_to_processing_echo_fails",
+        "Counter of number of failed send.",
+        &["tag", "period"]
+    )
+    .unwrap();
+}
+
 async fn put_cron(
     config: Json<StartCron>,
     cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
@@ -114,7 +123,7 @@ async fn ping(config: Arc<StartCron>, client: Arc<HttpClient>, period: u64) {
     info!("Sending a ping to {:?}...", tag.clone());
 
     let res = client.post(&config.node_url).json(&Payload {
-        tag,
+        tag: tag.clone(),
         sent_at: chrono::offset::Utc::now(),
         period,
     });
@@ -127,6 +136,9 @@ async fn ping(config: Arc<StartCron>, client: Arc<HttpClient>, period: u64) {
              is {:?}",
             config, err
         );
+        HTTP_CRON_SEND_FAILS
+            .with_label_values(&[&tag, &period.to_string()])
+            .inc();
     }
 }
 
@@ -179,10 +191,10 @@ async fn forever(
         }
         if period.enabled && !jobs.is_empty() {
             let mut send_interval = time::interval(Duration::from_micros(
-                period.interval_ms * 1000 / (jobs.len() as u64),
+                ((period.interval_ms as f64) * 1000.0 / (jobs.len() as f64))
+                    .floor() as u64,
             ));
-            send_interval.tick().await;
-
+            send_interval.tick().await; // 0 ms
             let jobs_collected: Vec<Arc<CronFn>> =
                 jobs.iter().map(|x| x.value().clone()).collect();
 
