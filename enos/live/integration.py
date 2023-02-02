@@ -242,7 +242,11 @@ def up(force, env=None, **kwargs):
     print(f"Deploying on {cluster}")
 
     conf = (
-        en.VMonG5kConf.from_settings(job_name="En0SLib FTW ❤️", walltime="2:00:00")
+        en.VMonG5kConf.from_settings(
+            job_name="Nix❄️+En0SLib FTW ❤️",
+            walltime="2:00:00",
+            image="/home/volparolguarino/nixos.qcow2",
+        )
         .add_machine(
             roles=["master", "market", "prom_agent"],
             cluster=cluster,
@@ -255,7 +259,6 @@ def up(force, env=None, **kwargs):
             cluster=cluster,
             number=1,
             flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
-            # flavour="large",
         )
     )
 
@@ -285,12 +288,6 @@ def up(force, env=None, **kwargs):
     env["roles"] = roles
     env["networks"] = networks
 
-    print("Setting up network...")
-
-    # netem = en.Netem()
-    # env["netem"] = netem
-    # establish_netem(env)
-
     k3s_setup(env)
 
 
@@ -298,20 +295,13 @@ def k3s_setup(env=None):
     roles = env["roles"]
     print("Setting up k3s and FaaS...")
 
-    # k3s = en.K3s(master=roles["master"], agent=list())
-    k3s = K3s(master=roles["master"], agent=list())
-    k3s.deploy()
-
-    docker = en.Docker(agent=roles["iot_emulation"] + roles["prom_master"])
-    docker.deploy()
-
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
-            """curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
-            apt-get install apt-transport-https --yes
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
-            apt-get update
-            apt-get install helm"""
+            # (f"systemctl start fixcertificate && sleep 10"),  # Yep, that's nasty...
+            (
+                f"systemctl stop k3s.service && sleep 5 && rm -rf /var/lib/rancher/k3s && sleep 5 && systemctl start k3s.service"
+            ),  # Yep, that's nasty...
+            task_name="[master] Fix K3S",
         )
         p.shell(
             (
@@ -330,25 +320,6 @@ def k3s_setup(env=None):
             ),
             task_name="[master] Installing OpenFaaS",
         )
-        # Installs tools
-        with actions(roles=roles["prom_agent"], gather_facts=False) as p:
-            p.apt(
-                pkg=["htop", "iftop", "nethogs"],
-            )
-
-
-def k3s_cleanup(env=None):
-    roles = env["roles"]
-    with actions(roles=roles["master"], gather_facts=False) as p:
-        p.shell("/usr/local/bin/k3s-uninstall.sh")
-        # p.shell("podman system prune --all --force")
-
-
-@cli.command()
-@enostask()
-def k3s_refresh(env=None):
-    k3s_cleanup(env)
-    k3s_setup(env)
 
 
 @cli.command()
@@ -419,32 +390,6 @@ def gen_net(nodes, netem, roles):
                 rate="1gbit",
                 symmetric=True,
             )
-
-
-# @cli.command()
-# @enostask()
-# def check_net(env=None):
-#     roles = env["roles"]
-#     nodes = NETWORK
-#     adjacency = adjacency_undirected(nodes)
-
-#     def dfs(node):
-#         vis[node] = 1
-#         for child, latency in adjacency[node]:
-#             if child not in vis:
-#                 subtree_cumul[child] = subtree_cumul[node] + latency
-#                 dfs(child)
-
-#     for node_name in adjacency:
-#         subtree_cumul = defaultdict(lambda: 0)
-#         vis = {}
-#         dfs(node_name)  # modifies subtree_cumul
-#         for destination in subtree_cumul:
-#             res = en.run_command(f"ping -c 5 {roles[destination][0].address}", roles = ).stdout
-#             print(res)
-#             print(
-#                 f"{node_name} -> {destination} = {subtree_cumul[destination]} - {res} = {subtree_cumul[destination] - res}"
-#             )
 
 
 @cli.command()
