@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -71,6 +72,10 @@ impl FaaSBackend for OpenFaaSBackend {
                 memory: bid.sla.memory,
                 cpu:    bid.sla.cpu,
             }),
+            env_vars: Some(HashMap::from([(
+                "SLA".to_string(),
+                serde_json::to_string(&bid.sla).unwrap(),
+            )])),
             ..Default::default()
         };
 
