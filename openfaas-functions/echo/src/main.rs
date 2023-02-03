@@ -3,6 +3,7 @@ extern crate tracing;
 
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use model::domain::sla::Sla;
 use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
 use serde::Deserialize;
 use tracing::Subscriber;
@@ -34,16 +35,6 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-lazy_static::lazy_static! {
-    static ref HTTP_TIME_TO_PROCESS_HISTOGRAM: HistogramVec = register_histogram_vec!(
-        "echo_function_http_request_to_processing_echo_duration_seconds_print",
-        "The HTTP request latencies in seconds for the /print route, time to first process the request by the echo node, tagged \
-         with the content `tag`.",
-        &["tag", "period"]
-    )
-    .unwrap();
-}
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IncomingPayload {
@@ -53,14 +44,17 @@ struct IncomingPayload {
     period:  u64,
 }
 
-async fn handle(payload: web::Json<IncomingPayload>) -> HttpResponse {
+async fn handle(
+    payload: web::Json<IncomingPayload>,
+    histogram: web::Data<Arc<HistogramVec>>,
+) -> HttpResponse {
     let now = chrono::offset::Utc::now();
 
     let data = &payload.0;
 
     let elapsed = now - data.sent_at;
 
-    HTTP_TIME_TO_PROCESS_HISTOGRAM
+    histogram
         .with_label_values(&[&data.tag, &data.period.to_string()])
         .observe(elapsed.num_milliseconds().abs() as f64 / 1000.0);
 
@@ -142,6 +136,42 @@ async fn main() -> std::io::Result<()> {
             .build(),
     );
 
+    let Ok(sla_raw)= std::env::var("SLA") else {
+        panic!("SLA env variable not found");
+    };
+
+    let Ok(sla) = serde_json::from_str::<Sla>(&sla_raw) else{
+        panic!("Cannot read and deserialize SLA env variable");
+    };
+
+    let latency_constraint_sec =
+        sla.latency_max.get::<uom::si::time::second>();
+
+    let histogram = Arc::new(
+        register_histogram_vec!(
+        "echo_function_http_request_to_processing_echo_duration_seconds_print",
+        "The HTTP request latencies in seconds for the /print route, time to \
+         first process the request by the echo node, tagged with the content \
+         `tag`.",
+        &["tag", "period"],
+        vec![
+            latency_constraint_sec * 0.25,
+            latency_constraint_sec * 0.5,
+            latency_constraint_sec * 0.75,
+            latency_constraint_sec * 1.25,
+            latency_constraint_sec * 1.5,
+            latency_constraint_sec * 1.75,
+            latency_constraint_sec * 2.0,
+            latency_constraint_sec * 5.0,
+            latency_constraint_sec * 10.0,
+            latency_constraint_sec * 100.0,
+            latency_constraint_sec * 1000.0,
+            latency_constraint_sec * 10000.0
+        ]
+    )
+        .unwrap(),
+    );
+
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(reqwest::Client::new());
 
@@ -153,6 +183,7 @@ async fn main() -> std::io::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::Data::new(http_client.clone()))
+            .app_data(web::Data::new(histogram.clone()))
             .route("/metrics", web::get().to(metrics))
             .service(web::scope("/").route("", web::post().to(handle)))
     })
