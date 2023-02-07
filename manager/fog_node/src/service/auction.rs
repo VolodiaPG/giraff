@@ -133,7 +133,7 @@ impl Auction for AuctionImpl {
         let used_mem = used_mem + bid.sla.memory;
         let used_cpu = used_cpu + bid.sla.cpu;
         self.resource_tracking
-            .update_used(bid.node.clone(), used_mem, used_cpu)
+            .set_used(bid.node.clone(), used_mem, used_cpu)
             .await?;
 
         Ok(bid)

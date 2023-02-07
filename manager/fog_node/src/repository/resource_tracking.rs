@@ -27,7 +27,7 @@ pub enum Error {
 #[async_trait]
 pub trait ResourceTracking: Debug + Sync + Send {
     /// Update a node given its name with said resource usage
-    async fn update_used(
+    async fn set_used(
         &self,
         name: String,
         memory: Information,
@@ -125,7 +125,7 @@ impl ResourceTrackingImpl {
 
 #[async_trait]
 impl ResourceTracking for ResourceTrackingImpl {
-    async fn update_used(
+    async fn set_used(
         &self,
         name: String,
         memory: Information,
