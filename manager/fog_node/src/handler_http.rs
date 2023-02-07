@@ -7,14 +7,13 @@ use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
 use model::BidId;
 use serde::Deserialize;
-use std::sync::Arc;
 
 impl actix_web::error::ResponseError for ControllerError {}
 
 /// Return a bid for the SLA.
 pub async fn post_bid(
     payload: web::Json<BidRequestOwned>,
-    function: Data<Arc<dyn FunctionLife>>,
+    function: Data<dyn FunctionLife>,
 ) -> Result<HttpResponse, ControllerError> {
     let res = controller::auction::bid_on(payload.0, &function).await?;
     Ok(HttpResponse::Ok().json(res))
@@ -30,7 +29,7 @@ pub struct PostBidAcceptParams {
 /// function.
 pub async fn post_bid_accept(
     params: web::Path<PostBidAcceptParams>,
-    function: Data<Arc<dyn FunctionLife>>,
+    function: Data<dyn FunctionLife>,
 ) -> Result<HttpResponse, ControllerError> {
     let res =
         controller::auction::provision_from_bid(params.id.clone(), &function)
@@ -41,7 +40,7 @@ pub async fn post_bid_accept(
 /// Register a child node to this one
 pub async fn post_register_child_node(
     payload: web::Json<RegisterNode>,
-    router: Data<Arc<dyn NodeLife>>,
+    router: Data<dyn NodeLife>,
 ) -> Result<HttpResponse, ControllerError> {
     controller::node::register_child_node(payload.0, &router).await?;
     Ok(HttpResponse::Ok().finish())

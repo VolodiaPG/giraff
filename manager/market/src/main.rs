@@ -2,6 +2,7 @@
 #[macro_use]
 extern crate log;
 
+use actix_web::web::Data;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
@@ -35,6 +36,9 @@ use std::sync::Arc;
 
 use crate::handler::*;
 use crate::repository::fog_node::FogNodeImpl;
+use crate::service::auction::Auction;
+use crate::service::faas::FogNodeFaaS;
+use crate::service::fog_node_network::FogNodeNetwork;
 
 mod controller;
 mod handler;
@@ -162,6 +166,11 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
+    let fog_node_network_service =
+        Data::from(fog_node_network_service as Arc<dyn FogNodeNetwork>);
+    let auction_service = Data::from(auction_service as Arc<dyn Auction>);
+    let faas_service = Data::from(faas_service as Arc<dyn FogNodeFaaS>);
+
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -169,22 +178,18 @@ async fn main() -> std::io::Result<()> {
         let app =
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
-        app.app_data(web::Data::new(
-            faas_service.clone() as Arc<dyn crate::service::faas::FogNodeFaaS>
-        ))
-        .app_data(web::Data::new(auction_service.clone()
-            as Arc<dyn crate::service::auction::Auction>))
-        .app_data(web::Data::new(fog_node_network_service.clone()
-            as Arc<dyn crate::service::fog_node_network::FogNodeNetwork>))
-        .route("/metrics", web::get().to(metrics))
-        .service(
-            web::scope("/api")
-                .route("/function", web::put().to(put_function))
-                .route("/register", web::post().to(post_register_node))
-                .route("/functions", web::get().to(get_functions))
-                .route("/fog", web::get().to(get_fog))
-                .route("/health", web::head().to(health)),
-        )
+        app.app_data(Data::clone(&faas_service))
+            .app_data(Data::clone(&auction_service))
+            .app_data(Data::clone(&fog_node_network_service))
+            .route("/metrics", web::get().to(metrics))
+            .service(
+                web::scope("/api")
+                    .route("/function", web::put().to(put_function))
+                    .route("/register", web::post().to(post_register_node))
+                    .route("/functions", web::get().to(get_functions))
+                    .route("/fog", web::get().to(get_fog))
+                    .route("/health", web::head().to(health)),
+            )
     })
     .bind(("0.0.0.0", my_port_http.parse().unwrap()))?
     .run()

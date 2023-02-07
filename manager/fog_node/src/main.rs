@@ -4,6 +4,7 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
+use actix_web::web::Data;
 use bytes::Bytes;
 use futures::future::join_all;
 #[cfg(feature = "mimalloc")]
@@ -27,6 +28,7 @@ use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
 
+use service::function_life::FunctionLife;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_log::LogTracer;
@@ -42,7 +44,6 @@ use crate::repository::provisioned::ProvisionedHashMapImpl;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::auction::{Auction, AuctionImpl};
 use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
-use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
 use crate::service::node_life::{NodeLife, NodeLifeImpl};
 
@@ -155,10 +156,7 @@ fn function_life_factory(
     )
 }
 
-async fn get_other_metrics(
-    function: BidId,
-    faas: Arc<dyn FaaSBackend>,
-) -> Bytes {
+async fn get_other_metrics(function: BidId, faas: &dyn FaaSBackend) -> Bytes {
     match faas.get_metrics(&function).await {
         Ok(Some(metrics)) => metrics,
         Ok(None) => {
@@ -172,9 +170,7 @@ async fn get_other_metrics(
     }
 }
 
-pub async fn metrics(
-    faas: web::Data<Arc<dyn FaaSBackend>>,
-) -> actix_web::HttpResponse {
+pub async fn metrics(faas: Data<dyn FaaSBackend>) -> actix_web::HttpResponse {
     let encoder = TextEncoder::new();
     let mut buffer: String = "".to_string();
     if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
@@ -187,7 +183,7 @@ pub async fn metrics(
     let others = faas
         .get_provisioned_functions()
         .into_iter()
-        .map(|function| get_other_metrics(function, faas.clone()));
+        .map(|function| get_other_metrics(function, faas));
 
     let metrics = join_all(others).await.concat();
     let buffer = [buffer.as_bytes(), &metrics].concat();
@@ -400,6 +396,14 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
+    let auction_service = Data::from(auction_service as Arc<dyn Auction>);
+    let faas_service = Data::from(faas_service as Arc<dyn FaaSBackend>);
+    let function_life_service =
+        Data::from(function_life_service as Arc<dyn FunctionLife>);
+    let node_life_service = Data::from(node_life_service as Arc<dyn NodeLife>);
+    let neighbor_monitor_service =
+        Data::from(neighbor_monitor_service as Arc<dyn NeighborMonitor>);
+
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -408,21 +412,11 @@ async fn main() -> std::io::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::JsonConfig::default().limit(4096))
-            .app_data(web::Data::new(
-                auction_service.clone() as Arc<dyn Auction>
-            ))
-            .app_data(web::Data::new(
-                faas_service.clone() as Arc<dyn FaaSBackend>
-            ))
-            .app_data(web::Data::new(
-                function_life_service.clone() as Arc<dyn FunctionLife>
-            ))
-            .app_data(web::Data::new(
-                node_life_service.clone() as Arc<dyn NodeLife>
-            ))
-            .app_data(web::Data::new(
-                neighbor_monitor_service.clone() as Arc<dyn NeighborMonitor>
-            ))
+            .app_data(Data::clone(&auction_service))
+            .app_data(Data::clone(&faas_service))
+            .app_data(Data::clone(&function_life_service))
+            .app_data(Data::clone(&node_life_service))
+            .app_data(Data::clone(&neighbor_monitor_service))
             .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
