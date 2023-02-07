@@ -99,9 +99,9 @@ run_fog_node node_type *FLAGS:
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
 
-    env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
+    env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
 
-    cmd = f'{env_str} cargo run --bin fog_node {{FLAGS}}'
+    cmd = f'code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"'
     print(cmd)
     os.system(cmd)
 
