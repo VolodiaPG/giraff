@@ -158,6 +158,7 @@ async fn main() -> std::io::Result<()> {
             latency_constraint_sec * 0.25,
             latency_constraint_sec * 0.5,
             latency_constraint_sec * 0.75,
+            latency_constraint_sec,
             latency_constraint_sec * 1.25,
             latency_constraint_sec * 1.5,
             latency_constraint_sec * 1.75,
@@ -175,6 +176,9 @@ async fn main() -> std::io::Result<()> {
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(reqwest::Client::new());
 
+    let http_client = web::Data::new(http_client);
+    let histogram = web::Data::new(histogram);
+
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -182,8 +186,8 @@ async fn main() -> std::io::Result<()> {
         let app =
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
-        app.app_data(web::Data::new(http_client.clone()))
-            .app_data(web::Data::new(histogram.clone()))
+        app.app_data(web::Data::clone(&http_client))
+            .app_data(web::Data::clone(&histogram))
             .route("/metrics", web::get().to(metrics))
             .service(web::scope("/").route("", web::post().to(handle)))
     })

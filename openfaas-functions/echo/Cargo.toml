@@ -61,4 +61,4 @@ uom = { version = "0.33.0", default-features = false, features = [
     "autoconvert",
 ] }
 
-model = { path = "../../manager/model" }
+model = { path = "./model" }

@@ -18,6 +18,8 @@ RUN apt-get update \
 WORKDIR /workplace-echo
 
 COPY . .
+COPY ./model/* ./model/
+COPY ./helper/* ./helper/
 
 RUN mkdir -p /output
 
