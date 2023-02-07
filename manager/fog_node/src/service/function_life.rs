@@ -380,7 +380,7 @@ mod edge_first {
             };
             let Ok(()) = self
                 .resource_tracking
-                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .set_used(name, memory + sla_memory, cpu + sla_cpu)
                 .await else {
                     warn!("Could not set updated tracked cpu and memory");
                     return Ok(());

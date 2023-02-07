@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
 
+use helper::uom_helper::{information, ratio};
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use uom::si::f64::{Information, Ratio};
 
 use crate::view::auction::AcceptedBid;
 use crate::{
@@ -66,7 +69,7 @@ pub struct NodeDescription {
     pub port_http: FogNodeHTTPPort,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeCategory {
     MarketConnected {
         market_ip:   IpAddr,
@@ -87,45 +90,26 @@ pub struct NodeSituationData {
     pub my_public_port_http: FogNodeHTTPPort,
     pub my_public_port_faas: FogNodeFaaSPortExternal,
     pub tags:                Vec<String>,
+    pub reserved_memory:     Information,
+    pub reserved_cpu:        Ratio,
     pub children:            dashmap::DashMap<NodeId, NodeDescription>,
 }
 
+#[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum NodeSituationDisk {
-    MarketConnected {
-        market_ip:           IpAddr,
-        market_port:         MarketHTTPPort,
-        my_id:               NodeId,
-        my_public_ip:        IpAddr,
-        my_public_port_http: FogNodeHTTPPort,
-        tags:                Vec<String>,
-    },
-    NodeConnected {
-        parent_id:             NodeId,
-        parent_node_ip:        IpAddr,
-        parent_node_port_http: FogNodeHTTPPort,
-        my_id:                 NodeId,
-        my_public_ip:          IpAddr,
-        my_public_port_http:   FogNodeHTTPPort,
-        tags:                  Vec<String>,
-    },
+pub struct NodeSituationDisk {
+    pub situation:           NodeCategory,
+    pub my_id:               NodeId,
+    pub my_public_ip:        IpAddr,
+    pub my_public_port_http: FogNodeHTTPPort,
+    pub tags:                Vec<String>,
+    #[serde_as(as = "information::Helper")]
+    pub reserved_memory:     Information,
+    #[serde_as(as = "ratio::Helper")]
+    pub reserved_cpu:        Ratio,
 }
 
 /// Loads from a file objects of the form:
-/// ```ron
-/// MarketConnected (
-///    market_uri: "localhost:8080",
-///    my_id: "e13f2a63-2934-480a-a448-b1b01af7e170",
-/// )
-/// ```
-/// or another example:
-/// ```ron
-/// NodeConnected (
-///   parent_id: "e13f2a63-2934-480a-a448-b1b01af7e170",
-///   parent_node_uri: "localhost:8080",
-///   my_id: "49aaea47-7af7-4c68-b29a-b445ef194d3a",
-/// )
-/// ```
 impl NodeSituationDisk {
     pub fn new(content: String) -> anyhow::Result<Self> {
         let situation = ron::from_str::<NodeSituationDisk>(&content)?;
@@ -138,47 +122,26 @@ impl NodeSituationData {
         disk: NodeSituationDisk,
         my_public_port_faas: FogNodeFaaSPortExternal,
     ) -> Self {
-        match disk {
-            NodeSituationDisk::MarketConnected {
-                market_port,
-                market_ip,
-                my_id,
-                my_public_ip,
-                my_public_port_http,
-                tags,
-            } => NodeSituationData {
-                children: dashmap::DashMap::new(),
-                my_id,
-                my_public_ip,
-                my_public_port_http,
-                my_public_port_faas,
-                tags,
-                situation: NodeCategory::MarketConnected {
-                    market_ip,
-                    market_port,
-                },
-            },
-            NodeSituationDisk::NodeConnected {
-                parent_id,
-                parent_node_port_http,
-                parent_node_ip,
-                my_id,
-                my_public_ip,
-                my_public_port_http,
-                tags,
-            } => NodeSituationData {
-                children: dashmap::DashMap::new(),
-                my_id,
-                my_public_ip,
-                my_public_port_http,
-                my_public_port_faas,
-                tags,
-                situation: NodeCategory::NodeConnected {
-                    parent_id,
-                    parent_node_ip,
-                    parent_node_port_http,
-                },
-            },
+        let NodeSituationDisk {
+            situation,
+            my_id,
+            my_public_ip,
+            my_public_port_http,
+            tags,
+            reserved_memory,
+            reserved_cpu,
+        } = disk;
+
+        Self {
+            situation,
+            my_id,
+            my_public_ip,
+            my_public_port_http,
+            my_public_port_faas,
+            tags,
+            reserved_memory,
+            reserved_cpu,
+            children: dashmap::DashMap::new(),
         }
     }
 }

@@ -44,43 +44,59 @@ run_fog_node node_type *FLAGS:
 
     nodes = {}
 
-    nodes["market"] = '''MarketConnected (
-        market_ip: "127.0.0.1",
-        market_port: "8000",
+    nodes["market"] = '''(
+        situation: MarketConnected (
+            market_ip: "127.0.0.1",
+            market_port: "8000",
+        ),
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3030",
+        reserved_cpu: "4 cpus",
+        reserved_memory: "4 GiB",
         tags: ["market connected"],
     )'''
 
-    nodes["node_1"] = '''NodeConnected (
-        parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
-        parent_node_ip: "127.0.0.1",
-        parent_node_port_http: "3030",
+    nodes["node_1"] = '''(
+        situation: NodeConnected (
+            parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
+            parent_node_ip: "127.0.0.1",
+            parent_node_port_http: "3030",
+        ),
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3032",
+        reserved_cpu: "1 cpu",
+        reserved_memory: "1 GiB",
         tags: ["node connected 1"],
     )'''
 
-    nodes["node_2"] = '''NodeConnected (
-        parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
-        parent_node_ip: "127.0.0.1",
-        parent_node_port_http: "3032",
+    nodes["node_2"] = '''(
+        situation: NodeConnected (
+            parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
+            parent_node_ip: "127.0.0.1",
+            parent_node_port_http: "3032",
+        ),
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3034",
+        reserved_cpu: "1 cpu",
+        reserved_memory: "1 GiB",
         tags: ["node connected 2"],
     )'''
 
     # Must be that port so expe.sh works magically
-    nodes["node_3"] = '''NodeConnected (
-        parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
-        parent_node_ip: "127.0.0.1",
-        parent_node_port_http: "3034",
+    nodes["node_3"] = '''(
+        situation: NodeConnected (
+            parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
+            parent_node_ip: "127.0.0.1",
+            parent_node_port_http: "3034",
+        ),
         my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3035",
+        reserved_cpu: "1 cpu",
+        reserved_memory: "1 GiB",
         tags: ["node connected 3"],
     )'''
 

@@ -186,24 +186,32 @@ spec:
         emptyDir: {{}}
 """
 
-MARKET_CONNECTED_NODE = """MarketConnected (
-    market_ip: "{market_ip}",
-    market_port: "30008",
+MARKET_CONNECTED_NODE = """(
+    situation: MarketConnected (
+      market_ip: "{market_ip}",
+      market_port: "30008",
+    ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port_http: "30003",
+    reserved_cpu: "{reserved_cpu}",
+    reserved_memory: "{reserved_memory} GiB",
     tags: ["node_to_market", "{name}"],
 )
 
 """
 
-NODE_CONNECTED_NODE = """NodeConnected (
-    parent_id: "{parent_id}",
-    parent_node_ip: "{parent_ip}",
-    parent_node_port_http: "30003",
+NODE_CONNECTED_NODE = """(
+    situation: NodeConnected (
+      parent_id: "{parent_id}",
+      parent_node_ip: "{parent_ip}",
+      parent_node_port_http: "30003",
+    ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port_http: "30003",
+    reserved_cpu: "{reserved_cpu}",
+    reserved_memory: "{reserved_memory} GiB",
     tags: ["node_to_node", "{name}"],
 )
 

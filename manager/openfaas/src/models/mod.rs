@@ -1,5 +1,5 @@
 use helper;
-use uom::fmt::DisplayStyle::Abbreviation;
+// use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information;
 
@@ -20,12 +20,13 @@ impl serde_with::SerializeAs<Information> for InformationHelper {
         // Do not forget to remove last letter of the sentence (the unit)
         serializer.serialize_str(&format!(
             "{}M",
-            &format!(
-                "{:?}",
-                value.into_format_args(information::megabyte, Abbreviation)
-            )
-            .split_whitespace()
-            .collect::<Vec<&str>>()[0]
+            value.get::<information::megabyte>() /* &format!(
+                                                  *     "{:?}",
+                                                  *     value.into_format_args(information::megabyte, Abbreviation)
+                                                  * )
+                                                  * .split_whitespace()
+                                                  * .collect::<Vec<&
+                                                  * str>>()[0] */
         ))
     }
 }
@@ -41,10 +42,10 @@ impl serde_with::SerializeAs<Ratio> for RatioHelper {
         serializer.serialize_str(
             format!(
                 "{:?}",
-                value.into_format_args(
-                    helper::uom_helper::cpu_ratio::cpu,
-                    Abbreviation
-                )
+                value.get::<helper::uom_helper::cpu_ratio::cpu>() /* value.into_format_args(
+                                                                   *     helper::uom_helper::cpu_ratio::cpu,
+                                                                   *     Abbreviation
+                                                                   * ) */
             )
             .split_whitespace()
             .collect::<Vec<&str>>()[0]
