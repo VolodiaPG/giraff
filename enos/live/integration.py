@@ -174,7 +174,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
                     roles=["master", "fog_node", "prom_agent", vm_id],
                     cluster=cluster,
                     number=nb_vms,
-                    flavour_desc=flavor,
+                    flavour_desc={"mem": mem, "core": core},
                 )
                 core_used = 0
                 mem_used = 0
@@ -190,7 +190,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
                 roles=["master", "fog_node", "prom_agent", vm_id],
                 cluster=cluster,
                 number=nb_vms,
-                flavour_desc=flavor,
+                flavour_desc={"mem": mem, "core": core},
             )
 
     return attributions
@@ -251,7 +251,10 @@ def up(force, env=None, **kwargs):
             roles=["master", "market", "prom_agent"],
             cluster=cluster,
             number=1,
-            flavour_desc=NETWORK["flavor"],
+            flavour_desc={
+                "mem": NETWORK["flavor"]["mem"],
+                "core": NETWORK["flavor"]["core"],
+            },
         )
         .add_machine(roles=["prom_master"], cluster=cluster, number=1, flavour="large")
         .add_machine(
@@ -451,6 +454,8 @@ def gen_conf(node, parent_id, parent_ip, ids):
         my_id=my_id,
         my_public_ip=my_ip,
         name=node["name"],
+        reserved_cpu=node["flavor"]["reserved_core"],
+        reserved_memory=node["flavor"]["reserved_mem"],
     )
 
     children = node["children"] if "children" in node else []
@@ -492,6 +497,8 @@ def k3s_deploy(env=None, **kwargs):
                 my_id=market_id,
                 my_public_ip=market_ip,
                 name="cloud",
+                reserved_memory=NETWORK["flavor"]["reserved_mem"],
+                reserved_cpu=NETWORK["flavor"]["reserved_core"],
             ),
         )
     ]

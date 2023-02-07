@@ -485,7 +485,7 @@ mod cloud_only {
             };
             let Ok(()) = self
                 .resource_tracking
-                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .set_used(name, memory + sla_memory, cpu + sla_cpu)
                 .await else {
                     warn!("Could not set updated tracked cpu and memory");
                     return Ok(());
@@ -603,7 +603,7 @@ mod edge_ward {
             };
             let Ok(()) = self
                 .resource_tracking
-                .update_used(name, memory + sla_memory, cpu + sla_cpu)
+                .set_used(name, memory + sla_memory, cpu + sla_cpu)
                 .await else {
                     warn!("Could not set updated tracked cpu and memory");
                     return Ok(());

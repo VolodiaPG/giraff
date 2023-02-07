@@ -109,7 +109,7 @@ pub struct NodeSituationDisk {
     pub reserved_cpu:        Ratio,
 }
 
-/// Loads from a file objects of the form:
+/// Loads node configuration from file
 impl NodeSituationDisk {
     pub fn new(content: String) -> anyhow::Result<Self> {
         let situation = ron::from_str::<NodeSituationDisk>(&content)?;

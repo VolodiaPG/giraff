@@ -194,8 +194,8 @@ MARKET_CONNECTED_NODE = """(
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port_http: "30003",
-    reserved_cpu: "{reserved_cpu}",
-    reserved_memory: "{reserved_memory} GiB",
+    reserved_cpu: "{reserved_cpu} cpus",
+    reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_market", "{name}"],
 )
 
@@ -210,8 +210,8 @@ NODE_CONNECTED_NODE = """(
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
     my_public_port_http: "30003",
-    reserved_cpu: "{reserved_cpu}",
-    reserved_memory: "{reserved_memory} GiB",
+    reserved_cpu: "{reserved_cpu} cpus",
+    reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_node", "{name}"],
 )
 
@@ -224,9 +224,24 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
     "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
 }
 
-TIER_3_FLAVOR = {"core": 2, "mem": 1024 * 4}
-TIER_2_FLAVOR = {"core": 6, "mem": 1024 * 8}
-TIER_1_FLAVOR = {"core": 14, "mem": 1024 * 16}
+TIER_3_FLAVOR = {
+    "core": 2,
+    "mem": 1024 * 4,
+    "reserved_core": 1.5,
+    "reserved_mem": 1024 * 2,
+}
+TIER_2_FLAVOR = {
+    "core": 6,
+    "mem": 1024 * 8,
+    "reserved_core": 5,
+    "reserved_mem": 1024 * 7,
+}
+TIER_1_FLAVOR = {
+    "core": 14,
+    "mem": 1024 * 16,
+    "reserved_core": 13,
+    "reserved_mem": 1024 * 14,
+}
 
 NETWORK = {
     "name": "market",

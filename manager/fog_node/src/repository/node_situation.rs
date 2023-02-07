@@ -6,6 +6,7 @@ use model::dto::node::{NodeDescription, NodeSituationData};
 use model::{
     FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
 };
+use uom::si::f64::{Information, Ratio};
 
 pub trait NodeSituation: Debug + Sync + Send {
     fn register(&self, id: NodeId, description: NodeDescription);
@@ -28,6 +29,10 @@ pub trait NodeSituation: Debug + Sync + Send {
     fn get_my_public_port_http(&self) -> FogNodeHTTPPort;
     /// Get the public port associated with this server (HTTP)
     fn get_my_public_port_faas(&self) -> FogNodeFaaSPortExternal;
+    /// Get the specfied reserved memory configured
+    fn get_reserved_memory(&self) -> Information;
+    /// Get the specfied reserved cpu configured
+    fn get_reserved_cpu(&self) -> Ratio;
 }
 
 #[derive(Debug)]
@@ -126,4 +131,10 @@ impl NodeSituation for NodeSituationHashSetImpl {
     fn get_my_public_port_faas(&self) -> FogNodeFaaSPortExternal {
         self.database.my_public_port_faas.clone()
     }
+
+    fn get_reserved_memory(&self) -> Information {
+        self.database.reserved_memory
+    }
+
+    fn get_reserved_cpu(&self) -> Ratio { self.database.reserved_cpu }
 }

@@ -339,6 +339,8 @@ async fn main() -> std::io::Result<()> {
     let resource_tracking_repo = Arc::new(
         crate::repository::resource_tracking::ResourceTrackingImpl::new(
             k8s_repo.clone(),
+            node_situation.get_reserved_cpu(),
+            node_situation.get_reserved_memory(),
         )
         .await
         .expect("Failed to instanciate the ResourceTrackingRepo"),
