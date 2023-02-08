@@ -74,7 +74,7 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     set -ex
 
     until [[ "$(just _is_connected {{city_name_node_target}} {{market_local_port}})" =~ "✅" ]]; do sleep 10; done
-    sleep 10
+    sleep 30
     just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
     sleep 10
 
