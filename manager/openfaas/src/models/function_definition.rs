@@ -1,5 +1,4 @@
 use serde::Serialize;
-use serde_json::Value;
 use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug, Serialize, Default)]
@@ -37,7 +36,7 @@ pub struct FunctionDefinition {
     #[serde(rename = "limits")]
     pub limits:                    Option<Limits>,
     #[serde(rename = "requests")]
-    pub requests:                  Option<Value>,
+    pub requests:                  Option<Requests>,
     /// Make the root filesystem of the function read-only
     #[serde(rename = "readOnlyRootFilesystem")]
     pub read_only_root_filesystem: Option<bool>,
@@ -46,6 +45,15 @@ pub struct FunctionDefinition {
 #[serde_with::serde_as]
 #[derive(Debug, Serialize, Default)]
 pub struct Limits {
+    #[serde_as(as = "super::RatioHelper")]
+    pub cpu:    Ratio,
+    #[serde_as(as = "super::InformationHelper")]
+    pub memory: Information,
+}
+
+#[serde_with::serde_as]
+#[derive(Debug, Serialize, Default)]
+pub struct Requests {
     #[serde_as(as = "super::RatioHelper")]
     pub cpu:    Ratio,
     #[serde_as(as = "super::InformationHelper")]

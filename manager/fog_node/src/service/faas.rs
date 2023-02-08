@@ -8,7 +8,7 @@ use bytes::Bytes;
 use model::dto::auction::BidRecord;
 use model::dto::faas::ProvisionedRecord;
 use model::BidId;
-use openfaas::models::{FunctionDefinition, Limits};
+use openfaas::models::{FunctionDefinition, Limits, Requests};
 use openfaas::{DefaultApi, DefaultApiClient};
 
 use crate::repository::provisioned::Provisioned as ProvisionedRepository;
@@ -69,6 +69,10 @@ impl FaaSBackend for OpenFaaSBackend {
             image: bid.sla.function_image.to_owned(),
             service: function_name.to_owned(),
             limits: Some(Limits {
+                memory: bid.sla.memory,
+                cpu:    bid.sla.cpu,
+            }),
+            requests: Some(Requests {
                 memory: bid.sla.memory,
                 cpu:    bid.sla.cpu,
             }),

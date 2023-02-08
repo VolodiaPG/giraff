@@ -3,7 +3,7 @@ use helper;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information;
 
-pub use function_definition::{FunctionDefinition, Limits};
+pub use function_definition::{FunctionDefinition, Limits, Requests};
 
 pub use self::function_list_entry::FunctionListEntry;
 
