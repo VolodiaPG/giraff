@@ -32,11 +32,14 @@ if __name__ == "__main__":
 
     today = today.strftime("%Y-%m-%d-%H-%M")
     prefix_dir = "metrics-arks"
+    prefix_filename = os.getenv("DEPLOYMENT_NAME")
+    if prefix_filename is None:
+        prefix_filename = ""
     try:
         os.mkdir(prefix_dir)
     except FileExistsError:
         pass
-    archive = f"{prefix_dir}/metrics_{today}.tar.gz"
+    archive = f"{prefix_dir}/metrics_{prefix_filename}_{today}.tar.gz"
 
     with tarfile.open(archive, "w:gz") as tar:
         names = aliases()

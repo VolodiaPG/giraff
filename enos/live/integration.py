@@ -223,8 +223,10 @@ def init(g5k_user, force):
 
 @cli.command()
 @click.option("--force", is_flag=True, help="destroy and up")
+@click.option("--name", help="The name of the job")
+@click.option("--walltime", help="The wallime: hh:mm:ss")
 @enostask(new=True)
-def up(force, env=None, **kwargs):
+def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None, **kwargs):
     """Claim the resources and setup k3s."""
     env["CLUSTER"] = os.environ["CLUSTER"]
     cluster = env["CLUSTER"]
@@ -243,8 +245,8 @@ def up(force, env=None, **kwargs):
 
     conf = (
         en.VMonG5kConf.from_settings(
-            job_name="Nix❄️+En0SLib FTW ❤️",
-            walltime="2:00:00",
+            job_name=name,
+            walltime=walltime,
             image="/home/volparolguarino/nixos.qcow2",
         )
         .add_machine(
@@ -467,8 +469,16 @@ def gen_conf(node, parent_id, parent_ip, ids):
 
 
 @cli.command()
+@click.option(
+    "--fog_node_image",
+    help="The container image URL. eg. ghcr.io/volodiapg/fog_node:latest",
+)
+@click.option(
+    "--market_image",
+    help="The container image URL. eg. ghcr.io/volodiapg/market:latest",
+)
 @enostask()
-def k3s_deploy(env=None, **kwargs):
+def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
     roles = env["roles"]
 
     en.run_command(
@@ -519,12 +529,13 @@ def k3s_deploy(env=None, **kwargs):
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
             collector_ip=roles["prom_master"][0].address,
             node_name=name,
+            fog_node_image=fog_node_image,
         )
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
     roles[NETWORK["name"]][0].set_extra(
         market_deployment=MARKET_DEPLOYMENT.format(
-            collector_ip=roles["prom_master"][0].address
+            collector_ip=roles["prom_master"][0].address, market_image=market_image
         )
     )
 
@@ -695,13 +706,40 @@ def tunnels(env=None, all=False, **kwargs):
         # The os.setsid() is passed in the argument preexec_fn so
         # it's run after the fork() and before  exec() to run the shell.
 
+        frp_config = """[common]
+server_addr = 127.0.0.1
+bind_port = 7000
+"""
         for port, (_, local_port) in tun.items():
-            cmd = f"ssh -N -L {port}:127.0.0.1:{local_port} -i $HOME/.ssh/id_rsa.pub 127.0.0.1"
-            pro = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, shell=True, preexec_fn=os.setsid
+            frp_config += f"""[{port}]
+type = tcp
+local_ip = 127.0.0.1
+local_port = {local_port}
+remote_port = {port}
+"""
+        with open("/tmp/frpc.ini", "w") as opened_file:
+            opened_file.write(frp_config)
+        with open("/tmp/frps.ini", "w") as opened_file:
+            opened_file.write(
+                """[common]
+bind_port = 7000
+"""
             )
-            print(f"{cmd}, aka new tunnel: {local_port} -> {port}")
-            procs.append(pro)
+        pro = subprocess.Popen(
+            "frps -c /tmp/frps.ini",
+            stdout=subprocess.PIPE,
+            shell=True,
+            preexec_fn=os.setsid,
+        )
+        # print(f"{cmd}, aka new tunnel: {local_port} -> {port}")
+        procs.append(pro)
+        pro = subprocess.Popen(
+            "sleep 10 && frpc -c /tmp/frpc.ini",
+            stdout=subprocess.PIPE,
+            shell=True,
+            preexec_fn=os.setsid,
+        )
+        procs.append(pro)
         sleep(1)
         print("Press Enter to kill.")
         input()

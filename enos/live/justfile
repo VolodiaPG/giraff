@@ -1,5 +1,5 @@
-RUN := "poetry run python integration.py"
-DOCKER := "podman"
+RUN := env_var_or_default("RUN", "poetry run python")
+DOCKER := env_var_or_default("DOCKER", "podman")
 
 # Entrypoint, run deploy and then tunnels
 _default:
@@ -16,36 +16,33 @@ init user *FLAGS:
     ForwardAgent yes
     EOF
 
-    {{RUN}} init --g5k_user={{user}} {{FLAGS}}
+    {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
 
 
 mprocs:
     mprocs --server 127.0.0.1:4050
 
-deploy $CLUSTER="paravance" +FLAGS='':
-    {{RUN}} up {{FLAGS}}
-    {{RUN}} network
-    {{RUN}} monitoring
-    {{RUN}} iot-emulation
-    {{RUN}} k3s-deploy
-
-local:
-    @just deploy "" --vagrant
+deploy fog_node_image=env_var("DEPLOYMENT_FOG_NODE_IMAGE") market_image=env_var("DEPLOYMENT_MARKET_IMAGE") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") walltime=env_var_or_default("DEPLOYMENT_WALLTIME", "2:00:00") $CLUSTER="paravance" +FLAGS='':
+    {{RUN}} integration.py up --name={{name}} --walltime {{walltime}} {{FLAGS}}
+    {{RUN}} integration.py network
+    {{RUN}} integration.py monitoring
+    {{RUN}} integration.py iot-emulation
+    {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}}
 
 # Refresh the container images hosted by k3s on all deployed nodes
 refresh:
-    {{RUN}} k3s-refresh
-    {{RUN}} iot-emulation
-    {{RUN}} monitoring
-    {{RUN}} k3s-deploy
+    {{RUN}} integration.py k3s-refresh
+    {{RUN}} integration.py iot-emulation
+    {{RUN}} integration.py monitoring
+    {{RUN}} integration.py k3s-deploy
 
 # Open SSH tunnels
 tunnels +FLAGS='':
-    {{RUN}} tunnels {{FLAGS}}
+    until {{RUN}} integration.py tunnels {{FLAGS}}; do sleep 30; done
 
 # List end nodes of the Fog network
 endpoints:
-	{{RUN}} endpoints
+	{{RUN}} integration.py endpoints
 
 _is_connected city_name_node_target market_local_port:
     #!/usr/bin/env bash
@@ -85,8 +82,7 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
         just interval 0 false
         sleep 30
     done
-
-    for jj in $(seq $last_jj -1 5); do
+    for jj in $(seq $last_jj -3 7); do
         just interval $jj
         sleep {{wait_time}}
         just interval 0 false
@@ -99,8 +95,10 @@ scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     #!/usr/bin/env bash
     set -ex
 
-    for ii in $(seq 1 6); do
-        just deploy paravance --force
+    echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
+
+    for ii in $(seq 1 3); do
+        just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME $DEPLOYMENT_WALLTIME paravance --force
         sleep 60
 
         export configs_mem=50
@@ -118,15 +116,15 @@ scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_po
 
 # Delete the Job on grid'5000 and local EnosLib files
 clean:
-    {{RUN}} clean || true
+    {{RUN}} integration.py clean || true
     rm -rf enos_* current cachedir __enos*
 
 collect $port="9090" $period="1h":
-    poetry run python collect.py
+    {{RUN}} collect.py
     (rm metrics/* || true) && tar -xvf latest_metrics.tar.gz -C metrics
 
 logs *FLAGS:
-    {{RUN}} logs {{FLAGS}}
+    {{RUN}} integration.py logs {{FLAGS}}
 
 interval period='20' enabled='true' iot_local_port='3003':
     curl -X POST --url "http://localhost:{{iot_local_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
@@ -142,3 +140,34 @@ lab_token:
 
 lab_pdf:
     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
+
+docker_enos name walltime fog_node_image market_image cmd="bash":
+    nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker
+    {{DOCKER}} load < result
+    {{DOCKER}} run -it --rm \
+        --workdir /home/enos \
+        -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
+        -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
+        -v {{justfile_directory()}}/definitions.py:/home/enos/definitions.py:ro \
+        -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
+        -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
+        -v {{justfile_directory()}}/expe.sh:/home/enos/expe.sh:ro \
+        -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
+        -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
+        -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
+        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
+        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
+        -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
+        -e SSH_AUTH_SOCK=/ssh-agent \
+        -e DEPLOYMENT_NAME={{name}} \
+        -e DEPLOYMENT_WALLTIME={{walltime}} \
+        -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
+        -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
+        --name {{name}} \
+        enos_deployment:latest bash -c -E "{{cmd}}"
+
+docker_scenarii name walltime fog_node_image market_image city_name_node_target wait_time='600' n='50' delay='30':
+    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}} {{wait_time}} {{n}} {{delay}}"
+
+dev:
+    nix develop --extra-experimental-features nix-command --extra-experimental-features flakes

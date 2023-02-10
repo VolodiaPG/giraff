@@ -11,8 +11,8 @@ enoslib = "^8.0"
 click = "^8.1"
 setuptools = "^65.6.3"
 
-[tool.poetry.dev-dependencies]
-black = "*"
+# [tool.poetry.dev-dependencies]
+# black = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

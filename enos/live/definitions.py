@@ -71,7 +71,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - name: fog-node
-        image: ghcr.io/volodiapg/fog_node:latest
+        image: {fog_node_image}
         env:
         - name: OPENFAAS_USERNAME
           valueFrom:
@@ -153,7 +153,7 @@ spec:
     spec:
       containers:
       - name: market
-        image: ghcr.io/volodiapg/market:latest
+        image: {market_image}
         ports:
         - containerPort: 30008
         - containerPort: 6831

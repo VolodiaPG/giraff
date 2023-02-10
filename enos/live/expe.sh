@@ -42,7 +42,8 @@ do
 	# 	fi
 	# fi
 
-	latency="$ii"
+	# latency="$ii"
+	latency=$[ $RANDOM % ( $MAX - 5 )  + 5 ]
 
 	# index=$(($ii % $size))
 	mem="$configs_mem"
