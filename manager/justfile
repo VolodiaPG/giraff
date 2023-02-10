@@ -149,11 +149,11 @@ prometheus:
         --web.listen-address=:3090 
 
 run *FLAGS: (build FLAGS)
-    mprocs "just run_fog_node market {{FLAGS}}" \
-    "just run_fog_node node_1 {{FLAGS}}" \
-    "just run_fog_node node_2 {{FLAGS}}" \
-    "just run_fog_node node_3 {{FLAGS}}" \
-    "just run_market {{FLAGS}}"
+    just run_fog_node market {{FLAGS}}
+    just run_fog_node node_2 {{FLAGS}}
+    just run_fog_node node_3 {{FLAGS}}
+    just run_fog_node node_1 {{FLAGS}}
+    just run_market {{FLAGS}}
 
 expe target_node_uuid localhost_ip n='50' delay='30' market_local_port='8000' iot_local_port='30080' first_node_port='3035':
     ../enos/live/expe.sh {{n}} {{target_node_uuid}} {{delay}} {{market_local_port}} {{iot_local_port}} {{localhost_ip}} 127.0.0.1 {{first_node_port}}
@@ -172,13 +172,13 @@ k3d-clean:
     k3d cluster stop fog-node || true
     k3d cluster delete fog-node || true
 
-container *FLAGS:
+container image_tag *FLAGS:
     #!/usr/bin/env bash
     set -e
     echo "Building with flags: {{FLAGS}}"
 
-    {{DOCKER}} build -t fog_node:latest --target fog_node --build-arg FLAGS="{{FLAGS}}" .
-    {{DOCKER}} build -t market:latest --target market --build-arg FLAGS="{{FLAGS}}" .
+    {{DOCKER}} build -t fog_node:{{image_tag}} --target fog_node --build-arg FLAGS="{{FLAGS}}" .
+    {{DOCKER}} build -t market:{{image_tag}} --target market --build-arg FLAGS="{{FLAGS}}" .
 
 # Push an image to ghcr
 _push image user:
@@ -186,10 +186,10 @@ _push image user:
     {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
 # Push container images to ghcr.
-ghcr user *FLAGS:
-    @just container {{FLAGS}}
-    just _push fog_node:latest {{user}}
-    just _push market:latest {{user}}
+ghcr user image_tag *FLAGS:
+    @just container {{image_tag}} {{FLAGS}}
+    just _push fog_node:{{image_tag}} {{user}}
+    just _push market:{{image_tag}} {{user}}
 
 # Cleans
 clean:

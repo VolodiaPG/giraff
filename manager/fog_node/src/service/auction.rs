@@ -96,8 +96,9 @@ impl AuctionImpl {
         available_cpu: &Ratio,
         sla: &Sla,
     ) -> bool {
-        let would_be_used_ram = *used_ram + sla.memory;
-        let would_be_used_cpu = *used_cpu + sla.cpu;
+        let would_be_used_ram =
+            *used_ram + (sla.memory * sla.max_replica as f64);
+        let would_be_used_cpu = *used_cpu + (sla.cpu * sla.max_replica as f64);
 
         would_be_used_cpu < *available_cpu
             && would_be_used_ram < *available_ram

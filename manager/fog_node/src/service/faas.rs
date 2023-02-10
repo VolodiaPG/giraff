@@ -80,6 +80,10 @@ impl FaaSBackend for OpenFaaSBackend {
                 "SLA".to_string(),
                 serde_json::to_string(&bid.sla).unwrap(),
             )])),
+            labels: Some(HashMap::from([(
+                "com.openfaas.scale.max".to_string(),
+                bid.sla.max_replica.to_string(),
+            )])),
             ..Default::default()
         };
 

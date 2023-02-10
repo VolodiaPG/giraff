@@ -42,6 +42,8 @@ pub struct Sla {
     #[serde_as(as = "time::Helper")]
     pub reevaluation_period: Time,
 
+    pub max_replica: u64,
+
     pub function_image: String,
 
     pub function_live_name: String,

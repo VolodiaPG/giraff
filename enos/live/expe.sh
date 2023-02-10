@@ -62,6 +62,7 @@ do
 		"memory": "'"$mem"' MB",
 		"cpu": "'"$cpu"' millicpu",
 		"latencyMax": "'"$latency"' ms",
+		"maxReplica": 1,
 		"dataInputMaxSize": "1 GB",
 		"dataOutputMaxSize": "1 GB",
 		"maxTimeBeforeHot": "10 s",
