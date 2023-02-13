@@ -30,7 +30,8 @@ iot_requests_body=()
 
 lat_index=0
 
-for ii in $(seq 1 $MAX)
+ii=0
+until [ $ii -ge $MAX ]
 do
 	function_id=$(printf "%03d" $ii)
 
@@ -54,7 +55,7 @@ do
 	
 	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
-	FUNCTION_ID=$(curl --request PUT \
+	response=$(curl --silent --output response.tmp --write-out "%{http_code}" --request PUT \
   --url "http://localhost:$PORT/api/function" \
   --header 'Content-Type: application/json' \
   --data '{
@@ -81,18 +82,25 @@ do
 	},
 	"targetNode": "'"$TARGET_NODE"'"
   }')
-	echo -e $FUNCTION_ID
-	FAAS_IP=$(echo "$FUNCTION_ID" | jq -r .chosen.ip)
-	FAAS_PORT=$(echo "$FUNCTION_ID" | jq -r .chosen.port)
-	FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
-	echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
+	if [ $response == 200 ]; then
+		FUNCTION_ID=$(cat response.tmp)
+		rm response.tmp
+		FAAS_IP=$(echo "$FUNCTION_ID" | jq -r .chosen.ip)
+		FAAS_PORT=$(echo "$FUNCTION_ID" | jq -r .chosen.port)
+		FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
+		echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
-	iot_requests_body+=('{
-	"iotUrl": "http://'$IOT_URL':'$IOT_LOCAL_PORT'/api/print",
-	"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'$function_name'-'$FUNCTION_ID'",
-	"functionId": "'$FUNCTION_ID'",
-	"tag": "'"$function_name"'"
-  	}')
+		iot_requests_body+=('{
+		"iotUrl": "http://'$IOT_URL':'$IOT_LOCAL_PORT'/api/print",
+		"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'$function_name'-'$FUNCTION_ID'",
+		"functionId": "'$FUNCTION_ID'",
+		"tag": "'"$function_name"'"
+		}')
+	else
+		ii=$((--ii))
+	fi
+
+    ii=$((++ii))
 done
 
 echo -e "${NC}Waiting $DELAY seconds" # RED for the following
