@@ -120,8 +120,9 @@ clean:
     rm -rf enos_* current cachedir __enos*
 
 collect $port="9090" $period="1h":
+    mkdir -p metrics
     {{RUN}} collect.py
-    (rm metrics/* || true) && tar -xvf latest_metrics.tar.gz -C metrics
+    (rm metrics/* || true) && (tar -xvf latest_metrics.tar.gz -C metrics || true)
 
 logs *FLAGS:
     {{RUN}} integration.py logs {{FLAGS}}
