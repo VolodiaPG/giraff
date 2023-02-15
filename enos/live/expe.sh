@@ -31,57 +31,46 @@ iot_requests_body=()
 lat_index=0
 
 ii=0
-until [ $ii -ge $MAX ]
-do
-	function_id=$(printf "%03d" $ii)
+jj=0
+until [ $ii -ge $MAX ]; do
+	function_id=$(printf "%03d" $jj)
 
-	# if ! (( $ii % (  $MAX / ${#configs_latency[@]}) )) ; then
-	# 	lat_index=$(($lat_index+1))
-	# 	if [ $lat_index -ge ${#configs_latency[@]} ] ; then
-	# 		echo -e "${ORANGE}Number of iterations asked would lead to categories having different population numbers. Stopping.${DGRAY}" # DGRAY for the following
-	# 		break
-	# 	fi
-	# fi
+	latency=$(($RANDOM % ($MAX - 5) + 5))
 
-	# latency="$ii"
-	latency=$[ $RANDOM % ( $MAX - 5 )  + 5 ]
-
-	# index=$(($ii % $size))
 	mem="$configs_mem"
 	cpu="$configs_cpu"
-	# latency="${configs_latency[$lat_index]}"
 	docker_fn_name='echo'
 	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
-	
+
 	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
 	response=$(curl --silent --output response.tmp --write-out "%{http_code}" --request PUT \
-  --url "http://localhost:$PORT/api/function" \
-  --header 'Content-Type: application/json' \
-  --data '{
-	"sla": {
-		"storage": "0 MB",
-		"memory": "'"$mem"' MB",
-		"cpu": "'"$cpu"' millicpu",
-		"latencyMax": "'"$latency"' ms",
-		"maxReplica": 1,
-		"dataInputMaxSize": "1 GB",
-		"dataOutputMaxSize": "1 GB",
-		"maxTimeBeforeHot": "10 s",
-		"reevaluationPeriod": "1 hour",
-		"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
-		"functionLiveName": "'"$function_name"'",
-		"dataFlow": [
-			{
-				"from": {
-					"dataSource": "'"$TARGET_NODE"'"
-				},
-				"to": "thisFunction"
-			}
-		]
-	},
-	"targetNode": "'"$TARGET_NODE"'"
-  }')
+		--url "http://localhost:$PORT/api/function" \
+		--header 'Content-Type: application/json' \
+		--data '{
+		"sla": {
+			"storage": "0 MB",
+			"memory": "'"$mem"' MB",
+			"cpu": "'"$cpu"' millicpu",
+			"latencyMax": "'"$latency"' ms",
+			"maxReplica": 1,
+			"dataInputMaxSize": "1 GB",
+			"dataOutputMaxSize": "1 GB",
+			"maxTimeBeforeHot": "10 s",
+			"reevaluationPeriod": "1 hour",
+			"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
+			"functionLiveName": "'"$function_name"'",
+			"dataFlow": [
+				{
+					"from": {
+						"dataSource": "'"$TARGET_NODE"'"
+					},
+					"to": "thisFunction"
+				}
+			]
+		},
+		"targetNode": "'"$TARGET_NODE"'"
+		}')
 	if [ $response == 200 ]; then
 		FUNCTION_ID=$(cat response.tmp)
 		rm response.tmp
@@ -98,9 +87,11 @@ do
 		}')
 	else
 		ii=$((--ii))
+		sleep 2
 	fi
 
-    ii=$((++ii))
+	ii=$((++ii))
+	jj=$((++jj))
 done
 
 echo -e "${NC}Waiting $DELAY seconds" # RED for the following
@@ -109,12 +100,11 @@ sleep $DELAY
 
 echo -e "${PURPLE}Instanciating echoes from Iot platform for all the functions instanciated ${RED}" # RED for the following
 
-for body in "${iot_requests_body[@]}"
-do	
-  	curl --request PUT \
-  --url http://localhost:$IOT_LOCAL_PORT/api/cron \
-  --header 'Content-Type: application/json' \
-  --data "$body"
-echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
+for body in "${iot_requests_body[@]}"; do
+	curl --request PUT \
+		--url http://localhost:$IOT_LOCAL_PORT/api/cron \
+		--header 'Content-Type: application/json' \
+		--data "$body"
+	echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
 
 done
