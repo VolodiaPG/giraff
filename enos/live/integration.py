@@ -668,8 +668,13 @@ def openfaas_login(env=None, file=None, **kwargs):
 
 @cli.command()
 @click.option("--all", required=False, is_flag=True, help="Also tunnel fog nodes")
+@click.option(
+    "--command",
+    required=False,
+    help="Pass command to execute once done, will close tunnels after task is exited",
+)
 @enostask()
-def tunnels(env=None, all=False, **kwargs):
+def tunnels(env=None, command=None, all=False, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
     procs = []
     try:
@@ -739,9 +744,17 @@ bind_port = 7000
             preexec_fn=os.setsid,
         )
         procs.append(pro)
-        sleep(1)
-        print("Press Enter to kill.")
-        input()
+        if command is not None:
+            pro = subprocess.Popen(
+                command,
+                shell=True,
+                preexec_fn=os.setsid,
+            )
+            pro.wait()
+        else:
+            sleep(1)
+            print("Press Enter to kill.")
+            input()
     finally:
         for pro in procs:
             os.killpg(
