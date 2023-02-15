@@ -302,9 +302,8 @@ def k3s_setup(env=None):
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
-            # (f"systemctl start fixcertificate && sleep 10"),  # Yep, that's nasty...
             (
-                f"systemctl stop k3s.service && sleep 30 && rm -rf /var/lib/rancher/k3s && sleep 30 && systemctl start k3s.service"
+                f"rm -rf /var/lib/rancher/k3s && systemctl restart k3s.service"
             ),  # Yep, that's nasty...
             task_name="[master] Fix K3S",
         )
