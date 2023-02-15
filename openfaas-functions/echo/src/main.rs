@@ -158,16 +158,16 @@ async fn main() -> std::io::Result<()> {
             latency_constraint_sec * 0.25,
             latency_constraint_sec * 0.5,
             latency_constraint_sec * 0.75,
+            latency_constraint_sec - 3.0/1000.0,
+            latency_constraint_sec - 2.0/1000.0,
+            latency_constraint_sec - 1.0/1000.0,
             latency_constraint_sec,
-            latency_constraint_sec * 1.25,
+            latency_constraint_sec + 1.0/1000.0,
+            latency_constraint_sec + 2.0/1000.0,
+            latency_constraint_sec + 3.0/1000.0,
             latency_constraint_sec * 1.5,
             latency_constraint_sec * 1.75,
             latency_constraint_sec * 2.0,
-            latency_constraint_sec * 5.0,
-            latency_constraint_sec * 10.0,
-            latency_constraint_sec * 100.0,
-            latency_constraint_sec * 1000.0,
-            latency_constraint_sec * 10000.0
         ]
     )
         .unwrap(),
