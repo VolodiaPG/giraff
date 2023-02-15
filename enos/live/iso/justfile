@@ -1,18 +1,18 @@
 # Entrypoint, run deploy and then tunnels
 _default:
     @just --list
-    
-build-iso:
-    nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.isoimage.config.system.build.isoImage
+
+fmt:
+    nix --experimental-features "nix-command flakes" fmt .
 
 build-vm:
-    nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#qcow2
+    nix build --print-build-logs --experimental-features "nix-command flakes" .#vm
 
 update:
-    nix flake update --extra-experimental-features nix-command --extra-experimental-features flakes
+    nix flake update --experimental-features "nix-command flakes"
 
 upload city="rennes":
-    rsync --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos*.qcow2 {{city}}.grid5000.fr:~/nixos.qcow2
+    rsync -chavzP --stats --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos.qcow2 {{city}}.grid5000.fr:~/nixos.qcow2
     
 vm clean="false":
     #!/usr/bin/env bash

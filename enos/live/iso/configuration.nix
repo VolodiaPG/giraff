@@ -16,31 +16,29 @@
     loader.timeout = 0;
   };
 
-  # Fix the k3s certificate being generated 2 hours in the future on Grid5000
-  systemd.services.fixcertificate = {
-    script = ''
-      systemctl stop k3s.service
-      sleep 5
-      rm -rf /var/lib/rancher/k3s
-      sleep 5
-      systemctl start k3s.service
-    '';
-    wantedBy = [ "multi-user.target" ];
-    after = [ "k3s.service" ];
-    wants = [ "k3s.service" ];
+  time.timeZone = "Europe/Paris";
+  time.hardwareClockInLocalTime = true;
+
+  systemd = {
+    enableEmergencyMode = false;
+    network = {
+      wait-online = {
+        anyInterface = true;
+      };
+    };
+    services = {
+      systemd-udev-settle.enable = false;
+    };
   };
 
-  # getting IP from dhcp
-  # no network manager
-  networking.dhcpcd.enable = true;
-
-  time.timeZone = "Europe/Paris";
+  services.chrony.enable = true;
+  services.chrony.servers = [ "ntp.rennes.grid5000.fr" ];
 
   # declare the gaming user and its fixed password
   users.mutableUsers = false;
   users.users.root = {
     isSystemUser = true;
-    shell = pkgs.bash;
+    shell = pkgs.fish;
     extraGroups = [ "networkmanager" "wheel" "docker" ];
     hashedPassword = "$6$7pE7b8uqvt/XVmgo$Wlznz/v04VkDGxMUCxk9UBERHrMZqtrRlUAqxXYOvck/MKMS1A9FV6oH29qkWpPt/zqiC3Opuhp7QKBDOk62b."; # faas
     openssh.authorizedKeys.keys = [
@@ -54,10 +52,10 @@
     permitRootLogin = "yes";
   };
   services.fwupd.enable = true;
+
   services.k3s = {
     enable = true;
   };
-
   virtualisation.docker.enable = true;
 
   # useful packages
