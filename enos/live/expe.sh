@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-MAX=$1
+MAX_LATENCY=$1
 TARGET_NODE=$2
-DELAY=$3
+NB_FUNCTIONS=$3
 PORT=$4
 IOT_LOCAL_PORT=$5
 IOT_URL=$6
@@ -19,8 +19,6 @@ NC='\033[0m' # No Color
 #configs_mem=("50" "150" "500") # megabytes
 configs_mem="150"
 
-configs_latency=("10" "25" "50" "100") # ms, ordered
-
 #configs_cpu=("100" "150" "500") #millicpu
 configs_cpu="100"
 
@@ -32,10 +30,10 @@ lat_index=0
 
 ii=0
 jj=0
-until [ $ii -ge $MAX ]; do
+until [ $ii -ge $NB_FUNCTIONS ]; do
 	function_id=$(printf "%03d" $jj)
 
-	latency=$(($RANDOM % ($MAX - 5) + 5))
+	latency=$(($RANDOM % ($MAX_LATENCY - 5) + 5))
 
 	mem="$configs_mem"
 	cpu="$configs_cpu"
@@ -52,11 +50,11 @@ until [ $ii -ge $MAX ]; do
 			"storage": "0 MB",
 			"memory": "'"$mem"' MB",
 			"cpu": "'"$cpu"' millicpu",
-			"latencyMax": "'"$latency"' ms",
-			"maxReplica": 1,
-			"dataInputMaxSize": "1 GB",
-			"dataOutputMaxSize": "1 GB",
-			"maxTimeBeforeHot": "10 s",
+			"latencyMAX_LATENCY": "'"$latency"' ms",
+			"MAX_LATENCYReplica": 1,
+			"dataInputMAX_LATENCYSize": "1 GB",
+			"dataOutputMAX_LATENCYSize": "1 GB",
+			"MAX_LATENCYTimeBeforeHot": "10 s",
 			"reevaluationPeriod": "1 hour",
 			"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
 			"functionLiveName": "'"$function_name"'",
@@ -93,10 +91,6 @@ until [ $ii -ge $MAX ]; do
 	ii=$((++ii))
 	jj=$((++jj))
 done
-
-echo -e "${NC}Waiting $DELAY seconds" # RED for the following
-
-sleep $DELAY
 
 echo -e "${PURPLE}Instanciating echoes from Iot platform for all the functions instanciated ${RED}" # RED for the following
 

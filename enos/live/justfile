@@ -57,32 +57,32 @@ is_connected city_name_node_target market_local_port='8088':
 
 
 # expe to target node_id for n repetitions with a delay between each
-expe city_name_node_target n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
+expe city_name_node_target max_latency='50' nb_functions='50' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     NODE_TARGET=$(curl "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
     NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     echo "iot -> $IOT_IP"
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
-    ./expe.sh {{n}} $NODE_TARGET {{delay}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP {{first_node_port}}
+    ./expe.sh {{max_latency}} $NODE_TARGET {{nb_functions}} {{market_local_port}} {{iot_local_port}} $IOT_IP $NODE_TARGET_IP {{first_node_port}}
 
-scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
+scenario city_name_node_target wait_time='600' max_latency='50' nb_functions='50' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     set -ex
 
     until [[ "$(just _is_connected {{city_name_node_target}} {{market_local_port}})" =~ "✅" ]]; do sleep 10; done
     sleep 30
-    just expe {{city_name_node_target}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
+    just expe {{city_name_node_target}} {{max_latency}} {{nb_functions}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}
     sleep 10
 
     last_jj=15
-    for jj in $(seq 1000 -300 $last_jj); do
+    for jj in $(seq 500 -300 $last_jj); do
         just interval $jj
         sleep {{wait_time}}
         just interval 0 false
         sleep 30
     done
-    for jj in $(seq $last_jj -3 7); do
+    for jj in $(seq $last_jj -3 5); do
         just interval $jj
         sleep {{wait_time}}
         just interval 0 false
@@ -91,7 +91,7 @@ scenario city_name_node_target wait_time='600' n='50' delay='30' market_local_po
     
     just collect
 
-scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
+scenarii city_name_node_target wait_time='600' max_latency='50' nb_functions='50' market_local_port='8088' iot_local_port='3003' first_node_port='3003':
     #!/usr/bin/env bash
     set -ex
 
@@ -103,7 +103,7 @@ scenarii city_name_node_target wait_time='600' n='50' delay='30' market_local_po
 
         export configs_mem=50
         export configs_cpu=50
-        just tunnels --command="'just scenario {{city_name_node_target}} {{wait_time}} {{n}} {{delay}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}'"
+        just tunnels --command="'just scenario {{city_name_node_target}} {{wait_time}} {{max_latency}} {{nb_functions}} {{market_local_port}} {{iot_local_port}} {{first_node_port}}'"
     done
 
     just clean
@@ -162,8 +162,8 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         --name {{name}} \
         enos_deployment:latest bash -c -E "{{cmd}}"
 
-docker_scenarii name walltime fog_node_image market_image city_name_node_target wait_time='600' n='50' delay='30':
-    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}} {{wait_time}} {{n}} {{delay}}"
+docker_scenarii name walltime fog_node_image market_image city_name_node_target wait_time='600' max_latency='50' nb_functions='50':
+    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}} {{wait_time}} {{max_latency}} {{nb_functions}}"
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
