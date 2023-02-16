@@ -51,6 +51,7 @@ def get_aliases_from_ip(env):
         alias = role[0].address + ":30003"
         ret[alias] = node
     ret[roles["market"][0].address + ":30003"] = "market"
+    ret[roles["market"][0].address + ":30008"] = "marketplace"
 
     return ret
 
