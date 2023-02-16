@@ -84,6 +84,7 @@ until [ $ii -ge $NB_FUNCTIONS ]; do
 		"tag": "'"$function_name"'"
 		}')
 	else
+		echo -e "${RED}$(cat response.tmp)${NC}"
 		ii=$((--ii))
 		sleep 2
 	fi
@@ -100,5 +101,4 @@ for body in "${iot_requests_body[@]}"; do
 		--header 'Content-Type: application/json' \
 		--data "$body"
 	echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
-
 done
