@@ -46,29 +46,29 @@ until [ $ii -ge $NB_FUNCTIONS ]; do
 		--url "http://localhost:$PORT/api/function" \
 		--header 'Content-Type: application/json' \
 		--data '{
-		"sla": {
-			"storage": "0 MB",
-			"memory": "'"$mem"' MB",
-			"cpu": "'"$cpu"' millicpu",
-			"latencyMAX_LATENCY": "'"$latency"' ms",
-			"MAX_LATENCYReplica": 1,
-			"dataInputMAX_LATENCYSize": "1 GB",
-			"dataOutputMAX_LATENCYSize": "1 GB",
-			"MAX_LATENCYTimeBeforeHot": "10 s",
-			"reevaluationPeriod": "1 hour",
-			"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
-			"functionLiveName": "'"$function_name"'",
-			"dataFlow": [
-				{
-					"from": {
-						"dataSource": "'"$TARGET_NODE"'"
-					},
-					"to": "thisFunction"
-				}
-			]
-		},
-		"targetNode": "'"$TARGET_NODE"'"
-		}')
+	"sla": {
+		"storage": "0 MB",
+		"memory": "'"$mem"' MB",
+		"cpu": "'"$cpu"' millicpu",
+		"latencyMax": "'"$latency"' ms",
+		"maxReplica": 1,
+		"dataInputMaxSize": "1 GB",
+		"dataOutputMaxSize": "1 GB",
+		"maxTimeBeforeHot": "10 s",
+		"reevaluationPeriod": "1 hour",
+		"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
+		"functionLiveName": "'"$function_name"'",
+		"dataFlow": [
+			{
+				"from": {
+					"dataSource": "'"$TARGET_NODE"'"
+				},
+				"to": "thisFunction"
+			}
+		]
+	},
+	"targetNode": "'"$TARGET_NODE"'"
+	}')
 	if [ $response == 200 ]; then
 		FUNCTION_ID=$(cat response.tmp)
 		rm response.tmp
