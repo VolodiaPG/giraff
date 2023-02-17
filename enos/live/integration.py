@@ -304,12 +304,6 @@ def k3s_setup(env=None):
     with actions(roles=roles["master"], gather_facts=False) as p:
         p.shell(
             (
-                f"rm -rf /var/lib/rancher/k3s && systemctl restart k3s.service"
-            ),  # Yep, that's nasty...
-            task_name="[master] Fix K3S",
-        )
-        p.shell(
-            (
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
                     && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
                     && helm repo add openfaas https://openfaas.github.io/faas-netes/ \

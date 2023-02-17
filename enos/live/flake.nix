@@ -13,69 +13,68 @@
       let
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv mkPoetryApplication;
-        pkgs = nixpkgs.legacyPackages.${system};
-        lib = nixpkgs.lib;
 
         overlay = self: super:{
           experiments = self.poetry2nix.mkPoetryEnv {
             projectDir = ./.;
-            python = self.python3;
-            overrides = pkgs.poetry2nix.overrides.withDefaults (self: super: {
-                cryptography = super.cryptography.overridePythonAttrs (
+            python = self.python311;
+            overrides = self.poetry2nix.overrides.withDefaults (newattr: oldattr: {
+                cryptography = oldattr.cryptography.overridePythonAttrs (
                     old: {
                       cargoDeps =
-                        pkgs.rustPlatform.fetchCargoTarball {
+                        super.rustPlatform.fetchCargoTarball {
                           src = old.src;
                           sourceRoot = "${old.pname}-${old.version}/src/rust";
                           name = "${old.pname}-${old.version}";
-                          sha256 = "sha256-clorC0NtGukpE3DnZ84MSdGhJN+qC89DZPITZFuL01Q=";
+                          sha256 = "sha256-0x+KIqJznDEyIUqVuYfIESKmHBWfzirPeX2R/cWlngc=";
                         };
                     }
                   );
-                rfc3986-validator = super.rfc3986-validator.overridePythonAttrs
+                rfc3986-validator = oldattr.rfc3986-validator.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ super.setuptools self.setuptools-scm self.pytest-runner ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.setuptools oldattr.setuptools-scm oldattr.pytest-runner ];
                     }
                   );
-                pathspec = super.pathspec.overridePythonAttrs
+                pathspec = oldattr.pathspec.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ self.flit-scm self.pytest-runner ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.flit-scm oldattr.pytest-runner ];
                     }
                   );
-                ncclient = super.ncclient.overridePythonAttrs
+                ncclient = oldattr.ncclient.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ self.six ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.six ];
                     }
                   );
-                jupyter-server-terminals = super.jupyter-server-terminals.overridePythonAttrs
+                jupyter-server-terminals = oldattr.jupyter-server-terminals.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ self.hatchling ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatchling ];
                     }
                   );
-                jupyter-events = super.jupyter-events.overridePythonAttrs
+                jupyter-events = oldattr.jupyter-events.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ self.hatchling ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatchling ];
                     }
                   );
-                jupyter-server = super.jupyter-server.overridePythonAttrs
+                jupyter-server = oldattr.jupyter-server.overridePythonAttrs
                   (
                     old: {
-                      buildInputs = (old.buildInputs or [ ]) ++ [ self.hatch-jupyter-builder self.hatchling ];
+                      buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatch-jupyter-builder oldattr.hatchling ];
                     }
                   );
               });
           };
         };
 
-        linuxPackages = import nixpkgs {
+        pkgs = import nixpkgs {
           inherit system;
           overlays = [overlay];
         };
+        lib = nixpkgs.lib;
 
         dockerImage = pkgs.dockerTools.buildImage {
           name = "enos_deployment";
@@ -100,7 +99,7 @@
                     frp
 
                     # Environment to run enos and stuff
-                    linuxPackages.experiments
+                    experiments
                 ];
             };
              runAsRoot = ''
@@ -123,7 +122,7 @@
       {
         packages = {
           docker = dockerImage;
-          default = self.packages.${system}.myapp;
+          default = pkgs.experiments;
         };
 
         devShells.default = pkgs.mkShell {
@@ -131,6 +130,7 @@
             just
             jq
             poetry2nix.packages.${system}.poetry
+            experiments
           ];
         };
       });

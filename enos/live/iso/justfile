@@ -6,7 +6,7 @@ fmt:
     nix --experimental-features "nix-command flakes" fmt .
 
 build-vm:
-    nix build --print-build-logs --experimental-features "nix-command flakes" .#vm
+    nix build --print-build-logs --experimental-features "nix-command flakes" .#vm-g5k
 
 update:
     nix flake update --experimental-features "nix-command flakes"

@@ -17,7 +17,6 @@
   };
 
   time.timeZone = "Europe/Paris";
-  time.hardwareClockInLocalTime = true;
 
   systemd = {
     enableEmergencyMode = false;
@@ -26,10 +25,8 @@
         anyInterface = true;
       };
     };
-    services = {
-      systemd-udev-settle.enable = false;
-    };
   };
+  systemd.services.systemd-udev-settle.enable = false;
 
   services.chrony.enable = true;
   services.chrony.servers = [ "ntp.rennes.grid5000.fr" ];
@@ -56,6 +53,7 @@
   services.k3s = {
     enable = true;
   };
+
   virtualisation.docker.enable = true;
 
   # useful packages

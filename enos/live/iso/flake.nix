@@ -12,30 +12,35 @@
         config.allowUnfree = true;
       };
       lib = nixpkgs.lib;
+
+      vm = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
+          "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+          ./configuration.nix
+        ];
+      };
     in
     {
       formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
 
-      packages.x86_64-linux.vm = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+      nixosConfigurations."vm" = vm;
+
+      packages.x86_64-linux."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
         inherit lib pkgs;
-        config = (nixpkgs.lib.nixosSystem {
-          inherit lib pkgs system;
-          modules = [
-            "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
-            "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
-            ./configuration.nix
-          ];
-        }).config;
+        config = vm.config;
         diskSize = "auto";
         additionalSpace = "2048M"; # Space added after all the necessary 
         format = "qcow2-compressed";
       };
 
+
       devShells.${system} = {
         default = pkgs.mkShell {
           buildInputs = with pkgs; [
             just
-            jq
+            nixos-rebuild
             qemu
           ];
         };
