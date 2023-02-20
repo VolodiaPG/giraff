@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-MAX_LATENCY=$1
-TARGET_NODE=$2
-NB_FUNCTIONS=$3
-PORT=$4
-IOT_LOCAL_PORT=$5
-IOT_URL=$6
-TARGET_REMOTE_IP=$7
+TARGET_NODE=$1
+IOT_IP=$2
+MAX_LATENCY="${MAX_LATENCY:=50}"
+NB_FUNCTIONS="${NB_FUNCTIONS:=50}"
+START_OFFSET="${START_OFFSET:=0}"
+MARKET_LOCAL_PORT="${MARKET_LOCAL_PORT:=8088}"
+IOT_LOCAL_PORT="${IOT_LOCAL_PORT:=3003}"
 
 # Colors
 RED='\033[0;31m'
@@ -43,7 +43,7 @@ until [ $ii -ge $NB_FUNCTIONS ]; do
 	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
 	response=$(curl --silent --output response.tmp --write-out "%{http_code}" --request PUT \
-		--url "http://localhost:$PORT/api/function" \
+		--url "http://localhost:$MARKET_LOCAL_PORT/api/function" \
 		--header 'Content-Type: application/json' \
 		--data '{
 	"sla": {
@@ -78,7 +78,7 @@ until [ $ii -ge $NB_FUNCTIONS ]; do
 		echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
 		iot_requests_body+=('{
-		"iotUrl": "http://'$IOT_URL':'$IOT_LOCAL_PORT'/api/print",
+		"iotUrl": "http://'$IOT_IP':'$IOT_LOCAL_PORT'/api/print",
 		"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'$function_name'-'$FUNCTION_ID'",
 		"functionId": "'$FUNCTION_ID'",
 		"tag": "'"$function_name"'"
