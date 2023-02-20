@@ -2,11 +2,15 @@
 
 TARGET_NODE=$1
 IOT_IP=$2
-MAX_LATENCY="${MAX_LATENCY:=50}"
-NB_FUNCTIONS="${NB_FUNCTIONS:=50}"
-START_OFFSET="${START_OFFSET:=0}"
 MARKET_LOCAL_PORT="${MARKET_LOCAL_PORT:=8088}"
 IOT_LOCAL_PORT="${IOT_LOCAL_PORT:=3003}"
+
+MAX_LATENCY_LOW_LATENCY="${MAX_LATENCY_LOW_LATENCY:=10}"
+MIN_LATENCY_LOW_LATENCY="${MIN_LATENCY_LOW_LATENCY:=5}"
+MAX_LATENCY_REST_LATENCY="${MAX_LATENCY_REST_LATENCY:=75}"
+MIN_LATENCY_REST_LATENCY="${MIN_LATENCY_REST_LATENCY:=45}"
+NB_FUNCTIONS_LOW_LATENCY="${NB_FUNCTIONS_LOW_LATENCY:=50}"
+NB_FUNCTIONS_REST="${NB_FUNCTIONS_REST:=50}"
 
 # Colors
 RED='\033[0;31m'
@@ -26,14 +30,25 @@ size=${#configs_cpu[@]}
 
 iot_requests_body=()
 
-lat_index=0
+function_latencies=()
+
+for ii in $(seq 1 $NB_FUNCTIONS_LOW_LATENCY); do
+	function_latencies+=(
+		$(($RANDOM % ($MAX_LATENCY_LOW_LATENCY - $MIN_LATENCY_LOW_LATENCY) + $MIN_LATENCY_LOW_LATENCY))
+	)
+done
+for ii in $(seq 1 $NB_FUNCTIONS_REST); do
+	function_latencies+=(
+		$(($RANDOM % ($MAX_LATENCY_REST_LATENCY - $MIN_LATENCY_REST_LATENCY) + $MIN_LATENCY_REST_LATENCY))
+	)
+done
+
+# Shuffle
+function_latencies=($(shuf -e "${function_latencies[@]}"))
 
 ii=0
-jj=0
-until [ $ii -ge $NB_FUNCTIONS ]; do
-	function_id=$(printf "%03d" $jj)
-
-	latency=$(($RANDOM % ($MAX_LATENCY - 5) + 5))
+for latency in "${function_latencies[@]}"; do
+	function_id=$(printf "%03d" $ii)
 
 	mem="$configs_mem"
 	cpu="$configs_cpu"
@@ -85,11 +100,9 @@ until [ $ii -ge $NB_FUNCTIONS ]; do
 		}')
 	else
 		echo -e "${RED}$(cat response.tmp)${NC}"
-		ii=$((--ii))
 	fi
 
 	ii=$((++ii))
-	jj=$((++jj))
 done
 
 echo -e "${PURPLE}Instanciating echoes from Iot platform for all the functions instanciated ${RED}" # RED for the following
