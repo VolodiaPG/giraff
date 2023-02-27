@@ -1,5 +1,4 @@
-{ config, pkgs, ... }:
-{
+{pkgs, ...}: {
   # Filesystems
   fileSystems."/" = {
     device = "/dev/disk/by-label/nixos";
@@ -9,7 +8,7 @@
 
   boot = {
     growPartition = true;
-    kernelParams = [ "console=ttyS0" ];
+    kernelParams = ["console=ttyS0"];
     loader.grub = {
       device = "/dev/vda";
     };
@@ -29,14 +28,14 @@
   systemd.services.systemd-udev-settle.enable = false;
 
   services.chrony.enable = true;
-  services.chrony.servers = [ "ntp.rennes.grid5000.fr" ];
+  services.chrony.servers = ["ntp.rennes.grid5000.fr"];
 
   # declare the gaming user and its fixed password
   users.mutableUsers = false;
   users.users.root = {
     isSystemUser = true;
     shell = pkgs.fish;
-    extraGroups = [ "networkmanager" "wheel" "docker" ];
+    extraGroups = ["networkmanager" "wheel" "docker"];
     hashedPassword = "$6$7pE7b8uqvt/XVmgo$Wlznz/v04VkDGxMUCxk9UBERHrMZqtrRlUAqxXYOvck/MKMS1A9FV6oH29qkWpPt/zqiC3Opuhp7QKBDOk62b."; # faas
     openssh.authorizedKeys.keys = [
       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCpDmkY5OctLdxrPUcnRafndhDvvgw/GNYvgo4I9LrPJ341vGzwgqSi90YRvn725DkYHmEi1bN7i3W2x1AQbuvEBzxMG3BlwtEGtz+/5rIMY+5LRzB4ppN+Ju/ySbPKSD2XpVgVOCegc7ZtZ4XpAevVsi/kyg35RPNGmljEyuN1wIxBVARZXZezsGf1MHzxEqiNogeAEncPCk/P44B6xBRt9qSxshIT/23Cq3M/CpFyvbI0vtdLaVFIPox6ACwlmTgdReC7p05EefKEXaxVe61yhBquzRwLZWf6Y8VESLFFPZ+lEF0Shffk15k97zJICVUmNPF0Wfx1Fn5tQyDeGe2nA5d2aAxHqvl2mJk/fccljzi5K6j6nWNf16pcjWjPqCCOTs8oTo1f7gVXQFCzslPnuPIVUbJItE3Ui+mSTv9KF/Q9oH02FF40mSuKtq5WmntV0kACfokRJLZ6slLabo0LgVzGoixdiGwsuJbWAsNNHURoi3lYb8fMOxZ/2o4GZik= volodia@volodia-msi"
@@ -63,10 +62,11 @@
     arkade
 
     # enoslib necessities
-    (python3.withPackages (p: with p; [
-      requests
-      docker
-    ]))
+    (python3.withPackages (p:
+      with p; [
+        requests
+        docker
+      ]))
     ansible
     fping
     kubernetes-helm

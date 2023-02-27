@@ -3,8 +3,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
   };
 
-  outputs = { self, nixpkgs, ... }@inputs:
-    let
+  outputs = inputs:
+    with inputs; let
       system = "x86_64-linux";
 
       pkgs = import nixpkgs {
@@ -21,20 +21,16 @@
           ./configuration.nix
         ];
       };
-    in
-    {
-      formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.nixpkgs-fmt;
-
+    in {
       nixosConfigurations."vm" = vm;
 
       packages.x86_64-linux."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
         inherit lib pkgs;
         config = vm.config;
         diskSize = "auto";
-        additionalSpace = "2048M"; # Space added after all the necessary 
+        additionalSpace = "2048M"; # Space added after all the necessary
         format = "qcow2-compressed";
       };
-
 
       devShells.${system} = {
         default = pkgs.mkShell {

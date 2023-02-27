@@ -19,64 +19,67 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
+    alejandra = {
+      url = "github:kamadorueda/alejandra/3.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs: with inputs;
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-          overlays = [ cargo2nix.overlays.default ];
-        };
+  outputs = inputs:
+    with inputs;
+      flake-utils.lib.eachDefaultSystem (
+        system: let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+            overlays = [cargo2nix.overlays.default];
+          };
 
-        rustChannel = "nightly";
-        rustProfile = "minimal";
-        rustVersion = "2022-11-05";
-        target = "x86_64-unknown-linux-gnu";
+          rustChannel = "nightly";
+          rustProfile = "minimal";
+          rustVersion = "2022-11-05";
+          target = "x86_64-unknown-linux-gnu";
 
-        rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
-          inherit rustChannel rustProfile target rustVersion;
-          packageFun = import ./echo/Cargo.nix;
-          rootFeatures = [ ];
-        };
-      in
-      rec {
-        formatter = nixpkgs.legacyPackages.${system}.nixpkgs-fmt;
-        checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              # Nix
-              nixpkgs-fmt.enable = true;
-              statix.enable = true;
-              deadnix = {
-                enable = true;
-                excludes = [ "Cargo.nix" ];
+          rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
+            inherit rustChannel rustProfile target rustVersion;
+            packageFun = import ./echo/Cargo.nix;
+            rootFeatures = [];
+          };
+        in rec {
+          formatter = alejandra.defaultPackage.${system};
+          checks = {
+            pre-commit-check = pre-commit-hooks.lib.${system}.run {
+              src = ./.;
+              hooks = {
+                # Nix
+                alejandra.enable = true;
+                deadnix = {
+                  enable = true;
+                  excludes = ["Cargo.nix"];
+                };
+                # Rust
+                rustfmt.enable = true;
+                clippy.enable = true;
+                cargo-check.enable = true;
               };
-              # Rust
-              rustfmt.enable = true;
-              clippy.enable = true;
-              cargo-check.enable = true;
             };
           };
-        };
-        devShells = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
-          default = (rustPkgsEcho.workspaceShell {
-            packages = with pkgs; [
-              docker
-              faas-cli
-              just
-              pkg-config
-              openssl
-              rust-analyzer
-              lldb
-              (rustfmt.override { asNightly = true; })
-              cargo2nix.packages.${system}.cargo2nix
-            ];
-          });
-        };
-      }
-    );
+          devShells = pkgs.mkShell {
+            inherit (self.checks.${system}.pre-commit-check) shellHook;
+            default = rustPkgsEcho.workspaceShell {
+              packages = with pkgs; [
+                docker
+                faas-cli
+                just
+                pkg-config
+                openssl
+                rust-analyzer
+                lldb
+                (rustfmt.override {asNightly = true;})
+                cargo2nix.packages.${system}.cargo2nix
+              ];
+            };
+          };
+        }
+      );
 }

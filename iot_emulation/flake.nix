@@ -19,80 +19,83 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
+    alejandra = {
+      url = "github:kamadorueda/alejandra/3.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs: with inputs;
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          config.allowUnfree = true;
-          overlays = [ cargo2nix.overlays.default ];
-        };
-
-        # Define Rust environment to use
-        rustChannel = "nightly";
-        rustProfile = "minimal";
-        rustVersion = "2023-02-26";
-        target = "x86_64-unknown-linux-gnu";
-
-        #Packages
-        rustPkgs = pkgs.rustBuilder.makePackageSet {
-          inherit rustChannel rustProfile target rustVersion;
-          packageFun = import ./Cargo.nix;
-          rootFeatures = [ ];
-        };
-
-        dockerIOTEmulation = pkgs.dockerTools.buildImage {
-          name = "iot_emulation";
-          tag = "latest";
-          config = {
-            Env = [ "SERVER_PORT=3003" ];
-            Cmd = [ "${(rustPkgs.workspace.iot_emulation { }).bin}/bin/iot_emulation" ];
+  outputs = inputs:
+    with inputs;
+      flake-utils.lib.eachDefaultSystem (
+        system: let
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+            overlays = [cargo2nix.overlays.default];
           };
-        };
-      in
-      rec {
-        packages = {
-          iot_emulation = dockerIOTEmulation;
-        };
-        formatter = nixpkgs.legacyPackages.${system}.nixpkgs-fmt;
-        checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              # Nix
-              nixpkgs-fmt.enable = true;
-              statix.enable = false;
-              deadnix = {
-                enable = true;
-                excludes = [ "Cargo.nix" ];
-              };
-              # Rust
-              rustfmt.enable = true;
-              clippy.enable = true;
-              cargo-check.enable = true;
+
+          # Define Rust environment to use
+          rustChannel = "nightly";
+          rustProfile = "minimal";
+          rustVersion = "2023-02-26";
+          target = "x86_64-unknown-linux-gnu";
+
+          #Packages
+          rustPkgs = pkgs.rustBuilder.makePackageSet {
+            inherit rustChannel rustProfile target rustVersion;
+            packageFun = import ./Cargo.nix;
+            rootFeatures = [];
+          };
+
+          dockerIOTEmulation = pkgs.dockerTools.buildImage {
+            name = "iot_emulation";
+            tag = "latest";
+            config = {
+              Env = ["SERVER_PORT=3003"];
+              Cmd = ["${(rustPkgs.workspace.iot_emulation {}).bin}/bin/iot_emulation"];
             };
           };
-        };
-        devShells = nixpkgs.legacyPackages.${system}.mkShell {
-          default = (rustPkgs.workspaceShell {
-            inherit (self.checks.${system}.pre-commit-check) shellHook;
-            packages = with pkgs; [
-              docker
-              just
-              pkg-config
-              jq
-              openssl
-              rust-analyzer
-              cargo-outdated
-              cargo-udeps
-              lldb
-              (rustfmt.override { asNightly = true; })
-              cargo2nix.packages.${system}.cargo2nix
-            ];
-          });
-        };
-      }
-    );
+        in rec {
+          packages = {
+            iot_emulation = dockerIOTEmulation;
+          };
+          formatter = alejandra.defaultPackage.${system};
+          checks = {
+            pre-commit-check = pre-commit-hooks.lib.${system}.run {
+              src = ./.;
+              hooks = {
+                # Nix
+                alejandra.enable = false;
+                deadnix = {
+                  enable = true;
+                  excludes = ["Cargo.nix"];
+                };
+                # Rust
+                rustfmt.enable = true;
+                clippy.enable = true;
+                cargo-check.enable = true;
+              };
+            };
+          };
+          devShells = nixpkgs.legacyPackages.${system}.mkShell {
+            default = rustPkgs.workspaceShell {
+              inherit (self.checks.${system}.pre-commit-check) shellHook;
+              packages = with pkgs; [
+                docker
+                just
+                pkg-config
+                jq
+                openssl
+                rust-analyzer
+                cargo-outdated
+                cargo-udeps
+                lldb
+                (rustfmt.override {asNightly = true;})
+                cargo2nix.packages.${system}.cargo2nix
+              ];
+            };
+          };
+        }
+      );
 }

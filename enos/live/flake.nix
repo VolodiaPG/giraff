@@ -14,11 +14,15 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
+    alejandra = {
+      url = "github:kamadorueda/alejandra/3.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, poetry2nix }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
+  outputs = inputs:
+    with inputs;
+      flake-utils.lib.eachDefaultSystem (system: let
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
@@ -29,49 +33,54 @@
             overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
               cryptography = oldattr.cryptography.overridePythonAttrs (
                 old: {
-                  cargoDeps =
-                    super.rustPlatform.fetchCargoTarball {
-                      src = old.src;
-                      sourceRoot = "${old.pname}-${old.version}/src/rust";
-                      name = "${old.pname}-${old.version}";
-                      sha256 = "sha256-0x+KIqJznDEyIUqVuYfIESKmHBWfzirPeX2R/cWlngc=";
-                    };
+                  cargoDeps = super.rustPlatform.fetchCargoTarball {
+                    src = old.src;
+                    sourceRoot = "${old.pname}-${old.version}/src/rust";
+                    name = "${old.pname}-${old.version}";
+                    sha256 = "sha256-0x+KIqJznDEyIUqVuYfIESKmHBWfzirPeX2R/cWlngc=";
+                  };
                 }
               );
-              rfc3986-validator = oldattr.rfc3986-validator.overridePythonAttrs
+              rfc3986-validator =
+                oldattr.rfc3986-validator.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.setuptools oldattr.setuptools-scm oldattr.pytest-runner ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools oldattr.setuptools-scm oldattr.pytest-runner];
                   }
                 );
-              pathspec = oldattr.pathspec.overridePythonAttrs
+              pathspec =
+                oldattr.pathspec.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.flit-scm oldattr.pytest-runner ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.flit-scm oldattr.pytest-runner];
                   }
                 );
-              ncclient = oldattr.ncclient.overridePythonAttrs
+              ncclient =
+                oldattr.ncclient.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.six ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.six];
                   }
                 );
-              jupyter-server-terminals = oldattr.jupyter-server-terminals.overridePythonAttrs
+              jupyter-server-terminals =
+                oldattr.jupyter-server-terminals.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatchling ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
                   }
                 );
-              jupyter-events = oldattr.jupyter-events.overridePythonAttrs
+              jupyter-events =
+                oldattr.jupyter-events.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatchling ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
                   }
                 );
-              jupyter-server = oldattr.jupyter-server.overridePythonAttrs
+              jupyter-server =
+                oldattr.jupyter-server.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or [ ]) ++ [ oldattr.hatch-jupyter-builder oldattr.hatchling ];
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatch-jupyter-builder oldattr.hatchling];
                   }
                 );
             });
@@ -80,7 +89,7 @@
 
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ overlay ];
+          overlays = [overlay];
         };
         lib = nixpkgs.lib;
 
@@ -123,24 +132,25 @@
             ln -s ${pkgs.coreutils}/bin/env /usr/bin/env
           '';
           config = {
-            Env = [ "RUN=python" "HOME=/root" ];
+            Env = ["RUN=python" "HOME=/root"];
           };
         };
-      in
-      {
+      in {
         packages = {
           docker = dockerImage;
           default = pkgs.experiments;
         };
-
+        formatter = alejandra.defaultPackage.${system};
         checks = {
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
             src = ./.;
             hooks = {
               # Nix
-              nixpkgs-fmt.enable = true;
-              statix.enable = true;
-              deadnix.enable = true;
+              alejandra.enable = true;
+              deadnix = {
+                enable = true;
+                excludes = ["Cargo.nix"];
+              };
               # Rust
               autoflake.enable = true;
               isort.enable = true;
