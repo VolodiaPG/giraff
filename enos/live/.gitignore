@@ -9,3 +9,5 @@ measures/
 experiment.pdf
 experiment.html
 experiment.md
+.ipython
+.pre-commit-config.yaml

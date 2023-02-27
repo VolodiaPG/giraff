@@ -4,3 +4,4 @@ prometheus/
 result-bin/
 result
 .direnv/
+.pre-commit-config.yaml
