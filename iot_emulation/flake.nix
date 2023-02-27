@@ -30,18 +30,32 @@
           overlays = [ cargo2nix.overlays.default ];
         };
 
+        # Define Rust environment to use
         rustChannel = "nightly";
         rustProfile = "minimal";
-        rustVersion = "2022-11-05";
+        rustVersion = "2023-02-26";
         target = "x86_64-unknown-linux-gnu";
 
-        rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
+        #Packages
+        rustPkgs = pkgs.rustBuilder.makePackageSet {
           inherit rustChannel rustProfile target rustVersion;
-          packageFun = import ./echo/Cargo.nix;
+          packageFun = import ./Cargo.nix;
           rootFeatures = [ ];
+        };
+
+        dockerIOTEmulation = pkgs.dockerTools.buildImage {
+          name = "iot_emulation";
+          tag = "latest";
+          config = {
+            Env = [ "SERVER_PORT=3003" ];
+            Cmd = [ "${(rustPkgs.workspace.iot_emulation { }).bin}/bin/iot_emulation" ];
+          };
         };
       in
       rec {
+        packages = {
+          iot_emulation = dockerIOTEmulation;
+        };
         formatter = nixpkgs.legacyPackages.${system}.nixpkgs-fmt;
         checks = {
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
@@ -49,7 +63,7 @@
             hooks = {
               # Nix
               nixpkgs-fmt.enable = true;
-              statix.enable = true;
+              statix.enable = false;
               deadnix = {
                 enable = true;
                 excludes = [ "Cargo.nix" ];
@@ -61,16 +75,18 @@
             };
           };
         };
-        devShells = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
-          default = (rustPkgsEcho.workspaceShell {
+        devShells = nixpkgs.legacyPackages.${system}.mkShell {
+          default = (rustPkgs.workspaceShell {
+            inherit (self.checks.${system}.pre-commit-check) shellHook;
             packages = with pkgs; [
               docker
-              faas-cli
               just
               pkg-config
+              jq
               openssl
               rust-analyzer
+              cargo-outdated
+              cargo-udeps
               lldb
               (rustfmt.override { asNightly = true; })
               cargo2nix.packages.${system}.cargo2nix

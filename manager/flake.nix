@@ -30,18 +30,59 @@
           overlays = [ cargo2nix.overlays.default ];
         };
 
+        # Define Rust environment to use
         rustChannel = "nightly";
         rustProfile = "minimal";
-        rustVersion = "2022-11-05";
+        rustVersion = "2023-02-26";
         target = "x86_64-unknown-linux-gnu";
 
-        rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
+        #Packages
+        rustPkgs = pkgs.rustBuilder.makePackageSet {
           inherit rustChannel rustProfile target rustVersion;
-          packageFun = import ./echo/Cargo.nix;
+          packageFun = import ./Cargo.nix;
           rootFeatures = [ ];
+        };
+
+        # Generators
+        pkgsGenerator = { rootFeatures ? [ ] }: pkgs.rustBuilder.makePackageSet {
+          inherit rustChannel rustProfile target rustVersion rootFeatures;
+          packageFun = import ./Cargo.nix;
+        };
+
+        dockerImageFogNodeGenerator = { feature ? null }:
+          let
+            tag = if feature != null then feature else "default";
+            rootFeatures = if feature != null then [ feature ] else [ ];
+          in
+          pkgs.dockerTools.buildImage {
+            inherit tag;
+            name = "fog_node";
+            config = {
+              Cmd = [ "${((pkgsGenerator {inherit rootFeatures;}).workspace.fog_node { }).bin}/bin/fog_node" ];
+            };
+          };
+
+        dockerImageFogNodeAuction = dockerImageFogNodeGenerator { };
+        dockerImageFogNodeEdgeFirst = dockerImageFogNodeGenerator { feature = "edge_first"; };
+        dockerImageFogNodeEdgeWard = dockerImageFogNodeGenerator { feature = "edge_ward"; };
+
+        dockerImageMarket = pkgs.dockerTools.buildImage {
+          name = "market";
+          tag = "latest";
+          config = {
+            Env = [ "SERVER_PORT=3003" ];
+            Cmd = [ "${(rustPkgs.workspace.market { }).bin}/bin/market" ];
+          };
         };
       in
       rec {
+        packages = {
+          market = dockerImageMarket;
+
+          fog_node.auction = dockerImageFogNodeAuction;
+          fog_node.edge_first = dockerImageFogNodeEdgeFirst;
+          fog_node.edge_ward = dockerImageFogNodeEdgeWard;
+        };
         formatter = nixpkgs.legacyPackages.${system}.nixpkgs-fmt;
         checks = {
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
@@ -62,16 +103,19 @@
           };
         };
         devShells = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
-          default = (rustPkgsEcho.workspaceShell {
+          default = (rustPkgs.workspaceShell {
+            inherit (self.checks.${system}.pre-commit-check) shellHook;
             packages = with pkgs; [
               docker
-              faas-cli
               just
               pkg-config
+              jq
               openssl
               rust-analyzer
+              cargo-outdated
+              cargo-udeps
               lldb
+              kubectl
               (rustfmt.override { asNightly = true; })
               cargo2nix.packages.${system}.cargo2nix
             ];
