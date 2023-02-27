@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::net::IpAddr;
 
 use crate::FogNodeFaaSPortExternal;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
 
@@ -10,30 +9,28 @@ use super::super::domain::sla::Sla;
 use super::super::{BidId, NodeId};
 
 #[serde_with::serde_as]
-#[derive(Debug, Serialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BidRequest<'a> {
     pub node_origin:         NodeId,
     pub sla:                 &'a Sla,
-    #[schemars(schema_with = "helper::uom_helper::time::schema_function")]
     #[serde_as(as = "helper::uom_helper::time::Helper")]
     pub accumulated_latency: Time,
 }
 
 /// Same as [`BidRequest`](BidRequest) but with an owned SLA
 #[serde_with::serde_as]
-#[derive(Debug, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BidRequestOwned {
     pub node_origin:         NodeId,
     pub sla:                 Sla,
-    #[schemars(schema_with = "helper::uom_helper::time::schema_function")]
     #[serde_as(as = "helper::uom_helper::time::Helper")]
     pub accumulated_latency: Time,
 }
 
 /// A bid
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Bid {
     pub bid: f64,
     pub sla: Sla,
@@ -41,7 +38,7 @@ pub struct Bid {
 }
 
 /// The accepted bid
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AcceptedBid {
     pub chosen:    InstanciatedBid,
     pub proposals: BidProposals,
@@ -49,7 +46,7 @@ pub struct AcceptedBid {
 }
 
 /// The bid proposal and the node who issued it
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BidProposal {
     pub node_id: NodeId,
@@ -57,7 +54,7 @@ pub struct BidProposal {
     pub bid:     f64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BidProposals {
     pub bids: Vec<BidProposal>,
 }
@@ -74,7 +71,7 @@ impl PartialEq for BidProposal {
 
 impl Eq for BidProposal {}
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct InstanciatedBid {
     pub bid:   BidProposal,
     pub ip:    IpAddr,

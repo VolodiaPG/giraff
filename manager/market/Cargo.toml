@@ -28,8 +28,6 @@ base64 = { version = "0.13.0", default-features = false, features = [
 ] }
 bytes = "1.2.0"
 chrono = "0.4"
-env_logger = "0.10"
-futures = "0.3.21"
 lazy-regex = "2.3.0"
 lazy_static = "1.4.0"
 log = "0.4.17"
@@ -46,7 +44,6 @@ reqwest-tracing = { version = "0.4.0", features = [
     "opentelemetry_0_18",
 ], optional = true }
 ron = "0.8.0"
-schemars = "0.8"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
 serde_with = "2.0.0"

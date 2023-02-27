@@ -34,25 +34,6 @@ where
     Ok(qty)
 }
 
-macro_rules! impl_json_schema {
-    ($type:ty => $instance_type:ident, $format:literal) => {
-        impl_json_schema!($type => $instance_type, $format, Some($format.to_owned()));
-    };
-    ($type:ty => $instance_type:ident, $name:expr, $format:expr) => {
-        use schemars::gen::SchemaGenerator;
-        use schemars::schema::*;
-
-        pub fn schema_function(_: &mut SchemaGenerator) -> Schema {
-            SchemaObject {
-                instance_type: Some(InstanceType::$instance_type.into()),
-                format: $format,
-                ..Default::default()
-            }
-            .into()
-        }
-    };
-}
-
 macro_rules! impl_serialize_as {
     ($type:ty, $unit:ty, $format:expr) => {
         impl_serialize_as!($type, $unit, $format, super::parse_quantity);
@@ -125,7 +106,6 @@ pub mod information {
     use uom::si::information::megabyte;
 
     impl_serialize_as!(Information, megabyte, megabyte);
-    impl_json_schema!(Information => String, "<value> <SI unit>");
 }
 
 pub mod time {
@@ -133,7 +113,6 @@ pub mod time {
     use uom::si::time::second;
 
     impl_serialize_as!(Time, second, second);
-    impl_json_schema!(Time => String, "<value> <SI unit>");
 }
 
 pub mod ratio {
@@ -143,5 +122,4 @@ pub mod ratio {
     use crate::uom_helper::ratio_helper::parse;
 
     impl_serialize_as!(Ratio, millicpu, millicpu, parse);
-    impl_json_schema!(Ratio => String, "<value> <SI unit>");
 }

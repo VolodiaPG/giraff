@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::dto::auction::ChosenBid;
 use crate::view::auction::BidProposal;
-use schemars::JsonSchema;
 
 #[derive(Debug)]
 pub enum AuctionStatus {
@@ -16,7 +15,7 @@ pub struct AuctionSummary {
 }
 
 /// Sums up all proposal received by the market
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AuctionResult {
     pub chosen_bid: ChosenBid,

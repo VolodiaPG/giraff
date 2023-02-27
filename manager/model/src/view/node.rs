@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashMap;
@@ -19,19 +18,16 @@ use super::super::NodeId;
 ///   in [PostNodeResponse]
 /// - Same for last_answered_at
 #[serde_with::serde_as]
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PostNode {
-    #[schemars(schema_with = "chrono_helper::schema_function")]
     #[serde_as(as = "chrono_helper::DateTimeHelper")]
     pub created_at: DateTime<Utc>,
 
-    #[schemars(schema_with = "chrono_helper::schema_function")]
     #[serde_as(as = "Option<chrono_helper::DateTimeHelper>")]
     #[serde(default)]
     pub last_answered_at: Option<DateTime<Utc>>,
 
-    #[schemars(schema_with = "chrono_helper::schema_function")]
     #[serde_as(as = "Option<chrono_helper::DateTimeHelper>")]
     #[serde(default)]
     pub last_answer_received_at: Option<DateTime<Utc>>,
@@ -41,15 +37,14 @@ pub struct PostNode {
 
 /// The answer to [PostNode]
 #[serde_with::serde_as]
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PostNodeResponse {
-    #[schemars(schema_with = "chrono_helper::schema_function")]
     #[serde_as(as = "chrono_helper::DateTimeHelper")]
     pub answered_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum RegisterNode {
     MarketNode {
@@ -69,7 +64,7 @@ pub enum RegisterNode {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GetFogNodes {
     pub id:            NodeId,

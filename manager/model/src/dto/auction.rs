@@ -1,6 +1,5 @@
 use crate::domain::sla::Sla;
 use crate::view::auction::BidProposal;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -10,7 +9,7 @@ pub struct BidRecord {
     pub node: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChosenBid {
     pub bid:   BidProposal,
     pub price: f64,

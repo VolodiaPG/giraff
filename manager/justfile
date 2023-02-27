@@ -10,6 +10,8 @@ _default:
 build *FLAGS:
     cargo build {{FLAGS}}
 
+pre_commit: check
+
 # Run cargo check
 check:
     just _check

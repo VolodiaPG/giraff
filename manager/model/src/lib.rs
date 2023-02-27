@@ -2,9 +2,6 @@ use core::str::FromStr;
 use std::fmt;
 
 use lazy_static::lazy_static;
-use schemars::gen::SchemaGenerator;
-use schemars::schema::*;
-use schemars::JsonSchema;
 use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -94,19 +91,6 @@ macro_rules! impl_id_encapsulation {
                 deserializer.deserialize_str(MyVisitor)
             }
         }
-
-        impl JsonSchema for $name {
-            fn schema_name() -> String { String::from(stringify!($name)) }
-
-            fn json_schema(_: &mut SchemaGenerator) -> Schema {
-                SchemaObject {
-                    instance_type: Some(InstanceType::String.into()),
-                    format: Some("uuid".to_string()),
-                    ..Default::default()
-                }
-                .into()
-            }
-        }
     };
 }
 
@@ -179,19 +163,6 @@ macro_rules! impl_port_encapsulation {
                 }
 
                 deserializer.deserialize_str(MyVisitor)
-            }
-        }
-
-        impl JsonSchema for $name {
-            fn schema_name() -> String { String::from(stringify!($name)) }
-
-            fn json_schema(_: &mut SchemaGenerator) -> Schema {
-                SchemaObject {
-                    instance_type: Some(InstanceType::Number.into()),
-                    format: Some("port".to_string()),
-                    ..Default::default()
-                }
-                .into()
             }
         }
     };

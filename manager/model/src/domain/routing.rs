@@ -1,6 +1,3 @@
-use schemars::gen::SchemaGenerator;
-use schemars::schema::{InstanceType, Schema, SchemaObject};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -19,7 +16,7 @@ pub struct RoutingStacks {
 }
 
 /// A path between two points in the Fog
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FogSegment {
     pub from: NodeId,
@@ -31,26 +28,16 @@ pub struct FogSegment {
 /// - [Packet::FogNode] directs to the fog node itself (at the start of the
 ///   routing stack transmitted)
 /// - [Packet::Market] directs to the market
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Packet {
     FogNode {
         route_to_stack: Vec<NodeId>,
         resource_uri:   String,
-        #[schemars(schema_with = "schema_function")]
         data:           Value,
     },
     Market {
         resource_uri: String,
-        #[schemars(schema_with = "schema_function")]
         data:         Value,
     },
-}
-
-pub fn schema_function(_: &mut SchemaGenerator) -> Schema {
-    SchemaObject {
-        instance_type: Some(InstanceType::Object.into()),
-        ..Default::default()
-    }
-    .into()
 }
