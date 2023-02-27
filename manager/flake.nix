@@ -98,15 +98,11 @@
           checks = {
             pre-commit-check = pre-commit-hooks.lib.${system}.run {
               src = ./.;
-              settings.rust.cargoManifestPath = "./manager/Cargo.toml";
               settings.statix.ignore = ["Cargo.nix"];
               hooks = {
                 # Nix
                 alejandra.enable = true;
-                statix = {
-                  enable = true;
-                  # ignore = ["Cargo.nix"];
-                };
+                statix.enable = true;
                 deadnix = {
                   enable = true;
                   excludes = ["Cargo.nix"];
@@ -114,41 +110,10 @@
                 # Rust
                 rust = {
                   enable = true;
-
-                  # The name of the hook (appears on the report table):
-                  name = "Rust checks (using justfile)";
-
-                  # The command to execute (mandatory):
                   entry = "sh -c 'cd manager && just pre_commit'";
-
-                  # # The pattern of files to run on (default: "" (all))
-                  # # see also https://pre-commit.com/#hooks-files
-                  # files = "\\.(c|h)$";
-
-                  # # List of file types to run on (default: [ "file" ] (all files))
-                  # # see also https://pre-commit.com/#filtering-files-with-types
-                  # # You probably only need to specify one of `files` or `types`:
-                  # types = ["text" "c"];
-
-                  # # Exclude files that were matched by these patterns (default: [ ] (none)):
-                  # excludes = ["irrelevant\\.c"];
-
-                  # The language of the hook - tells pre-commit
-                  # how to install the hook (default: "system")
-                  # see also https://pre-commit.com/#supported-languages
                   language = "system";
-
-                  # Set this to false to not pass the changed files
-                  # to the command (default: true):
                   pass_filenames = false;
                 };
-                # Rust
-                # rustfmt = {
-                #   enable = true;
-                #   # entry = ${pkgs.rustfmt.override {asNightly = true;}}
-                # };
-                # clippy.enable = true;
-                # # cargo-check.enable = true;
               };
             };
           };

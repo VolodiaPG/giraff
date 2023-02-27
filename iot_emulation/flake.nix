@@ -64,9 +64,11 @@
           checks = {
             pre-commit-check = pre-commit-hooks.lib.${system}.run {
               src = ./.;
+              settings.statix.ignore = ["Cargo.nix"];
               hooks = {
                 # Nix
                 alejandra.enable = false;
+                statix.enable = true;
                 deadnix = {
                   enable = true;
                   excludes = ["Cargo.nix"];
