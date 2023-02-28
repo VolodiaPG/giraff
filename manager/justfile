@@ -10,17 +10,17 @@ _default:
 build *FLAGS:
     cargo build {{FLAGS}}
 
-pre_commit: check
+pre_commit: check (check "clippy")
 
 # Run cargo check
-check:
-    just _check
+check subcommand="check":
+    just _{{subcommand}}
 
-    just _check --features edge_first
-    just _check --features cloud_only
-    just _check --features edge_ward
+    just _{{subcommand}} --features edge_first
+    just _{{subcommand}} --features cloud_only
+    just _{{subcommand}} --features edge_ward
     
-    just _check --features jaeger
+    just _{{subcommand}} --features jaeger
 
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check_deps:
@@ -29,6 +29,8 @@ check_deps:
 
 _check *FLAGS:
     cargo check
+
+_clippy *FLAGS:
     cargo clippy --fix --allow-staged --allow-dirty {{FLAGS}}  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
