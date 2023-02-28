@@ -2,6 +2,20 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.10.0 - 2023-02-28
+#### Features
+- Add support for pre commits checks - (2d1634c) - Volodia PAROL-GUARINO
+- Use nix as devenv - (ad2f558) - Volodia PAROL-GUARINO
+#### Miscellaneous Chores
+- **(functions)** Update cargo lock - (7fc0111) - Volodia PAROL-GUARINO
+- **(gitignore)** Ignore pre commit config files - (c521d91) - Volodia PAROL-GUARINO
+- **(manager)** Remove unused dependencies - (414a656) - Volodia PAROL-GUARINO
+- enable statix for pre-commit - (c59041e) - Volodia PAROL-GUARINO
+- Replace formatter by alejandra and remove statix - (288c318) - Volodia PAROL-GUARINO
+- Remove devcontainers - (ec9a0ad) - Volodia PAROL-GUARINO
+
+- - -
+
 ## 0.9.0 - 2023-02-27
 #### Bug Fixes
 - **(experiment)** Fix certificate corruption on g5k - (23caa9d) - Volodia PAROL-GUARINO
