@@ -4,17 +4,12 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
-use actix_web::web::Data;
-use bytes::Bytes;
-use futures::future::join_all;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-
-use actix_web::{middleware, web, App, HttpServer};
 
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
@@ -27,26 +22,25 @@ use opentelemetry::sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
-
-use service::function_life::FunctionLife;
-use tracing::subscriber::set_global_default;
-use tracing::Subscriber;
-use tracing_log::LogTracer;
+#[cfg(feature = "jaeger")]
+use tracing_actix_web::TracingLogger;
 
 use crate::handler_http::*;
 use crate::repeated_tasks::init;
-use crate::repository::latency_estimation::LatencyEstimationImpl;
-use crate::repository::node_query::{NodeQuery, NodeQueryRESTImpl};
-use crate::repository::node_situation::{
-    NodeSituation, NodeSituationHashSetImpl,
-};
-use crate::repository::provisioned::ProvisionedHashMapImpl;
-use crate::repository::resource_tracking::ResourceTracking;
-use crate::service::auction::{Auction, AuctionImpl};
-use crate::service::faas::{FaaSBackend, OpenFaaSBackend};
-use crate::service::neighbor_monitor::{NeighborMonitor, NeighborMonitorImpl};
-use crate::service::node_life::{NodeLife, NodeLifeImpl};
-
+use crate::repository::faas::FaaSBackend;
+use crate::repository::function_tracking::FunctionTracking;
+use crate::repository::k8s::K8s;
+use crate::repository::latency_estimation::LatencyEstimation;
+use crate::repository::node_query::NodeQuery;
+use crate::repository::node_situation::NodeSituation;
+use crate::service::auction::Auction;
+use crate::service::function_life::FunctionLife;
+use crate::service::neighbor_monitor::NeighborMonitor;
+use crate::service::node_life::NodeLife;
+use actix_web::web::Data;
+use actix_web::{middleware, web, App, HttpServer};
+use bytes::Bytes;
+use futures::future::join_all;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use openfaas::{Configuration, DefaultApiClient};
 use prometheus::TextEncoder;
@@ -54,11 +48,10 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
-
-#[cfg(feature = "jaeger")]
-use tracing_actix_web::TracingLogger;
-
+use tracing::subscriber::set_global_default;
+use tracing::Subscriber;
 use tracing_forest::ForestLayer;
+use tracing_log::LogTracer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
 
@@ -88,76 +81,15 @@ fn load_config_from_env() -> anyhow::Result<String> {
     Ok(config)
 }
 
-#[cfg(feature = "fake_k8s")]
-use crate::repository::k8s::K8sFakeImpl as k8s;
-#[cfg(not(feature = "fake_k8s"))]
-use crate::repository::k8s::K8sImpl as k8s;
-fn k8s_factory() -> k8s {
-    #[cfg(feature = "fake_k8s")]
-    {
-        info!("Using Fake k8s impl");
-    }
-    #[cfg(not(feature = "fake_k8s"))]
-    {
-        debug!("Using default k8s impl");
-    }
-    k8s::new()
-}
-
-#[cfg(feature = "cloud_only")]
-use crate::service::function_life::FunctionLifeCloudOnlyImpl as FunctionLifeService;
-#[cfg(feature = "edge_first")]
-use crate::service::function_life::FunctionLifeEdgeFirstImpl as FunctionLifeService;
-#[cfg(feature = "edge_ward")]
-use crate::service::function_life::FunctionLifeEdgeWardImpl as FunctionLifeService;
-#[cfg(not(any(
-    feature = "edge_first",
-    feature = "cloud_only",
-    feature = "edge_ward"
-)))]
-use crate::service::function_life::FunctionLifeImpl as FunctionLifeService;
-
-fn function_life_factory(
-    faas_service: Arc<dyn FaaSBackend>,
-    auction_service: Arc<dyn Auction>,
-    node_situation: Arc<dyn NodeSituation>,
-    neighbor_monitor_service: Arc<dyn NeighborMonitor>,
-    node_query: Arc<dyn NodeQuery>,
-    resource_tracking: Arc<dyn ResourceTracking>,
-) -> FunctionLifeService {
-    #[cfg(feature = "edge_first")]
-    {
-        info!("Using bottom-up placement");
-    }
-    #[cfg(feature = "cloud_only")]
-    {
-        info!("Using cloud only placement");
-    }
-    #[cfg(feature = "edge_ward")]
-    {
-        info!("Using edge ward placement");
-    }
-    #[cfg(not(any(
-        feature = "edge_first",
-        feature = "cloud_only",
-        feature = "edge_ward"
-    )))]
-    {
-        info!("Using default placement");
-    }
-
-    FunctionLifeService::new(
-        faas_service,
-        auction_service,
-        node_situation,
-        neighbor_monitor_service,
-        node_query,
-        resource_tracking,
-    )
-}
-
-async fn get_other_metrics(function: BidId, faas: &dyn FaaSBackend) -> Bytes {
-    match faas.get_metrics(&function).await {
+async fn get_other_metrics(
+    function: &BidId,
+    functions: &FunctionTracking,
+    faas: &FaaSBackend,
+) -> Bytes {
+    let Some(record) = &functions.get_provisioned(function) else {
+        return Bytes::default();
+    };
+    match faas.get_metrics(record).await {
         Ok(Some(metrics)) => metrics,
         Ok(None) => {
             trace!("No metrics returned for {}", function);
@@ -170,7 +102,10 @@ async fn get_other_metrics(function: BidId, faas: &dyn FaaSBackend) -> Bytes {
     }
 }
 
-pub async fn metrics(faas: Data<dyn FaaSBackend>) -> actix_web::HttpResponse {
+pub async fn metrics(
+    faas: Data<FaaSBackend>,
+    functions: Data<FunctionTracking>,
+) -> actix_web::HttpResponse {
     let encoder = TextEncoder::new();
     let mut buffer: String = "".to_string();
     if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
@@ -179,11 +114,12 @@ pub async fn metrics(faas: Data<dyn FaaSBackend>) -> actix_web::HttpResponse {
     }
 
     let faas = faas.get_ref();
+    let functions = functions.get_ref();
 
-    let others = faas
-        .get_provisioned_functions()
-        .into_iter()
-        .map(|function| get_other_metrics(function, faas));
+    let others = functions.get_all_provisioned();
+    let others = others
+        .iter()
+        .map(|function| get_other_metrics(function, functions, faas));
 
     let metrics = join_all(others).await.concat();
     let buffer = [buffer.as_bytes(), &metrics].concat();
@@ -324,20 +260,19 @@ async fn main() -> std::io::Result<()> {
     ));
 
     let disk_data = NodeSituationDisk::new(config);
-    let node_situation = Arc::new(NodeSituationHashSetImpl::new(
-        NodeSituationData::new(disk_data.unwrap(), port_openfaas_external),
-    ));
+    let node_situation = Arc::new(NodeSituation::new(NodeSituationData::new(
+        disk_data.unwrap(),
+        port_openfaas_external,
+    )));
 
     info!("Current node ID is {}", node_situation.get_my_id());
     info!("Current node has been tagged {:?}", node_situation.get_my_tags());
-    let node_query = Arc::new(NodeQueryRESTImpl::new(
-        node_situation.clone(),
-        http_client.clone(),
-    ));
-    let provisioned_repo = Arc::new(ProvisionedHashMapImpl::new());
-    let k8s_repo = Arc::new(k8s_factory());
+    let node_query =
+        Arc::new(NodeQuery::new(node_situation.clone(), http_client.clone()));
+    let function_tracking_repo = Arc::new(FunctionTracking::default());
+    let k8s_repo = Arc::new(K8s::new());
     let resource_tracking_repo = Arc::new(
-        crate::repository::resource_tracking::ResourceTrackingImpl::new(
+        crate::repository::resource_tracking::ResourceTracking::new(
             k8s_repo.clone(),
             node_situation.get_reserved_cpu(),
             node_situation.get_reserved_memory(),
@@ -345,38 +280,29 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to instanciate the ResourceTrackingRepo"),
     );
-    let auction_repo =
-        Arc::new(crate::repository::auction::AuctionImpl::new());
-    let latency_estimation_repo = Arc::new(LatencyEstimationImpl::new(
+    let latency_estimation_repo = Arc::new(LatencyEstimation::new(
         node_situation.clone(),
         http_client.clone(),
     ));
 
     // Services
-    let auction_service = Arc::new(
-        AuctionImpl::new(
-            resource_tracking_repo.clone() as Arc<dyn ResourceTracking>,
-            auction_repo.clone(),
-        )
-        .await,
-    );
-    let faas_service = Arc::new(OpenFaaSBackend::new(
-        client.clone(),
-        provisioned_repo.clone(),
+    let auction_service = Arc::new(Auction::new(
+        resource_tracking_repo.clone(),
+        function_tracking_repo.clone(),
     ));
-    let node_life_service = Arc::new(NodeLifeImpl::new(
-        node_situation.clone(),
-        node_query.clone(),
-    ));
+    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
+    let node_life_service =
+        Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let neighbor_monitor_service =
-        Arc::new(NeighborMonitorImpl::new(latency_estimation_repo));
-    let function_life_service = Arc::new(function_life_factory(
+        Arc::new(NeighborMonitor::new(latency_estimation_repo));
+    let function_life_service = Arc::new(FunctionLife::new(
         faas_service.clone(),
         auction_service.clone(),
         node_situation.clone(),
         neighbor_monitor_service.clone(),
         node_query.clone(),
         resource_tracking_repo.clone(),
+        function_tracking_repo.clone(),
     ));
 
     if node_situation.is_market() {
@@ -398,13 +324,11 @@ async fn main() -> std::io::Result<()> {
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
-    let auction_service = Data::from(auction_service as Arc<dyn Auction>);
-    let faas_service = Data::from(faas_service as Arc<dyn FaaSBackend>);
-    let function_life_service =
-        Data::from(function_life_service as Arc<dyn FunctionLife>);
-    let node_life_service = Data::from(node_life_service as Arc<dyn NodeLife>);
-    let neighbor_monitor_service =
-        Data::from(neighbor_monitor_service as Arc<dyn NeighborMonitor>);
+    let auction_service = Data::from(auction_service);
+    let faas_service = Data::from(faas_service);
+    let function_life_service = Data::from(function_life_service);
+    let node_life_service = Data::from(node_life_service);
+    let neighbor_monitor_service = Data::from(neighbor_monitor_service);
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -443,8 +367,8 @@ async fn main() -> std::io::Result<()> {
 }
 
 async fn register_to_market(
-    node_life: Arc<dyn NodeLife>,
-    node_situation: Arc<dyn NodeSituation>,
+    node_life: Arc<NodeLife>,
+    node_situation: Arc<NodeSituation>,
 ) {
     info!("Registering to market and parent...");
     let mut interval = time::interval(Duration::from_secs(5));

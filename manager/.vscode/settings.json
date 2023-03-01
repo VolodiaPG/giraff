@@ -23,4 +23,8 @@
     },
     "peacock.color": "#1857a4",
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+    "lldb.displayFormat": "auto",
+    "lldb.showDisassembly": "never",
+    "lldb.dereferencePointers": true,
+    "lldb.consoleMode": "commands",
 }

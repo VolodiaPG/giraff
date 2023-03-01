@@ -35,7 +35,6 @@ use std::env;
 use std::sync::Arc;
 
 use crate::handler::*;
-use crate::repository::fog_node::FogNodeImpl;
 use crate::service::auction::Auction;
 use crate::service::faas::FogNodeFaaS;
 use crate::service::fog_node_network::FogNodeNetwork;
@@ -139,37 +138,35 @@ async fn main() -> std::io::Result<()> {
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(reqwest::Client::new());
 
-    let fog_node = Arc::new(FogNodeImpl::new());
-    let fog_node_network_service =
-        Arc::new(service::fog_node_network::FogNodeNetworkHashTreeImpl::new(
-            fog_node.clone(),
-        ));
+    let fog_node = Arc::new(repository::fog_node::FogNode::new());
+    let fog_node_network_service = Arc::new(
+        service::fog_node_network::FogNodeNetwork::new(fog_node.clone()),
+    );
 
     let fog_node_communication = Arc::new(
-        crate::repository::node_communication::NodeCommunicationImpl::new(
+        crate::repository::node_communication::NodeCommunication::new(
             fog_node_network_service.clone(),
             http_client,
         ),
     );
-    let auction_process =
-        Arc::new(crate::repository::auction::SecondPriceAuction::new());
+    let auction_process = Arc::new(crate::repository::auction::Auction::new());
 
     // Services
-    let auction_service = Arc::new(service::auction::AuctionImpl::new(
+    let auction_service = Arc::new(service::auction::Auction::new(
         auction_process,
         fog_node_communication.clone(),
     ));
-    let faas_service = Arc::new(service::faas::FogNodeFaaSImpl::new(
-        fog_node,
+    let faas_service = Arc::new(service::faas::FogNodeFaaS::new(
+        fog_node.clone(),
         fog_node_communication,
     ));
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
     let fog_node_network_service =
-        Data::from(fog_node_network_service as Arc<dyn FogNodeNetwork>);
-    let auction_service = Data::from(auction_service as Arc<dyn Auction>);
-    let faas_service = Data::from(faas_service as Arc<dyn FogNodeFaaS>);
+        Data::from(fog_node_network_service as Arc<FogNodeNetwork>);
+    let auction_service = Data::from(auction_service as Arc<Auction>);
+    let faas_service = Data::from(faas_service as Arc<FogNodeFaaS>);
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());

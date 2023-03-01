@@ -5,13 +5,13 @@ use crate::prom_metrics::{
     CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
     MEMORY_USED_GAUGE,
 };
-use async_trait::async_trait;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::{self, byte};
 use uom::si::ratio::part_per_billion;
 
-use crate::repository::k8s::K8s;
 use crate::repository::resource_tracking::Error::NonExistentName;
+
+use super::k8s::K8s;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -23,45 +23,16 @@ pub enum Error {
     MetricsNotFound,
 }
 
-/// Behaviour of the routing
-#[async_trait]
-pub trait ResourceTracking: Debug + Sync + Send {
-    /// Update a node given its name with said resource usage
-    async fn set_used(
-        &self,
-        name: String,
-        memory: Information,
-        cpu: Ratio,
-    ) -> Result<(), Error>;
-
-    /// Get the used (memory, cpu).
-    async fn get_used(
-        &self,
-        name: &'_ str,
-    ) -> Result<(Information, Ratio), Error>;
-
-    /// Get the available (memory, cpu).
-    /// This value is the total available resources at the startup;
-    /// it needs to be put in perspective with the usage values.
-    async fn get_available(
-        &self,
-        name: &'_ str,
-    ) -> Result<(Information, Ratio), Error>;
-
-    /// Get all the detected nodes connected
-    fn get_nodes(&self) -> &Vec<String>;
-}
-
 #[derive(Debug, Default)]
-pub struct ResourceTrackingImpl {
+pub struct ResourceTracking {
     resources_available: dashmap::DashMap<String, (Information, Ratio)>,
     resources_used:      dashmap::DashMap<String, (Information, Ratio)>,
     nodes:               Vec<String>,
 }
 
-impl ResourceTrackingImpl {
+impl ResourceTracking {
     pub async fn new(
-        k8s: Arc<dyn K8s>,
+        k8s: Arc<K8s>,
         reserved_cpu: Ratio,
         reserved_memory: Information,
     ) -> Result<Self, Error> {
@@ -162,11 +133,8 @@ impl ResourceTrackingImpl {
 
         Ok(())
     }
-}
 
-#[async_trait]
-impl ResourceTracking for ResourceTrackingImpl {
-    async fn set_used(
+    pub async fn set_used(
         &self,
         name: String,
         memory: Information,
@@ -178,7 +146,7 @@ impl ResourceTracking for ResourceTrackingImpl {
         Ok(())
     }
 
-    async fn get_used(
+    pub async fn get_used(
         &self,
         name: &'_ str,
     ) -> Result<(Information, Ratio), Error> {
@@ -187,7 +155,7 @@ impl ResourceTracking for ResourceTrackingImpl {
         Ok(*self.resources_used.get(name).unwrap())
     }
 
-    async fn get_available(
+    pub async fn get_available(
         &self,
         name: &'_ str,
     ) -> Result<(Information, Ratio), Error> {
@@ -196,5 +164,5 @@ impl ResourceTracking for ResourceTrackingImpl {
         Ok(*self.resources_available.get(name).unwrap())
     }
 
-    fn get_nodes(&self) -> &Vec<String> { &self.nodes }
+    pub fn get_nodes(&self) -> &Vec<String> { &self.nodes }
 }

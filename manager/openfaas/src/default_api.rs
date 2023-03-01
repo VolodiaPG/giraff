@@ -1,12 +1,10 @@
-use async_trait::async_trait;
+use super::{configuration, Error};
+use crate::models::{FunctionDefinition, FunctionListEntry};
 use log::trace;
 use serde_json::Value;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::instrument;
-
-use super::{configuration, Error};
-use crate::models::{FunctionDefinition, FunctionListEntry};
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
@@ -26,32 +24,9 @@ impl DefaultApiClient {
     ) -> DefaultApiClient {
         DefaultApiClient { configuration, client }
     }
-}
 
-#[async_trait]
-pub trait DefaultApi: Debug + Sync + Send {
-    async fn system_functions_get(
-        &self,
-    ) -> Result<Vec<FunctionListEntry>, Error<String>>;
-    async fn system_functions_post(
-        &self,
-        body: FunctionDefinition,
-    ) -> Result<(), Error<String>>;
-    async fn async_function_name_post(
-        &self,
-        function_name: &str,
-        input: &Value,
-    ) -> Result<(), Error<String>>;
-    async fn functions_get_metrics(
-        &self,
-        function_name: &str,
-    ) -> Result<Option<bytes::Bytes>, Error<String>>;
-}
-
-#[async_trait]
-impl DefaultApi for DefaultApiClient {
     #[instrument(level = "trace", skip(self))]
-    async fn system_functions_get(
+    pub async fn system_functions_get(
         &self,
     ) -> Result<Vec<FunctionListEntry>, Error<String>> {
         let uri_str =
@@ -68,7 +43,7 @@ impl DefaultApi for DefaultApiClient {
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn system_functions_post(
+    pub async fn system_functions_post(
         &self,
         body: FunctionDefinition,
     ) -> Result<(), Error<String>> {
@@ -94,7 +69,7 @@ impl DefaultApi for DefaultApiClient {
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn async_function_name_post(
+    pub async fn async_function_name_post(
         &self,
         function_name: &str,
         input: &Value,
@@ -123,7 +98,7 @@ impl DefaultApi for DefaultApiClient {
     }
 
     #[instrument(level = "trace", skip(self))]
-    async fn functions_get_metrics(
+    pub async fn functions_get_metrics(
         &self,
         function_name: &str,
     ) -> Result<Option<bytes::Bytes>, Error<String>> {

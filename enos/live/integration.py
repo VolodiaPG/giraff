@@ -308,14 +308,10 @@ def k3s_setup(env=None):
                     && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
                     && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
                     &&  helm repo update \
-                    && helm upgrade openfaas --install openfaas/openfaas \
+                    && helm upgrade openfaas --install openfaas/openfaas --version=12.0.0 \
                         --namespace openfaas  \
                         --set functionNamespace=openfaas-fn \
-                        --set generateBasicAuth=true \
-                        --set prometheus.image=ghcr.io/volodiapg/prometheus:latest \
-                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:latest \
-                        --set stan.image=ghcr.io/volodiapg/nats-streaming:latest \
-                        --set nats.metrics.image=ghcr.io/prometheus-nats-exporter:latest"""
+                        --set generateBasicAuth=true"""
             ),
             task_name="[master] Installing OpenFaaS",
         )

@@ -1,18 +1,14 @@
-use model::dto::auction::ChosenBid;
+use model::dto::function::ChosenBid;
 use model::view::auction::BidProposal;
 
-pub trait Auction: Sync + Send {
-    fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid>;
-}
+pub struct Auction;
 
-pub struct SecondPriceAuction;
-
-impl SecondPriceAuction {
+impl Auction {
     pub fn new() -> Self { Self {} }
 }
 
-impl Auction for SecondPriceAuction {
-    fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid> {
+impl Auction {
+    pub fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid> {
         let mut bids = bids.iter().collect::<Vec<_>>();
         bids.sort_unstable_by(|a, b| a.bid.partial_cmp(&b.bid).unwrap()); // Sort asc
         let first = bids.get(0).cloned().cloned();

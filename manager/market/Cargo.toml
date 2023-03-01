@@ -22,7 +22,6 @@ jaeger = [
 actix-web = "4.2.1"
 actix-web-opentelemetry = "0.13.0"
 anyhow = "1.0.58"
-async-trait = "0.1.56"
 base64 = { version = "0.13.0", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
 ] }

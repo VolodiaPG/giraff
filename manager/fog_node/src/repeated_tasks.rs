@@ -12,8 +12,8 @@ pub type CronFn =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 pub async fn init(
-    neighbor_monitor: Arc<dyn NeighborMonitor>,
-    k8s_repo: Arc<dyn K8s>,
+    neighbor_monitor: Arc<NeighborMonitor>,
+    k8s_repo: Arc<K8s>,
 ) -> Vec<CronFn> {
     let mut jobs: Vec<CronFn> = Vec::new();
 
@@ -30,19 +30,19 @@ pub async fn init(
     jobs
 }
 
-async fn ping(neighbor_monitor: Arc<dyn NeighborMonitor>) {
+async fn ping(neighbor_monitor: Arc<NeighborMonitor>) {
     if let Err(e) = neighbor_monitor.ping_neighbors_rtt().await {
         warn!("ping_neighbors_rtt failed: {}", e.to_string());
     };
 }
 
-async fn measure(k8s_repo: Arc<dyn K8s>) {
+async fn measure(k8s_repo: Arc<K8s>) {
     let _ = _measure(k8s_repo).await.map_err(|err| {
         warn!("An error occurred while CRON measuring from K8S: {}", err)
     });
 }
 
-async fn _measure(k8s_repo: Arc<dyn K8s>) -> anyhow::Result<()> {
+async fn _measure(k8s_repo: Arc<K8s>) -> anyhow::Result<()> {
     let aggregated_metrics = k8s_repo.get_k8s_metrics().await?;
     for (name, metrics) in aggregated_metrics {
         let allocatable = metrics.allocatable.as_ref().ok_or_else(|| {

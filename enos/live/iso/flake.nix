@@ -1,6 +1,10 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
   };
 
   outputs = inputs:
@@ -24,7 +28,7 @@
     in {
       nixosConfigurations."vm" = vm;
 
-      packages.x86_64-linux."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+      packages.${system}."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
         inherit lib pkgs;
         config = vm.config;
         diskSize = "auto";

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::dto::auction::ChosenBid;
+use crate::dto::function::ChosenBid;
 use crate::view::auction::BidProposal;
 
 #[derive(Debug)]

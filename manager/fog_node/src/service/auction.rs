@@ -1,44 +1,29 @@
-use std::sync::Arc;
-
-use async_trait::async_trait;
-use uom::si::f64::{Information, Ratio};
-
 use crate::prom_metrics::BID_GAUGE;
-use model::domain::sla::Sla;
-use model::dto::auction::BidRecord;
-use model::BidId;
-
-use crate::repository::auction::Auction as AuctionRepository;
+use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
+use model::domain::sla::Sla;
+use model::dto::function::{FunctionRecord, Proposed};
+use model::BidId;
+use std::sync::Arc;
+use uom::si::f64::{Information, Ratio};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("BidId not found: {0}")]
-    BidIdNotFound(BidId),
     #[error("The SLA is not satisfiable")]
     Unsatisfiable,
     #[error(transparent)]
     ResourceTracking(#[from] crate::repository::resource_tracking::Error),
 }
 
-#[async_trait]
-pub trait Auction: Send + Sync {
-    /// Bid on the [Sla] and return the price.
-    async fn bid_on(&self, sla: Sla) -> Result<(BidId, BidRecord), Error>;
-
-    /// Promote the bid to a full fledged provisioned function in the database.
-    async fn validate_bid(&self, id: &BidId) -> Result<BidRecord, Error>;
+pub struct Auction {
+    resource_tracking: Arc<ResourceTracking>,
+    db:                Arc<FunctionTracking>,
 }
 
-pub struct AuctionImpl {
-    resource_tracking: Arc<dyn ResourceTracking>,
-    db:                Arc<dyn AuctionRepository>,
-}
-
-impl AuctionImpl {
-    pub async fn new(
-        resource_tracking: Arc<dyn ResourceTracking>,
-        db: Arc<dyn AuctionRepository>,
+impl Auction {
+    pub fn new(
+        resource_tracking: Arc<ResourceTracking>,
+        db: Arc<FunctionTracking>,
     ) -> Self {
         Self { resource_tracking, db }
     }
@@ -103,40 +88,20 @@ impl AuctionImpl {
         would_be_used_cpu < *available_cpu
             && would_be_used_ram < *available_ram
     }
-}
 
-#[async_trait]
-impl Auction for AuctionImpl {
-    async fn bid_on(&self, sla: Sla) -> Result<(BidId, BidRecord), Error> {
+    pub async fn bid_on(
+        &self,
+        sla: Sla,
+    ) -> Result<(BidId, FunctionRecord<Proposed>), Error> {
         let (node, bid) = self.compute_bid(&sla).await?;
-        let record = BidRecord { bid, sla, node };
-        let id = self.db.insert(record.to_owned());
+        let record = FunctionRecord::new(bid, sla, node);
+        let id = self.db.insert(record.clone());
         BID_GAUGE
             .with_label_values(&[
-                &record.sla.function_live_name,
+                &record.0.sla.function_live_name,
                 &id.to_string(),
             ])
             .set(bid);
         Ok((id, record))
-    }
-
-    async fn validate_bid(&self, id: &BidId) -> Result<BidRecord, Error> {
-        let bid = self
-            .db
-            .get(id)
-            .ok_or_else(|| Error::BidIdNotFound(id.to_owned()))?
-            .clone();
-
-        self.db.remove(id);
-
-        let (used_mem, used_cpu) =
-            self.resource_tracking.get_used(&bid.node).await?;
-        let used_mem = used_mem + bid.sla.memory;
-        let used_cpu = used_cpu + bid.sla.cpu;
-        self.resource_tracking
-            .set_used(bid.node.clone(), used_mem, used_cpu)
-            .await?;
-
-        Ok(bid)
     }
 }

@@ -5,8 +5,6 @@ edition = "2021"
 
 [features]
 default = ["mimalloc"]
-# Enables fake implementation of kubernetes not to rely on a true one
-fake_k8s = []
 # Enable mimalloc
 mimalloc = []
 # Enable jaeger
@@ -30,7 +28,6 @@ edge_ward = []
 actix-web = "4.2.1"
 actix-web-opentelemetry = "0.13.0"
 anyhow = "1.0.66"
-async-trait = "0.1.58"
 base64 = { version = "0.13.1", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
 ] }

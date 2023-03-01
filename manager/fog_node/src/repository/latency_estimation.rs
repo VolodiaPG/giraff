@@ -1,15 +1,11 @@
+use crate::NodeSituation;
+use model::domain::median::Median;
+use model::NodeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Instant;
-
-use async_trait::async_trait;
-use model::domain::median::Median;
-
-use model::NodeId;
 use uom::si::f64::Time;
-
-use crate::NodeSituation;
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
@@ -50,26 +46,17 @@ impl From<Vec<(NodeId, IndividualError)>> for IndividualErrorList {
     }
 }
 
-#[async_trait]
-pub trait LatencyEstimation: Debug + Sync + Send {
-    /// Make the requests to the neighbors to get the Latency to our children +
-    /// parent.
-    async fn latency_to_neighbors(&self) -> Result<(), Error>;
-    async fn get_latency_to(&self, id: &NodeId) -> Option<Time>;
-    async fn get_latency_from(&self, id: &NodeId) -> Option<Time>;
-}
-
 #[derive(Debug)]
-pub struct LatencyEstimationImpl {
-    node_situation:     Arc<dyn NodeSituation>,
+pub struct LatencyEstimation {
+    node_situation:     Arc<NodeSituation>,
     outgoing_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
     incoming_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
     client:             Arc<HttpClient>,
 }
 
-impl LatencyEstimationImpl {
+impl LatencyEstimation {
     pub fn new(
-        node_situation: Arc<dyn NodeSituation>,
+        node_situation: Arc<NodeSituation>,
         client: Arc<HttpClient>,
     ) -> Self {
         Self {
@@ -112,11 +99,8 @@ impl LatencyEstimationImpl {
 
         Ok((outgoing_latency, incoming_latency))
     }
-}
 
-#[async_trait]
-impl LatencyEstimation for LatencyEstimationImpl {
-    async fn latency_to_neighbors(&self) -> Result<(), Error> {
+    pub async fn latency_to_neighbors(&self) -> Result<(), Error> {
         let mut handles = Vec::new();
         let mut tried_nodes = Vec::new(); // same order as handles
         for node in self.node_situation.get_neighbors() {
@@ -182,16 +166,10 @@ impl LatencyEstimation for LatencyEstimationImpl {
         Ok(())
     }
 
-    async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
+    pub async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
         self.outgoing_latencies.get(id).and_then(|x| x.get_median())
     }
 
-    async fn get_latency_from(&self, id: &NodeId) -> Option<Time> {
-        self.incoming_latencies.get(id).and_then(|x| x.get_median())
-    }
-}
-
-impl LatencyEstimationImpl {
     fn update_latency(
         map: &dashmap::DashMap<NodeId, Median>,
         key: &NodeId,

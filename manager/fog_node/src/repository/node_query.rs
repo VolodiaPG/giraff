@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use reqwest::Response;
 use serde::Serialize;
 
@@ -34,30 +33,15 @@ pub enum Error {
     NodeIdNotFound(NodeId),
 }
 
-#[async_trait]
-pub trait NodeQuery: Debug + Sync + Send {
-    /// Update the breadcrumb route to the [BidId] passing by the next
-    /// [NodeId].
-    async fn register_to_parent(
-        &self,
-        register: RegisterNode,
-    ) -> Result<(), Error>;
-    async fn request_neighbor_bid(
-        &self,
-        request: &BidRequest,
-        node: NodeId,
-    ) -> Result<BidProposals, Error>;
-}
-
 #[derive(Debug)]
-pub struct NodeQueryRESTImpl {
-    node_situation: Arc<dyn NodeSituation>,
+pub struct NodeQuery {
+    node_situation: Arc<NodeSituation>,
     client:         Arc<HttpClient>,
 }
 
-impl NodeQueryRESTImpl {
+impl NodeQuery {
     pub fn new(
-        node_situation: Arc<dyn NodeSituation>,
+        node_situation: Arc<NodeSituation>,
         client: Arc<HttpClient>,
     ) -> Self {
         Self { node_situation, client }
@@ -76,12 +60,9 @@ impl NodeQueryRESTImpl {
             Err(Error::RequestStatus(response.status()))
         }
     }
-}
 
-#[async_trait]
-impl NodeQuery for NodeQueryRESTImpl {
     #[instrument(level = "trace", skip(self))]
-    async fn register_to_parent(
+    pub async fn register_to_parent(
         &self,
         register: RegisterNode,
     ) -> Result<(), Error> {
@@ -109,9 +90,9 @@ impl NodeQuery for NodeQueryRESTImpl {
     }
 
     #[instrument(level = "trace", skip(self, request))]
-    async fn request_neighbor_bid(
+    pub async fn request_neighbor_bid(
         &self,
-        request: &BidRequest,
+        request: &BidRequest<'_>,
         id: NodeId,
     ) -> Result<BidProposals, Error> {
         let NodeDescription { ip, port_http, .. } = self

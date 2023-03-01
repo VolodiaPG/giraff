@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.58"
-async-trait = "0.1.56"
 chrono = "0.4"
 dashmap = "5.4.0"
 lazy-regex = "2.3.0"

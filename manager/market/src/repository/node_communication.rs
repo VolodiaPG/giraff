@@ -1,17 +1,12 @@
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use async_trait::async_trait;
-
-use uom::si::f64::Time;
-use uom::si::time::second;
-
+use crate::service::fog_node_network::FogNodeNetwork;
 use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
-
-use crate::service::fog_node_network::FogNodeNetwork;
+use std::fmt::Debug;
+use std::sync::Arc;
+use uom::si::f64::Time;
+use uom::si::time::second;
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
@@ -35,32 +30,15 @@ pub enum Error {
     #[error(transparent)]
     Serialize(#[from] serde_json::Error),
 }
-#[async_trait]
-pub trait NodeCommunication: Debug + Sync + Send {
-    async fn request_bids_from_node(
-        &self,
-        to: NodeId,
-        sla: &'_ Sla,
-    ) -> Result<BidProposals, Error>;
-
-    async fn take_offer(
-        &self,
-        to: NodeId,
-        bid: &BidProposal,
-    ) -> Result<(), Error>;
-}
 
 #[derive(Debug)]
-pub struct NodeCommunicationImpl {
-    network: Arc<dyn FogNodeNetwork>,
+pub struct NodeCommunication {
+    network: Arc<FogNodeNetwork>,
     client:  Arc<HttpClient>,
 }
 
-impl NodeCommunicationImpl {
-    pub fn new(
-        network: Arc<dyn FogNodeNetwork>,
-        client: Arc<HttpClient>,
-    ) -> Self {
+impl NodeCommunication {
+    pub fn new(network: Arc<FogNodeNetwork>, client: Arc<HttpClient>) -> Self {
         Self { network, client }
     }
 
@@ -76,11 +54,8 @@ impl NodeCommunicationImpl {
 
         Ok(self.client.post(format!("http://{ip}:{port_http}/api/{route}")))
     }
-}
 
-#[async_trait]
-impl NodeCommunication for NodeCommunicationImpl {
-    async fn request_bids_from_node(
+    pub async fn request_bids_from_node(
         &self,
         to: NodeId,
         sla: &'_ Sla,
@@ -101,7 +76,7 @@ impl NodeCommunication for NodeCommunicationImpl {
         Ok(resp)
     }
 
-    async fn take_offer(
+    pub async fn take_offer(
         &self,
         to: NodeId,
         bid: &BidProposal,

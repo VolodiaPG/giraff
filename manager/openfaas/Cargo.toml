@@ -9,7 +9,6 @@ jaeger = ["reqwest-middleware", "reqwest-tracing"]
 
 [dependencies]
 anyhow = "1.0.58"
-async-trait = "0.1.56"
 bytes = "1.2.0"
 chrono = "0.4"
 lazy-regex = "2.3.0"

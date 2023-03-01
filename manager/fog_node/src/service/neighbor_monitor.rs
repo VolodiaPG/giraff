@@ -1,5 +1,4 @@
 use crate::repository::latency_estimation::LatencyEstimation;
-use async_trait::async_trait;
 use model::NodeId;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -11,32 +10,24 @@ pub enum Error {
     RttEstimation(#[from] crate::repository::latency_estimation::Error),
 }
 
-#[async_trait]
-pub trait NeighborMonitor: Debug + Sync + Send {
-    async fn ping_neighbors_rtt(&self) -> Result<(), Error>;
-    /// Gets the latency to a node, HTTP+TCP 3 way handshake
-    async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time>;
-}
-
 #[derive(Debug)]
-pub struct NeighborMonitorImpl {
-    rtt_estimation: Arc<dyn LatencyEstimation>,
+pub struct NeighborMonitor {
+    rtt_estimation: Arc<LatencyEstimation>,
 }
 
-impl NeighborMonitorImpl {
-    pub fn new(latency_estimation: Arc<dyn LatencyEstimation>) -> Self {
+impl NeighborMonitor {
+    pub fn new(latency_estimation: Arc<LatencyEstimation>) -> Self {
         Self { rtt_estimation: latency_estimation }
     }
-}
 
-#[async_trait]
-impl NeighborMonitor for NeighborMonitorImpl {
-    async fn ping_neighbors_rtt(&self) -> Result<(), Error> {
+    #[allow(dead_code)]
+    pub async fn ping_neighbors_rtt(&self) -> Result<(), Error> {
         self.rtt_estimation.latency_to_neighbors().await?;
         Ok(())
     }
 
-    async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
+    #[allow(dead_code)]
+    pub async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
         self.rtt_estimation.get_latency_to(id).await.map(|x| x * 3.0)
     }
 }

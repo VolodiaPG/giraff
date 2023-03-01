@@ -20,5 +20,6 @@
         "titleBar.inactiveBackground": "#ffd70099",
         "titleBar.inactiveForeground": "#15202b99"
     },
-    "peacock.remoteColor": "gold"
+    "peacock.remoteColor": "gold",
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
 }

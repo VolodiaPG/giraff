@@ -10,7 +10,7 @@ use crate::service::function_life::FunctionLife;
 /// their bids.
 pub async fn bid_on(
     bid_request: BidRequestOwned,
-    function: &Arc<dyn FunctionLife>,
+    function: &Arc<FunctionLife>,
 ) -> Result<BidProposals, ControllerError> {
     trace!("bidding on... {:?}", bid_request);
     function
@@ -27,11 +27,14 @@ pub async fn bid_on(
 /// Creates the function on OpenFaaS and use the SLA to enable the limits
 pub async fn provision_from_bid(
     id: BidId,
-    function: &Arc<dyn FunctionLife>,
+    function: &Arc<FunctionLife>,
 ) -> Result<(), ControllerError> {
     trace!("Transforming bid into provisioned resource {:?}", id);
-
-    function.validate_bid_and_provision_function(id).await?;
+    let function = function.lock().await?;
+    let res = function.validate_bid_and_provision_function(id).await;
+    function.unlock();
+    res?;
+    debug!("Ttptp");
 
     Ok(())
 }

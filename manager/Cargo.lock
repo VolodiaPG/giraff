@@ -723,7 +723,6 @@ dependencies = [
  "actix-web",
  "actix-web-opentelemetry",
  "anyhow",
- "async-trait",
  "base64 0.13.1",
  "bytes",
  "chrono",
@@ -1453,7 +1452,6 @@ dependencies = [
  "actix-web",
  "actix-web-opentelemetry",
  "anyhow",
- "async-trait",
  "base64 0.13.1",
  "bytes",
  "chrono",
@@ -1552,7 +1550,6 @@ name = "model"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "chrono",
  "dashmap",
  "helper",
@@ -1635,7 +1632,6 @@ name = "openfaas"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "bytes",
  "chrono",
  "helper",

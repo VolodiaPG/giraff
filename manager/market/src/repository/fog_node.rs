@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-use std::fmt::Debug;
-use std::net::IpAddr;
-
-use async_trait::async_trait;
-
-use tokio::sync::RwLock;
-
 use model::dto::node::{Node, NodeIdList, NodeRecord};
 use model::view::auction::AcceptedBid;
 use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort, NodeId};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::net::IpAddr;
+use tokio::sync::RwLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -22,52 +18,13 @@ pub enum Error {
     MultipleRoots(NodeIdList),
 }
 
-#[async_trait]
-pub trait FogNode: Debug + Sync + Send {
-    async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>>;
-    async fn update(&self, id: &NodeId, node: NodeRecord);
-    /// Append a new child to the current node, if fails, then doesn't append
-    async fn append_new_child(
-        &self,
-        parent: &NodeId,
-        child: NodeId,
-        ip: IpAddr,
-        port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPortExternal,
-        tags: &[String],
-    ) -> Result<(), Error>;
-    /// Append the root of the tree, i.e., will fail if not the first node in
-    /// the whole tree, and will fail thereafter
-    async fn append_root(
-        &self,
-        root: NodeId,
-        ip: IpAddr,
-        port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPortExternal,
-        tags: &[String],
-    ) -> Result<(), Error>;
-    /// Get all the [NodeId] up to the target node (included).
-    /// Return the stack, meaning the destination is at the bottom and the next
-    /// node is at the top.
-    async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId>;
-    // TODO make it a hashSet?
-
-    async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>>;
-
-    /// Get all the connected nodes
-    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)>;
-
-    /// Get a node hosting a function designated by its name
-    async fn get_node_from_function(&self, name: &str) -> Option<NodeId>;
-}
-
 #[derive(Debug)]
-pub struct FogNodeImpl {
+pub struct FogNode {
     nodes: RwLock<HashMap<NodeId, Node<NodeRecord>>>,
 }
 
-impl FogNodeImpl {
-    pub fn new() -> Self { FogNodeImpl { nodes: RwLock::new(HashMap::new()) } }
+impl FogNode {
+    pub fn new() -> Self { Self { nodes: RwLock::new(HashMap::new()) } }
 
     async fn check_tree(&self) -> Result<(), Error> {
         let mut roots = self
@@ -130,21 +87,18 @@ impl FogNodeImpl {
             serde_json::to_string_pretty(&*self.nodes.read().await).unwrap();
         trace!("{}", to_print);
     }
-}
 
-#[async_trait]
-impl FogNode for FogNodeImpl {
-    async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>> {
+    pub async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>> {
         return self.nodes.read().await.get(id).cloned();
     }
 
-    async fn update(&self, id: &NodeId, record: NodeRecord) {
+    pub async fn update(&self, id: &NodeId, record: NodeRecord) {
         if let Some(node) = self.nodes.write().await.get_mut(id) {
             node.data = record;
         }
     }
 
-    async fn append_new_child(
+    pub async fn append_new_child(
         &self,
         parent: &NodeId,
         child: NodeId,
@@ -204,7 +158,7 @@ impl FogNode for FogNodeImpl {
         Ok(())
     }
 
-    async fn append_root(
+    pub async fn append_root(
         &self,
         root: NodeId,
         ip: IpAddr,
@@ -227,20 +181,7 @@ impl FogNode for FogNodeImpl {
         res
     }
 
-    async fn get_route_to_node(&self, to: NodeId) -> Vec<NodeId> {
-        let mut current_cursor = Some(to);
-        let mut route_stack = vec![]; // bottom: dest, top: next
-        while let Some(current) = &current_cursor {
-            if let Some(node) = self.get(current).await {
-                route_stack.push(current.clone());
-                current_cursor = node.parent;
-            }
-        }
-
-        route_stack
-    }
-
-    async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>> {
+    pub async fn get_records(&self) -> HashMap<NodeId, Vec<AcceptedBid>> {
         let mut records: HashMap<NodeId, Vec<AcceptedBid>> = HashMap::new();
         for (node, data) in &*self.nodes.read().await {
             records.insert(
@@ -251,7 +192,7 @@ impl FogNode for FogNodeImpl {
         records
     }
 
-    async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
+    pub async fn get_nodes(&self) -> Vec<(NodeId, NodeRecord)> {
         return self
             .nodes
             .read()
@@ -259,15 +200,5 @@ impl FogNode for FogNodeImpl {
             .iter()
             .map(|(id, record)| (id.clone(), record.data.clone()))
             .collect();
-    }
-
-    async fn get_node_from_function(&self, name: &str) -> Option<NodeId> {
-        self.get_records()
-            .await
-            .iter()
-            .find(|(_, rec)| {
-                rec.iter().any(|bid| bid.sla.function_live_name.eq(name))
-            })
-            .map(|(id, _)| id.clone())
     }
 }

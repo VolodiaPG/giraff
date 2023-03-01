@@ -1,11 +1,8 @@
-use std::net::IpAddr;
-use std::sync::Arc;
-
-use async_trait::async_trait;
-
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
 use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort};
+use std::net::IpAddr;
+use std::sync::Arc;
 
 use crate::{NodeQuery, NodeSituation};
 
@@ -23,42 +20,21 @@ pub enum Error {
     CannotRegisterMarketOnRegularNode,
 }
 
-/// Service to manage the behaviour of the routing
-#[async_trait]
-pub trait NodeLife: Send + Sync {
-    /// Register locally the child node, but also send the packet towards the
-    /// market to register it there, also.
-    async fn register_child_node(
-        &self,
-        register: RegisterNode,
-    ) -> Result<(), Error>;
-    /// Initialize the negotiating process to get connected to the parent node
-    async fn init_registration(
-        &self,
-        my_ip: IpAddr,
-        my_port_http: FogNodeHTTPPort,
-        my_port_faas: FogNodeFaaSPortExternal,
-    ) -> Result<(), Error>;
-}
-
 #[derive(Debug)]
-pub struct NodeLifeImpl {
-    node_situation: Arc<dyn NodeSituation>,
-    node_query:     Arc<dyn NodeQuery>,
+pub struct NodeLife {
+    node_situation: Arc<NodeSituation>,
+    node_query:     Arc<NodeQuery>,
 }
 
-impl NodeLifeImpl {
+impl NodeLife {
     pub fn new(
-        node_situation: Arc<dyn NodeSituation>,
-        node_query: Arc<dyn NodeQuery>,
+        node_situation: Arc<NodeSituation>,
+        node_query: Arc<NodeQuery>,
     ) -> Self {
         Self { node_situation, node_query }
     }
-}
 
-#[async_trait]
-impl NodeLife for NodeLifeImpl {
-    async fn register_child_node(
+    pub async fn register_child_node(
         &self,
         register: RegisterNode,
     ) -> Result<(), Error> {
@@ -84,7 +60,7 @@ impl NodeLife for NodeLifeImpl {
         Ok(())
     }
 
-    async fn init_registration(
+    pub async fn init_registration(
         &self,
         ip: IpAddr,
         port_http: FogNodeHTTPPort,

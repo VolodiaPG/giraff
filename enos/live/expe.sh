@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-
 TARGET_NODE=$1
 IOT_IP=$2
+
 MARKET_LOCAL_PORT="${MARKET_LOCAL_PORT:=8088}"
 IOT_LOCAL_PORT="${IOT_LOCAL_PORT:=3003}"
 
@@ -62,15 +62,11 @@ for latency in "${function_latencies[@]}"; do
 		--header 'Content-Type: application/json' \
 		--data '{
 	"sla": {
-		"storage": "0 MB",
 		"memory": "'"$mem"' MB",
 		"cpu": "'"$cpu"' millicpu",
 		"latencyMax": "'"$latency"' ms",
 		"maxReplica": 1,
-		"dataInputMaxSize": "1 GB",
-		"dataOutputMaxSize": "1 GB",
-		"maxTimeBeforeHot": "10 s",
-		"reevaluationPeriod": "1 hour",
+		"reservationEndAt": 1677661778,
 		"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
 		"functionLiveName": "'"$function_name"'",
 		"dataFlow": [

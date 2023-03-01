@@ -110,6 +110,7 @@
                 # Rust
                 rust = {
                   enable = true;
+                  name = "rust (justfile pre_commit)";
                   entry = "sh -c 'cd manager && just pre_commit'";
                   language = "system";
                   pass_filenames = false;
