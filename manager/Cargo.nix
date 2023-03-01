@@ -32,6 +32,7 @@ args @ {
 in let
   inherit (rustLib) fetchCratesIo fetchCrateLocal fetchCrateGit fetchCrateAlternativeRegistry expandFeatures decideProfile genDrvsByProfile;
   profilesByName = {
+    release = builtins.fromTOML "codegen-units = 1\nlto = true\nopt-level = 3\nstrip = true\n";
   };
   rootFeatures' = expandFeatures rootFeatures;
   overridableMkRustCrate = f: let
@@ -121,7 +122,7 @@ in {
       encoding_rs = rustPackages."registry+https://github.com/rust-lang/crates.io-index".encoding_rs."0.8.32" {inherit profileName;};
       flate2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".flate2."1.0.25" {inherit profileName;};
       futures_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.26" {inherit profileName;};
-      h2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.15" {inherit profileName;};
+      h2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.16" {inherit profileName;};
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" {inherit profileName;};
       httparse = rustPackages."registry+https://github.com/rust-lang/crates.io-index".httparse."1.8.0" {inherit profileName;};
       httpdate = rustPackages."registry+https://github.com/rust-lang/crates.io-index".httpdate."1.0.2" {inherit profileName;};
@@ -314,6 +315,24 @@ in {
       proc_macro2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro2."1.0.51" {inherit profileName;};
       quote = rustPackages."registry+https://github.com/rust-lang/crates.io-index".quote."1.0.23" {inherit profileName;};
       syn = rustPackages."registry+https://github.com/rust-lang/crates.io-index".syn."1.0.109" {inherit profileName;};
+    };
+  });
+
+  "registry+https://github.com/rust-lang/crates.io-index".actix-web-opentelemetry."0.13.0" = overridableMkRustCrate (profileName: rec {
+    name = "actix-web-opentelemetry";
+    version = "0.13.0";
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo {
+      inherit name version;
+      sha256 = "aaa592a5b9b3d96101434bca1024c6da6c23630163aec485428e613cd7100dcf";
+    };
+    dependencies = {
+      actix_http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-http."3.3.0" {inherit profileName;};
+      actix_web = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web."4.3.1" {inherit profileName;};
+      futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
+      opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.18.0" {inherit profileName;};
+      opentelemetry_semantic_conventions = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-semantic-conventions."0.10.0" {inherit profileName;};
+      serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.152" {inherit profileName;};
     };
   });
 
@@ -695,7 +714,7 @@ in {
       ["parallel"]
     ];
     dependencies = {
-      jobserver = rustPackages."registry+https://github.com/rust-lang/crates.io-index".jobserver."0.1.25" {inherit profileName;};
+      jobserver = rustPackages."registry+https://github.com/rust-lang/crates.io-index".jobserver."0.1.26" {inherit profileName;};
     };
   });
 
@@ -862,13 +881,13 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.6" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.7" = overridableMkRustCrate (profileName: rec {
     name = "crossbeam-channel";
-    version = "0.5.6";
+    version = "0.5.7";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521";
+      sha256 = "cf2b3e8478797446514c91ef04bafcb59faba183e621ad488df88983cc14128c";
     };
     features = builtins.concatLists [
       ["crossbeam-utils"]
@@ -877,17 +896,17 @@ in {
     ];
     dependencies = {
       cfg_if = rustPackages."registry+https://github.com/rust-lang/crates.io-index".cfg-if."1.0.0" {inherit profileName;};
-      crossbeam_utils = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-utils."0.8.14" {inherit profileName;};
+      crossbeam_utils = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-utils."0.8.15" {inherit profileName;};
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".crossbeam-utils."0.8.14" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".crossbeam-utils."0.8.15" = overridableMkRustCrate (profileName: rec {
     name = "crossbeam-utils";
-    version = "0.8.14";
+    version = "0.8.15";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "4fb766fa798726286dbbb842f174001dab8abc7b627a1dd86e0b7222a95d929f";
+      sha256 = "3c063cd8cc95f5c377ed0d4b49a4b21f632396ff690e8470c29b3359b346984b";
     };
     features = builtins.concatLists [
       ["std"]
@@ -1321,7 +1340,6 @@ in {
       (lib.optional (rootFeatures' ? "fog_node/default") "default")
       (lib.optional (rootFeatures' ? "fog_node/edge_first") "edge_first")
       (lib.optional (rootFeatures' ? "fog_node/edge_ward") "edge_ward")
-      (lib.optional (rootFeatures' ? "fog_node/fake_k8s") "fake_k8s")
       (lib.optional (rootFeatures' ? "fog_node/jaeger") "jaeger")
       (lib.optional (rootFeatures' ? "fog_node/default" || rootFeatures' ? "fog_node/mimalloc") "mimalloc")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry") "opentelemetry")
@@ -1333,8 +1351,8 @@ in {
     ];
     dependencies = {
       actix_web = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web."4.3.1" {inherit profileName;};
+      actix_web_opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web-opentelemetry."0.13.0" {inherit profileName;};
       anyhow = rustPackages."registry+https://github.com/rust-lang/crates.io-index".anyhow."1.0.69" {inherit profileName;};
-      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
       base64 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".base64."0.13.1" {inherit profileName;};
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" {inherit profileName;};
       chrono = rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.23" {inherit profileName;};
@@ -1342,7 +1360,7 @@ in {
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.26" {inherit profileName;};
       helper = rustPackages."unknown".helper."0.1.0" {inherit profileName;};
       k8s_openapi = rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.17.0" {inherit profileName;};
-      kube = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube."0.78.0" {inherit profileName;};
+      kube = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube."0.79.0" {inherit profileName;};
       kube_metrics = rustPackages."unknown".kube_metrics."0.1.0" {inherit profileName;};
       lazy_regex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy-regex."2.4.1" {inherit profileName;};
       lazy_static = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" {inherit profileName;};
@@ -1511,7 +1529,7 @@ in {
       sha256 = "e8de0a35a6ab97ec8869e32a2473f4b1324459e14c29275d14b10cb1fd19b50e";
     };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "default")
+      ["default"]
       ["std"]
     ];
     dependencies = {
@@ -1662,13 +1680,13 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".h2."0.3.15" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".h2."0.3.16" = overridableMkRustCrate (profileName: rec {
     name = "h2";
-    version = "0.3.15";
+    version = "0.3.16";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "5f9f29bc9dda355256b2916cf526ab02ce0aeaaaf2bad60d65ef3f12f11dd0f4";
+      sha256 = "5be7b54589b581f624f566bf5d8eb2bab1db736c51528720b6bd36b96b55924d";
     };
     dependencies = {
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" {inherit profileName;};
@@ -1912,7 +1930,7 @@ in {
       futures_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.26" {inherit profileName;};
       futures_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.26" {inherit profileName;};
       futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
-      h2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.15" {inherit profileName;};
+      h2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.16" {inherit profileName;};
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" {inherit profileName;};
       http_body = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http-body."0.4.5" {inherit profileName;};
       httparse = rustPackages."registry+https://github.com/rust-lang/crates.io-index".httparse."1.8.0" {inherit profileName;};
@@ -2174,13 +2192,13 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".jobserver."0.1.25" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".jobserver."0.1.26" = overridableMkRustCrate (profileName: rec {
     name = "jobserver";
-    version = "0.1.25";
+    version = "0.1.26";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "068b1ee6743e4d11fb9c6a1e6064b3693a1b600e7f5f5988047d98b3dc9fb90b";
+      sha256 = "936cfd212a0155903bcbc060e316fb6cc7cbf2e1907329391ebadc1fe0ce77c2";
     };
     dependencies = {
       ${
@@ -2270,13 +2288,13 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".kube."0.78.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".kube."0.79.0" = overridableMkRustCrate (profileName: rec {
     name = "kube";
-    version = "0.78.0";
+    version = "0.79.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "53ee2ba94546e32a5aef943e5831c6ac25592ff8dcfa8b2a06e0aaea90c69188";
+      sha256 = "d1e74b6c3633982788dc51a02a356113b4b74e0db48929b2c7447cb57919b8ae";
     };
     features = builtins.concatLists [
       ["client"]
@@ -2289,19 +2307,19 @@ in {
     ];
     dependencies = {
       k8s_openapi = rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.17.0" {inherit profileName;};
-      kube_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-client."0.78.0" {inherit profileName;};
-      kube_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-core."0.78.0" {inherit profileName;};
-      kube_runtime = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-runtime."0.78.0" {inherit profileName;};
+      kube_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-client."0.79.0" {inherit profileName;};
+      kube_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-core."0.79.0" {inherit profileName;};
+      kube_runtime = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-runtime."0.79.0" {inherit profileName;};
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".kube-client."0.78.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".kube-client."0.79.0" = overridableMkRustCrate (profileName: rec {
     name = "kube-client";
-    version = "0.78.0";
+    version = "0.79.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "7c9ca1f597bd48ed26f45f601bf2fa3aaa0933b8d1652d883b8444519b72af4a";
+      sha256 = "80e9065963ad9966fea4a977efaf1eb22381b56ef4882ef19155869649669dfc";
     };
     features = builtins.concatLists [
       ["__non_core"]
@@ -2344,7 +2362,7 @@ in {
       hyper_timeout = rustPackages."registry+https://github.com/rust-lang/crates.io-index".hyper-timeout."0.4.1" {inherit profileName;};
       jsonpath_lib = rustPackages."registry+https://github.com/rust-lang/crates.io-index".jsonpath_lib."0.3.0" {inherit profileName;};
       k8s_openapi = rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.17.0" {inherit profileName;};
-      kube_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-core."0.78.0" {inherit profileName;};
+      kube_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-core."0.79.0" {inherit profileName;};
       openssl = rustPackages."registry+https://github.com/rust-lang/crates.io-index".openssl."0.10.45" {inherit profileName;};
       pem = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pem."1.1.1" {inherit profileName;};
       pin_project = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.12" {inherit profileName;};
@@ -2361,13 +2379,13 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".kube-core."0.78.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".kube-core."0.79.0" = overridableMkRustCrate (profileName: rec {
     name = "kube-core";
-    version = "0.78.0";
+    version = "0.79.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "61f2c6d1a2d1584859499eb05a41c5a44713818041621fa7515cfdbdf4769ea7";
+      sha256 = "381a6982f9f48aec74022ae3e7012f990e2d9893bdafc9d4fb2c58521899440d";
     };
     features = builtins.concatLists [
       ["json-patch"]
@@ -2386,22 +2404,23 @@ in {
     };
   });
 
-  "registry+https://github.com/rust-lang/crates.io-index".kube-runtime."0.78.0" = overridableMkRustCrate (profileName: rec {
+  "registry+https://github.com/rust-lang/crates.io-index".kube-runtime."0.79.0" = overridableMkRustCrate (profileName: rec {
     name = "kube-runtime";
-    version = "0.78.0";
+    version = "0.79.0";
     registry = "registry+https://github.com/rust-lang/crates.io-index";
     src = fetchCratesIo {
       inherit name version;
-      sha256 = "7995aaf15656bf3694cd455578d59119acc3ca55f71e9a1b579a34a47d17ecce";
+      sha256 = "7a11c9e91acd9115b92a7d6cf7210a50b1fdf6d341a146fb0e7eb3423d1548d4";
     };
     dependencies = {
       ahash = rustPackages."registry+https://github.com/rust-lang/crates.io-index".ahash."0.8.3" {inherit profileName;};
+      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
       backoff = rustPackages."registry+https://github.com/rust-lang/crates.io-index".backoff."0.4.0" {inherit profileName;};
       derivative = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".derivative."2.2.0" {profileName = "__noProfile";};
       futures = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures."0.3.26" {inherit profileName;};
       json_patch = rustPackages."registry+https://github.com/rust-lang/crates.io-index".json-patch."0.3.0" {inherit profileName;};
       k8s_openapi = rustPackages."registry+https://github.com/rust-lang/crates.io-index".k8s-openapi."0.17.0" {inherit profileName;};
-      kube_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-client."0.78.0" {inherit profileName;};
+      kube_client = rustPackages."registry+https://github.com/rust-lang/crates.io-index".kube-client."0.79.0" {inherit profileName;};
       parking_lot = rustPackages."registry+https://github.com/rust-lang/crates.io-index".parking_lot."0.12.1" {inherit profileName;};
       pin_project = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project."1.0.12" {inherit profileName;};
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.152" {inherit profileName;};
@@ -2644,8 +2663,8 @@ in {
     ];
     dependencies = {
       actix_web = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web."4.3.1" {inherit profileName;};
+      actix_web_opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web-opentelemetry."0.13.0" {inherit profileName;};
       anyhow = rustPackages."registry+https://github.com/rust-lang/crates.io-index".anyhow."1.0.69" {inherit profileName;};
-      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
       base64 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".base64."0.13.1" {inherit profileName;};
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" {inherit profileName;};
       chrono = rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.23" {inherit profileName;};
@@ -2851,7 +2870,6 @@ in {
     src = fetchCrateLocal (workspaceSrc + "/model");
     dependencies = {
       anyhow = rustPackages."registry+https://github.com/rust-lang/crates.io-index".anyhow."1.0.69" {inherit profileName;};
-      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
       chrono = rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.23" {inherit profileName;};
       dashmap = rustPackages."registry+https://github.com/rust-lang/crates.io-index".dashmap."5.4.0" {inherit profileName;};
       helper = rustPackages."unknown".helper."0.1.0" {inherit profileName;};
@@ -3043,7 +3061,6 @@ in {
     ];
     dependencies = {
       anyhow = rustPackages."registry+https://github.com/rust-lang/crates.io-index".anyhow."1.0.69" {inherit profileName;};
-      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
       bytes = rustPackages."registry+https://github.com/rust-lang/crates.io-index".bytes."1.4.0" {inherit profileName;};
       chrono = rustPackages."registry+https://github.com/rust-lang/crates.io-index".chrono."0.4.23" {inherit profileName;};
       helper = rustPackages."unknown".helper."0.1.0" {inherit profileName;};
@@ -3156,21 +3173,12 @@ in {
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "default")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "metrics")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "rt-tokio")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "trace")
+      ["rt-tokio-current-thread"]
+      ["trace"]
     ];
     dependencies = {
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "opentelemetry_api"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_api."0.18.0" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "opentelemetry_sdk"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_sdk."0.18.0" {inherit profileName;};
+      opentelemetry_api = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_api."0.18.0" {inherit profileName;};
+      opentelemetry_sdk = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_sdk."0.18.0" {inherit profileName;};
     };
   });
 
@@ -3328,12 +3336,7 @@ in {
       sha256 = "9b02e0230abb0ab6636d18e2ba8fa02903ea63772281340ccac18e0af3ec9eeb";
     };
     dependencies = {
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "opentelemetry"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.18.0" {inherit profileName;};
+      opentelemetry = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry."0.18.0" {inherit profileName;};
     };
   });
 
@@ -3346,11 +3349,11 @@ in {
       sha256 = "c24f96e21e7acc813c7a8394ee94978929db2bcc46cf6b5014fc612bf7760c22";
     };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "default")
+      ["default"]
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "fnv")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "metrics")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "pin-project-lite")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "trace")
+      ["pin-project-lite"]
+      ["trace"]
     ];
     dependencies = {
       ${
@@ -3359,48 +3362,18 @@ in {
         else null
       } =
         rustPackages."registry+https://github.com/rust-lang/crates.io-index".fnv."1.0.7" {inherit profileName;};
+      futures_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.26" {inherit profileName;};
+      futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
+      indexmap = rustPackages."registry+https://github.com/rust-lang/crates.io-index".indexmap."1.9.2" {inherit profileName;};
       ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "futures_channel"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "futures_util"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "indexmap"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".indexmap."1.9.2" {inherit profileName;};
-      ${
-        if (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") && hostPlatform.parsed.cpu.name == "wasm32"
+        if hostPlatform.parsed.cpu.name == "wasm32"
         then "js_sys"
         else null
       } =
         rustPackages."registry+https://github.com/rust-lang/crates.io-index".js-sys."0.3.61" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "once_cell"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".once_cell."1.17.1" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "pin_project_lite"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.9" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "thiserror"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" {inherit profileName;};
+      once_cell = rustPackages."registry+https://github.com/rust-lang/crates.io-index".once_cell."1.17.1" {inherit profileName;};
+      pin_project_lite = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.9" {inherit profileName;};
+      thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" {inherit profileName;};
     };
   });
 
@@ -3413,32 +3386,23 @@ in {
       sha256 = "1ca41c4933371b61c2a2f214bf16931499af4ec90543604ec828f7a625c09113";
     };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "async-trait")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "crossbeam-channel")
+      ["async-trait"]
+      ["crossbeam-channel"]
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "dashmap")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "default")
+      ["default"]
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "fnv")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "metrics")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "percent-encoding")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "rand")
+      ["percent-encoding"]
+      ["rand"]
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "rt-tokio")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "tokio")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "tokio-stream")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing") "trace")
+      ["rt-tokio-current-thread"]
+      ["tokio"]
+      ["tokio-stream"]
+      ["trace"]
     ];
     dependencies = {
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "async_trait"
-        else null
-      } =
-        buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "crossbeam_channel"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.6" {inherit profileName;};
+      async_trait = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".async-trait."0.1.64" {profileName = "__noProfile";};
+      crossbeam_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.7" {inherit profileName;};
       ${
         if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
         then "dashmap"
@@ -3451,66 +3415,16 @@ in {
         else null
       } =
         rustPackages."registry+https://github.com/rust-lang/crates.io-index".fnv."1.0.7" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "futures_channel"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "futures_executor"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-executor."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "futures_util"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "once_cell"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".once_cell."1.17.1" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "opentelemetry_api"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_api."0.18.0" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "percent_encoding"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".percent-encoding."2.2.0" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "rand"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "fog_node/reqwest-tracing" || rootFeatures' ? "fog_node/tracing-actix-web" || rootFeatures' ? "fog_node/tracing-opentelemetry" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger" || rootFeatures' ? "market/reqwest-tracing" || rootFeatures' ? "market/tracing-actix-web" || rootFeatures' ? "market/tracing-opentelemetry" || rootFeatures' ? "openfaas/jaeger" || rootFeatures' ? "openfaas/reqwest-tracing"
-        then "thiserror"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "tokio"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.25.0" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "tokio_stream"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-stream."0.1.12" {inherit profileName;};
+      futures_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-channel."0.3.26" {inherit profileName;};
+      futures_executor = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-executor."0.3.26" {inherit profileName;};
+      futures_util = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-util."0.3.26" {inherit profileName;};
+      once_cell = rustPackages."registry+https://github.com/rust-lang/crates.io-index".once_cell."1.17.1" {inherit profileName;};
+      opentelemetry_api = rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry_api."0.18.0" {inherit profileName;};
+      percent_encoding = rustPackages."registry+https://github.com/rust-lang/crates.io-index".percent-encoding."2.2.0" {inherit profileName;};
+      rand = rustPackages."registry+https://github.com/rust-lang/crates.io-index".rand."0.8.5" {inherit profileName;};
+      thiserror = rustPackages."registry+https://github.com/rust-lang/crates.io-index".thiserror."1.0.38" {inherit profileName;};
+      tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.25.0" {inherit profileName;};
+      tokio_stream = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio-stream."0.1.12" {inherit profileName;};
     };
   });
 
@@ -4000,7 +3914,7 @@ in {
         then "h2"
         else null
       } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.15" {inherit profileName;};
+        rustPackages."registry+https://github.com/rust-lang/crates.io-index".h2."0.3.16" {inherit profileName;};
       http = rustPackages."registry+https://github.com/rust-lang/crates.io-index".http."0.2.9" {inherit profileName;};
       ${
         if !(hostPlatform.parsed.cpu.name == "wasm32")
@@ -5146,28 +5060,13 @@ in {
       sha256 = "8fb52b74f05dbf495a8fba459fdc331812b96aa086d9eb78101fa0d4569c3313";
     };
     features = builtins.concatLists [
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "default")
-      (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger") "time")
+      ["default"]
+      ["time"]
     ];
     dependencies = {
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "futures_core"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.26" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "pin_project_lite"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.9" {inherit profileName;};
-      ${
-        if rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry" || rootFeatures' ? "fog_node/opentelemetry-jaeger" || rootFeatures' ? "market/jaeger" || rootFeatures' ? "market/opentelemetry" || rootFeatures' ? "market/opentelemetry-jaeger"
-        then "tokio"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.25.0" {inherit profileName;};
+      futures_core = rustPackages."registry+https://github.com/rust-lang/crates.io-index".futures-core."0.3.26" {inherit profileName;};
+      pin_project_lite = rustPackages."registry+https://github.com/rust-lang/crates.io-index".pin-project-lite."0.2.9" {inherit profileName;};
+      tokio = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tokio."1.25.0" {inherit profileName;};
     };
   });
 
@@ -5374,7 +5273,7 @@ in {
       sha256 = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e";
     };
     dependencies = {
-      crossbeam_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.6" {inherit profileName;};
+      crossbeam_channel = rustPackages."registry+https://github.com/rust-lang/crates.io-index".crossbeam-channel."0.5.7" {inherit profileName;};
       time = rustPackages."registry+https://github.com/rust-lang/crates.io-index".time."0.3.20" {inherit profileName;};
       tracing_subscriber = rustPackages."registry+https://github.com/rust-lang/crates.io-index".tracing-subscriber."0.3.16" {inherit profileName;};
     };
