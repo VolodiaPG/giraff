@@ -11,22 +11,9 @@ use mimalloc::MiMalloc;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-#[cfg(feature = "jaeger")]
-use actix_web_opentelemetry::RequestTracing;
-use model::{BidId, FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
-#[cfg(feature = "jaeger")]
-use opentelemetry::global;
-#[cfg(feature = "jaeger")]
-use opentelemetry::sdk::propagation::TraceContextPropagator;
-#[cfg(feature = "jaeger")]
-use reqwest_middleware::ClientBuilder;
-#[cfg(feature = "jaeger")]
-use reqwest_tracing::TracingMiddleware;
-#[cfg(feature = "jaeger")]
-use tracing_actix_web::TracingLogger;
-
 use crate::handler_http::*;
 use crate::repeated_tasks::init;
+use crate::repository::cron::Cron;
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::k8s::K8s;
@@ -39,21 +26,36 @@ use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::service::node_life::NodeLife;
 use actix_web::web::Data;
 use actix_web::{middleware, web, App, HttpServer};
+#[cfg(feature = "jaeger")]
+use actix_web_opentelemetry::RequestTracing;
 use bytes::Bytes;
 use futures::future::join_all;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
+use model::{BidId, FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 use openfaas::{Configuration, DefaultApiClient};
+#[cfg(feature = "jaeger")]
+use opentelemetry::global;
+#[cfg(feature = "jaeger")]
+use opentelemetry::sdk::propagation::TraceContextPropagator;
 use prometheus::TextEncoder;
+#[cfg(feature = "jaeger")]
+use reqwest_middleware::ClientBuilder;
+#[cfg(feature = "jaeger")]
+use reqwest_tracing::TracingMiddleware;
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
+#[cfg(feature = "jaeger")]
+use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
 use tracing_log::LogTracer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
+use uom::si::f64::Time;
+use uom::si::time::second;
 
 mod controller;
 mod handler_http;
@@ -284,6 +286,11 @@ async fn main() -> std::io::Result<()> {
         node_situation.clone(),
         http_client.clone(),
     ));
+    let cron_repo = Arc::new(
+        Cron::new(Time::new::<second>(15.0))
+            .await
+            .expect("Failed to start Cron repository"),
+    );
 
     // Services
     let auction_service = Arc::new(Auction::new(
@@ -318,9 +325,10 @@ async fn main() -> std::io::Result<()> {
         node_life_service.clone(),
         node_situation.clone(),
     ));
-    tokio::spawn(loop_jobs(
-        init(neighbor_monitor_service.clone(), k8s_repo).await,
-    ));
+
+    init(cron_repo, neighbor_monitor_service.clone(), k8s_repo)
+        .await
+        .expect("Failed to register periodic actions");
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
@@ -384,15 +392,4 @@ async fn register_to_market(
         interval.tick().await;
     }
     info!("Registered to market and parent.");
-}
-
-async fn loop_jobs(jobs: Vec<repeated_tasks::CronFn>) {
-    let mut interval = time::interval(Duration::from_secs(15));
-
-    loop {
-        for value in jobs.iter() {
-            tokio::spawn(value());
-        }
-        interval.tick().await;
-    }
 }

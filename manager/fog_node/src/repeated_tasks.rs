@@ -2,32 +2,29 @@ use crate::prom_metrics::{
     CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE,
     MEMORY_USAGE_GAUGE,
 };
+use crate::repository::cron::{self, Cron};
 use crate::repository::k8s::K8s;
 use crate::service::neighbor_monitor::NeighborMonitor;
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 
-pub type CronFn =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
-
 pub async fn init(
+    cron: Arc<Cron>,
     neighbor_monitor: Arc<NeighborMonitor>,
     k8s_repo: Arc<K8s>,
-) -> Vec<CronFn> {
-    let mut jobs: Vec<CronFn> = Vec::new();
-
-    jobs.push(Box::new(move || {
+) -> Result<(), cron::Error> {
+    cron.register_periodic(Box::new(move || {
         let neighbor_monitor = neighbor_monitor.clone();
         Box::pin(ping(neighbor_monitor))
-    }));
+    }))
+    .await?;
 
-    jobs.push(Box::new(move || {
+    cron.register_periodic(Box::new(move || {
         let k8s_repo = k8s_repo.clone();
         Box::pin(measure(k8s_repo))
-    }));
+    }))
+    .await?;
 
-    jobs
+    Ok(())
 }
 
 async fn ping(neighbor_monitor: Arc<NeighborMonitor>) {

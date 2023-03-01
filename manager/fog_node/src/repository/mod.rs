@@ -1,3 +1,4 @@
+pub(crate) mod cron;
 pub(crate) mod faas;
 pub(crate) mod function_tracking;
 pub(crate) mod k8s;
