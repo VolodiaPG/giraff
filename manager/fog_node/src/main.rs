@@ -21,6 +21,7 @@ use crate::repository::latency_estimation::LatencyEstimation;
 use crate::repository::node_query::NodeQuery;
 use crate::repository::node_situation::NodeSituation;
 use crate::service::auction::Auction;
+use crate::service::function::Function;
 use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::service::node_life::NodeLife;
@@ -302,14 +303,22 @@ async fn main() -> std::io::Result<()> {
         Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let neighbor_monitor_service =
         Arc::new(NeighborMonitor::new(latency_estimation_repo));
-    let function_life_service = Arc::new(FunctionLife::new(
+    let function = Arc::new(Function::new(
         faas_service.clone(),
-        auction_service.clone(),
         node_situation.clone(),
         neighbor_monitor_service.clone(),
         node_query.clone(),
         resource_tracking_repo.clone(),
         function_tracking_repo.clone(),
+    ));
+    let function_life_service = Arc::new(FunctionLife::new(
+        function.clone(),
+        auction_service.clone(),
+        node_situation.clone(),
+        neighbor_monitor_service.clone(),
+        node_query.clone(),
+        function_tracking_repo.clone(),
+        cron_repo.clone(),
     ));
 
     if node_situation.is_market() {

@@ -1,5 +1,3 @@
-use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Ratio, Time};
 
@@ -28,8 +26,8 @@ pub struct Sla {
     // pub data_output_max_size: Information,
     // #[serde_as(as = "time::Helper")]
     // pub max_time_before_hot: Time,
-    #[serde(with = "ts_seconds")]
-    pub reservation_end_at: DateTime<Utc>,
+    #[serde_as(as = "time::Helper")]
+    pub duration: Time,
 
     pub max_replica: u64,
 

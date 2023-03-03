@@ -1,6 +1,6 @@
 use super::*;
 
-impl FunctionLife<Unlocked> {
+impl FunctionLife {
     /// Here the operation will be sequential, first looking to place on a
     /// bottom node, or a child at least, and only then to consider
     /// itself as a candidate

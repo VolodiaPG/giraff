@@ -1,6 +1,7 @@
 use futures::Future;
 use std::fmt::Debug;
 use std::pin::Pin;
+use std::time::Instant;
 use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
 use uom::si::f64::Time;
 use uom::si::time::second;
@@ -10,9 +11,6 @@ pub enum Error {
     #[error(transparent)]
     JobScheduler(#[from] JobSchedulerError),
 }
-
-pub type CronFn =
-    Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 pub struct Cron {
     scheduler:            JobScheduler,
@@ -27,18 +25,37 @@ impl Cron {
         Ok(Self { scheduler, periodic_task_period })
     }
 
-    pub async fn register_periodic(
-        &self,
-        callback: CronFn,
-    ) -> Result<(), Error> {
-        let toto = move |_, _| callback();
+    pub async fn add_periodic<T>(&self, callback: T) -> Result<(), Error>
+    where
+        T: 'static,
+        T: Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
+    {
         let job = Job::new_async(
             format!(
                 "1/{} * * * * *",
                 self.periodic_task_period.get::<second>()
             )
             .as_str(),
-            toto,
+            move |_, _| callback(),
+        )?;
+        self.scheduler.add(job).await?;
+        Ok(())
+    }
+
+    pub async fn add_oneshot<T>(
+        &self,
+        duration: Time,
+        callback: T,
+    ) -> Result<(), Error>
+    where
+        T: 'static,
+        T: Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
+    {
+        let duration =
+            std::time::Duration::from_secs_f64(duration.get::<second>());
+        let job = Job::new_one_shot_at_instant_async(
+            Instant::now() + duration,
+            move |_, _| callback(),
         )?;
         self.scheduler.add(job).await?;
         Ok(())

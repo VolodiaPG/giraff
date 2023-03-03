@@ -132,7 +132,6 @@
                 cargo-udeps
                 lldb
                 kubectl
-                # clippy
                 (rustfmt.override {asNightly = true;})
                 cargo2nix.packages.${system}.cargo2nix
               ];

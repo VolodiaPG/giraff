@@ -1,6 +1,6 @@
 use super::*;
 
-impl FunctionLife<Unlocked> {
+impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
     /// came from.
     async fn follow_up_to_parent<'a>(

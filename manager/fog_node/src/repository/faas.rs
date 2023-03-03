@@ -1,6 +1,7 @@
 use bytes::Bytes;
 use model::dto::function::{FunctionRecord, Proposed, Provisioned};
 use model::BidId;
+use openfaas::models::delete_function_request::DeleteFunctionRequest;
 use openfaas::models::{FunctionDefinition, Limits, Requests};
 use openfaas::DefaultApiClient;
 use std::collections::HashMap;
@@ -63,5 +64,17 @@ impl FaaSBackend {
         record: &FunctionRecord<Provisioned>,
     ) -> Result<Option<Bytes>, Error> {
         Ok(self.client.functions_get_metrics(&record.0.function_name).await?)
+    }
+
+    pub async fn remove_function(
+        &self,
+        function: &FunctionRecord<Provisioned>,
+    ) -> Result<(), Error> {
+        self.client
+            .system_functions_delete(DeleteFunctionRequest {
+                function_name: function.0.function_name.clone(),
+            })
+            .await?;
+        Ok(())
     }
 }

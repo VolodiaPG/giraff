@@ -3,7 +3,7 @@ use crate::service::auction;
 use futures::future::{join, try_join_all};
 use uom::fmt::DisplayStyle::Abbreviation;
 
-impl FunctionLife<Unlocked> {
+impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
     /// came from.
     async fn follow_up_to_neighbors(

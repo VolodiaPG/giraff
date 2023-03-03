@@ -63,6 +63,17 @@ impl FunctionTracking {
         };
     }
 
+    pub fn save_finished(&self, id: &BidId, record: FunctionRecord<Finished>) {
+        let Some(mut previous_record) = self.database
+            .get_mut(id) else {
+                return ;
+            };
+        let value = previous_record.value_mut();
+        if let States::Provisioned(_) = value {
+            *value = Arc::new(record).into();
+        };
+    }
+
     pub fn get_provisioned(
         &self,
         id: &BidId,

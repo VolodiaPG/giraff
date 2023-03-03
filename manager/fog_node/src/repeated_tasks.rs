@@ -12,16 +12,16 @@ pub async fn init(
     neighbor_monitor: Arc<NeighborMonitor>,
     k8s_repo: Arc<K8s>,
 ) -> Result<(), cron::Error> {
-    cron.register_periodic(Box::new(move || {
+    cron.add_periodic(move || {
         let neighbor_monitor = neighbor_monitor.clone();
         Box::pin(ping(neighbor_monitor))
-    }))
+    })
     .await?;
 
-    cron.register_periodic(Box::new(move || {
+    cron.add_periodic(move || {
         let k8s_repo = k8s_repo.clone();
         Box::pin(measure(k8s_repo))
-    }))
+    })
     .await?;
 
     Ok(())

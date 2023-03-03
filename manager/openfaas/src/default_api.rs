@@ -1,4 +1,5 @@
 use super::{configuration, Error};
+use crate::models::delete_function_request::DeleteFunctionRequest;
 use crate::models::{FunctionDefinition, FunctionListEntry};
 use log::trace;
 use serde_json::Value;
@@ -116,6 +117,32 @@ impl DefaultApiClient {
 
         if response.status().is_success() {
             Ok(response.bytes().await.ok())
+        } else {
+            Err(Error::from((response.status(), response.text().await)))
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
+    pub async fn system_functions_delete(
+        &self,
+        body: DeleteFunctionRequest,
+    ) -> Result<(), Error<String>> {
+        let uri_str =
+            format!("{}/system/functions", self.configuration.base_path);
+        trace!("Deleting {}", uri_str);
+
+        let mut builder =
+            self.client.delete(&uri_str).body(serde_json::to_string(&body)?);
+
+        if let Some((username, password)) = &self.configuration.basic_auth {
+            builder = builder.basic_auth(username, password.as_ref());
+        }
+
+        let response = builder.send().await?;
+        trace!("response: {:#?}", response);
+
+        if response.status().is_success() {
+            Ok(())
         } else {
             Err(Error::from((response.status(), response.text().await)))
         }

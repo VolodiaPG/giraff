@@ -30,8 +30,6 @@ pub async fn provision_from_bid(
     function: &Arc<FunctionLife>,
 ) -> Result<(), ControllerError> {
     trace!("Transforming bid into provisioned resource {:?}", id);
-    let function = function.lock().await?;
-    function.validate_bid_and_provision_function(id).await?;
-    function.unlock();
+    function.provision_function(id).await?;
     Ok(())
 }

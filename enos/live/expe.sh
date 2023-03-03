@@ -66,7 +66,7 @@ for latency in "${function_latencies[@]}"; do
 		"cpu": "'"$cpu"' millicpu",
 		"latencyMax": "'"$latency"' ms",
 		"maxReplica": 1,
-		"reservationEndAt": 1677661778,
+		"duration": "1 minute",
 		"functionImage": "ghcr.io/volodiapg/'"$docker_fn_name"':latest",
 		"functionLiveName": "'"$function_name"'",
 		"dataFlow": [
