@@ -163,12 +163,14 @@
 
         devShells.default = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
-          packages = with pkgs; [
-            just
-            jq
-            poetry2nix.packages.${system}.poetry
-            experiments
-          ];
+          packages =
+            [poetry2nix.packages.${system}.poetry]
+            ++ (with pkgs; [
+              just
+              jq
+              experiments
+              poetry
+            ]);
         };
       });
 }

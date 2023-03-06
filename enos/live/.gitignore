@@ -11,3 +11,5 @@ experiment.html
 experiment.md
 .ipython
 .pre-commit-config.yaml
+.env
+.direnv/
