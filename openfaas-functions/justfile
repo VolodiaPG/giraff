@@ -3,3 +3,6 @@ faas target="echo":
 	export DOCKER_BUILDKIT=1 
 	faas-cli build -f ./{{target}}.yml
 	faas-cli push -f ./{{target}}.yml
+
+pre_commit:
+	cd echo && just pre_commit

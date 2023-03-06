@@ -1,3 +1,9 @@
+pre_commit: check clippy
+	cargo fmt
+
+clippy:
+	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
+
 check:
 	cargo check
 	cargo check --features jaeger
