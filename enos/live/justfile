@@ -66,7 +66,10 @@ expe city_name_node_target:
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     echo "iot -> $IOT_IP"
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
-    ./expe.sh $NODE_TARGET $IOT_IP
+    just run_expe_script $NODE_TARGET $IOT_IP
+
+run_expe_script node_target iot_ip:
+    ./expe.sh {{node_target}} {{iot_ip}}
 
 scenario city_name_node_target:
     #!/usr/bin/env bash

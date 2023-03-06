@@ -153,10 +153,16 @@
                 enable = true;
                 excludes = ["Cargo.nix"];
               };
-              # Rust
+              # Python
               autoflake.enable = true;
               isort.enable = true;
               ruff.enable = true;
+              # Shell scripting
+              shfmt.enable = true;
+              shellcheck.enable = true;
+              bats.enable = true;
+              # Git (conventional commits)
+              commitizen.enable = true;
             };
           };
         };
