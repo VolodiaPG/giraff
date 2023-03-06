@@ -142,9 +142,26 @@ impl Function<Locked> {
             warn!("Failed to delete function {}", function);
         }
 
+        let name = record.0.node.clone();
+        let sla_cpu = record.0.sla.cpu;
+        let sla_memory = record.0.sla.memory;
+
         let record = (*record).clone().to_finished();
         self.function_tracking.save_finished(&function, record);
-        todo!();
+
+        let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
+            error!("Could not get tracked cpu and memory");
+                return Ok(());
+            };
+        let Ok(()) = self
+                .resource_tracking
+                .set_used(name, memory + sla_memory, cpu + sla_cpu)
+                .await else {
+                    error!("Could not set updated tracked cpu and memory");
+                    return Ok(());
+                };
+
+        Ok(())
     }
 
     // pub(crate) fn unlock(self) -> Function<Unlocked> {
