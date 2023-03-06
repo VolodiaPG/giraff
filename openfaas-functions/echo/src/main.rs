@@ -69,7 +69,7 @@ pub fn get_subscriber(
     // Env variable LOG_CONFIG_PATH points at the path where
 
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or(EnvFilter::new(env_filter));
+        .unwrap_or_else(|_| EnvFilter::new(env_filter));
 
     #[cfg(feature = "jaeger")]
     let collector_ip = std::env::var("COLLECTOR_IP")
@@ -147,6 +147,25 @@ async fn main() -> std::io::Result<()> {
     let latency_constraint_sec =
         sla.latency_max.get::<uom::si::time::second>();
 
+    let mut buckets = vec![
+        latency_constraint_sec * 0.25,
+        latency_constraint_sec * 0.5,
+        latency_constraint_sec * 0.75,
+        latency_constraint_sec - 3.0 / 1000.0,
+        latency_constraint_sec - 2.0 / 1000.0,
+        latency_constraint_sec - 1.0 / 1000.0,
+        latency_constraint_sec,
+        latency_constraint_sec + 1.0 / 1000.0,
+        latency_constraint_sec + 2.0 / 1000.0,
+        latency_constraint_sec + 3.0 / 1000.0,
+        latency_constraint_sec * 1.5,
+        latency_constraint_sec * 1.75,
+        latency_constraint_sec * 2.0,
+    ];
+
+    buckets.dedup();
+    buckets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
     let histogram = Arc::new(
         register_histogram_vec!(
         "echo_function_http_request_to_processing_echo_duration_seconds_print",
@@ -154,21 +173,7 @@ async fn main() -> std::io::Result<()> {
          first process the request by the echo node, tagged with the content \
          `tag`.",
         &["tag", "period"],
-        vec![
-            latency_constraint_sec * 0.25,
-            latency_constraint_sec * 0.5,
-            latency_constraint_sec * 0.75,
-            latency_constraint_sec - 3.0/1000.0,
-            latency_constraint_sec - 2.0/1000.0,
-            latency_constraint_sec - 1.0/1000.0,
-            latency_constraint_sec,
-            latency_constraint_sec + 1.0/1000.0,
-            latency_constraint_sec + 2.0/1000.0,
-            latency_constraint_sec + 3.0/1000.0,
-            latency_constraint_sec * 1.5,
-            latency_constraint_sec * 1.75,
-            latency_constraint_sec * 2.0,
-        ]
+        buckets
     )
         .unwrap(),
     );
