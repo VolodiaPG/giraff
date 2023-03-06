@@ -1,3 +1,5 @@
+set dotenv-load
+
 RUN := env_var_or_default("RUN", "poetry run python")
 DOCKER := env_var_or_default("DOCKER", "podman")
 
@@ -57,7 +59,7 @@ is_connected city_name_node_target market_local_port='8088':
 
 
 # expe to target node_id for n repetitions with a delay between each
-expe city_name_node_target $MIN_LATENCY_LOW_LATENCY='5' $MAX_LATENCY_LOW_LATENCY='10' $MIN_LATENCY_REST_LATENCY='40' $MAX_LATENCY_REST_LATENCY='75' $NB_FUNCTIONS_LOW_LATENCY='25' $NB_FUNCTIONS_REST='25' $MARKET_LOCAL_PORT='8088' $IOT_LOCAL_PORT='3003':
+expe city_name_node_target:
     #!/usr/bin/env bash
     NODE_TARGET=$(curl "localhost:$MARKET_LOCAL_PORT/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
     NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
@@ -66,33 +68,33 @@ expe city_name_node_target $MIN_LATENCY_LOW_LATENCY='5' $MAX_LATENCY_LOW_LATENCY
     echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
     ./expe.sh $NODE_TARGET $IOT_IP
 
-scenario city_name_node_target wait_time='600' nb_functions_low_latency='25' nb_functions_rest='50' market_local_port='8088' iot_local_port='3003':
+scenario city_name_node_target:
     #!/usr/bin/env bash
     set -ex
 
-    until [[ "$(just _is_connected {{city_name_node_target}} {{market_local_port}})" =~ "✅" ]]; do sleep 10; done
+    until [[ "$(just _is_connected {{city_name_node_target}} $MARKET_LOCAL_PORT)" =~ "✅" ]]; do sleep 10; done
     sleep 30
     export START_OFFSET=0
-    just expe {{city_name_node_target}} 5 10 40 75 {{nb_functions_low_latency}} {{nb_functions_rest}} {{market_local_port}} {{iot_local_port}}
+    just expe {{city_name_node_target}}
     sleep 10
 
     last_jj=15
     for jj in $(seq 500 -300 $last_jj); do
         just interval $jj
-        sleep {{wait_time}}
+        sleep $WAIT_TIME
         just interval 0 false
         sleep 30
     done
     for jj in $(seq $last_jj -3 5); do
         just interval $jj
-        sleep {{wait_time}}
+        sleep $WAIT_TIME
         just interval 0 false
         sleep 30
     done
     
     just collect
 
-scenarii city_name_node_target wait_time='600' nb_functions_low_latency='25' nb_functions_rest='50' market_local_port='8088' iot_local_port='3003':
+scenarii city_name_node_target:
     #!/usr/bin/env bash
     set -ex
 
@@ -104,7 +106,7 @@ scenarii city_name_node_target wait_time='600' nb_functions_low_latency='25' nb_
 
         export configs_mem=50
         export configs_cpu=50
-        just tunnels --command="'just scenario {{city_name_node_target}} {{wait_time}} {{nb_functions_low_latency}} {{nb_functions_rest}} {{market_local_port}} {{iot_local_port}}'"
+        just tunnels --command="'just scenario {{city_name_node_target}}'"
     done
 
     just clean
@@ -151,6 +153,7 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         -v {{justfile_directory()}}/expe.sh:/home/enos/expe.sh:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
+        -v {{justfile_directory()}}/.env:/home/enos/.env \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
@@ -163,8 +166,8 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         --name {{name}} \
         enos_deployment:latest bash -c -E "{{cmd}}"
 
-docker_scenarii name walltime fog_node_image market_image city_name_node_target wait_time='600' nb_functions_low_latency='25' nb_functions_rest='50':
-    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}} {{wait_time}} {{nb_functions_low_latency}} {{nb_functions_rest}}"
+docker_scenarii name walltime fog_node_image market_image city_name_node_target:
+    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}}"
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
