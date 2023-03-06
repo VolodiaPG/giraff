@@ -12,6 +12,7 @@ build *FLAGS:
     cargo build {{FLAGS}}
 
 pre_commit: check (check "clippy")
+    cargo fmt
 
 # Run cargo check
 check subcommand="check":
@@ -161,8 +162,8 @@ run *FLAGS: (build FLAGS)
     just run_fog_node node_1 {{FLAGS}}
     just run_market {{FLAGS}}
 
-expe target_node_uuid localhost_ip $NB_FUNCTIONS_LOW_LATENCY='1' $NB_FUNCTIONS_REST='1' $MARKET_LOCAL_PORT='8000' $IOT_LOCAL_PORT='30080':
-    cd ../enos/live && ./expe.sh {{target_node_uuid}} {{localhost_ip}}
+expe target_node_uuid localhost_ip $MARKET_LOCAL_PORT='8000' $IOT_LOCAL_PORT='30080':
+    cd ../enos/live && just run_expe_script {{target_node_uuid}} {{localhost_ip}}
 
 # Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
 k3d:
@@ -178,13 +179,11 @@ k3d-clean:
     k3d cluster stop fog-node || true
     k3d cluster delete fog-node || true
 
-container image_tag *FLAGS:
-    #!/usr/bin/env bash
-    set -e
-    echo "Building with flags: {{FLAGS}}"
-
-    {{DOCKER}} build -t fog_node:{{image_tag}} --target fog_node --build-arg FLAGS="{{FLAGS}}" .
-    {{DOCKER}} build -t market:{{image_tag}} --target market --build-arg FLAGS="{{FLAGS}}" .
+container image_tag:
+    nix build .#market
+    {{DOCKER}} load < result
+    nix build .#fog_node.{{image_tag}}
+    {{DOCKER}} load < result
 
 # Push an image to ghcr
 _push image user:
@@ -192,10 +191,9 @@ _push image user:
     {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
 # Push container images to ghcr.
-ghcr user image_tag *FLAGS:
-    @just container {{image_tag}} {{FLAGS}}
+ghcr user image_tag: (container image_tag)
     just _push fog_node:{{image_tag}} {{user}}
-    just _push market:{{image_tag}} {{user}}
+    just _push market:latest {{user}}
 
 # Cleans
 clean:

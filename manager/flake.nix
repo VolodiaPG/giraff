@@ -60,13 +60,13 @@
             tag =
               if feature != null
               then feature
-              else "default";
+              else "auction";
             rootFeatures =
               if feature != null
               then [feature]
               else [];
           in
-            pkgs.dockerTools.buildImage {
+            pkgs.dockerTools.buildLayeredImage {
               inherit tag;
               name = "fog_node";
               config = {
@@ -74,11 +74,11 @@
               };
             };
 
-          dockerImageFogNodeAuction = dockerImageFogNodeGenerator {};
+          dockerImageFogNodeAuction = dockerImageFogNodeGenerator { };
           dockerImageFogNodeEdgeFirst = dockerImageFogNodeGenerator {feature = "edge_first";};
           dockerImageFogNodeEdgeWard = dockerImageFogNodeGenerator {feature = "edge_ward";};
 
-          dockerImageMarket = pkgs.dockerTools.buildImage {
+          dockerImageMarket = pkgs.dockerTools.buildLayeredImage {
             name = "market";
             tag = "latest";
             config = {
@@ -115,6 +115,8 @@
                   language = "system";
                   pass_filenames = false;
                 };
+                # Git (conventional commits)
+                commitizen.enable = true;
               };
             };
           };
