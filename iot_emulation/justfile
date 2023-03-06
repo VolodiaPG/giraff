@@ -11,12 +11,15 @@ run:
 interval period='20' enabled='true':
     curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
 
+pre_commit: check clippy
+    cargo fmt
+
 clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
 
 # Build the project as a docker image
-container *FLAGS:
-    {{DOCKER}} build --target iot_emulation-default -t iot_emulation:latest  --build-arg FLAGS="{{FLAGS}}" .
+container:
+    nix build .#iot_emulation
 
 # Push an image to ghcr
 _push image user:
@@ -24,7 +27,7 @@ _push image user:
     {{DOCKER}} push ghcr.io/{{user}}/{{image}}
 
 # Push docker images to ghcr
-ghcr user *FLAGS: (container FLAGS)
+ghcr user: container
     just _push iot_emulation:latest {{user}}
 
 check:

@@ -24,7 +24,6 @@ use prometheus::{register_counter_vec, CounterVec, TextEncoder};
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
-use tokio::sync::RwLock;
 use tokio::task::yield_now;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
@@ -35,8 +34,6 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::EnvFilter;
 
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -49,9 +46,6 @@ type HttpClient = reqwest_middleware::ClientWithMiddleware;
 #[cfg(not(feature = "jaeger"))]
 type HttpClient = reqwest::Client;
 
-type CronFn =
-    Box<dyn Fn(u64) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payload {
@@ -61,23 +55,14 @@ pub struct Payload {
     period:  u64,
 }
 
-#[derive(Debug, Clone)]
-pub struct Interval {
-    interval_ms: u64,
-    enabled:     bool,
-}
-
-impl Default for Interval {
-    fn default() -> Self { Self { interval_ms: 10000, enabled: false } }
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StartCron {
+pub struct CronConfig {
     pub function_id: Uuid,
     pub iot_url:     String,
     pub node_url:    String,
     pub tag:         String,
+    pub interval_ms: u64,
 }
 
 lazy_static::lazy_static! {
@@ -90,8 +75,8 @@ lazy_static::lazy_static! {
 }
 
 async fn put_cron(
-    config: Json<StartCron>,
-    cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronFn>>>>,
+    config: Json<CronConfig>,
+    cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronConfig>>>>,
     client: Data<Arc<HttpClient>>,
 ) -> HttpResponse {
     let config = Arc::new(config.0);
@@ -102,13 +87,9 @@ async fn put_cron(
         config.node_url, config.tag, config.iot_url
     );
 
-    let job: CronFn = Box::new(move |period| {
-        let config = config.clone();
-        let client = client.clone();
-        Box::pin(ping(config, client, period))
-    });
+    cron_jobs.insert(tag.clone(), config);
 
-    cron_jobs.insert(tag, Arc::new(job));
+    tokio::spawn(loop_send_requests(tag, cron_jobs.get_ref().clone(), client));
 
     HttpResponse::Ok().finish()
 }
@@ -118,14 +99,14 @@ async fn put_cron(
     skip(config),
     fields(tag=%config.tag)
 )]
-async fn ping(config: Arc<StartCron>, client: Arc<HttpClient>, period: u64) {
+async fn ping(config: &CronConfig, client: &HttpClient) {
     let tag = config.tag.clone();
     info!("Sending a ping to {:?}...", tag.clone());
 
     let res = client.post(&config.node_url).json(&Payload {
-        tag: tag.clone(),
+        tag:     tag.clone(),
         sent_at: chrono::offset::Utc::now(),
-        period,
+        period:  config.interval_ms,
     });
 
     let res = res.send().await;
@@ -137,7 +118,7 @@ async fn ping(config: Arc<StartCron>, client: Arc<HttpClient>, period: u64) {
             config, err
         );
         HTTP_CRON_SEND_FAILS
-            .with_label_values(&[&tag, &period.to_string()])
+            .with_label_values(&[&tag, &config.interval_ms.to_string()])
             .inc();
     }
 }
@@ -155,54 +136,27 @@ pub async fn metrics() -> HttpResponse {
         .body(buffer)
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct IntervalQuery {
-    interval_ms: u64,
-    enabled:     bool,
-}
-
-impl From<IntervalQuery> for Interval {
-    fn from(value: IntervalQuery) -> Self {
-        Self { interval_ms: value.interval_ms, enabled: value.enabled }
-    }
-}
-
-pub async fn post_interval(
-    query: web::Query<IntervalQuery>,
-    request_interval: Data<Arc<RwLock<Interval>>>,
-) -> HttpResponse {
-    let mut request_interval = request_interval.write().await;
-    *request_interval = query.0.into();
-
-    debug!("Request interval set to {:?}", request_interval);
-
-    HttpResponse::Ok().finish()
-}
-
-async fn forever(
-    jobs: Arc<dashmap::DashMap<String, Arc<CronFn>>>,
-    request_interval: Arc<RwLock<Interval>>,
+async fn loop_send_requests(
+    id: String,
+    jobs: Arc<dashmap::DashMap<String, Arc<CronConfig>>>,
+    client: Arc<HttpClient>,
 ) {
-    loop {
-        let period;
-        {
-            period = request_interval.read().await.clone();
-        }
-        if period.enabled && !jobs.is_empty() {
-            let mut send_interval = time::interval(Duration::from_micros(
-                ((period.interval_ms as f64) * 1000.0 / (jobs.len() as f64))
-                    .floor() as u64,
-            ));
-            send_interval.tick().await; // 0 ms
-            let jobs_collected: Vec<Arc<CronFn>> =
-                jobs.iter().map(|x| x.value().clone()).collect();
+    let Some(config) = jobs.get(&id).map(|x| x.value().clone()) else {
+        error!("Config was empty at initizalization for function {}", id);
+        return;
+    };
 
-            for value in jobs_collected {
-                tokio::spawn(async move { value(period.interval_ms).await });
-                send_interval.tick().await;
-            }
+    let mut send_interval =
+        time::interval(Duration::from_millis(config.interval_ms));
+
+    loop {
+        send_interval.tick().await;
+        if !jobs.contains_key(&id) {
+            info!("Ended loop for {}", id);
+            break;
         }
+
+        ping(&config, &client).await;
 
         yield_now().await;
     }
@@ -267,11 +221,7 @@ async fn main() -> std::io::Result<()> {
         .expect("Please specfify SERVER_PORT env variable");
     // Id of the request; Histogram that started w/ that request
 
-    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronFn>>::new());
-
-    let request_interval = Arc::new(RwLock::new(Interval::default()));
-
-    tokio::spawn(forever(jobs.clone(), request_interval.clone()));
+    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronConfig>>::new());
 
     #[cfg(feature = "jaeger")]
     let http_client = Arc::new(
@@ -293,12 +243,9 @@ async fn main() -> std::io::Result<()> {
         app.app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::new(jobs.clone()))
             .app_data(web::Data::new(http_client.clone()))
-            .app_data(web::Data::new(request_interval.clone()))
             .route("/metrics", web::get().to(metrics))
             .service(
-                web::scope("/api")
-                    .route("/cron", web::put().to(put_cron))
-                    .route("/interval", web::post().to(post_interval)),
+                web::scope("/api").route("/cron", web::put().to(put_cron)),
             )
     })
     .bind(("0.0.0.0", my_port.parse().unwrap()))?

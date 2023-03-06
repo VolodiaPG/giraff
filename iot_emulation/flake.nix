@@ -40,10 +40,11 @@
           rustProfile = "minimal";
           rustVersion = "2023-02-26";
           target = "x86_64-unknown-linux-gnu";
+          extraRustComponents = ["clippy" "rustfmt"];
 
           #Packages
           rustPkgs = pkgs.rustBuilder.makePackageSet {
-            inherit rustChannel rustProfile target rustVersion;
+            inherit rustChannel rustProfile target rustVersion extraRustComponents;
             packageFun = import ./Cargo.nix;
             rootFeatures = [];
           };
@@ -74,9 +75,15 @@
                   excludes = ["Cargo.nix"];
                 };
                 # Rust
-                rustfmt.enable = true;
-                clippy.enable = true;
-                cargo-check.enable = true;
+                rust = {
+                  enable = true;
+                  name = "rust (justfile pre_commit)";
+                  entry = "sh -c 'cd manager && just pre_commit'";
+                  language = "system";
+                  pass_filenames = false;
+                };
+                # Git (conventional commits)
+                commitizen.enable = true;
               };
             };
           };
