@@ -94,14 +94,14 @@ async fn put_cron(
     HttpResponse::Ok().finish()
 }
 
-#[instrument(
-    level = "trace",
-    skip(config),
-    fields(tag=%config.tag)
-)]
-async fn ping(config: &CronConfig, client: &HttpClient) {
+// #[instrument(
+//     level = "trace",
+//     skip(config),
+//     fields(tag=%config.tag)
+// )]
+/// Returns if the function should be removed from cron
+async fn ping(config: &CronConfig, client: &HttpClient) -> bool {
     let tag = config.tag.clone();
-    info!("Sending a ping to {:?}...", tag.clone());
 
     let res = client.post(&config.node_url).json(&Payload {
         tag:     tag.clone(),
@@ -111,16 +111,42 @@ async fn ping(config: &CronConfig, client: &HttpClient) {
 
     let res = res.send().await;
 
-    if let Err(err) = res {
-        warn!(
-            "Something went wrong sending a message using config {:?}, error \
-             is {:?}",
-            config, err
-        );
-        HTTP_CRON_SEND_FAILS
-            .with_label_values(&[&tag, &config.interval_ms.to_string()])
-            .inc();
-    }
+    match res {
+        Err(err) => {
+            warn!(
+                "Something went wrong sending a message using config {:?}, \
+                 error is {:?}",
+                config, err
+            );
+            HTTP_CRON_SEND_FAILS
+                .with_label_values(&[&tag, &config.interval_ms.to_string()])
+                .inc();
+        }
+        Ok(response) => {
+            let code = response.status();
+            if code.is_client_error() {
+                error!(
+                    "Client error on {}: {:?}",
+                    config.tag,
+                    code.canonical_reason()
+                );
+                return true;
+            } else if code.is_server_error() {
+                warn!(
+                    "Server error on {}: {:?}",
+                    config.tag,
+                    code.canonical_reason()
+                );
+                HTTP_CRON_SEND_FAILS
+                    .with_label_values(&[
+                        &tag,
+                        &config.interval_ms.to_string(),
+                    ])
+                    .inc();
+            }
+        }
+    };
+    false
 }
 
 pub async fn metrics() -> HttpResponse {
@@ -156,10 +182,15 @@ async fn loop_send_requests(
             break;
         }
 
-        ping(&config, &client).await;
+        if ping(&config, &client).await {
+            info!("Removed cron for function {}", config.tag);
+            break;
+        };
 
         yield_now().await;
     }
+
+    jobs.remove(&id);
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
