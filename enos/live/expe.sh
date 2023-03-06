@@ -4,6 +4,9 @@ set -x
 TARGET_NODE=$1
 IOT_IP=$2
 
+FUNCTION_MEMORY="${FUNCTION_MEMORY:=50}" #MiB
+FUNCTION_CPU="${FUNCTION_CPU:=50}"       #Millicpu
+
 MARKET_LOCAL_PORT="${MARKET_LOCAL_PORT:=8088}"
 IOT_LOCAL_PORT="${IOT_LOCAL_PORT:=3003}"
 
@@ -43,12 +46,6 @@ PURPLE='\033[0;34m'
 DGRAY='\033[0;30m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
-
-#configs_mem=("50" "150" "500") # megabytes
-configs_mem="150"
-
-#configs_cpu=("100" "150" "500") #millicpu
-configs_cpu="100"
 
 size=${#configs_cpu[@]}
 
@@ -90,8 +87,8 @@ register_new_function() {
 	latency=$3
 	request_interval=$3
 
-	mem="$configs_mem"
-	cpu="$configs_cpu"
+	mem="$FUNCTION_MEMORY"
+	cpu="$FUNCTION_CPU"
 	docker_fn_name='echo'
 	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
 

@@ -79,22 +79,9 @@ scenario city_name_node_target:
     sleep 30
     export START_OFFSET=0
     just expe {{city_name_node_target}}
-    sleep 10
-
-    last_jj=15
-    for jj in $(seq 500 -300 $last_jj); do
-        just interval $jj
-        sleep $WAIT_TIME
-        just interval 0 false
-        sleep 30
-    done
-    for jj in $(seq $last_jj -3 5); do
-        just interval $jj
-        sleep $WAIT_TIME
-        just interval 0 false
-        sleep 30
-    done
     
+    sleep $WAIT_TIME
+
     just collect
 
 scenarii city_name_node_target:
@@ -103,12 +90,10 @@ scenarii city_name_node_target:
 
     echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
 
-    for ii in $(seq 1 3); do
+    for ii in $(seq 1 $NB_REPETITIONS); do
         just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME $DEPLOYMENT_WALLTIME paravance --force
         sleep 60
 
-        export configs_mem=50
-        export configs_cpu=50
         just tunnels --command="'just scenario {{city_name_node_target}}'"
     done
 
@@ -156,7 +141,7 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         -v {{justfile_directory()}}/expe.sh:/home/enos/expe.sh:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
-        -v {{justfile_directory()}}/.env:/home/enos/.env \
+        -v {{justfile_directory()}}/.env.scenario:/home/enos/.env \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
