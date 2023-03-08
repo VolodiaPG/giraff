@@ -1,6 +1,6 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 KUBECONFIG :=  ".." / "enos" / "live" / "iso" / "vm.kubeconfig"
-RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace,market=trace"
+RUST_LOG := "warn,fog_node=trace,openfaas=warn,kube_metrics=trace,helper=trace,market=trace"
 DOCKER := "podman"
 
 # Default command when no verb specified
@@ -40,7 +40,7 @@ run_market *FLAGS:
    SERVER_PORT=8000 RUST_LOG={{RUST_LOG}} cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type *FLAGS:
+run_fog_node node_type debug="false":
     #!/usr/bin/env python3
     import os
     import base64
@@ -122,9 +122,13 @@ run_fog_node node_type *FLAGS:
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
 
-    env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
+    if "{{debug}}" != "false":
+        env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
+        cmd = f'code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"'
+    else:
+        env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
+        cmd = f'{env_str} ./target/debug/fog_node'
 
-    cmd = f'code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"'
     print(cmd)
     os.system(cmd)
 
@@ -155,12 +159,12 @@ prometheus:
         --web.console.templates=/usr/share/prometheus/consoles \
         --web.listen-address=:3090 
 
-run *FLAGS: (build FLAGS)
-    just run_fog_node market {{FLAGS}}
-    just run_fog_node node_2 {{FLAGS}}
-    just run_fog_node node_3 {{FLAGS}}
-    just run_fog_node node_1 {{FLAGS}}
-    just run_market {{FLAGS}}
+run debug="false" *FLAGS="": (build FLAGS)
+    {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_3 {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_1 {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
 
 expe target_node_uuid localhost_ip $MARKET_LOCAL_PORT='8000' $IOT_LOCAL_PORT='30080':
     cd ../enos/live && just run_expe_script {{target_node_uuid}} {{localhost_ip}}
