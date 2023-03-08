@@ -13,3 +13,4 @@ experiment.md
 .pre-commit-config.yaml
 .env
 .direnv/
+*.tar*
