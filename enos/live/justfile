@@ -24,8 +24,8 @@ init user *FLAGS:
 mprocs:
     mprocs --server 127.0.0.1:4050
 
-deploy fog_node_image=env_var("DEPLOYMENT_FOG_NODE_IMAGE") market_image=env_var("DEPLOYMENT_MARKET_IMAGE") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") walltime=env_var_or_default("DEPLOYMENT_WALLTIME", "2:00:00") $CLUSTER="paravance" +FLAGS='':
-    {{RUN}} integration.py up --name={{name}} --walltime {{walltime}} {{FLAGS}}
+deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/volodiapg/fog_node:auction") market_image=env_var_or_default("DEPLOYMENT_MARKET_IMAGE", "ghcr.io/volodiapg/market:latest") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") walltime=env_var_or_default("DEPLOYMENT_WALLTIME", "2:00:00") $CLUSTER="paravance" +FLAGS='':
+    {{RUN}} integration.py up --name="{{name}}" --walltime {{walltime}} {{FLAGS}}
     {{RUN}} integration.py network
     {{RUN}} integration.py monitoring
     {{RUN}} integration.py iot-emulation
