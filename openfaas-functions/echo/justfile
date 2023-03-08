@@ -8,6 +8,21 @@ check:
 	cargo check
 	cargo check --features jaeger
 
+run:
+	#!/usr/bin/env bash
+	export SLA='{
+		"memory": "50 MB",
+		"cpu": "50 millicpu",
+		"latencyMax": "10 ms",
+		"maxReplica": 1,
+		"duration": "120 seconds",
+		"functionImage": "ghcr.io/volodiapg/echo:latest",
+		"functionLiveName": "debug",
+		"dataFlow": []
+	}'
+	export RUST_LOG="warn,echo=trace"
+	cargo run
+
 # faas target:
 # 	#!/usr/bin/env bash
 # 	export DOCKER_BUILDKIT=1 faas-cli build -f ./{{target}}.yml
