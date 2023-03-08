@@ -2,7 +2,7 @@
 ARG FLAGS
 
 FROM busybox:1.36.0-uclibc as busybox
-ADD https://github.com/openfaas/of-watchdog/releases/download/0.9.10/fwatchdog-amd64 /bin/fwatchdog
+ADD https://github.com/openfaas/of-watchdog/releases/download/0.9.11/fwatchdog-amd64 /bin/fwatchdog
 RUN chmod +x /bin/fwatchdog
 
 # ------------------------------------------------------------------------------
