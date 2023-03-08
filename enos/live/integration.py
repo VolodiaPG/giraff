@@ -119,7 +119,7 @@ def log_cmd(env, results_list):
 
 
 def open_tunnel(address, port, rest_of_url=""):
-    tunnel = en.G5kTunnel(address=address, port=port)
+    tunnel = en.G5kTunnel(address=address, port=port, local_port=port)
     local_address, local_port, _ = tunnel.start()
     print(f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}")
     return local_address, local_port
@@ -693,48 +693,9 @@ def tunnels(env=None, command=None, all=False, **kwargs):
         if "prom_master" in env["roles"]:
             tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
             tun[9096] = open_tunnel(env["roles"]["prom_master"][0].address, 16686)
-        if "monitor" in env:
-            tun[7070] = open_tunnel(env["monitor"].ui.address, 3000)
         if "iot_emulation" in env["roles"]:
             tun[3003] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
 
-        # The os.setsid() is passed in the argument preexec_fn so
-        # it's run after the fork() and before  exec() to run the shell.
-
-        frp_config = """[common]
-server_addr = 127.0.0.1
-bind_port = 7000
-"""
-        for port, (_, local_port) in tun.items():
-            frp_config += f"""[{port}]
-type = tcp
-local_ip = 127.0.0.1
-local_port = {local_port}
-remote_port = {port}
-"""
-        with open("/tmp/frpc.ini", "w") as opened_file:
-            opened_file.write(frp_config)
-        with open("/tmp/frps.ini", "w") as opened_file:
-            opened_file.write(
-                """[common]
-bind_port = 7000
-"""
-            )
-        pro = subprocess.Popen(
-            "frps -c /tmp/frps.ini",
-            stdout=subprocess.PIPE,
-            shell=True,
-            preexec_fn=os.setsid,
-        )
-        # print(f"{cmd}, aka new tunnel: {local_port} -> {port}")
-        procs.append(pro)
-        pro = subprocess.Popen(
-            "sleep 10 && frpc -c /tmp/frpc.ini",
-            stdout=subprocess.PIPE,
-            shell=True,
-            preexec_fn=os.setsid,
-        )
-        procs.append(pro)
         if command is not None:
             pro = subprocess.Popen(
                 command,

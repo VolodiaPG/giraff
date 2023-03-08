@@ -8,7 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 # Fixes <clock offset="localtime"/> to utc, leading to fix of k3s certificate being generated for an jour in the future from the pov of the vm
-enoslib = { git = "https://github.com/VolodiaPG/enoslib.git" }
+enoslib = { git = "https://gitlab.inria.fr/vparolgu/enoslib.git" }
 click = "^8.1"
 setuptools = "^65.6.3"
 

@@ -37,7 +37,7 @@
                     src = old.src;
                     sourceRoot = "${old.pname}-${old.version}/src/rust";
                     name = "${old.pname}-${old.version}";
-                    sha256 = "sha256-0x+KIqJznDEyIUqVuYfIESKmHBWfzirPeX2R/cWlngc=";
+                    sha256 = "sha256-Admz48/GS2t8diz611Ciin1HKQEyMDEwHxTpJ5tZ1ZA=";
                   };
                 }
               );
@@ -113,7 +113,6 @@
               jq
               openssh
               curl
-              frp
 
               # Environment to run enos and stuff
               experiments
@@ -176,6 +175,7 @@
               jq
               experiments
               poetry
+              ruff
             ]);
         };
       });
