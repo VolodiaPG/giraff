@@ -1,26 +1,37 @@
 import base64
-from datetime import datetime
 import logging
 import os
 import signal
 import subprocess
-from time import sleep
 import uuid
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
+from time import sleep
 
 import click
 import enoslib as en
+from definitions import (
+    EXTREMITIES,
+    FOG_NODE_DEPLOYMENT,
+    FOG_NODES,
+    IOT_CONNECTION,
+    MARKET_CONNECTED_NODE,
+    MARKET_DEPLOYMENT,
+    NB_CPU_PER_MACHINE_PER_CLUSTER,
+    NETWORK,
+    NODE_CONNECTED_NODE,
+    adjacency_undirected,
+    flatten,
+)
 
 # Enable rich logging
 from enoslib import enostask
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions
 from enoslib.errors import EnosFailedHostsError
+from grid5000 import Grid5000
 from grid5000.cli import auth
 from monitoring import monitoring as mon
-from k3s import K3s
-from definitions import *
-from grid5000 import Grid5000
 
 log = logging.getLogger("rich")
 
@@ -114,12 +125,14 @@ def log_cmd(env, results_list):
                         f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
                     ]
                 )
-            except:
+            except subprocess.CalledProcessError:
                 log.warning("Cannot use mprocs to output nice things organized.")
 
 
-def open_tunnel(address, port, rest_of_url=""):
-    tunnel = en.G5kTunnel(address=address, port=port, local_port=port)
+def open_tunnel(address, port, local_port=None, rest_of_url=""):
+    if local_port is None:
+        local_port = port
+    tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
     local_address, local_port, _ = tunnel.start()
     print(f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}")
     return local_address, local_port
@@ -327,7 +340,9 @@ def iot_emulation(env=None, **kwargs):
             f"""(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/iot_emulation:latest \
-                && docker run --name iot_emulation --env COLLECTOR_IP={roles["prom_master"][0].address} -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
+                && docker run --name iot_emulation \
+                    --env COLLECTOR_IP={roles["prom_master"][0].address} \
+                    -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
@@ -648,7 +663,8 @@ def openfaas_login(env=None, file=None, **kwargs):
     """
     roles = env["roles"]
     res = en.run_command(
-        'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo)',
+        'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"'
+        "| base64 --decode; echo)",
         roles=roles["master"],
     )
     log_cmd(env, [res])
@@ -658,7 +674,6 @@ def openfaas_login(env=None, file=None, **kwargs):
 
 
 @cli.command()
-@click.option("--all", required=False, is_flag=True, help="Also tunnel fog nodes")
 @click.option(
     "--command",
     required=False,
@@ -670,31 +685,13 @@ def tunnels(env=None, command=None, all=False, **kwargs):
     procs = []
     try:
         roles = env["roles"]
-        if all:
-            for role in roles["master"]:
-                address = role.address
-                print(f"Opening to {address}")
-                open_tunnel(address, 31112)  # OpenFaas
-                open_tunnel(address, 30003)  # Fog Node
-                open_tunnel(
-                    address,
-                    8001,
-                    "/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/node?namespace=default",
-                )  # K8S API
 
-        tun = {}  # out_port, (res of tunnels())
-        flag = False
-        for role in roles["market"]:
-            res = open_tunnel(role.address, 30008)  # Market
-            if flag == False:
-                tun[8088] = res
-                flag = True
-
+        open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
         if "prom_master" in env["roles"]:
-            tun[9090] = open_tunnel(env["roles"]["prom_master"][0].address, 9090)
-            tun[9096] = open_tunnel(env["roles"]["prom_master"][0].address, 16686)
+            open_tunnel(env["roles"]["prom_master"][0].address, 9090)
+            open_tunnel(env["roles"]["prom_master"][0].address, 16686, 9096)
         if "iot_emulation" in env["roles"]:
-            tun[3003] = open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
+            open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
 
         if command is not None:
             pro = subprocess.Popen(
