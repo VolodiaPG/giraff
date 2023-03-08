@@ -20,6 +20,7 @@ clippy:
 # Build the project as a docker image
 container:
     nix build .#iot_emulation
+    {{DOCKER}} load < result
 
 # Push an image to ghcr
 _push image user:
