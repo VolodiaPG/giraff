@@ -90,12 +90,13 @@ async fn get_other_metrics(
     faas: &FaaSBackend,
 ) -> Bytes {
     let Some(record) = &functions.get_provisioned(function) else {
+        warn!("No records returned for {}", function);
         return Bytes::default();
     };
     match faas.get_metrics(record).await {
         Ok(Some(metrics)) => metrics,
         Ok(None) => {
-            trace!("No metrics returned for {}", function);
+            warn!("No metrics returned for {}", function);
             Bytes::default()
         }
         Err(err) => {
@@ -347,6 +348,9 @@ async fn main() -> std::io::Result<()> {
     let node_life_service = Data::from(node_life_service);
     let neighbor_monitor_service = Data::from(neighbor_monitor_service);
 
+    // For metrics gathering
+    let function_tracking_repository = Data::from(function_tracking_repo);
+
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -360,6 +364,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::clone(&function_life_service))
             .app_data(Data::clone(&node_life_service))
             .app_data(Data::clone(&neighbor_monitor_service))
+            // For metrics gathering
+            .app_data(Data::clone(&function_tracking_repository))
             .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
