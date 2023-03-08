@@ -163,8 +163,8 @@ async fn main() -> std::io::Result<()> {
         latency_constraint_sec * 2.0,
     ];
 
-    buckets.dedup();
     buckets.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    buckets.dedup();
 
     let histogram = Arc::new(
         register_histogram_vec!(
