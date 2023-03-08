@@ -141,7 +141,7 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         -v {{justfile_directory()}}/expe.sh:/home/enos/expe.sh:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
-        -v {{justfile_directory()}}/.env.scenario:/home/enos/.env \
+        -v {{justfile_directory()}}/.env.scenario:/home/enos/.env:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
