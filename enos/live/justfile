@@ -117,16 +117,10 @@ interval period='20' enabled='true' iot_local_port='3003':
     curl -X POST --url "http://localhost:{{iot_local_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
 
 lab:
-    chmod 777 experiment.ipynb
-    {{DOCKER}} stop jupyter_lab || true
-    {{DOCKER}} rm jupyter_lab || true
-    {{DOCKER}} run -it --name jupyter_lab -p 8888:8888 -v "{{justfile_directory()}}":/home/jovyan jupyter/r-notebook:latest
+    nix run .#jupyterlab
 
-lab_token:
-    {{DOCKER}} exec jupyter_lab jupyter lab list
-
-lab_pdf:
-    {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
+# lab_pdf:
+#     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
 
 docker_enos name walltime fog_node_image market_image cmd="bash":
     nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker

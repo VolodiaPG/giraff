@@ -18,6 +18,10 @@
       url = "github:kamadorueda/alejandra/3.0.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    jupyenv = {
+      url = "github:tweag/jupyenv";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
@@ -134,10 +138,39 @@
             Env = ["RUN=python" "HOME=/root"];
           };
         };
+
+        inherit (jupyenv.lib.${system}) mkJupyterlabNew;
+        jupyterlab = mkJupyterlabNew ({...}: {
+          nixpkgs = inputs.nixpkgs;
+          imports = [
+            {
+              kernel.r.experiment = {
+                enable = true;
+                name = "faas_fog";
+                displayName = "faas_fog";
+                extraRPackages = ps: with ps; [
+                  cowplot
+                  reticulate
+                  tidyverse
+                  igraph
+                  r2r
+                  formattable
+                  stringr
+                  viridis
+                  geomtextpath
+                ];
+              };
+            }
+          ];
+        });
       in {
         packages = {
           docker = dockerImage;
           default = pkgs.experiments;
+        };
+        apps.jupyterlab = {
+          program = "${jupyterlab}/bin/jupyter-lab";
+          type = "app";
         };
         formatter = alejandra.defaultPackage.${system};
         checks = {
