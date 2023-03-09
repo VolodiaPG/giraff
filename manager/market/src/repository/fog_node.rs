@@ -1,22 +1,11 @@
-use model::dto::node::{Node, NodeIdList, NodeRecord};
+use anyhow::{anyhow, ensure, Result};
+use model::dto::node::{Node, NodeRecord};
 use model::view::auction::AcceptedBid;
 use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort, NodeId};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::IpAddr;
 use tokio::sync::RwLock;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Cannot find a root to the tree")]
-    NoRoot,
-    #[error("Node {0} parent's doesn't exists: {1}")]
-    ParentDoesntExist(NodeId, NodeId),
-    #[error("Node {0} child's doesn't exists: {1}")]
-    ChildDoesntExist(NodeId, NodeId),
-    #[error("Multiple roots found: {0}")]
-    MultipleRoots(NodeIdList),
-}
 
 #[derive(Debug)]
 pub struct FogNode {
@@ -26,7 +15,7 @@ pub struct FogNode {
 impl FogNode {
     pub fn new() -> Self { Self { nodes: RwLock::new(HashMap::new()) } }
 
-    async fn check_tree(&self) -> Result<(), Error> {
+    async fn check_tree(&self) -> Result<()> {
         let mut roots = self
             .nodes
             .read()
@@ -36,13 +25,8 @@ impl FogNode {
             .map(|(id, _node)| id.clone())
             .collect::<Vec<_>>();
 
-        if roots.is_empty() {
-            return Err(Error::NoRoot);
-        }
-
-        if roots.len() > 1 {
-            return Err(Error::MultipleRoots(roots.into()));
-        }
+        ensure!(!roots.is_empty(), "The tree doesn't have a root");
+        ensure!(roots.len() == 1, "The tree have more than a single root");
 
         let root = roots.pop().unwrap();
         let mut stack = vec![root];
@@ -55,24 +39,24 @@ impl FogNode {
                 .map(|node| node.children.clone())
                 .unwrap();
             for child in node_children.iter() {
-                if !self.nodes.read().await.contains_key(child) {
-                    return Err(Error::ChildDoesntExist(
-                        id.clone(),
-                        child.clone(),
-                    ));
-                }
+                ensure!(
+                    self.nodes.read().await.contains_key(child),
+                    "Node {} child's doesn't exists: {}",
+                    id,
+                    child
+                );
             }
 
             for child in node_children.iter() {
                 if let Some(parent) =
                     &self.nodes.read().await.get(child).unwrap().parent
                 {
-                    if *parent != id {
-                        return Err(Error::ParentDoesntExist(
-                            id.clone(),
-                            parent.clone(),
-                        ));
-                    }
+                    ensure!(
+                        *parent == id,
+                        "Node {} parent's doesn't exists: {}",
+                        id,
+                        child
+                    );
                 }
             }
 
@@ -82,11 +66,11 @@ impl FogNode {
         Ok(())
     }
 
-    async fn print_tree(&self) {
-        let to_print =
-            serde_json::to_string_pretty(&*self.nodes.read().await).unwrap();
-        trace!("{}", to_print);
-    }
+    // async fn print_tree(&self) {
+    //     let to_print =
+    //         serde_json::to_string_pretty(&*self.nodes.read().await).
+    // unwrap();     trace!("{}", to_print);
+    // }
 
     pub async fn get(&self, id: &NodeId) -> Option<Node<NodeRecord>> {
         return self.nodes.read().await.get(id).cloned();
@@ -106,13 +90,17 @@ impl FogNode {
         port_http: FogNodeHTTPPort,
         port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.nodes
             .write()
             .await
             .get_mut(parent)
             .ok_or_else(|| {
-                Error::ParentDoesntExist(parent.clone(), child.clone())
+                anyhow!(
+                    "The parent of {} (which is supposedly {}) doesn't exist",
+                    child,
+                    parent
+                )
             })?
             .children
             .push(child.clone());
@@ -132,21 +120,36 @@ impl FogNode {
                 .await
                 .get(parent)
                 .ok_or_else(|| {
-                    Error::ParentDoesntExist(parent.clone(), child.clone())
+                    anyhow!(
+                        "The parent of {} (which is supposedly {}) doesn't \
+                         exist",
+                        child,
+                        parent
+                    )
                 })?
                 .children
                 .iter()
                 .rev()
                 .position(|node| node == &child)
                 .ok_or_else(|| {
-                    Error::ChildDoesntExist(parent.clone(), child.clone())
+                    anyhow!(
+                        "The child of {} (which is supposedly {}) doesn't \
+                         exist",
+                        parent,
+                        child,
+                    )
                 })?;
             self.nodes
                 .write()
                 .await
                 .get_mut(parent)
                 .ok_or_else(|| {
-                    Error::ParentDoesntExist(parent.clone(), child.clone())
+                    anyhow!(
+                        "The parent of {} (which is supposedly {}) doesn't \
+                         exist",
+                        child,
+                        parent
+                    )
                 })?
                 .children
                 .remove(pos);
@@ -154,7 +157,7 @@ impl FogNode {
 
             return result;
         }
-        self.print_tree().await;
+        // self.print_tree().await;
         Ok(())
     }
 
@@ -165,7 +168,7 @@ impl FogNode {
         port_http: FogNodeHTTPPort,
         port_faas: FogNodeFaaSPortExternal,
         tags: &[String],
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.nodes.write().await.insert(
             root.clone(),
             Node {

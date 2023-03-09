@@ -1,14 +1,9 @@
 use crate::repository::latency_estimation::LatencyEstimation;
+use anyhow::{Context, Result};
 use model::NodeId;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uom::si::f64::Time;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Error during latency estimation to neighboring nodes: {0}")]
-    RttEstimation(#[from] crate::repository::latency_estimation::Error),
-}
 
 #[derive(Debug)]
 pub struct NeighborMonitor {
@@ -21,8 +16,10 @@ impl NeighborMonitor {
     }
 
     #[allow(dead_code)]
-    pub async fn ping_neighbors_rtt(&self) -> Result<(), Error> {
-        self.rtt_estimation.latency_to_neighbors().await?;
+    pub async fn ping_neighbors_rtt(&self) -> Result<()> {
+        self.rtt_estimation.latency_to_neighbors().await.context(
+            "Failed to get the latencies between me and my neighbors",
+        )?;
         Ok(())
     }
 

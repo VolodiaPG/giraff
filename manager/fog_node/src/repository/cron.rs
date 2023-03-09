@@ -1,16 +1,10 @@
+use anyhow::{Context, Result};
 use futures::Future;
-use std::fmt::Debug;
 use std::pin::Pin;
 use std::time::Instant;
-use tokio_cron_scheduler::{Job, JobScheduler, JobSchedulerError};
+use tokio_cron_scheduler::{Job, JobScheduler};
 use uom::si::f64::Time;
 use uom::si::time::second;
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    JobScheduler(#[from] JobSchedulerError),
-}
 
 pub struct Cron {
     scheduler:            JobScheduler,
@@ -18,14 +12,16 @@ pub struct Cron {
 }
 
 impl Cron {
-    pub async fn new(periodic_task_period: Time) -> Result<Self, Error> {
-        let scheduler = JobScheduler::new().await?;
-        scheduler.start().await?;
+    pub async fn new(periodic_task_period: Time) -> Result<Self> {
+        let scheduler = JobScheduler::new()
+            .await
+            .context("Failed to create the cron job scheduler")?;
+        scheduler.start().await.context("Failed to start the scheduler")?;
 
         Ok(Self { scheduler, periodic_task_period })
     }
 
-    pub async fn add_periodic<T>(&self, callback: T) -> Result<(), Error>
+    pub async fn add_periodic<T>(&self, callback: T) -> Result<()>
     where
         T: 'static,
         T: Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
@@ -38,7 +34,10 @@ impl Cron {
             .as_str(),
             move |_, _| callback(),
         )?;
-        self.scheduler.add(job).await?;
+        self.scheduler
+            .add(job)
+            .await
+            .context("Failed to add a job to the scheduler")?;
         Ok(())
     }
 
@@ -46,7 +45,7 @@ impl Cron {
         &self,
         duration: Time,
         callback: T,
-    ) -> Result<(), Error>
+    ) -> Result<()>
     where
         T: 'static,
         T: Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
@@ -57,7 +56,10 @@ impl Cron {
             Instant::now() + duration,
             move |_, _| callback(),
         )?;
-        self.scheduler.add(job).await?;
+        self.scheduler
+            .add(job)
+            .await
+            .context("Failed to add a job to the scheduler")?;
         Ok(())
     }
 }

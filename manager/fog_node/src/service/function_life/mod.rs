@@ -1,38 +1,21 @@
 use crate::repository::cron::Cron;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
+#[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
+use anyhow::{Context, Result};
 use model::domain::sla::Sla;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::{BidId, NodeId};
 use std::sync::Arc;
 use uom::si::f64::Time;
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    Auction(#[from] crate::service::auction::Error),
-    #[error(transparent)]
-    Function(#[from] super::function::Error),
-    #[error(transparent)]
-    NodeQuery(#[from] crate::repository::node_query::Error),
-    #[error("BidId {0} cannot be retrieved")]
-    MissingBidId(BidId),
-    #[error(transparent)]
-    Cron(#[from] crate::repository::cron::Error),
-    #[cfg(any(feature = "edge_first", feature = "edge_ward"))]
-    #[error("No candidates were found or returned an Ok result")]
-    NoCandidatesRetained,
-    #[cfg(feature = "cloud_only")]
-    #[error("No cloud was found or returned an Ok result")]
-    NoCloudAvailable,
-}
-
 pub struct FunctionLife {
     function:          Arc<Function>,
     auction:           Arc<Auction>,
     node_situation:    Arc<NodeSituation>,
+    #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
     neighbor_monitor:  Arc<NeighborMonitor>,
     node_query:        Arc<NodeQuery>,
     function_tracking: Arc<FunctionTracking>,
@@ -74,6 +57,7 @@ impl FunctionLife {
         function: Arc<Function>,
         auction: Arc<Auction>,
         node_situation: Arc<NodeSituation>,
+        #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
         neighbor_monitor: Arc<NeighborMonitor>,
         node_query: Arc<NodeQuery>,
         function_tracking: Arc<FunctionTracking>,
@@ -103,6 +87,7 @@ impl FunctionLife {
             function,
             auction,
             node_situation,
+            #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
             neighbor_monitor,
             node_query,
             function_tracking,
@@ -110,31 +95,53 @@ impl FunctionLife {
         }
     }
 
-    pub async fn provision_function(&self, id: BidId) -> Result<(), Error> {
+    pub async fn provision_function(&self, id: BidId) -> Result<()> {
         let function = self.function.lock().await?;
         function.provision_function(id.clone()).await?;
 
         let provisioned = self
             .function_tracking
             .get_provisioned(&id)
-            .ok_or_else(|| Error::MissingBidId(id.clone()))?;
+            .with_context(|| {
+                format!(
+                    "Failed to get data about the provisioned function {}",
+                    id
+                )
+            })?;
 
         drop(function);
 
         let function = self.function.clone();
-        self.cron.add_oneshot(provisioned.0.sla.duration, move || {
-           let id = id.clone();
-           let function = function.clone();
-            Box::pin(async move {
-            let Ok(function) = function.lock().await else {
-                warn!("Failed to lock when calling cron to unprovision function");
-                return;
-            };
-            if function.unprovision_function(id).await.is_err(){
-                warn!("Failed to unprovision function");
-            }
-        })
-        }).await?;
+        let id2 = id.clone();
+        self.cron
+            .add_oneshot(provisioned.0.sla.duration, move || {
+                let id = id.clone();
+                let function = function.clone();
+                Box::pin(async move {
+                    let Ok(function) = function.lock().await.context(
+                        "Failed to lock when calling cron to unprovision \
+                         function",
+                    ).map_err(|err| error!("{:?}", err)) else{
+                        return;
+                    };
+
+                    if let Err(err) = function.unprovision_function(id).await {
+                        warn!(
+                            "Failed to unprovision function as stated in the \
+                             cron job {:?}",
+                            err
+                        );
+                    }
+                })
+            })
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to setup a oneshot cron job to stop function {} \
+                     in the future",
+                    id2
+                )
+            })?;
         Ok(())
     }
 }

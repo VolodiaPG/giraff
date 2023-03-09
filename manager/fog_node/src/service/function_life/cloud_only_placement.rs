@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::{anyhow, ensure, Context, Result};
 
 impl FunctionLife {
     /// Here the operation will be sequential, first looking to place on a
@@ -9,7 +10,7 @@ impl FunctionLife {
         sla: &Sla,
         _from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         match self.node_situation.get_parent_id() {
             Some(parent) => {
                 let bid = self
@@ -22,17 +23,26 @@ impl FunctionLife {
                         },
                         parent,
                     )
-                    .await?;
-                if !bid.bids.is_empty() {
-                    return Ok(bid);
-                }
+                    .await
+                    .context(
+                        "Failed to pass the sla to my parent, towards the \
+                         Cloud",
+                    )?;
 
-                Err(Error::NoCloudAvailable)
+                ensure!(
+                    !bid.bids.is_empty(),
+                    "Failed to find an available Cloud, the list of bids \
+                     (candidates) is empty"
+                );
+                Ok(bid)
             }
             None => {
-                let Ok((id, record)) =self.auction.bid_on(sla.clone()).await else {
-                        return Err(Error::NoCloudAvailable);
-                    };
+                let (id, record) = self
+                    .auction
+                    .bid_on(sla.clone())
+                    .await
+                    .context("Failed to bid on sla")?
+                    .ok_or_else(|| anyhow!("Cannot accept sla"))?;
                 Ok(BidProposals {
                     bids: vec![BidProposal {
                         node_id: self.node_situation.get_my_id(),

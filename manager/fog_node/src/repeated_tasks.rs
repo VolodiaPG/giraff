@@ -2,40 +2,46 @@ use crate::prom_metrics::{
     CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE,
     MEMORY_USAGE_GAUGE,
 };
-use crate::repository::cron::{self, Cron};
+use crate::repository::cron::Cron;
 use crate::repository::k8s::K8s;
 use crate::service::neighbor_monitor::NeighborMonitor;
+use anyhow::{Context, Result};
 use std::sync::Arc;
 
 pub async fn init(
     cron: Arc<Cron>,
     neighbor_monitor: Arc<NeighborMonitor>,
     k8s_repo: Arc<K8s>,
-) -> Result<(), cron::Error> {
+) -> Result<()> {
     cron.add_periodic(move || {
         let neighbor_monitor = neighbor_monitor.clone();
         Box::pin(ping(neighbor_monitor))
     })
-    .await?;
+    .await
+    .context("Failed to add periodic task to ping neighbors")?;
 
     cron.add_periodic(move || {
         let k8s_repo = k8s_repo.clone();
         Box::pin(measure(k8s_repo))
     })
-    .await?;
+    .await
+    .context(
+        "Failed to add periodic task to get measurements of k8s cluster \
+         metrics",
+    )?;
 
     Ok(())
 }
 
 async fn ping(neighbor_monitor: Arc<NeighborMonitor>) {
     if let Err(e) = neighbor_monitor.ping_neighbors_rtt().await {
-        warn!("ping_neighbors_rtt failed: {}", e.to_string());
+        warn!("ping_neighbors_rtt failed: {:?}", e);
     };
 }
 
 async fn measure(k8s_repo: Arc<K8s>) {
     let _ = _measure(k8s_repo).await.map_err(|err| {
-        warn!("An error occurred while CRON measuring from K8S: {}", err)
+        warn!("An error occurred while CRON measuring from K8S: {:?}", err)
     });
 }
 

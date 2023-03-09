@@ -65,13 +65,6 @@ mod repeated_tasks;
 mod repository;
 mod service;
 
-/*
-ID=1 KUBECONFIG="../../../kubeconfig-master-${ID}" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) r="300${ID}" OPENFAAS_PORT="808${ID}" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
-
-Simpler config only using kubeconfig-1
-ID=1 KUBECONFIG="../../kubeconfig-master-1" OPENFAAS_USERNAME="admin" OPENFAAS_PASSWORD=$(kubectl get secret -n openfaas --kubeconfig=${KUBECONFIG} basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode; echo) ROCKET_PORT="300${ID}" OPENFAAS_PORT="8081" NODE_SITUATION_PATH="node-situation-${ID}.ron" cargo run --package manager --bin fog_node
-*/
-
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
@@ -316,6 +309,7 @@ async fn main() -> std::io::Result<()> {
         function.clone(),
         auction_service.clone(),
         node_situation.clone(),
+        #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
         neighbor_monitor_service.clone(),
         node_query.clone(),
         function_tracking_repo.clone(),
@@ -329,7 +323,6 @@ async fn main() -> std::io::Result<()> {
     }
 
     let my_port_http = node_situation.get_my_public_port_http();
-    env::set_var("ROCKET_PORT", my_port_http.to_string());
 
     tokio::spawn(register_to_market(
         node_life_service.clone(),
@@ -403,7 +396,7 @@ async fn register_to_market(
         .init_registration(my_ip, my_port_http.clone(), my_port_faas.clone())
         .await
     {
-        warn!("Failed to register to market: {}", err.to_string());
+        warn!("Failed to register to market: {:?}", err);
         interval.tick().await;
     }
     info!("Registered to market and parent.");

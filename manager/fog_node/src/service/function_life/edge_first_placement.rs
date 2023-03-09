@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::{anyhow, bail, Context, Result};
 use uom::fmt::DisplayStyle::Abbreviation;
 
 impl FunctionLife {
@@ -9,7 +10,7 @@ impl FunctionLife {
         sla: &'a Sla,
         from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         // Filter nodes
         let nodes: Vec<NodeId> = self
             .node_situation
@@ -72,7 +73,7 @@ impl FunctionLife {
             }
         }
 
-        Err(Error::NoCandidatesRetained)
+        bail!("No candidate retained after filtering latencies")
     }
 
     /// Here the operation will be sequential, first looking to place on a
@@ -83,21 +84,26 @@ impl FunctionLife {
         sla: &Sla,
         from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
-        let bid =
-            if let Ok((id, record)) = self.auction.bid_on(sla.clone()).await {
-                BidProposal {
-                    node_id: self.node_situation.get_my_id(),
-                    id,
-                    bid: record.0.bid,
-                }
-            } else {
-                let mut follow_up = self
-                    .follow_up_to_neighbors(sla, from, accumulated_latency)
-                    .await?;
-                trace!("Transmitting bid to other node...");
-                follow_up.bids.pop().ok_or(Error::NoCandidatesRetained)?
-            };
+    ) -> Result<BidProposals> {
+        let bid = if let Ok(Some((id, record))) =
+            self.auction.bid_on(sla.clone()).await
+        {
+            BidProposal {
+                node_id: self.node_situation.get_my_id(),
+                id,
+                bid: record.0.bid,
+            }
+        } else {
+            trace!("Transmitting bid to other node...");
+            let mut follow_up = self
+                .follow_up_to_neighbors(sla, from, accumulated_latency)
+                .await
+                .context("Failed to follow up sla to neighbors")?;
+            follow_up.bids.pop().ok_or(anyhow!(
+                "No canditates were returned after fetching candidates from \
+                 neighbors"
+            ))?
+        };
 
         Ok(BidProposals { bids: vec![bid] })
     }

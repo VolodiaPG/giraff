@@ -1,17 +1,15 @@
-use std::sync::Arc;
-
+use crate::service::function_life::FunctionLife;
+use anyhow::{Context, Result};
 use model::view::auction::{BidProposals, BidRequestOwned};
 use model::BidId;
-
-use crate::controller::ControllerError;
-use crate::service::function_life::FunctionLife;
+use std::sync::Arc;
 
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for
 /// their bids.
 pub async fn bid_on(
     bid_request: BidRequestOwned,
     function: &Arc<FunctionLife>,
-) -> Result<BidProposals, ControllerError> {
+) -> Result<BidProposals> {
     trace!("bidding on... {:?}", bid_request);
     function
         .bid_on_new_function_and_transmit(
@@ -20,7 +18,7 @@ pub async fn bid_on(
             bid_request.accumulated_latency,
         )
         .await
-        .map_err(ControllerError::from)
+        .context("Failed to bid on function and transmit it to neighbors")
 }
 
 /// Returns a bid for the SLA.
@@ -28,8 +26,10 @@ pub async fn bid_on(
 pub async fn provision_from_bid(
     id: BidId,
     function: &Arc<FunctionLife>,
-) -> Result<(), ControllerError> {
+) -> Result<()> {
     trace!("Transforming bid into provisioned resource {:?}", id);
-    function.provision_function(id).await?;
+    function.provision_function(id.clone()).await.with_context(|| {
+        format!("Failed to provision function from bid {}", id)
+    })?;
     Ok(())
 }

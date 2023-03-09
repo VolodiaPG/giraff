@@ -1,37 +1,18 @@
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use reqwest::Response;
-use serde::Serialize;
-
+use crate::NodeSituation;
+use anyhow::{ensure, Context, Result};
 use model::dto::node::NodeDescription;
 use model::view::auction::{BidProposals, BidRequest};
 use model::view::node::RegisterNode;
 use model::NodeId;
-
-use crate::NodeSituation;
+use reqwest::Response;
+use serde::Serialize;
+use std::fmt::Debug;
+use std::sync::Arc;
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 #[cfg(not(feature = "jaeger"))]
 type HttpClient = reqwest::Client;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Reqwest(#[from] reqwest::Error),
-    #[cfg(feature = "jaeger")]
-    #[error(transparent)]
-    ReqwestMiddleware(#[from] reqwest_middleware::Error),
-    #[error("The request failed with error code: {0}")]
-    RequestStatus(reqwest::StatusCode),
-    #[error(
-        "Failed to retrieve the URI to either the parent node or the market."
-    )]
-    NoURIToUpper,
-    #[error("Failed to retrieve the address of the node: {0}")]
-    NodeIdNotFound(NodeId),
-}
 
 #[derive(Debug)]
 pub struct NodeQuery {
@@ -51,35 +32,35 @@ impl NodeQuery {
         &self,
         url: &str,
         data: &T,
-    ) -> Result<Response, Error> {
+    ) -> Result<Response> {
         let response = self.client.post(url).json(data).send().await?;
-        if response.status().is_success() {
-            trace!("Node has been registered to parent or market node");
-            Ok(response)
-        } else {
-            Err(Error::RequestStatus(response.status()))
-        }
+        ensure!(
+            response.status().is_success(),
+            "Request to {} failed with code {}",
+            url,
+            response.status()
+        );
+        Ok(response)
     }
 
     #[instrument(level = "trace", skip(self))]
     pub async fn register_to_parent(
         &self,
         register: RegisterNode,
-    ) -> Result<(), Error> {
-        trace!("Registering to parent or market...");
-
+    ) -> Result<()> {
         // Ignore the type of port since it doesn't matter-explicitely-here
         let url = if self.node_situation.is_market() {
-            let (addr, port) = self
-                .node_situation
-                .get_market_node_address()
-                .ok_or(Error::NoURIToUpper)?;
+            let (addr, port) =
+                self.node_situation.get_market_node_address().context(
+                    "Failed to retrieve the URL of the parent (market) node",
+                )?;
             format!("http://{addr}:{port}/api/register")
         } else {
-            let (addr, port) = self
-                .node_situation
-                .get_parent_node_address()
-                .ok_or(Error::NoURIToUpper)?;
+            let (addr, port) =
+                self.node_situation.get_parent_node_address().context(
+                    "Failed to retrieve the URL of the parent (other node) \
+                     node",
+                )?;
             format!("http://{addr}:{port}/api/register")
         };
 
@@ -94,11 +75,16 @@ impl NodeQuery {
         &self,
         request: &BidRequest<'_>,
         id: NodeId,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         let NodeDescription { ip, port_http, .. } = self
             .node_situation
             .get_fog_node_neighbor(&id)
-            .ok_or_else(|| Error::NodeIdNotFound(id.clone()))?;
+            .with_context(|| {
+                format!(
+                    "Failed to request bid from neighbor fog node with id: {}",
+                    id
+                )
+            })?;
 
         Ok(self
             .post(format!("http://{ip}:{port_http}/api/bid").as_str(), request)

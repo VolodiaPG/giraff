@@ -1,27 +1,14 @@
-use std::fmt::Debug;
-use std::sync::Arc;
-
+use super::k8s::K8s;
 use crate::prom_metrics::{
     CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
     MEMORY_USED_GAUGE,
 };
+use anyhow::{ensure, Context, Result};
+use std::fmt::Debug;
+use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::{self, byte};
 use uom::si::ratio::part_per_billion;
-
-use crate::repository::resource_tracking::Error::NonExistentName;
-
-use super::k8s::K8s;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("The metrics name (key) doesn't exist")]
-    NonExistentName,
-    #[error(transparent)]
-    K8S(#[from] crate::repository::k8s::Error),
-    #[error("The particular metric name was not found")]
-    MetricsNotFound,
-}
 
 #[derive(Debug, Default)]
 pub struct ResourceTracking {
@@ -35,21 +22,24 @@ impl ResourceTracking {
         k8s: Arc<K8s>,
         reserved_cpu: Ratio,
         reserved_memory: Information,
-    ) -> Result<Self, Error> {
-        let aggregated_metrics = k8s.get_k8s_metrics().await?;
+    ) -> Result<Self> {
+        let aggregated_metrics = k8s
+            .get_k8s_metrics()
+            .await
+            .context("Failed to get the available cluster metrics")?;
 
-        let resources_available: Result<dashmap::DashMap<_, _>, Error> =
+        let resources_available: Result<dashmap::DashMap<_, _>> =
             aggregated_metrics
                 .iter()
                 .map(|(name, metrics)| {
-                    let allocatable = metrics
-                        .allocatable
-                        .as_ref()
-                        .ok_or(Error::MetricsNotFound)?;
-                    let used = metrics
-                        .usage
-                        .as_ref()
-                        .ok_or(Error::MetricsNotFound)?;
+                    let allocatable = metrics.allocatable.as_ref().context(
+                        "Failed to retrieve allocatable resources from the \
+                         cluster metrics gathered",
+                    )?;
+                    let used = metrics.usage.as_ref().context(
+                        "Failed to retrieve used resources from the cluster \
+                         metrics gathered",
+                    )?;
                     let free_cpu = allocatable.cpu - used.cpu;
                     let free_ram = allocatable.memory - used.memory;
 
@@ -107,24 +97,37 @@ impl ResourceTracking {
     }
 
     /// Check if the key exists in all storages
-    async fn key_exists(&self, name: &str) -> Result<(), Error> {
-        if self.resources_used.contains_key(name)
-            && self.resources_available.contains_key(name)
-        {
-            return Ok(());
-        }
-        Err(NonExistentName)
+    async fn key_exists(&self, name: &str) -> Result<()> {
+        ensure!(
+            self.resources_used.contains_key(name),
+            "Key '{}' doesn't exist in the resource used map",
+            name
+        );
+        ensure!(
+            self.resources_available.contains_key(name),
+            "Key '{}' doesn't exist in the resource availables map",
+            name
+        );
+        Ok(())
     }
 
     /// Update the Prometheus metrics
-    async fn update_metrics(&self, name: &'_ str) -> Result<(), Error> {
+    async fn update_metrics(&self, name: &'_ str) -> Result<()> {
         let (used_mem, used_cpu) =
-            *self.resources_used.get(name).ok_or(Error::NonExistentName)?;
+            *self.resources_used.get(name).with_context(|| {
+                format!(
+                    "Key '{}' doesn't exist in the resource used map",
+                    name
+                )
+            })?;
 
-        let (avail_mem, avail_cpu) = *self
-            .resources_available
-            .get(name)
-            .ok_or(Error::NonExistentName)?;
+        let (avail_mem, avail_cpu) =
+            *self.resources_available.get(name).with_context(|| {
+                format!(
+                    "Key '{}' doesn't exist in the resource available map",
+                    name
+                )
+            })?;
 
         MEMORY_USED_GAUGE.with_label_values(&[name]).set(used_mem.value);
         MEMORY_AVAILABLE_GAUGE.with_label_values(&[name]).set(avail_mem.value);
@@ -139,28 +142,40 @@ impl ResourceTracking {
         name: String,
         memory: Information,
         cpu: Ratio,
-    ) -> Result<(), Error> {
-        let _ = self.key_exists(&name).await?;
+    ) -> Result<()> {
+        self.key_exists(&name)
+            .await
+            .with_context(|| format!("Cannot set used metric {}", name))?;
         self.resources_used.insert(name.clone(), (memory, cpu));
-        let _ = self.update_metrics(&name).await?;
+        self.update_metrics(&name).await.with_context(|| {
+            format!("Failed to update prometheus metric {}", name)
+        })?;
         Ok(())
     }
 
     pub async fn get_used(
         &self,
         name: &'_ str,
-    ) -> Result<(Information, Ratio), Error> {
-        let _ = self.key_exists(name).await?;
-        let _ = self.update_metrics(name).await?;
+    ) -> Result<(Information, Ratio)> {
+        self.key_exists(name)
+            .await
+            .with_context(|| format!("Cannot get used metric {}", name))?;
+        self.update_metrics(name).await.with_context(|| {
+            format!("Failed to update prometheus metric {}", name)
+        })?;
         Ok(*self.resources_used.get(name).unwrap())
     }
 
     pub async fn get_available(
         &self,
         name: &'_ str,
-    ) -> Result<(Information, Ratio), Error> {
-        let _ = self.key_exists(name).await?;
-        let _ = self.update_metrics(name).await?;
+    ) -> Result<(Information, Ratio)> {
+        self.key_exists(name)
+            .await
+            .with_context(|| format!("Cannot get used metric {}", name))?;
+        self.update_metrics(name).await.with_context(|| {
+            format!("Failed to update prometheus metric {}", name)
+        })?;
         Ok(*self.resources_available.get(name).unwrap())
     }
 

@@ -1,4 +1,5 @@
 extern crate uom;
+use anyhow::{anyhow, bail, Context, Result};
 use k8s_openapi::api::core::v1::Node;
 use kube::api::ListParams;
 use kube::{Api, Client};
@@ -8,40 +9,30 @@ use model::dto::k8s::{Allocatable, Metrics, Usage};
 use std::collections::HashMap;
 use std::str::FromStr;
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("Inherited an error when contacting the k8s API: {0}")]
-    Kube(#[from] kube::Error),
-    #[error("Unable to obtain the current key: {0}")]
-    MissingKey(&'static str),
-    #[error("Unable to parse the quantity: {0}")]
-    QuantityParsing(String),
-}
-
 pub struct K8s;
 
 impl K8s {
     #[allow(dead_code)]
     pub fn new() -> Self { Self }
 
-    pub async fn get_k8s_metrics(
-        &self,
-    ) -> Result<HashMap<String, Metrics>, Error> {
+    pub async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>> {
         let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
-        let client = Client::try_default().await.map_err(Error::Kube)?;
+        let client = Client::try_default()
+            .await
+            .context("Failed to create the K8S client")?;
         let node_metrics: Api<NodeMetrics> = Api::all(client.clone());
         let metrics = node_metrics
             .list(&ListParams::default())
             .await
-            .map_err(Error::Kube)?;
+            .context("Failed to list metrics from the k8s cluster")?;
 
         for metric in metrics {
             // let memory = memory.into_format_args(gibibyte, Description);
-            let key = metric
-                .metadata
-                .name
-                .ok_or(Error::MissingKey("metadata:name"))?;
+            let key = metric.metadata.name.ok_or(anyhow!(
+                "Missing 'metadata:name' key in the retrieved list of \
+                 metrics from k8s"
+            ))?;
 
             aggregated_metrics.insert(key,
                                           Metrics { usage:       Some(Usage { cpu:    parse_quantity(&metric.usage.cpu.0[..],
@@ -52,27 +43,37 @@ impl K8s {
         }
 
         let nodes: Api<Node> = Api::all(client.clone());
-        let nodes =
-            nodes.list(&ListParams::default()).await.map_err(Error::Kube)?;
+        let nodes = nodes
+            .list(&ListParams::default())
+            .await
+            .context("Failed to list nodes from the k8s cluster")?;
 
         for node in nodes {
-            let status = node.status.ok_or(Error::MissingKey("status"))?;
-            let allocatable =
-                status.allocatable.ok_or(Error::MissingKey("allocatable"))?;
-            let key = node
-                .metadata
-                .name
-                .ok_or(Error::MissingKey("metadata:name"))?;
-            let cpu =
-                allocatable.get("cpu").ok_or(Error::MissingKey("cpu"))?;
-            let memory = allocatable
-                .get("memory")
-                .ok_or(Error::MissingKey("memory"))?;
+            let status = node
+                .status
+                .ok_or(anyhow!(" Missing 'status' key from the k8s node"))?;
+            let allocatable = status.allocatable.ok_or(anyhow!(
+                " Missing 'allocatable' key from the k8s node"
+            ))?;
+
+            let key = node.metadata.name.ok_or(anyhow!(
+                " Missing 'metadata:name' key from the k8s node"
+            ))?;
+
+            let cpu = allocatable.get("cpu").ok_or(anyhow!(
+                " Missing 'cpu' key from the k8s node allocatables"
+            ))?;
+
+            let memory = allocatable.get("memory").ok_or(anyhow!(
+                " Missing 'memory' key from the k8s node allocatables"
+            ))?;
 
             // let memory = memory.into_format_args(gibibyte, Description);
             aggregated_metrics
                 .get_mut(&key)
-                .ok_or(Error::MissingKey("metadata:name"))?
+                .ok_or(anyhow!(
+                    " Missing 'metadata:name' key from the k8s metrics"
+                ))?
                 .allocatable = Some(Allocatable {
                 cpu:    parse_quantity(
                     &cpu.0[..],
@@ -99,7 +100,7 @@ enum MissingUnitType<'a> {
 fn parse_quantity<T>(
     quantity: &str,
     missing_unit: &MissingUnitType,
-) -> Result<T, Error>
+) -> Result<T>
 where
     T: FromStr,
 {
@@ -107,10 +108,10 @@ where
 
     let captures = re
         .captures(quantity)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
-    let measure = captures
-        .get(1)
-        .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+        .with_context(|| format!("Failed to parse quantity '{}'", quantity))?;
+    let measure = captures.get(1).with_context(|| {
+        format!("Failed to get part of parsed quantity '{}'", quantity)
+    })?;
     let prefix = captures.get(2).map(|cap| cap.as_str()).unwrap_or("");
     //.ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
 
@@ -119,9 +120,14 @@ where
         MissingUnitType::Complete(complete) => complete.to_string(),
     };
 
-    let qty = format!("{} {}", measure.as_str(), unit)
-        .parse::<T>()
-        .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
+    let qty = format!("{} {}", measure.as_str(), unit).parse::<T>();
+    let Ok(qty) = qty else{
+            bail!(
+                "Failed to parse the quantity string to the final required \
+                 type '{}'",
+                quantity.to_string()
+            )
+        };
 
     Ok(qty)
 }
@@ -137,7 +143,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ratio_cpu() -> Result<(), Error> {
+    fn test_ratio_cpu() -> Result<()> {
         assert_eq!(
             format!(
                 "{}",
@@ -154,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_quantity_memory() -> Result<(), Error> {
+    fn test_quantity_memory() -> Result<()> {
         assert_eq!(
             format!(
                 "{}",

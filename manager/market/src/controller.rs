@@ -1,29 +1,13 @@
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use anyhow::Result;
-
+use anyhow::{anyhow, Context, Result};
 use model::domain::auction::AuctionResult;
 use model::dto::node::NodeRecord;
 use model::view::auction::{AcceptedBid, InstanciatedBid};
 use model::view::node::{GetFogNodes, RegisterNode};
 use model::view::sla::PutSla;
 use model::NodeId;
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::time::Instant;
-
-#[derive(thiserror::Error, Debug)]
-pub enum ControllerError {
-    #[error("Failed to retrieve the record of the node {0}")]
-    RecordOfNodeNotFound(NodeId),
-    #[error(transparent)]
-    Auction(#[from] crate::service::auction::Error),
-    #[error(transparent)]
-    FogNodeNetwork(#[from] crate::service::fog_node_network::Error),
-    #[error(transparent)]
-    FaaS(#[from] crate::service::faas::Error),
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
-}
 
 /// Register a SLA and starts the auctioning process, can take a while.
 // TODO define "a while"; set a timeout
@@ -32,21 +16,36 @@ pub async fn start_auction(
     auction_service: &Arc<crate::service::auction::Auction>,
     faas_service: &Arc<crate::service::faas::FogNodeFaaS>,
     fog_node_network: &Arc<crate::service::fog_node_network::FogNodeNetwork>,
-) -> Result<AcceptedBid, ControllerError> {
+) -> Result<AcceptedBid> {
     trace!("put sla: {:?}", payload);
 
     let started = Instant::now();
 
     let proposals = auction_service
-        .call_for_bids(payload.target_node, &payload.sla)
-        .await?;
+        .call_for_bids(payload.target_node.clone(), &payload.sla)
+        .await
+        .with_context(|| {
+            format!(
+                "Failed to call the network for bids with node {} as the \
+                 starting point",
+                payload.target_node,
+            )
+        })?;
 
-    let AuctionResult { chosen_bid } =
-        auction_service.do_auction(&proposals).await?;
+    let AuctionResult { chosen_bid } = auction_service
+        .do_auction(&proposals)
+        .await
+        .context("Auction failed")?;
 
-    let Some(NodeRecord {ip, port_faas, ..}) = fog_node_network.get_node(&chosen_bid.bid.node_id).await else {
-        return Err(ControllerError::RecordOfNodeNotFound(chosen_bid.bid.node_id));
-    };
+    let NodeRecord { ip, port_faas, .. } = fog_node_network
+        .get_node(&chosen_bid.bid.node_id)
+        .await
+        .ok_or_else(|| {
+            anyhow!(
+                "Node record of {} is not present in my database",
+                chosen_bid.bid.node_id
+            )
+        })?;
 
     let accepted = AcceptedBid {
         chosen: InstanciatedBid {
@@ -59,7 +58,10 @@ pub async fn start_auction(
         sla: payload.sla,
     };
 
-    faas_service.provision_function(accepted.clone()).await?;
+    faas_service
+        .provision_function(accepted.clone())
+        .await
+        .context("Failed to provision function")?;
 
     let finished = Instant::now();
 
@@ -79,10 +81,9 @@ pub async fn start_auction(
 pub async fn register_node(
     payload: RegisterNode,
     fog_net: &Arc<crate::service::fog_node_network::FogNodeNetwork>,
-) -> Result<(), ControllerError> {
+) -> Result<()> {
     trace!("registering new node: {:?}", payload);
-    fog_net.register_node(payload).await?;
-    Ok(())
+    fog_net.register_node(payload).await.context("Failed to register node")
 }
 
 /// Get all the provisioned functions from the database

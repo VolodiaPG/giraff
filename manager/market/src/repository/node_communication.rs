@@ -1,4 +1,5 @@
 use crate::service::fog_node_network::FogNodeNetwork;
+use anyhow::{bail, Context, Result};
 use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
@@ -18,19 +19,6 @@ type HttpRequestBuilder = reqwest_middleware::RequestBuilder;
 #[cfg(not(feature = "jaeger"))]
 type HttpRequestBuilder = reqwest::RequestBuilder;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Failed to retrieve the record of the node {0}")]
-    RecordOfNodeNotFound(NodeId),
-    #[error(transparent)]
-    Reqwest(#[from] reqwest::Error),
-    #[cfg(feature = "jaeger")]
-    #[error(transparent)]
-    ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
-    #[error(transparent)]
-    Serialize(#[from] serde_json::Error),
-}
-
 #[derive(Debug)]
 pub struct NodeCommunication {
     network: Arc<FogNodeNetwork>,
@@ -47,9 +35,9 @@ impl NodeCommunication {
         &self,
         to: &NodeId,
         route: &str,
-    ) -> Result<HttpRequestBuilder, Error> {
+    ) -> Result<HttpRequestBuilder> {
         let Some(NodeRecord {ip, port_http, ..}) = self.network.get_node(to).await else {
-            return Err(Error::RecordOfNodeNotFound(to.clone()));
+            bail!("Failed to find a record correspod to the node {}", to);
         };
 
         Ok(self.client.post(format!("http://{ip}:{port_http}/api/{route}")))
@@ -59,19 +47,30 @@ impl NodeCommunication {
         &self,
         to: NodeId,
         sla: &'_ Sla,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         let resp: BidProposals = self
             .send(&to, "bid")
-            .await?
+            .await
+            .with_context(|| {
+                format!("Failed to obtained the url to contact {}", to)
+            })?
             .json(&BidRequest {
                 sla,
                 node_origin: to.clone(),
                 accumulated_latency: Time::new::<second>(0.0),
             })
             .send()
-            .await?
+            .await
+            .with_context(|| format!("Failed to send the sla to {}", to))?
             .json()
-            .await?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to deserialize the response when trying to get \
+                     bids from node {}",
+                    to
+                )
+            })?;
 
         Ok(resp)
     }
@@ -80,13 +79,24 @@ impl NodeCommunication {
         &self,
         to: NodeId,
         bid: &BidProposal,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.send(&to, &format!("bid/{}", bid.id))
-            .await?
+            .await
+            .with_context(|| {
+                format!("Failed to obtained the url to contact {}", to)
+            })?
             .send()
-            .await?
+            .await
+            .with_context(|| format!("Failed to send an offering to {}", to))?
             .json()
-            .await?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to deserialize the response when trying to take \
+                     the offer of node {}",
+                    to
+                )
+            })?;
         Ok(())
     }
 }

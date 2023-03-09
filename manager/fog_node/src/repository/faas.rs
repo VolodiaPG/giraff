@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use bytes::Bytes;
 use model::dto::function::{FunctionRecord, Proposed, Provisioned};
 use model::BidId;
@@ -7,14 +8,6 @@ use openfaas::DefaultApiClient;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error(transparent)]
-    OpenFaaS(#[from] openfaas::Error<String>),
-    #[error("BidId {0} not found")]
-    IdNotFound(BidId),
-}
 
 #[derive(Debug)]
 pub struct FaaSBackend {
@@ -28,8 +21,8 @@ impl FaaSBackend {
         &self,
         id: BidId,
         bid: FunctionRecord<Proposed>,
-    ) -> Result<FunctionRecord<Provisioned>, Error> {
-        let function_name = format!("{}-{}", bid.0.sla.function_live_name, id);
+    ) -> Result<FunctionRecord<Provisioned>> {
+        let function_name = format!("fogfn-{}", id); // Respect DNS-1035 formatting (letter as first char of name)
 
         let definition = FunctionDefinition {
             image: bid.0.sla.function_image.to_owned(),
@@ -44,7 +37,9 @@ impl FaaSBackend {
             }),
             env_vars: Some(HashMap::from([(
                 "SLA".to_string(),
-                serde_json::to_string(&bid.0.sla).unwrap(),
+                serde_json::to_string(&bid.0.sla).with_context(|| {
+                    format!("Failed to serialize the sla of function {}", id)
+                })?,
             )])),
             labels: Some(HashMap::from([(
                 "com.openfaas.scale.max".to_string(),
@@ -62,19 +57,33 @@ impl FaaSBackend {
     pub async fn get_metrics(
         &self,
         record: &FunctionRecord<Provisioned>,
-    ) -> Result<Option<Bytes>, Error> {
-        Ok(self.client.functions_get_metrics(&record.0.function_name).await?)
+    ) -> Result<Option<Bytes>> {
+        self.client
+            .functions_get_metrics(&record.0.function_name)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to get metrics for provisioned function named {}",
+                    record.0.function_name
+                )
+            })
     }
 
     pub async fn remove_function(
         &self,
         function: &FunctionRecord<Provisioned>,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         self.client
             .system_functions_delete(DeleteFunctionRequest {
                 function_name: function.0.function_name.clone(),
             })
-            .await?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to delete function named '{}' from the cluster",
+                    function.0.function_name
+                )
+            })?;
         Ok(())
     }
 }

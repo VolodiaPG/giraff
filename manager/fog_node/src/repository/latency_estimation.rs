@@ -1,4 +1,5 @@
 use crate::NodeSituation;
+use anyhow::{ensure, Context, Result};
 use model::domain::median::Median;
 use model::NodeId;
 use std::fmt;
@@ -12,26 +13,9 @@ type HttpClient = reqwest_middleware::ClientWithMiddleware;
 #[cfg(not(feature = "jaeger"))]
 type HttpClient = reqwest::Client;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Rtt estimation was carried for {0} nodes, got {1} errors: {2}")]
-    FailedPing(usize, usize, IndividualErrorList),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum IndividualError {
-    #[error("Did not found node: {0}")]
-    NodeNotFound(NodeId),
-    #[error(transparent)]
-    ReqwestError(#[from] reqwest::Error),
-    #[cfg(feature = "jaeger")]
-    #[error(transparent)]
-    ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
-}
-
 #[derive(Debug)]
 pub struct IndividualErrorList {
-    list: Vec<(NodeId, IndividualError)>,
+    list: Vec<(NodeId, anyhow::Error)>,
 }
 
 impl fmt::Display for IndividualErrorList {
@@ -40,8 +24,8 @@ impl fmt::Display for IndividualErrorList {
     }
 }
 
-impl From<Vec<(NodeId, IndividualError)>> for IndividualErrorList {
-    fn from(list: Vec<(NodeId, IndividualError)>) -> Self {
+impl From<Vec<(NodeId, anyhow::Error)>> for IndividualErrorList {
+    fn from(list: Vec<(NodeId, anyhow::Error)>) -> Self {
         IndividualErrorList { list }
     }
 }
@@ -72,11 +56,11 @@ impl LatencyEstimation {
     async fn make_latency_request_to(
         &self,
         node_id: &NodeId,
-    ) -> Result<(Time, Time), IndividualError> {
-        let desc = self
-            .node_situation
-            .get_fog_node_neighbor(node_id)
-            .ok_or_else(|| IndividualError::NodeNotFound(node_id.clone()))?;
+    ) -> Result<(Time, Time)> {
+        let desc =
+            self.node_situation.get_fog_node_neighbor(node_id).with_context(
+                || format!("Failed to find neighbor node {}", node_id),
+            )?;
 
         let ip = desc.ip;
         let port = desc.port_http;
@@ -100,7 +84,7 @@ impl LatencyEstimation {
         Ok((outgoing_latency, incoming_latency))
     }
 
-    pub async fn latency_to_neighbors(&self) -> Result<(), Error> {
+    pub async fn latency_to_neighbors(&self) -> Result<()> {
         let mut handles = Vec::new();
         let mut tried_nodes = Vec::new(); // same order as handles
         for node in self.node_situation.get_neighbors() {
@@ -123,8 +107,8 @@ impl LatencyEstimation {
                 let desc = self
                     .node_situation
                     .get_fog_node_neighbor(&node)
-                    .ok_or_else(|| {
-                        IndividualError::NodeNotFound(node.clone())
+                    .with_context(|| {
+                        format!("Failed to find neighbor node {}", node)
                     })?;
 
                 let ip = desc.ip;
@@ -146,8 +130,7 @@ impl LatencyEstimation {
             });
         }
 
-        let attempts = handles.len();
-        let errors: Vec<(NodeId, IndividualError)> =
+        let errors: Vec<(NodeId, anyhow::Error)> =
             futures::future::join_all(handles)
                 .await
                 .into_iter()
@@ -156,13 +139,11 @@ impl LatencyEstimation {
                 .map(|(result, id)| (id, result.err().unwrap()))
                 .collect();
 
-        if !errors.is_empty() {
-            return Err(Error::FailedPing(
-                attempts,
-                errors.len(),
-                IndividualErrorList::from(errors),
-            ));
-        }
+        ensure!(
+            errors.is_empty(),
+            "Failed to ping for latency estimation because of {}",
+            IndividualErrorList::from(errors)
+        );
         Ok(())
     }
 

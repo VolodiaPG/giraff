@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::{anyhow, ensure, Context, Result};
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
@@ -7,8 +8,8 @@ impl FunctionLife {
         &'a self,
         sla: &'a Sla,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
-        if let Ok(bid) = self
+    ) -> Result<BidProposals> {
+        let bid = self
             .node_query
             .request_neighbor_bid(
                 &BidRequest {
@@ -18,16 +19,17 @@ impl FunctionLife {
                 },
                 self.node_situation
                     .get_parent_id()
-                    .ok_or(Error::NoCandidatesRetained)?,
+                    .ok_or(anyhow!("Failed to obtain my parent's id"))?,
             )
             .await
-        {
-            if !bid.bids.is_empty() {
-                return Ok(bid);
-            }
-        }
+            .context("Failed to request a bid from my parent")?;
 
-        Err(Error::NoCandidatesRetained)
+        ensure!(
+            !bid.bids.is_empty(),
+            "The next candidates did not returned any bid"
+        );
+
+        Ok(bid)
     }
 
     /// Here the operation will be sequential, first looking to place on a
@@ -38,20 +40,26 @@ impl FunctionLife {
         sla: &Sla,
         _from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
-        let bid =
-            if let Ok((id, record)) = self.auction.bid_on(sla.clone()).await {
-                BidProposal {
-                    node_id: self.node_situation.get_my_id(),
-                    id,
-                    bid: record.0.bid,
-                }
-            } else {
-                let mut follow_up =
-                    self.follow_up_to_parent(sla, accumulated_latency).await?;
-                trace!("Transmitting bid to other node...");
-                follow_up.bids.pop().ok_or(Error::NoCandidatesRetained)?
-            };
+    ) -> Result<BidProposals> {
+        let bid = if let Ok(Some((id, record))) =
+            self.auction.bid_on(sla.clone()).await
+        {
+            BidProposal {
+                node_id: self.node_situation.get_my_id(),
+                id,
+                bid: record.0.bid,
+            }
+        } else {
+            trace!("Transmitting bid to other node...");
+            let mut follow_up = self
+                .follow_up_to_parent(sla, accumulated_latency)
+                .await
+                .context("Failed to follow up sla to my parent")?;
+            follow_up.bids.pop().ok_or(anyhow!(
+                "No canditates were returned after fetching candidates \
+                 starting from my parent"
+            ))?
+        };
 
         Ok(BidProposals { bids: vec![bid] })
     }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::service::auction;
+use anyhow::{Context, Result};
 use futures::future::{join, try_join_all};
 use uom::fmt::DisplayStyle::Abbreviation;
 
@@ -11,7 +11,7 @@ impl FunctionLife {
         sla: &Sla,
         from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         let mut requests = vec![];
 
         for neighbor in self.node_situation.get_neighbors() {
@@ -60,7 +60,8 @@ impl FunctionLife {
 
         Ok(BidProposals {
             bids: try_join_all(promises)
-                .await?
+                .await
+                .context("Failed to get all neighboring bids")?
                 .into_iter()
                 .flat_map(|proposals: BidProposals| proposals.bids)
                 .collect(),
@@ -72,29 +73,35 @@ impl FunctionLife {
         sla: &Sla,
         from: NodeId,
         accumulated_latency: Time,
-    ) -> Result<BidProposals, Error> {
+    ) -> Result<BidProposals> {
         let (result_bid, proposals) = join(
             self.auction.bid_on(sla.clone()),
-            self.follow_up_to_neighbors(sla, from, accumulated_latency),
+            self.follow_up_to_neighbors(
+                sla,
+                from.clone(),
+                accumulated_latency,
+            ),
         )
         .await;
         let my_id = self.node_situation.get_my_id();
 
-        let mut proposals = proposals?;
+        let mut proposals = proposals.with_context(|| {
+            format!(
+                "Failed to bid an transmit on the sla coming from {}",
+                from.clone()
+            )
+        })?;
 
-        match result_bid {
-            Err(auction::Error::Unsatisfiable) => {
-                warn!("Bid unsatisfiable, passing on...");
-            }
-            _ => {
-                // let the error happen if it something else
-                let (bid, bid_record) = result_bid?;
-                proposals.bids.push(BidProposal {
-                    node_id: my_id,
-                    id:      bid,
-                    bid:     bid_record.0.bid,
-                });
-            }
+        let result_bid = result_bid.context("Failed to bid on the sla")?;
+
+        if let Some((bid, bid_record)) = result_bid {
+            proposals.bids.push(BidProposal {
+                node_id: my_id,
+                id:      bid,
+                bid:     bid_record.0.bid,
+            });
+        } else {
+            warn!("Bid unsatisfiable, passing on...");
         }
 
         Ok(proposals)

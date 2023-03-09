@@ -1,19 +1,12 @@
 use crate::prom_metrics::BID_GAUGE;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
+use anyhow::{Context, Result};
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
 use model::BidId;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
-
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("The SLA is not satisfiable")]
-    Unsatisfiable,
-    #[error(transparent)]
-    ResourceTracking(#[from] crate::repository::resource_tracking::Error),
-}
 
 pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
@@ -32,12 +25,29 @@ impl Auction {
     async fn get_a_node(
         &self,
         sla: &Sla,
-    ) -> Result<(String, Information, Ratio, Information, Ratio), Error> {
+    ) -> Result<Option<(String, Information, Ratio, Information, Ratio)>> {
         for node in self.resource_tracking.get_nodes() {
             let (used_ram, used_cpu) =
-                self.resource_tracking.get_used(node).await?;
-            let (available_ram, available_cpu) =
-                self.resource_tracking.get_available(node).await?;
+                self.resource_tracking.get_used(node).await.with_context(
+                    || {
+                        format!(
+                            "Failed to get used resources from tracking data \
+                             for node {}",
+                            node
+                        )
+                    },
+                )?;
+            let (available_ram, available_cpu) = self
+                .resource_tracking
+                .get_available(node)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to get available resources from tracking \
+                         data for node {}",
+                        node
+                    )
+                })?;
             if self.satisfiability_check(
                 &used_ram,
                 &used_cpu,
@@ -45,22 +55,26 @@ impl Auction {
                 &available_cpu,
                 sla,
             ) {
-                return Ok((
+                return Ok(Some((
                     node.clone(),
                     used_ram,
                     used_cpu,
                     available_ram,
                     available_cpu,
-                ));
+                )));
             }
         }
-        Err(Error::Unsatisfiable)
+        Ok(None)
     }
 
     /// Compute the bid value from the node environment
-    async fn compute_bid(&self, sla: &Sla) -> Result<(String, f64), Error> {
-        let (name, _used_ram, _used_cpu, available_ram, available_cpu) =
-            self.get_a_node(sla).await?;
+    async fn compute_bid(&self, sla: &Sla) -> Result<Option<(String, f64)>> {
+        let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
+            self.get_a_node(sla)
+                .await
+                .context("Failed to found a suitable node for the sla")? else{
+                    return Ok(None);
+                };
 
         let price = sla.memory / available_ram + sla.cpu / available_cpu;
 
@@ -68,7 +82,7 @@ impl Auction {
 
         trace!("price on {:?} is {:?}", name, price);
 
-        Ok((name, price))
+        Ok(Some((name, price)))
     }
 
     /// Check if the SLA is satisfiable by the current node (designated by name
@@ -92,8 +106,13 @@ impl Auction {
     pub async fn bid_on(
         &self,
         sla: Sla,
-    ) -> Result<(BidId, FunctionRecord<Proposed>), Error> {
-        let (node, bid) = self.compute_bid(&sla).await?;
+    ) -> Result<Option<(BidId, FunctionRecord<Proposed>)>> {
+        let Some((node, bid)) = self
+            .compute_bid(&sla)
+            .await
+            .context("Failed to compute bid for sla")? else{
+                return Ok(None);
+            };
         let record = FunctionRecord::new(bid, sla, node);
         let id = self.db.insert(record.clone());
         BID_GAUGE
@@ -102,6 +121,6 @@ impl Auction {
                 &id.to_string(),
             ])
             .set(bid);
-        Ok((id, record))
+        Ok(Some((id, record)))
     }
 }

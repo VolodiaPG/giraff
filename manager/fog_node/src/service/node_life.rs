@@ -1,24 +1,10 @@
+use crate::{NodeQuery, NodeSituation};
+use anyhow::{bail, Context, Result};
 use model::dto::node::NodeDescription;
 use model::view::node::RegisterNode;
 use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort};
 use std::net::IpAddr;
 use std::sync::Arc;
-
-use crate::{NodeQuery, NodeSituation};
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("This node has no parent (probably it is the market/root node)")]
-    ParentDoesntExist,
-    #[error(transparent)]
-    NodeQuery(#[from] crate::repository::node_query::Error),
-    #[error(
-        "Trying to register/pass a register message for a market node,but it \
-         should not happen since the market node is always on top of the \
-         tree network."
-    )]
-    CannotRegisterMarketOnRegularNode,
-}
 
 #[derive(Debug)]
 pub struct NodeLife {
@@ -37,7 +23,7 @@ impl NodeLife {
     pub async fn register_child_node(
         &self,
         register: RegisterNode,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         trace!("Registering child node");
         match &register {
             RegisterNode::Node { node_id, parent, ip, port_http, .. } => {
@@ -52,11 +38,17 @@ impl NodeLife {
                 }
             }
             RegisterNode::MarketNode { .. } => {
-                return Err(Error::CannotRegisterMarketOnRegularNode)
+                bail!(
+                    "Cannot register the market to anything, there is no \
+                     parents to a market node"
+                );
             }
         }
 
-        self.node_query.register_to_parent(register).await?;
+        self.node_query
+            .register_to_parent(register)
+            .await
+            .context("Failed to register a child node to my parent")?;
         Ok(())
     }
 
@@ -65,7 +57,7 @@ impl NodeLife {
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
         port_faas: FogNodeFaaSPortExternal,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         trace!("Init registration");
         let register = if self.node_situation.is_market() {
             RegisterNode::MarketNode {
@@ -84,7 +76,7 @@ impl NodeLife {
                 parent: self
                     .node_situation
                     .get_parent_id()
-                    .ok_or(Error::ParentDoesntExist)?,
+                    .context("Failed to get my parent's id")?,
                 tags: self.node_situation.get_my_tags(),
             }
         };

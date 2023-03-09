@@ -74,7 +74,7 @@
               };
             };
 
-          dockerImageFogNodeAuction = dockerImageFogNodeGenerator { };
+          dockerImageFogNodeAuction = dockerImageFogNodeGenerator {};
           dockerImageFogNodeEdgeFirst = dockerImageFogNodeGenerator {feature = "edge_first";};
           dockerImageFogNodeEdgeWard = dockerImageFogNodeGenerator {feature = "edge_ward";};
 
@@ -132,6 +132,7 @@
                 rust-analyzer
                 cargo-outdated
                 cargo-udeps
+                # cargo-watch
                 lldb
                 kubectl
                 (rustfmt.override {asNightly = true;})

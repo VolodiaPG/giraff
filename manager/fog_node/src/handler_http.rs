@@ -1,4 +1,3 @@
-use crate::controller::ControllerError;
 use crate::service::function_life::FunctionLife;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
@@ -8,13 +7,31 @@ use model::view::node::RegisterNode;
 use model::BidId;
 use serde::Deserialize;
 
-impl actix_web::error::ResponseError for ControllerError {}
+#[derive(Debug)]
+pub struct AnyhowErrorWrapper {
+    err: anyhow::Error,
+}
+
+impl std::fmt::Display for AnyhowErrorWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error!("{:?}", self.err);
+        write!(f, "{}", self.err)
+    }
+}
+
+impl actix_web::error::ResponseError for AnyhowErrorWrapper {}
+
+impl From<anyhow::Error> for AnyhowErrorWrapper {
+    fn from(err: anyhow::Error) -> AnyhowErrorWrapper {
+        AnyhowErrorWrapper { err }
+    }
+}
 
 /// Return a bid for the SLA.
 pub async fn post_bid(
     payload: web::Json<BidRequestOwned>,
     function: Data<FunctionLife>,
-) -> Result<HttpResponse, ControllerError> {
+) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let res = controller::auction::bid_on(payload.0, &function).await?;
     Ok(HttpResponse::Ok().json(res))
 }
@@ -30,7 +47,7 @@ pub struct PostBidAcceptParams {
 pub async fn post_bid_accept(
     params: web::Path<PostBidAcceptParams>,
     function: Data<FunctionLife>,
-) -> Result<HttpResponse, ControllerError> {
+) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let res =
         controller::auction::provision_from_bid(params.id.clone(), &function)
             .await?;
@@ -41,7 +58,7 @@ pub async fn post_bid_accept(
 pub async fn post_register_child_node(
     payload: web::Json<RegisterNode>,
     router: Data<NodeLife>,
-) -> Result<HttpResponse, ControllerError> {
+) -> Result<HttpResponse, AnyhowErrorWrapper> {
     controller::node::register_child_node(payload.0, &router).await?;
     Ok(HttpResponse::Ok().finish())
 }

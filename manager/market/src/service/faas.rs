@@ -1,24 +1,12 @@
 use crate::repository::fog_node::FogNode;
 use crate::repository::node_communication::NodeCommunication;
+use anyhow::{anyhow, Result};
 use model::dto::node::NodeRecord;
 use model::view::auction::AcceptedBid;
 use model::NodeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    NodeCommunication(#[from] crate::repository::node_communication::Error),
-    #[error(
-        "No trace of the node {0} has been found. It should have been \
-         registered as a record though."
-    )]
-    NodeNotFound(NodeId),
-    #[error(transparent)]
-    FogNetwork(#[from] crate::service::fog_node_network::Error),
-}
 
 #[derive(Debug)]
 pub struct FogNodeFaaS {
@@ -34,10 +22,7 @@ impl FogNodeFaaS {
         Self { fog_node, node_communication }
     }
 
-    pub async fn provision_function(
-        &self,
-        bid: AcceptedBid,
-    ) -> Result<(), Error> {
+    pub async fn provision_function(&self, bid: AcceptedBid) -> Result<()> {
         trace!("Provisioning function...");
 
         let node = bid.chosen.bid.node_id.clone();
@@ -45,12 +30,16 @@ impl FogNodeFaaS {
             .take_offer(node.clone(), &bid.chosen.bid)
             .await?;
 
-        let mut record: NodeRecord = self
-            .fog_node
-            .get(&node)
-            .await
-            .map(|node| node.data)
-            .ok_or_else(|| Error::NodeNotFound(node.clone()))?;
+        let mut record: NodeRecord =
+            self.fog_node.get(&node).await.map(|node| node.data).ok_or_else(
+                || {
+                    anyhow!(
+                        "Node {} not found among my database of registered \
+                         fog nodes",
+                        node
+                    )
+                },
+            )?;
 
         let id = bid.chosen.bid.id.clone();
         record.accepted_bids.insert(id.clone(), bid);

@@ -1,10 +1,14 @@
-use crate::{service, NodeLife};
+use crate::NodeLife;
+use anyhow::{Context, Result};
 use model::view::node::RegisterNode;
 use std::sync::Arc;
 
 pub async fn register_child_node(
     register: RegisterNode,
     router: &Arc<NodeLife>,
-) -> Result<(), service::node_life::Error> {
-    router.register_child_node(register).await
+) -> Result<()> {
+    router
+        .register_child_node(register)
+        .await
+        .context("Failed to register a child node to this one")
 }
