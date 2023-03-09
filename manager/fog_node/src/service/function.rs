@@ -153,7 +153,7 @@ impl Function<Locked> {
             };
         let Ok(()) = self
                 .resource_tracking
-                .set_used(name, memory + sla_memory, cpu + sla_cpu)
+                .set_used(name, memory - sla_memory, cpu - sla_cpu)
                 .await else {
                     error!("Could not set updated tracked cpu and memory");
                     return Ok(());
