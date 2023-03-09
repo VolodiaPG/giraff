@@ -630,7 +630,7 @@ vagrant = ["python-vagrant (>=0.5.15)"]
 type = "git"
 url = "https://gitlab.inria.fr/vparolgu/enoslib.git"
 reference = "HEAD"
-resolved_reference = "0dc8688c4ff3283f06e70ea24393708be0b005c4"
+resolved_reference = "cb63ec01f716a4e1e0dfcdeb5a044e1a7a9ef53d"
 
 [[package]]
 name = "executing"

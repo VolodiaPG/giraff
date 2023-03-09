@@ -11,20 +11,11 @@ from time import sleep
 
 import click
 import enoslib as en
-from definitions import (
-    EXTREMITIES,
-    FOG_NODE_DEPLOYMENT,
-    FOG_NODES,
-    IOT_CONNECTION,
-    MARKET_CONNECTED_NODE,
-    MARKET_DEPLOYMENT,
-    NB_CPU_PER_MACHINE_PER_CLUSTER,
-    NETWORK,
-    NODE_CONNECTED_NODE,
-    adjacency_undirected,
-    flatten,
-)
-
+from definitions import (EXTREMITIES, FOG_NODE_DEPLOYMENT, FOG_NODES,
+                         IOT_CONNECTION, MARKET_CONNECTED_NODE,
+                         MARKET_DEPLOYMENT, NB_CPU_PER_MACHINE_PER_CLUSTER,
+                         NETWORK, NODE_CONNECTED_NODE, adjacency_undirected,
+                         flatten)
 # Enable rich logging
 from enoslib import enostask
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions
@@ -125,7 +116,7 @@ def log_cmd(env, results_list):
                         f'{{c: add-proc, cmd: "echo {alias_name} && cat {path + "/" + alias_name + ".log"}}}',
                     ]
                 )
-            except subprocess.CalledProcessError:
+            except FileNotFoundError:
                 log.warning("Cannot use mprocs to output nice things organized.")
 
 

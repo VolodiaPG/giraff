@@ -53,22 +53,22 @@ function_latencies=()
 
 for ii in $(seq 1 $NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY); do
 	function_latencies+=(
-		"$((RANDOM % (MAX_LATENCY_LOW_LATENCY - MIN_LATENCY_LOW_LATENCY) + MIN_LATENCY_LOW_LATENCY)),$HIGH_REQ_INTERVAL"
+		"$((RANDOM % (MAX_LATENCY_LOW_LATENCY - MIN_LATENCY_LOW_LATENCY) + MIN_LATENCY_LOW_LATENCY)),$HIGH_REQ_INTERVAL,low,high"
 	)
 done
 for ii in $(seq 1 $NB_FUNCTIONS_REST_REQ_INTERVAL_LOW_LATENCY); do
 	function_latencies+=(
-		"$((RANDOM % (MAX_LATENCY_LOW_LATENCY - MIN_LATENCY_LOW_LATENCY) + MIN_LATENCY_LOW_LATENCY)),$REST_REQ_INTERVAL"
+		"$((RANDOM % (MAX_LATENCY_LOW_LATENCY - MIN_LATENCY_LOW_LATENCY) + MIN_LATENCY_LOW_LATENCY)),$REST_REQ_INTERVAL,low,low"
 	)
 done
 for ii in $(seq 1 $NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY); do
 	function_latencies+=(
-		"$((RANDOM % (MAX_LATENCY_REST_LATENCY - MIN_LATENCY_REST_LATENCY) + MIN_LATENCY_REST_LATENCY)),$HIGH_REQ_INTERVAL"
+		"$((RANDOM % (MAX_LATENCY_REST_LATENCY - MIN_LATENCY_REST_LATENCY) + MIN_LATENCY_REST_LATENCY)),$HIGH_REQ_INTERVAL,high,high"
 	)
 done
 for ii in $(seq 1 $NB_FUNCTIONS_REST_REQ_INTERVAL_REST_LATENCY); do
 	function_latencies+=(
-		"$((RANDOM % (MAX_LATENCY_REST_LATENCY - MIN_LATENCY_REST_LATENCY) + MIN_LATENCY_REST_LATENCY)),$REST_REQ_INTERVAL"
+		"$((RANDOM % (MAX_LATENCY_REST_LATENCY - MIN_LATENCY_REST_LATENCY) + MIN_LATENCY_REST_LATENCY)),$REST_REQ_INTERVAL,high,low"
 	)
 done
 
@@ -80,17 +80,19 @@ register_new_function() {
 	# $2 → sleep before starting
 	# $3 → latency
 	# $4 → request_interval
+	# $5 → request_interval type
+	# $6 → latency type
 
 	sleep $2
 
 	function_id=$(printf "%03d" $1)
 	latency=$3
-	request_interval=$3
+	request_interval=$4
 
 	mem="$FUNCTION_MEMORY"
 	cpu="$FUNCTION_CPU"
 	docker_fn_name='echo'
-	function_name="$docker_fn_name--$function_id--$latency--$cpu--$mem"
+	function_name="$docker_fn_name-$function_id-$latency-$cpu-$mem-$5-$6"
 
 	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
@@ -119,6 +121,7 @@ register_new_function() {
 	},
 	"targetNode": "'"$TARGET_NODE"'"
 	}')
+
 	if [ $response == 200 ]; then
 		FUNCTION_ID=$(cat $response_tmp_file)
 		rm $response_tmp_file
@@ -132,7 +135,7 @@ register_new_function() {
 			--header 'Content-Type: application/json' \
 			--data '{
 	"iotUrl": "http://'$IOT_IP':'$IOT_LOCAL_PORT'/api/print",
-	"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'$function_name'-'$FUNCTION_ID'",
+	"nodeUrl": "http://'$FAAS_IP':'$FAAS_PORT'/function/'fogfn'-'$FUNCTION_ID'",
 	"functionId": "'$FUNCTION_ID'",
 	"tag": "'"$function_name"'",
 	"intervalMs": '"$request_interval"'
@@ -145,9 +148,9 @@ register_new_function() {
 
 ii=0
 for tuple in "${function_latencies[@]}"; do
-	IFS=',' read latency request_interval <<<"${tuple}"
+	IFS=',' read latency request_interval latency_type request_interval_type <<<"${tuple}"
 	sleep_before=$((RANDOM % FUNCTION_RESERVATION_FINISHES_AFTER))
-	register_new_function $ii $sleep_before $latency $request_interval &
+	register_new_function $ii $sleep_before $latency $request_interval $latency_type $request_interval_type &
 	ii=$((++ii))
 done
 
