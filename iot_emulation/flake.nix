@@ -49,7 +49,7 @@
             rootFeatures = [];
           };
 
-          dockerIOTEmulation = pkgs.dockerTools.buildImage {
+          dockerIOTEmulation = pkgs.dockerTools.buildLayeredImage {
             name = "iot_emulation";
             tag = "latest";
             config = {
