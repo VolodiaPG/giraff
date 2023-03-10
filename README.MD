@@ -38,8 +38,6 @@
 - [Getting Started](#getting-started)
   - [Overview](#overview)
   - [Prerequisites](#prerequisites)
-  - [Usage with Grid'5000](#usage-with-grid5000)
-  - [functions](#functions)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
@@ -64,7 +62,8 @@ Our auctions let Fog nodes independently put a price on candidate functions to r
 Key features of **our work**:
 
 - Standard stack (Kubernetes, OpenFaaS)
-- Efficient programming in Rust
+- Efficient programming in Rust for less bugs and to enable effective collaboration (also cross-compiling in the future?)
+- Nix to reproduce both scientifically the experiments and maintain the same development environment for everyone
 - Functions to deploy
 - [Grid'5000](https://www.grid5000.fr/w/Grid5000:Home) support thanks to [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/)
 
@@ -74,7 +73,7 @@ Key features of **our work**:
 
 This project has been started as an internship sponsored as I was a student from National Institute of Applied Sciences Rennes (INSA Rennes) and a second master (SIF) under University of Rennes 1, University of Southern Brittany (UBS), ENS Rennes, INSA Rennes and CentraleSupélec.
 
-A thesis is being financed to pursue the work.
+A thesis is being financed by the « Centre INRIA de l'Université de Rennes » to pursue the work.
 
 </details>
 
@@ -88,6 +87,7 @@ A thesis is being financed to pursue the work.
 - Kubernetes (K3S)
 - OpenFaaS
 - EnosLib
+- Nix
 
 ## Getting Started
 
@@ -101,176 +101,17 @@ Here is an overview of the content of this repo:
 .
 ├── enos # Contain EnosLib code to interact with Grid'5000 (build + deployment of live environment at true scale)
 ├── manager # contain the code of the marketplace and the fog_node
-├── openfaas-functions # contain code of Fog FaaS functions
-└── scripts # various scripts (maybe outdated)
+├── iot_emulation # Sends request to fog nodes in the experiments to measure their response time, etc.
+└── openfaas-functions # contain code of Fog FaaS functions
 ```
 
 ### Prerequisites
 
-Use your favorite IDE (CLion, etc.) supporting Rust.
+1. Install Nix
+2. `nix develop` (or configure direnv)
+3. All usual commands can be found in the justfiles, just type `just --list`
 
-`cargo build` usually is a good start.
-
-Once up and running, the REST API is viewable as the root of the webserver ("127.0.0.1:3030/index.html") thanks to openAPI v3.
-
-We use pre-commit as a way to run checks before commiting any changes. It is done as follows:
-- Install pre-commit
-- `pre-commit install`
-- Done.
-
-### Usage with Grid'5000
-
-Most of the deployment process has now been streamlined to Grid5000 using [EnosLib](https://gitlab.inria.fr/discovery/enoslib) as the simplification vector.
-
-As this section is deeply linked with the evaluation process, documentation changes often. Most of the process can be described by reading the CLI help of the scripts living in `node/manager/experiments/`.
-
-Then to create a Grid5000 profile consider using the `init` verb
-
-And to reserve the cluster to then execute use the verb: `up` (respectively `clean` to deallocate and free the nodes).
-
-Another script that builds the docker images used in k8s is available under `/build`.
-
-> When installing locally, the project is behaving like a standard Rust project, and follows the Clean Web Architecture: (REST API talks to services implementing behaviors that talks to repositories translating the calls to specific instructions to OpenFaaS, etc.)
-
-<details>
-<summary>Deprecated methods</summary>
-<br>
-
-### Install Locally (with multipass) (deprecated)
-
-#### Requirements
-
-- Arkade `curl -SLsf https://get.arkade.dev/ | sudo sh`
-- Docker
-- Helm `curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash`
-- K3sup `curl -sLS https://get.k3sup.dev | sh`
-- Kubectl
-- Multipass `sudo snap install multipass`
-
-#### Installation
-
-Installs K3s
-```sh
-PUBLIC_SSH_KEY_PATH=$HOME/.ssh/id_ed25519.pub PRIVATE_SSH_KEY_PATH=$HOME/.ssh/id_ed25519 ./scripts/minimal-k3s-multipass-bootstrap.sh
-```
-
-To move the kubeconfig file to the local computer config using `kubctl`:
-```sh
-cp kubeconfig ~/.kube/config
-```
-
-> Careful if you have multiple instances running on the same computer
-
-Installs openfaas on the cluster
-```sh
-arkade install openfaas
-```
-
-Install redis on the cluster, backed by longhorn-class storage (you may have to wait a bit to apply redis after the creation of the longhorn storage-class)
-```sh
-./scripts/longhorn.sh
-kubectl apply -f redis
-```
-
-#### Removal
-This is the *__nuke__* option, __finer grained could be better if you have other VMs running__
-```sh
-multipass delete --all --purge
-```
-
-### Install on Grid'5000 (interactive) (deprecated)
-
-#### Connection
-
-`$USER` represents your grid'5000 account name
-```sh
-ssh $USER@access.grid5000.fr
-ssh rennes
-```
-
-#### Installation
-
-Get an interactive machine for an hour:
-```sh
-oarsub "sleep infinity" | bash
-echo $OAR_JOB_ID
-oarsub -C $OAR_JOB_ID
-```
-
-Enable the use of `sudo` for the rest of the session
-```sh
-sudo-g5k
-```
-
-Install all the good stuff
-```sh
-curl -sLS https://get.k3sup.dev | sh
-sudo cp k3sup /usr/local/bin/k3sup
-export context="k3s-cluster"
-k3sup install --context $context --user $(whoami) --local
-export KUBECONFIG=/home/$(whoami)/kubeconfig
-kubectl config set-context $context
-kubectl get node -o wide
-
-curl -SLsf https://get.arkade.dev/ | sudo sh
-sudo mv /home/voparolguarino/.arkade/bin/faas-cli /usr/local/bin/
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-arkade get faas-cli
-#arkade install openfaas
-curl -sSL https://cli.openfaas.com | sudo -E sh
-
-# mv ~/kubeconfig ~/.kube/kubeconfig
-# export KUBECONFIG=~/.kube/kubeconfig
-
-# curl -SLS https://raw.githubusercontent.com/VolodiaPG/faas_fog/main/longhorn.sh | bash
-# svn export https://github.com/volodiapg/faas_fog/trunk/redis redis
-# kubectl apply -f redis
-```
-
-#### Removal
-
-Killing the provisioned computing space is done via the CLI-frontend
-```sh
-oardel $OAR_JOB_ID
-```
-
-#### One-liner install
-
-```sh
-curl -SLS https://raw.githubusercontent.com/VolodiaPG/faas_fog/stub-backends/scripts/grid5000.sh | bash
-```
-
-</details>
-
-## Functions
-
-### Up all
-```sh
-./scripts/all.sh
-```
-### Architecture
-
-```mermaid
-flowchart TD
-    A>CarPlate]
-    B>Camera image]
-    C>IoT weather sensor]
-    DB[(Redis)]
-
-
-    A --> B12[movementplan]
-
-    B --> B1[objectrecognition]
-    B1 --> B12
-    B1 --> B11[trafficstatistics]
-    B1 --> B13[emergencydetection]
-
-
-    C --> C1[roadcondition] --> E[setlightphasecalculation]
-
-    B11 & B12 & B13 -.- DB
-    E -.- DB
-```
+> These commands work when `flake.nix` and `justfile` are present in the current directory you are in.
 
 ## Contributing
 
