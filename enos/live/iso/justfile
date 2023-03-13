@@ -49,7 +49,12 @@ vm clean="false":
                     && helm upgrade openfaas --install openfaas/openfaas --version 12.0.0 \
                         --namespace openfaas  \
                         --set functionNamespace=openfaas-fn \
-                        --set generateBasicAuth=true"
+                        --set generateBasicAuth=true \
+                        --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
+                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
+                        --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
+                        --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
+                        --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1"
     fi
     
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
@@ -57,10 +62,10 @@ vm clean="false":
         sleep 10
     done
 
-    until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
-    do
-        sleep 10
-    done
+    # until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
+    # do
+    #     sleep 10
+    # done
     
     $SSH_CMD "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2
     

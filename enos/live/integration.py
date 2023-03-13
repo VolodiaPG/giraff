@@ -298,9 +298,9 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
     env["roles"] = roles
     env["networks"] = networks
 
-    k3s_setup(env)
 
-
+@cli.command()
+@enostask()
 def k3s_setup(env=None):
     roles = env["roles"]
     print("Setting up k3s and FaaS...")
@@ -311,11 +311,18 @@ def k3s_setup(env=None):
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
                     && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
                     && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
-                    &&  helm repo update \
+                    && helm repo update \
                     && helm upgrade openfaas --install openfaas/openfaas --version=12.0.0 \
-                        --namespace openfaas  \
+                        --namespace openfaas \
                         --set functionNamespace=openfaas-fn \
-                        --set generateBasicAuth=true"""
+                        --set generateBasicAuth=true \
+                        --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
+                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
+                        --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
+                        --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
+                        --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1 \
+                    && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s; do sleep 10; done"""
+                # && until k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s; do sleep 10; done
             ),
             task_name="[master] Installing OpenFaaS",
         )
@@ -671,7 +678,7 @@ def openfaas_login(env=None, file=None, **kwargs):
     help="Pass command to execute once done, will close tunnels after task is exited",
 )
 @enostask()
-def tunnels(env=None, command=None, all=False, **kwargs):
+def tunnels(env=None, command=None, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
     procs = []
     try:
