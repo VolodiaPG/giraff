@@ -25,11 +25,15 @@ mprocs:
     mprocs --server 127.0.0.1:4050
 
 deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/volodiapg/fog_node:auction") market_image=env_var_or_default("DEPLOYMENT_MARKET_IMAGE", "ghcr.io/volodiapg/market:latest") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") walltime=env_var_or_default("DEPLOYMENT_WALLTIME", "2:00:00") $CLUSTER="paravance" +FLAGS='':
+    #!/usr/bin/env bash
     {{RUN}} integration.py up --name="{{name}}" --walltime {{walltime}} {{FLAGS}}
-    {{RUN}} integration.py network
-    {{RUN}} integration.py monitoring
-    {{RUN}} integration.py iot-emulation
-    {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}}
+
+    {{RUN}} integration.py network&
+    {{RUN}} integration.py monitoring&
+    {{RUN}} integration.py iot-emulation&
+    ({{RUN}} integration.py k3s-setup && \
+        {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
+    wait
 
 # Refresh the container images hosted by k3s on all deployed nodes
 refresh:
@@ -92,8 +96,6 @@ scenarii city_name_node_target:
 
     for ii in $(seq 1 $NB_REPETITIONS); do
         just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME $DEPLOYMENT_WALLTIME paravance --force
-        sleep 60
-
         just tunnels --command="'just scenario {{city_name_node_target}}'"
     done
 
