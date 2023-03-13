@@ -148,17 +148,27 @@
                 enable = true;
                 name = "faas_fog";
                 displayName = "faas_fog";
-                extraRPackages = ps: with ps; [
-                  cowplot
-                  reticulate
-                  tidyverse
-                  igraph
-                  r2r
-                  formattable
-                  stringr
-                  viridis
-                  geomtextpath
-                ];
+                extraRPackages = ps:
+                  with ps; [
+                    (
+                      archive.overrideAttrs (old: {
+                        buildInputs =
+                          old.buildInputs
+                          ++ (with pkgs; [
+                            libarchive
+                          ]);
+                      })
+                    )
+                    cowplot
+                    reticulate
+                    tidyverse
+                    igraph
+                    r2r
+                    formattable
+                    stringr
+                    viridis
+                    geomtextpath
+                  ];
               };
             }
           ];

@@ -1,14 +1,15 @@
 import csv
+import multiprocessing as mp
+import os
 import sys
 import tarfile
-from io import TextIOWrapper
-from datetime import datetime
-import os
 import tempfile
 import time
-from integration import aliases
-import multiprocessing as mp
+from datetime import datetime
+from io import TextIOWrapper
+
 import requests
+from integration import aliases
 
 
 class NonClosingSpooledTemporaryFile(tempfile.SpooledTemporaryFile):
@@ -63,7 +64,6 @@ def listener(queue, filepath):
         while True:
             m = queue.get()
             if m == "kill":
-                print("killing.")
                 break
 
             metrixName, tmpfile = m
@@ -75,7 +75,6 @@ def listener(queue, filepath):
             tar.addfile(tarinfo, tmpfile)
 
             tmpfile.free_up()
-            print(metrixName)
 
 
 if __name__ == "__main__":
@@ -128,6 +127,8 @@ if __name__ == "__main__":
     queue.put("kill")
     pool.close()
     pool.join()
+
+    print(f"Finished writing archive {archive}")
 
     try:
         os.remove("latest_metrics.tar.xz")
