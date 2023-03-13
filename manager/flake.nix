@@ -27,7 +27,8 @@
 
   outputs = inputs:
     with inputs;
-      flake-utils.lib.eachDefaultSystem (
+      flake-utils.lib.eachSystem ["x86_64-linux"] (
+        # flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
             inherit system;
@@ -56,16 +57,10 @@
               packageFun = import ./Cargo.nix;
             };
 
-          dockerImageFogNodeGenerator = {feature ? null}: let
-            tag =
-              if feature != null
-              then feature
-              else "auction";
-            rootFeatures =
-              if feature != null
-              then [feature]
-              else [];
-          in
+          dockerImageFogNodeGenerator = {
+            tag,
+            rootFeatures,
+          }:
             pkgs.dockerTools.buildLayeredImage {
               inherit tag;
               name = "fog_node";
@@ -73,10 +68,6 @@
                 Cmd = ["${((pkgsGenerator {inherit rootFeatures;}).workspace.fog_node {}).bin}/bin/fog_node"];
               };
             };
-
-          dockerImageFogNodeAuction = dockerImageFogNodeGenerator {};
-          dockerImageFogNodeEdgeFirst = dockerImageFogNodeGenerator {feature = "edge_first";};
-          dockerImageFogNodeEdgeWard = dockerImageFogNodeGenerator {feature = "edge_ward";};
 
           dockerImageMarket = pkgs.dockerTools.buildLayeredImage {
             name = "market";
@@ -87,13 +78,33 @@
             };
           };
         in rec {
-          packages = {
-            market = dockerImageMarket;
-
-            fog_node.auction = dockerImageFogNodeAuction;
-            fog_node.edge_first = dockerImageFogNodeEdgeFirst;
-            fog_node.edge_ward = dockerImageFogNodeEdgeWard;
-          };
+          packages =
+            {market = dockerImageMarket;}
+            // builtins.listToAttrs
+            (
+              builtins.map
+              (
+                settings: let
+                  tag = "${settings.strategy}_${settings.telemetry}";
+                in {
+                  name = "fog_node_${tag}";
+                  value = dockerImageFogNodeGenerator {
+                    inherit tag;
+                    rootFeatures =
+                      []
+                      ++ nixpkgs.lib.optional (settings.strategy != "auction") settings.strategy
+                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") settings.telemetry;
+                  };
+                }
+              )
+              (
+                nixpkgs.lib.attrsets.cartesianProductOfSets
+                {
+                  strategy = ["auction" "edge_first" "edge_ward" "cloud_only"];
+                  telemetry = ["no-telemetry" "jaeger"];
+                }
+              )
+            );
           formatter = alejandra.defaultPackage.${system};
           checks = {
             pre-commit-check = pre-commit-hooks.lib.${system}.run {
@@ -120,7 +131,7 @@
               };
             };
           };
-          devShells = pkgs.mkShell {
+          devShell = pkgs.mkShell {
             default = rustPkgs.workspaceShell {
               inherit (self.checks.${system}.pre-commit-check) shellHook;
               packages = with pkgs; [

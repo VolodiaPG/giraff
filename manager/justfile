@@ -185,8 +185,9 @@ k3d-clean:
 container image_tag:
     nix build .#market
     {{DOCKER}} load < result
-    nix build .#fog_node.{{image_tag}}
+    nix build .#fog_node_{{image_tag}}_no-telemetry
     {{DOCKER}} load < result
+    {{DOCKER}} tag fog_node:{{image_tag}}_no-telemetry {{image_tag}}
 
 # Push an image to ghcr
 _push image user:
@@ -195,8 +196,10 @@ _push image user:
 
 # Push container images to ghcr.
 ghcr user image_tag: (container image_tag)
-    just _push fog_node:{{image_tag}} {{user}}
-    just _push market:latest {{user}}
+    #!/usr/bin/env bash
+    just _push fog_node:{{image_tag}} {{user}}&
+    just _push market:latest {{user}}&
+    wait
 
 # Cleans
 clean:

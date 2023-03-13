@@ -6,7 +6,7 @@ pub async fn deserialize_response<T: DeserializeOwned>(
     response: Response,
 ) -> Result<T> {
     let full = response.bytes().await.with_context(|| {
-        format!("Failed to get bytes from the body of the message")
+        "Failed to get bytes from the body of the message".to_string()
     })?;
 
     serde_json::from_slice::<T>(&full).with_context(|| {
