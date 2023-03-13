@@ -15,7 +15,7 @@ pub struct AnyhowErrorWrapper {
 impl std::fmt::Display for AnyhowErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         error!("{:?}", self.err);
-        write!(f, "{}", self.err)
+        write!(f, "{:?}", self.err)
     }
 }
 

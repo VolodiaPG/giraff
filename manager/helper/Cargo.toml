@@ -8,6 +8,7 @@ anyhow = "1.0.58"
 async-trait = "0.1.56"
 chrono = "0.4"
 lazy-regex = "2.3.0"
+reqwest = { version = "0.11.12", features = ["json", "gzip"] }
 ron = "0.8.0"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }

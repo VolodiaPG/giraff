@@ -86,10 +86,12 @@ impl NodeQuery {
                 )
             })?;
 
-        Ok(self
-            .post(format!("http://{ip}:{port_http}/api/bid").as_str(), request)
-            .await?
-            .json()
-            .await?)
+        let url = format!("http://{ip}:{port_http}/api/bid");
+        let response = self
+            .post(url.as_str(), request)
+            .await
+            .with_context(|| format!("POST request to {} failed", url))?;
+
+        helper::reqwest_helper::deserialize_response(response).await
     }
 }

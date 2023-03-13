@@ -48,7 +48,7 @@ impl NodeCommunication {
         to: NodeId,
         sla: &'_ Sla,
     ) -> Result<BidProposals> {
-        let resp: BidProposals = self
+        let response = self
             .send(&to, "bid")
             .await
             .with_context(|| {
@@ -61,8 +61,9 @@ impl NodeCommunication {
             })
             .send()
             .await
-            .with_context(|| format!("Failed to send the sla to {}", to))?
-            .json()
+            .with_context(|| format!("Failed to send the sla to {}", to))?;
+
+        helper::reqwest_helper::deserialize_response(response)
             .await
             .with_context(|| {
                 format!(
@@ -70,9 +71,7 @@ impl NodeCommunication {
                      bids from node {}",
                     to
                 )
-            })?;
-
-        Ok(resp)
+            })
     }
 
     pub async fn take_offer(
@@ -80,15 +79,19 @@ impl NodeCommunication {
         to: NodeId,
         bid: &BidProposal,
     ) -> Result<()> {
-        self.send(&to, &format!("bid/{}", bid.id))
+        let response = self
+            .send(&to, &format!("bid/{}", bid.id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)
             })?
             .send()
             .await
-            .with_context(|| format!("Failed to send an offering to {}", to))?
-            .json()
+            .with_context(|| {
+                format!("Failed to send an offering to {}", to)
+            })?;
+
+        helper::reqwest_helper::deserialize_response(response)
             .await
             .with_context(|| {
                 format!(
