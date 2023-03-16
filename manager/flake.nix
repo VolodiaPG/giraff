@@ -131,7 +131,7 @@
               };
             };
           };
-          devShell = pkgs.mkShell {
+          devShells = pkgs.mkShell {
             default = rustPkgs.workspaceShell {
               inherit (self.checks.${system}.pre-commit-check) shellHook;
               packages = with pkgs; [
