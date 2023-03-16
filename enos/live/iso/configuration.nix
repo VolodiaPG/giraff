@@ -8,7 +8,7 @@
 
   boot = {
     growPartition = true;
-    kernelParams = ["console=ttyS0"];
+    kernelParams = ["console=ttyS0" "preempt=none"];
     loader.grub = {
       device = "/dev/vda";
     };
