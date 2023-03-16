@@ -39,8 +39,20 @@ pub async fn put_function(
         &faas_service,
         &fog_node_network,
     )
-    .await?;
-    Ok(HttpResponse::Ok().json(res))
+    .await;
+    match res {
+        Ok(_) => {
+            crate::prom_metrics::PROVISIONED_FUNCTIONS_COUNT
+                .with_label_values(&[])
+                .inc();
+        }
+        Err(_) => {
+            crate::prom_metrics::REFUSED_FUNCTIONS_COUNT
+                .with_label_values(&[])
+                .inc();
+        }
+    }
+    Ok(HttpResponse::Ok().json(res?))
 }
 
 /// Register a new node in the network
