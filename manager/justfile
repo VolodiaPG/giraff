@@ -1,7 +1,7 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 KUBECONFIG :=  ".." / "enos" / "live" / "iso" / "vm.kubeconfig"
 RUST_LOG := "warn,fog_node=trace,openfaas=warn,kube_metrics=trace,helper=trace,market=trace"
-DOCKER := "podman"
+DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
 
 # Default command when no verb specified
@@ -187,7 +187,7 @@ container image_tag:
     {{DOCKER}} load < result
     nix build .#fog_node_{{image_tag}}_no-telemetry
     {{DOCKER}} load < result
-    {{DOCKER}} tag fog_node:{{image_tag}}_no-telemetry {{image_tag}}
+    {{DOCKER}} tag fog_node:{{image_tag}}_no-telemetry fog_node:{{image_tag}}
 
 # Push an image to ghcr
 _push image user:
