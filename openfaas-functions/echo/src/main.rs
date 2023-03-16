@@ -4,7 +4,10 @@ extern crate tracing;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 use model::domain::sla::Sla;
-use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
+use prometheus::{
+    register_gauge_vec, register_histogram_vec, GaugeVec, HistogramVec,
+    TextEncoder,
+};
 use serde::Deserialize;
 use tracing::Subscriber;
 
@@ -35,6 +38,11 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
+struct Measures {
+    pub histogram: Arc<HistogramVec>,
+    pub points:    Arc<GaugeVec>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct IncomingPayload {
@@ -46,7 +54,7 @@ struct IncomingPayload {
 
 async fn handle(
     payload: web::Json<IncomingPayload>,
-    histogram: web::Data<Arc<HistogramVec>>,
+    measures: web::Data<Measures>,
 ) -> HttpResponse {
     let now = chrono::offset::Utc::now();
 
@@ -54,9 +62,16 @@ async fn handle(
 
     let elapsed = now - data.sent_at;
 
-    histogram
-        .with_label_values(&[&data.tag, &data.period.to_string()])
-        .observe(elapsed.num_milliseconds().abs() as f64 / 1000.0);
+    let period = data.period.to_string();
+    let observation = elapsed.num_milliseconds().abs() as f64 / 1000.0;
+    measures
+        .histogram
+        .with_label_values(&[&data.tag, &period])
+        .observe(observation);
+    measures
+        .points
+        .with_label_values(&[&data.tag, &period, &now.timestamp().to_string()])
+        .set(observation);
 
     HttpResponse::Ok().finish()
 }
@@ -177,12 +192,22 @@ async fn main() -> std::io::Result<()> {
     )
         .unwrap(),
     );
+    let points = Arc::new(
+        register_gauge_vec!(
+        "echo_function_http_request_to_processing_echo_duration_seconds_print_individual",
+        "The HTTP request latencies in seconds for the /print route, time to \
+         first process the request by the echo node, tagged with the content \
+         `tag`. Each measure is individually realized",
+        &["tag", "period", "unique"],
+    )
+        .unwrap(),
+    );
 
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(reqwest::Client::new());
 
     let http_client = web::Data::new(http_client);
-    let histogram = web::Data::new(histogram);
+    let measures = web::Data::new(Measures { histogram, points });
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -192,7 +217,7 @@ async fn main() -> std::io::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::Data::clone(&http_client))
-            .app_data(web::Data::clone(&histogram))
+            .app_data(web::Data::clone(&measures))
             .route("/metrics", web::get().to(metrics))
             .service(web::scope("/").route("", web::post().to(handle)))
     })

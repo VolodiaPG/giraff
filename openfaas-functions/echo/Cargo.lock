@@ -895,6 +895,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "lazy-regex",
+ "reqwest",
  "ron",
  "serde",
  "serde_json",
