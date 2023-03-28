@@ -89,7 +89,6 @@ impl DefaultApiClient {
         }
         trace!("Sending on {}", uri_str);
         let response = builder.send().await?;
-        trace!("response: {:#?}", response);
 
         if response.status().is_success() {
             Ok(())
@@ -113,7 +112,6 @@ impl DefaultApiClient {
 
         trace!("Sending on {}", uri_str);
         let response = builder.send().await?;
-        trace!("response: {:#?}", response);
 
         if response.status().is_success() {
             Ok(response.bytes().await.ok())

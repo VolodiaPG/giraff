@@ -51,15 +51,15 @@
           };
 
           # Generators
-          pkgsGenerator = {rootFeatures ? []}:
+          pkgsGenerator = {rootFeatures}:
             pkgs.rustBuilder.makePackageSet {
-              inherit rustChannel rustProfile target rustVersion rootFeatures extraRustComponents;
+              inherit rustChannel rustProfile target rustVersion extraRustComponents rootFeatures;
               packageFun = import ./Cargo.nix;
             };
 
           dockerImageFogNodeGenerator = {
             tag,
-            rootFeatures,
+            rootFeatures, # crate_name/feature
           }:
             pkgs.dockerTools.buildLayeredImage {
               inherit tag;
@@ -79,28 +79,34 @@
           };
         in rec {
           packages =
-            {market = dockerImageMarket;}
+            {
+              market = dockerImageMarket;
+            }
             // builtins.listToAttrs
             (
               builtins.map
               (
                 settings: let
-                  tag = "${settings.strategy}_${settings.telemetry}";
+                  tag = "${settings.strategy}_${settings.valuation}_${settings.telemetry}";
                 in {
                   name = "fog_node_${tag}";
                   value = dockerImageFogNodeGenerator {
                     inherit tag;
                     rootFeatures =
                       []
-                      ++ nixpkgs.lib.optional (settings.strategy != "auction") settings.strategy
-                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") settings.telemetry;
+                      ++ nixpkgs.lib.optional (settings.strategy != "auction") "fog_node/${settings.strategy}"
+                      ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "fog_node/${settings.valuation}"
+                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "fog_node/${settings.telemetry}"
+                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "openfaas/${settings.telemetry}";
                   };
                 }
               )
               (
                 nixpkgs.lib.attrsets.cartesianProductOfSets
                 {
+                  # Do not forget to run cargo2nix at each new features added
                   strategy = ["auction" "edge_first" "edge_ward" "cloud_only"];
+                  valuation = ["valuation_resources" "valuation_rates"];
                   telemetry = ["no-telemetry" "jaeger"];
                 }
               )
@@ -131,25 +137,23 @@
               };
             };
           };
-          devShells = pkgs.mkShell {
-            default = rustPkgs.workspaceShell {
-              inherit (self.checks.${system}.pre-commit-check) shellHook;
-              packages = with pkgs; [
-                docker
-                just
-                pkg-config
-                jq
-                openssl
-                rust-analyzer
-                cargo-outdated
-                cargo-udeps
-                # cargo-watch
-                lldb
-                kubectl
-                (rustfmt.override {asNightly = true;})
-                cargo2nix.packages.${system}.cargo2nix
-              ];
-            };
+          devShells.default = rustPkgs.workspaceShell {
+            inherit (self.checks.${system}.pre-commit-check) shellHook;
+            packages = with pkgs; [
+              docker
+              just
+              pkg-config
+              jq
+              openssl
+              rust-analyzer
+              cargo-outdated
+              cargo-udeps
+              # cargo-watch
+              lldb
+              kubectl
+              (rustfmt.override {asNightly = true;})
+              cargo2nix.packages.${system}.cargo2nix
+            ];
           };
         }
       );

@@ -18,6 +18,7 @@ pre_commit: check (check "clippy")
 # Run cargo check
 check subcommand="check":
     just _{{subcommand}}
+    just _{{subcommand}} --features valuation_rates
 
     just _{{subcommand}} --features edge_first
     just _{{subcommand}} --features cloud_only
@@ -166,7 +167,7 @@ run debug="false" *FLAGS="": (build FLAGS)
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
 
 expe target_node_uuid localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT $IOT_LOCAL_PORT='30080':
-    cd ../enos/live && just run_expe_script {{target_node_uuid}} {{localhost_ip}}
+    cd ../enos/live && nix develop -c just expe {{localhost_ip}} {{target_node_uuid}}
 
 # Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
 k3d:
@@ -182,23 +183,26 @@ k3d-clean:
     k3d cluster stop fog-node || true
     k3d cluster delete fog-node || true
 
-container image_tag:
-    nix build .#market
-    {{DOCKER}} load < result
-    nix build .#fog_node_{{image_tag}}_no-telemetry
-    {{DOCKER}} load < result
-    {{DOCKER}} tag fog_node:{{image_tag}}_no-telemetry fog_node:{{image_tag}}
-
-# Push an image to ghcr
-_push image user:
-    {{DOCKER}} tag {{image}} ghcr.io/{{user}}/{{image}}
-    {{DOCKER}} push ghcr.io/{{user}}/{{image}}
-
-# Push container images to ghcr.
-ghcr user image_tag: (container image_tag)
+container $image user:
     #!/usr/bin/env bash
-    just _push fog_node:{{image_tag}} {{user}}&
-    just _push market:latest {{user}}&
+    set -e
+    image_path=$(nix build ".#$image" --print-out-paths --no-link --quiet)
+    name=$({{DOCKER}} load --quiet < $image_path | grep "Loaded image: localhost")
+    re="localhost/(.*)"
+    if [[ $name =~ $re  ]]; then
+        name="${BASH_REMATCH[1]}"
+        {{DOCKER}} tag "localhost/$name" ghcr.io/{{user}}/$name
+        {{DOCKER}} push --quiet ghcr.io/{{user}}/$name
+        echo -n "✅"
+    fi
+
+# Push container images o ghcr.
+ghcr user filters="no-telemetry":
+    #!/usr/bin/env bash
+    derivations=$(nix flake show --json | jq  '.packages."x86_64-linux"|keys[]'| grep "fog_node\|market" | grep "market\|{{filters}}")
+    for image in $derivations; do
+        (just container $image {{user}} || echo "❌Failed building $image")&
+    done
     wait
 
 # Cleans

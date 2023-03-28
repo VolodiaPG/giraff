@@ -32,7 +32,7 @@ args @ {
 in let
   inherit (rustLib) fetchCratesIo fetchCrateLocal fetchCrateGit fetchCrateAlternativeRegistry expandFeatures decideProfile genDrvsByProfile;
   profilesByName = {
-    release = builtins.fromTOML "codegen-units = 1\nlto = true\nopt-level = 3\nstrip = true\n";
+    release = builtins.fromTOML "codegen-units = 1\nlto = \"thin\"\nopt-level = 3\nstrip = true\n";
   };
   rootFeatures' = expandFeatures rootFeatures;
   overridableMkRustCrate = f: let
@@ -1363,6 +1363,7 @@ in {
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/reqwest-tracing") "reqwest-tracing")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/tracing-actix-web") "tracing-actix-web")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/tracing-opentelemetry") "tracing-opentelemetry")
+      (lib.optional (rootFeatures' ? "fog_node/valuation_rates") "valuation_rates")
     ];
     dependencies = {
       actix_web = rustPackages."registry+https://github.com/rust-lang/crates.io-index".actix-web."4.3.1" {inherit profileName;};

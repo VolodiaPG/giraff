@@ -3,6 +3,7 @@ members = ["fog_node", "market", "helper", "model", "kube_metrics", "openfaas"]
 
 [profile.release]
 strip = true
-lto = true
+# lto = true
+lto = "thin"
 opt-level = 3
 codegen-units = 1

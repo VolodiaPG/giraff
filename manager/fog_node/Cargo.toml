@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
+# Do not forget to run cargo2nix at each new features added
+
 default = ["mimalloc"]
 # Enable mimalloc
 mimalloc = []
@@ -17,6 +19,11 @@ jaeger = [
     "tracing-actix-web",
 ]
 
+# Bid Computation methods
+# Valuation made from a constant rate, give by an ENV variable
+valuation_rates = []
+
+# Placement methods
 # Enable the bottom up placement method (placing at Edge first)
 edge_first = []
 # Cloud only allocation

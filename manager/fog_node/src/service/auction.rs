@@ -68,6 +68,7 @@ impl Auction {
     }
 
     /// Compute the bid value from the node environment
+    #[cfg(not(feature = "valuation_rates"))]
     async fn compute_bid(&self, sla: &Sla) -> Result<Option<(String, f64)>> {
         let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
@@ -77,6 +78,51 @@ impl Auction {
                 };
 
         let price = sla.memory / available_ram + sla.cpu / available_cpu;
+
+        let price: f64 = price.into();
+
+        trace!("price on {:?} is {:?}", name, price);
+
+        Ok(Some((name, price)))
+    }
+
+    #[cfg(feature = "valuation_rates")]
+    async fn compute_bid(&self, sla: &Sla) -> Result<Option<(String, f64)>> {
+        use helper::uom_helper::cpu_ratio::millicpu;
+        use uom::si::information::mebibyte;
+
+        let Some((name, _used_ram, _used_cpu, _available_ram, _available_cpu)) =
+            self.get_a_node(sla)
+                .await
+                .context("Failed to found a suitable node for the sla")? else{
+                    return Ok(None);
+                };
+
+        let price_ram: f64 = std::env::var("VALUATION_PER_MIB")
+            .context(
+                "Failed to get value from 
+        the environment variable VALUATION_PER_MIB",
+            )?
+            .parse()
+            .context(
+                "Failed to convert environment variable VALUATION_PER_MIB to \
+                 a f64",
+            )?;
+        let price_cpu: f64 = std::env::var("VALUATION_PER_MILLICPU")
+            .context(
+                "Failed to get value from 
+        the environment variable VALUATION_PER_MILLICPU",
+            )?
+            .parse()
+            .context(
+                "Failed to convert environment variable \
+                 VALUATION_PER_MILLICPU to a f64",
+            )?;
+
+        let price_cpu = price_cpu / Ratio::new::<millicpu>(1.0);
+        let price_ram = price_ram / Information::new::<mebibyte>(1.0);
+
+        let price = sla.cpu / price_cpu + sla.memory * price_ram;
 
         let price: f64 = price.into();
 
