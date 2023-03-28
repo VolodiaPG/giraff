@@ -4,7 +4,6 @@ import os
 import sys
 import tarfile
 import tempfile
-import time
 from datetime import datetime
 from io import TextIOWrapper
 
@@ -12,51 +11,44 @@ import requests
 from integration import aliases
 
 
-class NonClosingSpooledTemporaryFile(tempfile.SpooledTemporaryFile):
-    def close(self):
-        pass
-
-    def free_up(self):
-        tempfile.SpooledTemporaryFile.close(self)
-
-
 def worker(queue, url, metrixName):
-    tmpfile = NonClosingSpooledTemporaryFile(100 * 1024 * 1024)  # 100MiB
-    with TextIOWrapper(tmpfile, encoding="utf-8") as file:
-        writer = csv.writer(file, delimiter="\t")
-        response = requests.get(
-            "{0}/api/v1/query".format(url),
-            params={"query": metrixName + f'[{os.environ["period"]}]'},
-        )
-        results = response.json()["data"]["result"]
-        # Build a list of all labelnames used.
-        # gets all keys and discard __name__
-        labelnames = set()
-        for result in results:
-            labelnames.update(result["metric"].keys())
-        # Canonicalize
-        labelnames.discard("__name__")
-        labelnames = sorted(labelnames)
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            response = requests.get(
+                "{0}/api/v1/query".format(url),
+                params={"query": metrixName + f'[{os.environ["period"]}]'},
+            )
+            results = response.json()["data"]["result"]
+            # Build a list of all labelnames used.
+            # gets all keys and discard __name__
+            labelnames = set()
+            for result in results:
+                labelnames.update(result["metric"].keys())
+            # Canonicalize
+            labelnames.discard("__name__")
+            labelnames = sorted(labelnames)
 
-        writer.writerow(["name"] + labelnames + ["timestamp", "value"])
-        for result in results:
-            for label in labelnames:
-                ll = list(result["metric"].values())
-                for value in result["values"]:
-                    writer.writerow(ll + value)
-
-    queue.put((metrixName, tmpfile))
+            writer.writerow(["name"] + labelnames + ["timestamp", "value"])
+            for result in results:
+                for label in labelnames:
+                    ll = list(result["metric"].values())
+                    for value in result["values"]:
+                        writer.writerow(ll + value)
+        tmpfile.close()  # Close before sending to threads
+        queue.put((metrixName, tmpfile.name))
 
 
 def names(queue):
     names = aliases()
-    tmpfile = NonClosingSpooledTemporaryFile(100 * 1024 * 1024)  # 100MiB
-    with TextIOWrapper(tmpfile, encoding="utf-8") as file:
-        writer = csv.writer(file, delimiter="\t")
-        writer.writerow(["instance", "name"])
-        for (key, value) in names.items():
-            writer.writerow([key, value])
-    queue.put(("names", tmpfile))
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            writer.writerow(["instance", "name"])
+            for (key, value) in names.items():
+                writer.writerow([key, value])
+        tmpfile.close()  # Close before sending to threads
+        queue.put(("names", tmpfile.name))
 
 
 def listener(queue, filepath):
@@ -66,15 +58,15 @@ def listener(queue, filepath):
             if m == "kill":
                 break
 
-            metrixName, tmpfile = m
+            metrixName, tmpfile_name = m
 
             tarinfo = tarfile.TarInfo(f"{metrixName}.csv")
-            tarinfo.size = tmpfile.tell()
-            tarinfo.mtime = time.time()
-            tmpfile.seek(os.SEEK_SET)
-            tar.addfile(tarinfo, tmpfile)
+            tarinfo.size = os.path.getsize(tmpfile_name)
+            tarinfo.mtime = os.path.getmtime(tmpfile_name)
+            with open(tmpfile_name, "rb") as tmpfile:
+                tar.addfile(tarinfo, tmpfile)
 
-            tmpfile.free_up()
+            os.remove(tmpfile_name)
 
 
 if __name__ == "__main__":
@@ -122,7 +114,8 @@ if __name__ == "__main__":
 
     # collect results from the workers through the pool result queue
     for job in jobs:
-        job.get()
+        if job is not None:
+            job.get()
 
     queue.put("kill")
     pool.close()

@@ -14,3 +14,4 @@ experiment.md
 .env
 .direnv/
 *.tar*
+Untitled*.ipynb

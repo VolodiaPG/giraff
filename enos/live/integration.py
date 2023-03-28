@@ -1,4 +1,5 @@
 import base64
+import heapq
 import logging
 import os
 import signal
@@ -246,7 +247,7 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
     nb_cpu_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["core"]
     mem_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["mem"]
 
-    print(f"Deploying on {cluster}")
+    print(f"Deploying on {cluster}, force: {force}")
 
     conf = (
         en.VMonG5kConf.from_settings(
@@ -353,15 +354,10 @@ def network(env=None):
         netem = env["netem"]
         netem.destroy()
 
-    # netem = env["netem"]
-
     netem = en.AccurateNetemHTB()
     env["netem"] = netem
-
     roles = env["roles"]
 
-    # netem.add_constraints("delay 20ms", roles["fog_node"], symetric=True)
-    # netem.add_constraints("delay 0ms", roles["iot_emulation"], symetric=True)
     gen_net(NETWORK, netem, roles)
 
     netem.deploy()
@@ -371,24 +367,50 @@ def network(env=None):
 def gen_net(nodes, netem, roles):
     adjacency = adjacency_undirected(nodes)
 
-    print(IOT_CONNECTION)
     for name, latency in IOT_CONNECTION:
         adjacency[name].append(("iot_emulation", latency))
         adjacency["iot_emulation"].append((name, latency))
+    # Convert to matrix
+    # Initialize a matrix
 
-    def dfs(node):
-        vis[node] = 1
-        for child, latency in adjacency[node]:
-            if child not in vis:
-                subtree_cumul[child] = subtree_cumul[node] + latency
-                dfs(child)
+    ii = 0
+    positions = {}
+    for name in adjacency.keys():
+        positions[name] = ii
+        ii += 1
 
-    for node_name in adjacency:
-        subtree_cumul = defaultdict(lambda: 0)
-        vis = {}
-        dfs(node_name)  # modifies subtree_cumul
-        for destination in subtree_cumul:
-            latency = subtree_cumul[destination]
+    def dijkstra(src: str):
+        # Create a priority queue to store vertices that
+        # are being preprocessed
+        pq = []
+        heapq.heappush(pq, (0, src))
+
+        # Create a vector for distances and initialize all
+        # distances as infinite (INF)
+        dist = defaultdict(lambda: float("inf"))
+        dist[src] = 0
+
+        while pq:
+            # The first vertex in pair is the minimum distance
+            # vertex, extract it from priority queue.
+            # vertex label is stored in second of pair
+            d, u = heapq.heappop(pq)
+
+            # 'i' is used to get all adjacent vertices of a
+            # vertex
+            for v, latency in adjacency[u]:
+                # If there is shorted path to v through u.
+                if dist[v] > dist[u] + latency:
+                    # Updating distance of v
+                    dist[v] = dist[u] + latency
+                    heapq.heappush(pq, (dist[v], v))
+
+        return dist
+
+    for node_name in adjacency.keys():
+        latencies = dijkstra(node_name)  # modifies subtree_cumul
+        for destination in latencies.keys():
+            latency = latencies[destination]
             print(f"{node_name} -> {destination} = {latency}")
             netem.add_constraints(
                 src=roles[node_name],
@@ -466,7 +488,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
     children = node["children"] if "children" in node else []
 
     return [
-        (node["name"], conf),
+        (node["name"], conf, node["flavor"]),
         *[gen_conf(node, my_id, my_ip, ids) for node in children],
     ]
 
@@ -513,6 +535,7 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
                 reserved_memory=NETWORK["flavor"]["reserved_mem"],
                 reserved_cpu=NETWORK["flavor"]["reserved_core"],
             ),
+            NETWORK["flavor"],
         )
     ]
     confs = list(
@@ -527,12 +550,14 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
         )
     )
 
-    for (name, conf) in confs:
+    for (name, conf, tier_flavor) in confs:
         deployment = FOG_NODE_DEPLOYMENT.format(
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
             collector_ip=roles["prom_master"][0].address,
             node_name=name,
             fog_node_image=fog_node_image,
+            valuation_per_mib=tier_flavor["valuation_per_mib"],
+            valuation_per_millicpu=tier_flavor["valuation_per_millicpu"],
         )
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
@@ -592,27 +617,6 @@ def health(env=None, all=False, **kwargs):
 
 
 @cli.command()
-@enostask()
-def functions(env=None, **kwargs):
-    roles = env["roles"]
-    res = en.run_command(
-        "kubectl get deployments -n openfaas-fn", roles=roles["master"]
-    )
-    log_cmd(env, [res])
-
-
-@cli.command()
-@enostask()
-def toto(env=None, **kwargs):
-    roles = env["roles"]
-    res = en.run_command(
-        "k3s kubectl get pods -A",
-        roles=roles["master"],
-    )
-    log_cmd(env, [res])
-
-
-@cli.command()
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
 def logs(env=None, all=False, **kwargs):
@@ -649,26 +653,6 @@ def logs(env=None, all=False, **kwargs):
             )
         )
     log_cmd(env, res)
-
-
-@cli.command()
-@click.option("--file", required=False, help="Write output to file")
-@enostask()
-def openfaas_login(env=None, file=None, **kwargs):
-    """Get OpenFaaS login info.
-
-    Username is always `admin`.
-    """
-    roles = env["roles"]
-    res = en.run_command(
-        'echo -n $(kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"'
-        "| base64 --decode; echo)",
-        roles=roles["master"],
-    )
-    log_cmd(env, [res])
-    if file:
-        with open(file, "w") as f:
-            f.write(str(res.filter(status=STATUS_OK).data[0].payload["stdout"]) + "\n")
 
 
 @cli.command()
@@ -723,41 +707,10 @@ def endpoints(env=None, **kwargs):
 
 
 @cli.command()
-@enostask()
-def ips(env=None, **kwargs):
-    roles = env["roles"]
-    for nodes in FOG_NODES:
-        role = roles[nodes][0]
-        address = role.address
-        print(f"{nodes} -> {address}")
-
-    print(f"---\nMarket IP -> {roles['market'][0].address}")
-    print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
-
-
-@cli.command()
-@click.option("--src", required=True, help="Source of the latency request")
-@click.option("--dest", required=True, help="Dest of the latency request")
-@enostask()
-def latency(src, dest, env=None):
-    roles = env["roles"]
-    src = roles[src][0]
-    dest = roles[dest][0]
-
-    res = en.run_command(
-        f"""curl -w @- -o /dev/null -X HEAD -s "http://{dest.address}:3003/api/health" <<'EOF'
-   time_namelookup:  %{{time_namelookup}}s\\n
-      time_connect:  %{{time_connect}}s\\n
-   time_appconnect:  %{{time_appconnect}}s\\n
-  time_pretransfer:  %{{time_pretransfer}}s\\n
-     time_redirect:  %{{time_redirect}}s\\n
-time_starttransfer:  %{{time_starttransfer}}s\\n
----\\n
-        time_total:  %{{time_total}}s\\n
-EOF""",
-        roles=[src],
-    )
-    log_cmd(env, [res])
+def iot_connections(env=None, **kwargs):
+    """List the endpoints name where IoT Emulation is connected to"""
+    for name, _ in IOT_CONNECTION:
+        print(f"{name}")
 
 
 @cli.command()

@@ -77,6 +77,8 @@ done
 # Shuffle
 function_latencies=($(shuf -e "${function_latencies[@]}"))
 
+errors=$(mktemp)
+
 register_new_function() {
 	# $1 → index
 	# $2 → sleep before starting
@@ -96,9 +98,9 @@ register_new_function() {
 	mem=$5
 	cpu=$6
 	docker_fn_name='echo'
-	function_name="$docker_fn_name-$function_id-$latency-$cpu-$mem-$7-$8"
+	function_name="$docker_fn_name-$function_id-$latency-$cpu-$mem-$7-$8-$NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY-$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY-$NB_FUNCTIONS_LOW_LATENCY-$NB_FUNCTIONS_REST"
 
-	echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
+	# echo -e "${ORANGE}Doing function ${function_name}${DGRAY}" # DGRAY for the following
 
 	response_tmp_file=$(mktemp)
 
@@ -132,9 +134,9 @@ register_new_function() {
 		FAAS_IP=$(echo "$FUNCTION_ID" | jq -r .chosen.ip)
 		FAAS_PORT=$(echo "$FUNCTION_ID" | jq -r .chosen.port)
 		FUNCTION_ID=$(echo "$FUNCTION_ID" | jq -r .chosen.bid.id)
-		echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
+		# echo -e "${GREEN}${FUNCTION_ID}${DGRAY}" # DGRAY for the following
 
-		sleep 40
+		sleep 60
 
 		curl --request PUT \
 			--url http://localhost:$IOT_LOCAL_PORT/api/cron \
@@ -146,9 +148,12 @@ register_new_function() {
 	"tag": "'"$function_name"'",
 	"intervalMs": '"$request_interval"'
 	}'
-		echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
+		# echo -e "\n${GREEN}Iot registred${RED}" # DGRAY for the following
+		echo -en "${GREEN}.${NC}" # DGRAY for the following
 	else
-		echo -e "${RED}$(cat $response_tmp_file)${NC}"
+		echo $function_name >>$errors
+		echo -ne "$(cat $response_tmp_file)\n---\n" >>$errors
+		echo -en "${RED}#${NC}"
 	fi
 }
 
@@ -162,3 +167,9 @@ done
 
 # Wait for all reservations to end
 wait
+
+echo -ne "${RED}"
+echo -ne $(head $errors)
+echo -ne "\n[...]\n"
+echo -ne $(tail $errors)
+echo -en "${NC}"

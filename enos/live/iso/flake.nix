@@ -42,6 +42,7 @@
             just
             nixos-rebuild
             qemu
+            mprocs
           ];
         };
       };

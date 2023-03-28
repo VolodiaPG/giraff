@@ -24,9 +24,10 @@ init user *FLAGS:
 mprocs:
     mprocs --server 127.0.0.1:4050
 
-deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/volodiapg/fog_node:auction") market_image=env_var_or_default("DEPLOYMENT_MARKET_IMAGE", "ghcr.io/volodiapg/market:latest") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") walltime=env_var_or_default("DEPLOYMENT_WALLTIME", "2:00:00") $CLUSTER="paravance" +FLAGS='':
+deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/volodiapg/fog_node:auction_valuation_resources_no-telemetry") market_image=env_var_or_default("DEPLOYMENT_MARKET_IMAGE", "ghcr.io/volodiapg/market:latest") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") +FLAGS='':
     #!/usr/bin/env bash
-    {{RUN}} integration.py up --name="{{name}}" --walltime {{walltime}} {{FLAGS}}
+    set -e
+    {{RUN}} integration.py up --name="{{name}}" --walltime $DEPLOYMENT_WALLTIME --force {{FLAGS}}
 
     {{RUN}} integration.py network&
     {{RUN}} integration.py monitoring&
@@ -62,41 +63,37 @@ is_connected city_name_node_target market_local_port='8088':
     @watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
 
-# expe to target node_id for n repetitions with a delay between each
-expe city_name_node_target:
-    #!/usr/bin/env bash
-    NODE_TARGET=$(curl "localhost:$MARKET_LOCAL_PORT/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p')
-    NODE_TARGET_IP=$(just endpoints | sed -nE 's/{{city_name_node_target}} -> (.*)/\1/p')
-    IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
-    echo "iot -> $IOT_IP"
-    echo "target node -> $NODE_TARGET_IP ($NODE_TARGET)"
-    just run_expe_script $NODE_TARGET $IOT_IP
+expe $IOT_IP $TARGET_NODES:
+    {{RUN}} expe.py
 
-run_expe_script node_target iot_ip:
-    ./expe.sh {{node_target}} {{iot_ip}}
-
-scenario city_name_node_target:
+scenario +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
-
-    until [[ "$(just _is_connected {{city_name_node_target}} $MARKET_LOCAL_PORT)" =~ "✅" ]]; do sleep 10; done
+    NODE_TARGETS=()
+    for city in {{city_name_node_targets}}; do
+        until [[ "$(just _is_connected $city $MARKET_LOCAL_PORT)" =~ "✅" ]]; do sleep 10 && echo -e "."; done
+        NODE_TARGETS+=($(curl "localhost:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
+    done
+    IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
+    printf -v joined '%s\t' "${NODE_TARGETS[@]}"
+    
     sleep 30
-    export START_OFFSET=0
-    just expe {{city_name_node_target}}
+
+    just expe $IOT_IP "$joined"
     
     sleep $WAIT_TIME
 
     just collect
 
-scenarii city_name_node_target:
+scenarii +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
 
     echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
 
     for ii in $(seq 1 $NB_REPETITIONS); do
-        just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME $DEPLOYMENT_WALLTIME paravance --force
-        just tunnels --command="'just scenario {{city_name_node_target}}'"
+        just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME --force
+        just tunnels --command="'just scenario {{city_name_node_targets}}'"
     done
 
     just clean
@@ -124,9 +121,10 @@ lab:
 # lab_pdf:
 #     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
 
-docker_enos name walltime fog_node_image market_image cmd="bash":
-    nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker
-    {{DOCKER}} load < result
+docker_enos name fog_node_image market_image cmd="bash":
+    #!/usr/bin/env bash
+    image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
+    {{DOCKER}} load < $image_path
     {{DOCKER}} run -it --rm \
         --workdir /home/enos \
         -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
@@ -134,9 +132,10 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         -v {{justfile_directory()}}/definitions.py:/home/enos/definitions.py:ro \
         -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
         -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
-        -v {{justfile_directory()}}/expe.sh:/home/enos/expe.sh:ro \
+        -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
+        -v {{justfile_directory()}}/logs:/home/enos/logs \
         -v {{justfile_directory()}}/.env.scenario:/home/enos/.env:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
@@ -144,14 +143,26 @@ docker_enos name walltime fog_node_image market_image cmd="bash":
         -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME={{name}} \
-        -e DEPLOYMENT_WALLTIME={{walltime}} \
         -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
         -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
         --name {{name}} \
         enos_deployment:latest bash -c -E "{{cmd}}"
 
-docker_scenarii name walltime fog_node_image market_image city_name_node_target:
-    just docker_enos {{name}} {{walltime}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_target}}"
+docker_scenarii name fog_node_image market_image +city_name_node_targets:
+    just docker_enos {{name}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_targets}}"
+
+_docker_campain name fog_node_image:
+    #!/usr/bin/env bash
+    set -e
+    cities=()
+    for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
+    just docker_scenarii {{name}} ghcr.io/volodiapg/fog_node:{{fog_node_image}} ghcr.io/volodiapg/market:latest ${cities[@]}
+
+docker_campain variation="valuation_rates" suffix="":
+    mprocs "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry" \
+        "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry" \
+        "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry" \
+        "just _docker_campain cloud_only_{{variation}}_{{suffix}} cloud_only_{{variation}}_no-telemetry"
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes

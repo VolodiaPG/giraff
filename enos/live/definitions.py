@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -99,6 +98,10 @@ spec:
           value: "{collector_ip}"
         - name: COLLECTOR_PORT
           value: "14268"
+        - name: VALUATION_PER_MILLICPU
+          value: "{valuation_per_millicpu}"
+        - name: VALUATION_PER_MIB
+          value: "{valuation_per_mib}"
         ports:
         - containerPort: 30003
         volumeMounts:
@@ -219,28 +222,40 @@ NODE_CONNECTED_NODE = """(
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": 18 - 2, "mem": 1024 * (96 - 4)},
-    "paravance": {"core": 2 * 8 - 2, "mem": 1024 * (128 - 4)},
-    "dahu": {"core": 2 * 16 - 2, "mem": 1024 * (192 - 4)},
+    "gros": {"core": 18 - 1, "mem": 1024 * (96 - 4)},
+    "paravance": {"core": 2 * 8 - 1, "mem": 1024 * (128 - 4)},
+    "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
 TIER_3_FLAVOR = {
     "core": 2,
     "mem": 1024 * 4,
-    "reserved_core": 1.5,
-    "reserved_mem": 1024 * 2,
+    "reserved_core": 1.75,
+    "reserved_mem": 1024 * 3,
+    "valuation_per_mib": 1,
+    "valuation_per_millicpu": 1,
+    # "valuation_per_mib": 1.5,
+    # "valuation_per_millicpu": 1.5,
 }
 TIER_2_FLAVOR = {
     "core": 6,
-    "mem": 1024 * 8,
+    "mem": 1024 * 16,
     "reserved_core": 5,
-    "reserved_mem": 1024 * 7,
+    "reserved_mem": 1024 * 14,
+    "valuation_per_mib": 0.5,
+    "valuation_per_millicpu": 0.5,
+    # "valuation_per_mib": 1.1,
+    # "valuation_per_millicpu": 1.1,
 }
 TIER_1_FLAVOR = {
-    "core": 14,
-    "mem": 1024 * 16,
-    "reserved_core": 13,
-    "reserved_mem": 1024 * 14,
+    "core": 1,
+    "mem": 1024 * 64,
+    "reserved_core": 15,
+    "reserved_mem": 1024 * 60,
+    "valuation_per_mib": 0.1,
+    "valuation_per_millicpu": 0.1,
+    # "valuation_per_mib": 0.9,
+    # "valuation_per_millicpu": 0.9,
 }
 
 NETWORK = {
@@ -250,58 +265,149 @@ NETWORK = {
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
-            "latency": 30,
+            "latency": 3,
             "children": [
                 {
                     "name": "rennes",
                     "flavor": TIER_2_FLAVOR,
-                    "latency": 20,
+                    "latency": 10,
                     "children": [
                         {
                             "name": "st-greg",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 10,
+                            "latency": 7,
                             "children": [
                                 {
-                                    "name": "st-greg-5",
+                                    "name": "st-greg-in",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 3,  # ms
                                     "iot_connected": 0,  # ms
                                 },
                                 {
-                                    "name": "st-greg-10",
+                                    "name": "st-greg-1",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 10,
                                 },
                                 {
                                     "name": "st-greg-2",
                                     "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                },
+                            ],
+                        },
+                        {
+                            "name": "cesson",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 12,
+                            "children": [
+                                {
+                                    "name": "cesson-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "cesson-1",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,
+                                },
+                                {
+                                    "name": "cesson-2",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "name": "nantes",
+                    "flavor": TIER_2_FLAVOR,
+                    "latency": 17,
+                    "children": [
+                        {
+                            "name": "orvault",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 7,
+                            "children": [
+                                {
+                                    "name": "orvault-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "orvault-1",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 10,
+                                },
+                                {
+                                    "name": "orvault-2",
+                                    "flavor": TIER_3_FLAVOR,
                                     "latency": 3,
                                 },
                             ],
                         },
-                        # {
-                        #     "name": "cesson",
-                        #     "flavor": TIER_3_FLAVOR,
-                        #     "latency": 7,
-                        #     "children": [
-                        #         {
-                        #             "name": "cesson-5",
-                        #              "flavor": TIER_3_FLAVOR,
-                        #             "latency": 5,
-                        #         },
-                        #         {
-                        #             "name": "cesson-10",
-                        #             "flavor": TIER_3_FLAVOR,
-                        #             "latency": 10,
-                        #         },
-                        #         {
-                        #             "name": "cesson-1",
-                        #             "flavor": TIER_3_FLAVOR,
-                        #             "latency": 1,
-                        #         },
-                        #     ],
-                        # },
+                        {
+                            "name": "vertou",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 12,
+                            "children": [
+                                {
+                                    "name": "vertou-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 10,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "vertou-1",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,
+                                },
+                                {
+                                    "name": "vertou-2",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    "name": "limoux",
+                    "flavor": TIER_2_FLAVOR,
+                    "latency": 25,
+                    "children": [
+                        {
+                            "name": "roquefeuil",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 31,
+                            "children": [
+                                {
+                                    "name": "roquefeuil-2",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 1,
+                                },
+                            ],
+                        },
+                        {
+                            "name": "belcaire",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 29,
+                            "children": [
+                                {
+                                    "name": "belcaire-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "belcaire-2",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                },
+                            ],
+                        },
                     ],
                 },
             ],
@@ -347,7 +453,6 @@ def get_iot_connection(node):
     ret = [get_iot_connection(node) for node in children]
     if "iot_connected" in node:
         ret.append((name, node["iot_connected"]))
-
     return ret
 
 
@@ -357,6 +462,16 @@ def adjacency(node):
     ret[node["name"]] = [(child["name"], child["latency"]) for child in children]
     for child in children:
         ret = {**ret, **adjacency(child)}
+
+    return ret
+
+
+def levels(node, level=0):
+    children = node["children"] if "children" in node else []
+    ret = {}
+    ret[node["name"]] = level
+    for child in children:
+        ret = {**ret, **levels(child, level + 1)}
 
     return ret
 
@@ -383,3 +498,4 @@ IOT_CONNECTION = list(
     flatten([get_iot_connection(child) for child in NETWORK["children"]])
 )
 ADJACENCY = adjacency(NETWORK)
+LEVELS = levels(NETWORK)

@@ -74,19 +74,26 @@
     htop
   ];
 
+  # Set caching for g5k registry
+  environment.etc."rancher/k3s/registries.yaml".text = ''
+    mirrors:
+      docker.io:
+        endpoint:
+          - "http://docker-cache.grid5000.fr"
+        configs:
+          "http://docker-cache.grid5000.fr":
+            tls:
+              insecure_skip_verify: true
+  '';
+
   networking.firewall.enable = false;
 
-  # Tell the Nix evaluator to garbage collect more aggressively.
+  # Tell the Nix evaluator to garbage collect morke aggressively.
   # This is desirable in memory-constrained environments that don't
   # (yet) have swap set up.
   environment.variables.GC_INITIAL_HEAP_SIZE = "1M";
 
-  # Make the installer more likely to succeed in low memory
-  # environments.  The kernel's overcommit heustistics bite us
-  # fairly often, preventing processes such as nix-worker or
-  # download-using-manifests.pl from forking even if there is
-  # plenty of free memory.
-  boot.kernel.sysctl."vm.overcommit_memory" = "1";
+  boot.kernel.sysctl."net.ipv4.tcp_congestion_control" = "bbr2";
 
   system.stateVersion = "22.05"; # Do not change
 }

@@ -35,6 +35,7 @@
             projectDir = ./.;
             python = self.python311;
             overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
+              # Fixes Enoslib
               cryptography = oldattr.cryptography.overridePythonAttrs (
                 old: {
                   cargoDeps = super.rustPlatform.fetchCargoTarball {
@@ -85,6 +86,27 @@
                 (
                   old: {
                     buildInputs = (old.buildInputs or []) ++ [oldattr.hatch-jupyter-builder oldattr.hatchling];
+                  }
+                );
+              # Fixes alive-progress
+              about-time =
+                oldattr.about-time.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
+                    postInstall = ''
+                      rm $out/LICENSE
+                    '';
+                  }
+                );
+              alive-progress =
+                oldattr.alive-progress.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
+                    postInstall = ''
+                      rm $out/LICENSE
+                    '';
                   }
                 );
             });
@@ -168,6 +190,7 @@
                     stringr
                     viridis
                     geomtextpath
+                    scales
                   ];
               };
             }

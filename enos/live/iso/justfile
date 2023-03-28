@@ -5,67 +5,100 @@ _default:
 fmt:
     nix --experimental-features "nix-command flakes" fmt .
 
-build-vm:
-    nix build --print-build-logs --experimental-features "nix-command flakes" .#vm-g5k
 
 update:
     nix flake update --experimental-features "nix-command flakes"
 
 upload city="rennes":
     rsync -chavzP --stats --perms --chmod=u+rwx,g+rwx,o+rwx result/nixos.qcow2 {{city}}.grid5000.fr:~/nixos.qcow2
-    
-vm clean="false":
+
+build-vm:
+    nix build --print-build-logs --experimental-features "nix-command flakes" .#vm-g5k
+# #!/usr/bin/env bash
+# set -ex
+
+# temp=$(mktemp)
+# cp result/nixos.qcow2 $temp
+
+# qemu-kvm \
+#     -cpu max \
+#     -name nixos \
+#     -m 4096 \
+#     -smp 1 \
+#     -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
+#     -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22&
+
+# SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
+
+# until $SSH_CMD "k3s kubectl get pods -A"  2> /dev/null
+# do
+#     sleep 5
+# done
+
+# # until $SSH_CMD "k3s kubectl wait pods -n kube-system -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
+# until $SSH_CMD "k3s kubectl wait deployment -n kube-system metrics-server --for condition=available --timeout=120s" 2> /dev/null
+# do
+#     sleep 10
+# done
+# until $SSH_CMD "k3s kubectl wait deployment -n kube-system coredns --for condition=available --timeout=120s" 2> /dev/null
+# do
+#     sleep 10
+# done
+# until $SSH_CMD "k3s kubectl wait deployment -n kube-system local-path-provisioner --for condition=available --timeout=120s" 2> /dev/null
+# do
+#     sleep 10
+# done
+
+# ($SSH_CMD "shutdown 0" || true)&
+
+# wait
+
+# mv $temp ./nixos.qcow2
+
+vm:
     #!/usr/bin/env bash
     set -ex
-    export NIX_DISK_IMAGE={{justfile_directory()}}/"nixos.vm.qcow2"
-    export QEMU_NET_OPTS="hostfwd=tcp::2221-:22" 
-    export QEMU_OPTS="-m 4096 -smp 4 -enable-kvm" 
+    temp=$(mktemp)
+    cp result/nixos.qcow2 $temp
+
+    qemu-kvm \
+        -cpu max \
+        -name nixos \
+        -m 4096 \
+        -smp 4 \
+        -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
+        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22&
     
     export SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
     
-    EXISTS=false
-    ([ {{clean}} = false ] &&  [ -f "$NIX_DISK_IMAGE" ])  && EXISTS=true
-    echo $EXISTS
-
-    if [ $EXISTS = false ]
-    then
-        qemu-img create -f qcow2 "$NIX_DISK_IMAGE" 4G
-    fi
-
-    nixos-rebuild --flake .#vm build-vm 
-    ./result/bin/run-*-vm&
-
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
         sleep 1
     done
-    
-    if [ $EXISTS = false ]
-    then
-        $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-                    && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
-                    && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
-                    && helm repo update \
-                    && helm upgrade openfaas --install openfaas/openfaas --version 12.0.0 \
-                        --namespace openfaas  \
-                        --set functionNamespace=openfaas-fn \
-                        --set generateBasicAuth=true \
-                        --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
-                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
-                        --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
-                        --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
-                        --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1"
-    fi
+
+    $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
+                && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
+                && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
+                && helm repo update \
+                && helm upgrade openfaas --install openfaas/openfaas --version 12.0.0 \
+                    --namespace openfaas  \
+                    --set functionNamespace=openfaas-fn \
+                    --set generateBasicAuth=true \
+                    --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
+                    --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
+                    --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
+                    --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
+                    --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1"
     
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do
         sleep 10
     done
 
-    # until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
-    # do
-    #     sleep 10
-    # done
+    until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
+    do
+        sleep 10
+    done
     
     $SSH_CMD "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2
     
@@ -73,6 +106,7 @@ vm clean="false":
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
     $SSH_CMD -N -L 6443:127.0.0.1:6443&
     $SSH_CMD -N -L 8080:127.0.0.1:8080&
-    $SSH_CMD -N -L 9090:127.0.0.1:9090
-
+    $SSH_CMD -N -L 9090:127.0.0.1:9090&
+    wait
+    rm $temp
     
