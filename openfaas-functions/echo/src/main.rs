@@ -184,7 +184,7 @@ async fn main() -> std::io::Result<()> {
 
     let http_client = web::Data::new(http_client);
     let histogram = web::Data::new(histogram);
-    let sla_id = web::Data::new(sla.id.to_string());
+    let sla_id = web::Data::new(Arc::new(sla.id.to_string()));
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
