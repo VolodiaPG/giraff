@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uom::si::f64::{Information, Ratio, Time};
 
-use crate::NodeId;
+use crate::{NodeId, SlaId};
 use helper::uom_helper::{information, ratio, time};
 
 /// Describe the SLA of a function submitted to be provisioned
@@ -9,6 +9,7 @@ use helper::uom_helper::{information, ratio, time};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Sla {
+    pub id:     SlaId,
     // #[serde_as(as = "information::Helper")]
     // pub storage: Information,
     #[serde_as(as = "information::Helper")]

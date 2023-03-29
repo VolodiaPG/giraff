@@ -170,6 +170,7 @@ macro_rules! impl_port_encapsulation {
 
 impl_id_encapsulation!(NodeId);
 impl_id_encapsulation!(BidId);
+impl_id_encapsulation!(SlaId);
 
 // Port for fog node FaaS HTTP endpoint (service running in parallel of
 // instance)

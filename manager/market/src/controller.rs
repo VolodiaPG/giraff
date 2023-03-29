@@ -21,8 +21,10 @@ pub async fn start_auction(
 
     let started = Instant::now();
 
+    let sla = payload.sla.into();
+
     let proposals = auction_service
-        .call_for_bids(payload.target_node.clone(), &payload.sla)
+        .call_for_bids(payload.target_node.clone(), &sla)
         .await
         .with_context(|| {
             format!(
@@ -55,7 +57,7 @@ pub async fn start_auction(
             port: port_faas,
         },
         proposals,
-        sla: payload.sla,
+        sla,
     };
 
     faas_service
