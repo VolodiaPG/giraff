@@ -47,6 +47,7 @@ struct IncomingPayload {
 async fn handle(
     payload: web::Json<IncomingPayload>,
     histogram: web::Data<Arc<HistogramVec>>,
+    sla_id: web::Data<Arc<String>>,
 ) -> HttpResponse {
     let now = chrono::offset::Utc::now();
 
@@ -55,7 +56,7 @@ async fn handle(
     let elapsed = now - data.sent_at;
 
     histogram
-        .with_label_values(&[&data.tag, &data.period.to_string()])
+        .with_label_values(&[&data.tag, &data.period.to_string(), &sla_id])
         .observe(elapsed.num_milliseconds().abs() as f64 / 1000.0);
 
     HttpResponse::Ok().finish()
@@ -172,7 +173,7 @@ async fn main() -> std::io::Result<()> {
         "The HTTP request latencies in seconds for the /print route, time to \
          first process the request by the echo node, tagged with the content \
          `tag`.",
-        &["tag", "period"],
+        &["tag", "period", "sla_id"],
         buckets
     )
         .unwrap(),
@@ -183,6 +184,7 @@ async fn main() -> std::io::Result<()> {
 
     let http_client = web::Data::new(http_client);
     let histogram = web::Data::new(histogram);
+    let sla_id = web::Data::new(sla.id.to_string());
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -193,6 +195,7 @@ async fn main() -> std::io::Result<()> {
 
         app.app_data(web::Data::clone(&http_client))
             .app_data(web::Data::clone(&histogram))
+            .app_data(web::Data::clone(&sla_id))
             .route("/metrics", web::get().to(metrics))
             .service(web::scope("/").route("", web::post().to(handle)))
     })
