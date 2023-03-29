@@ -165,6 +165,7 @@ impl Auction {
             .with_label_values(&[
                 &record.0.sla.function_live_name,
                 &id.to_string(),
+                &record.0.sla.id.to_string(),
             ])
             .set(bid);
         Ok(Some((id, record)))

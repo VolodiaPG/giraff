@@ -1,3 +1,4 @@
+use crate::prom_metrics::SLA_SEEN;
 use crate::service::function_life::FunctionLife;
 use anyhow::{Context, Result};
 use model::view::auction::{BidProposals, BidRequestOwned};
@@ -11,6 +12,12 @@ pub async fn bid_on(
     function: &Arc<FunctionLife>,
 ) -> Result<BidProposals> {
     trace!("bidding on... {:?}", bid_request);
+    SLA_SEEN
+        .with_label_values(&[
+            &bid_request.sla.function_live_name,
+            &bid_request.sla.id.to_string(),
+        ])
+        .inc();
     function
         .bid_on_new_function_and_transmit(
             &bid_request.sla,

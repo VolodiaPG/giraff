@@ -12,7 +12,15 @@ lazy_static! {
     pub static ref BID_GAUGE: GaugeVec = {
         register_gauge_vec!(
             opts!(concat!(PREFIX!(), "bids"), "Bids placed for submitted SLA"),
-            &["function_name", "bid_id"],
+            &["function_name", "bid_id", "sla_id"],
+        )
+        .unwrap()
+    };
+
+    pub static ref SLA_SEEN: GaugeVec = {
+        register_gauge_vec!(
+            opts!(concat!(PREFIX!(), "sla_seen"), "Bids placed for submitted SLA"),
+            &["function_name", "sla_id"],
         )
         .unwrap()
     };
