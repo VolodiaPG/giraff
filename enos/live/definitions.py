@@ -102,6 +102,8 @@ spec:
           value: "{valuation_per_millicpu}"
         - name: VALUATION_PER_MIB
           value: "{valuation_per_mib}"
+        - name: IS_CLOUD
+          value: "{is_cloud}"
         ports:
         - containerPort: 30003
         volumeMounts:
@@ -248,12 +250,13 @@ TIER_2_FLAVOR = {
     # "valuation_per_millicpu": 1.1,
 }
 TIER_1_FLAVOR = {
-    "core": 1,
+    "core": 17,
     "mem": 1024 * 64,
-    "reserved_core": 15,
+    "reserved_core": 16,
     "reserved_mem": 1024 * 60,
     "valuation_per_mib": 0.1,
     "valuation_per_millicpu": 0.1,
+    "is_cloud": True
     # "valuation_per_mib": 0.9,
     # "valuation_per_millicpu": 0.9,
 }
@@ -262,6 +265,8 @@ NETWORK = {
     "name": "market",
     "flavor": TIER_1_FLAVOR,
     "children": [
+        {"name": "marseille", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "toulouse", "flavor": TIER_1_FLAVOR, "latency": 4, "children": []},
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
@@ -278,7 +283,7 @@ NETWORK = {
                             "latency": 7,
                             "children": [
                                 {
-                                    "name": "st-greg-in",
+                                    "name": "st-greg-1-in",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 3,  # ms
                                     "iot_connected": 0,  # ms
@@ -286,24 +291,35 @@ NETWORK = {
                                 {
                                     "name": "st-greg-1",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 10,
+                                    "latency": 7,
                                 },
                                 {
                                     "name": "st-greg-2",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 5,
                                 },
+                                {
+                                    "name": "st-greg-3",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,
+                                },
+                                {
+                                    "name": "st-greg-2-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 2,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
                             ],
                         },
                         {
                             "name": "cesson",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 12,
+                            "latency": 7,
                             "children": [
                                 {
                                     "name": "cesson-in",
                                     "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,  # ms
+                                    "latency": 4,  # ms
                                     "iot_connected": 0,  # ms
                                 },
                                 {
@@ -315,6 +331,18 @@ NETWORK = {
                                     "name": "cesson-2",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 5,
+                                },
+                                {
+                                    "name": "cesson-2-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 5,
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "cesson-3-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 2,
+                                    "iot_connected": 0,  # ms
                                 },
                             ],
                         },
@@ -328,7 +356,7 @@ NETWORK = {
                         {
                             "name": "orvault",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 7,
+                            "latency": 10,
                             "children": [
                                 {
                                     "name": "orvault-in",
@@ -351,7 +379,7 @@ NETWORK = {
                         {
                             "name": "vertou",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 12,
+                            "latency": 15,
                             "children": [
                                 {
                                     "name": "vertou-in",
@@ -405,6 +433,46 @@ NETWORK = {
                                     "name": "belcaire-2",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 4,
+                                },
+                            ],
+                        },
+                        {
+                            "name": "espezel",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 36,
+                            "children": [
+                                {
+                                    "name": "espezel-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 3,  # ms
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "espezel-2",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                },
+                                {
+                                    "name": "espezel-3",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                    "iot_connected": 0,  # ms
+                                },
+                                {
+                                    "name": "espezel-4",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                },
+                                {
+                                    "name": "espezel-5",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                },
+                                {
+                                    "name": "espezel-6-in",
+                                    "flavor": TIER_3_FLAVOR,
+                                    "latency": 4,
+                                    "iot_connected": 0,  # ms
                                 },
                             ],
                         },

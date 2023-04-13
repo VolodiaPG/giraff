@@ -4,6 +4,7 @@ import logging
 import os
 import signal
 import subprocess
+import time
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -285,7 +286,19 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
 
     provider = en.VMonG5k(conf)
 
-    roles, networks = provider.init(force_deploy=force)
+    time.sleep(10)
+
+    # Encapsulate the code block in a try-except block and a for loop to retry 5 times
+    for i in range(5):
+        try:
+            roles, networks = provider.init(force_deploy=force)
+            break
+        except Exception as e:
+            if i == 4:
+                raise e
+            else:
+                print(f"Encountered exception: {e}. Retrying in 10 seconds...")
+                time.sleep(10)
 
     en.wait_for(roles)
 
@@ -354,7 +367,8 @@ def network(env=None):
         netem = env["netem"]
         netem.destroy()
 
-    netem = en.AccurateNetemHTB()
+    # netem = en.AccurateNetemHTB()
+    netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]
 
@@ -411,7 +425,7 @@ def gen_net(nodes, netem, roles):
         latencies = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            print(f"{node_name} -> {destination} = {latency}")
+            # print(f"{node_name} -> {destination} = {latency}")
             netem.add_constraints(
                 src=roles[node_name],
                 dest=roles[destination],
@@ -558,6 +572,10 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
             fog_node_image=fog_node_image,
             valuation_per_mib=tier_flavor["valuation_per_mib"],
             valuation_per_millicpu=tier_flavor["valuation_per_millicpu"],
+            is_cloud="is_cloud"
+            if tier_flavor.get("is_cloud") is not None
+            and tier_flavor.get("is_cloud") is True
+            else "no_cloud",
         )
         roles[name][0].set_extra(fog_node_deployment=deployment)
 

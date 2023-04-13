@@ -183,6 +183,7 @@
                     )
                     cowplot
                     reticulate
+                    vroom
                     tidyverse
                     igraph
                     r2r

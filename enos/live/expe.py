@@ -238,7 +238,7 @@ async def register_new_function(
         except json.JSONDecodeError:
             pass
 
-    print(response.decode("utf-8"))
+    print("---\n", response.decode("utf-8").replace("\\n", "\n"))
 
     return False
 

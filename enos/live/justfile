@@ -29,12 +29,12 @@ deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/v
     set -e
     {{RUN}} integration.py up --name="{{name}}" --walltime $DEPLOYMENT_WALLTIME --force {{FLAGS}}
 
-    {{RUN}} integration.py network&
     {{RUN}} integration.py monitoring&
     {{RUN}} integration.py iot-emulation&
     ({{RUN}} integration.py k3s-setup && \
         {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
     wait
+    {{RUN}} integration.py network
 
 # Refresh the container images hosted by k3s on all deployed nodes
 refresh:
@@ -121,22 +121,25 @@ lab:
 # lab_pdf:
 #     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
 
-docker_enos name fog_node_image market_image cmd="bash":
+docker_enos name fog_node_image market_image tempdir cmd="bash":
     #!/usr/bin/env bash
+    set -e
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
+    cp .env.scenario {{tempdir}}/.env
+    cp definitions.py {{tempdir}}/definitions.py
     {{DOCKER}} run -it --rm \
         --workdir /home/enos \
         -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
         -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
-        -v {{justfile_directory()}}/definitions.py:/home/enos/definitions.py:ro \
+        -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
         -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
         -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
         -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
         -v {{justfile_directory()}}/logs:/home/enos/logs \
-        -v {{justfile_directory()}}/.env.scenario:/home/enos/.env:ro \
+        -v {{tempdir}}/.env:/home/enos/.env:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
@@ -148,21 +151,26 @@ docker_enos name fog_node_image market_image cmd="bash":
         --name {{name}} \
         enos_deployment:latest bash -c -E "{{cmd}}"
 
-docker_scenarii name fog_node_image market_image +city_name_node_targets:
-    just docker_enos {{name}} {{fog_node_image}} {{market_image}} "just scenarii {{city_name_node_targets}}"
+docker_scenarii name fog_node_image market_image tempdir +city_name_node_targets:
+    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "just scenarii {{city_name_node_targets}}"
 
-_docker_campain name fog_node_image:
+_docker_campain name fog_node_image tempdir:
     #!/usr/bin/env bash
     set -e
     cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
-    just docker_scenarii {{name}} ghcr.io/volodiapg/fog_node:{{fog_node_image}} ghcr.io/volodiapg/market:latest ${cities[@]}
+    just docker_scenarii {{name}} ghcr.io/volodiapg/fog_node:{{fog_node_image}} ghcr.io/volodiapg/market:latest {{tempdir}} ${cities[@]}
 
 docker_campain variation="valuation_rates" suffix="":
-    mprocs "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry" \
-        "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry" \
-        "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry" \
-        "just _docker_campain cloud_only_{{variation}}_{{suffix}} cloud_only_{{variation}}_no-telemetry"
+    #!/usr/bin/env bash
+    set -e
+    tempdir=$(mktemp -d)
+    mprocs \
+        "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry $tempdir" \
+        "just _docker_campain edge_first_v2_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
+        "just _docker_campain edge_ward_v3_{{variation}}_{{suffix}} edge_ward_v3_{{variation}}_no-telemetry $tempdir" \
+        "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
 
+# "just _docker_campain cloud_only_v2_{{variation}}_{{suffix}} cloud_only_v2_{{variation}}_no-telemetry $tempdir"
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
