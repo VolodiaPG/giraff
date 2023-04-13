@@ -1,38 +1,39 @@
 use crate::repository::cron::Cron;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
-#[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
+#[cfg(any(
+    feature = "auction",
+    feature = "edge_first",
+    feature = "edge_first_v2",
+    feature = "edge_ward_v2",
+    feature = "edge_ward_v3",
+))]
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
 use anyhow::{Context, Result};
-use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
-use model::{BidId, NodeId};
+use model::BidId;
 use std::sync::Arc;
-use uom::si::f64::Time;
 
 pub struct FunctionLife {
     function:          Arc<Function>,
     auction:           Arc<Auction>,
     node_situation:    Arc<NodeSituation>,
-    #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
+    #[cfg(any(
+        feature = "auction",
+        feature = "edge_first",
+        feature = "edge_first_v2",
+        feature = "edge_ward_v2",
+        feature = "edge_ward_v3",
+    ))]
     neighbor_monitor:  Arc<NeighborMonitor>,
     node_query:        Arc<NodeQuery>,
     function_tracking: Arc<FunctionTracking>,
     cron:              Arc<Cron>,
 }
 
-#[cfg(not(any(
-    feature = "edge_first",
-    feature = "cloud_only",
-    feature = "edge_ward"
-)))]
+#[cfg(feature = "auction")]
 mod auction_placement;
-#[cfg(not(any(
-    feature = "edge_first",
-    feature = "cloud_only",
-    feature = "edge_ward"
-)))]
+#[cfg(feature = "auction")]
 pub use auction_placement::*;
 
 #[cfg(feature = "cloud_only")]
@@ -40,15 +41,35 @@ mod cloud_only_placement;
 #[cfg(feature = "cloud_only")]
 pub use cloud_only_placement::*;
 
+#[cfg(feature = "cloud_only_v2")]
+mod cloud_only_placement_v2;
+#[cfg(feature = "cloud_only_v2")]
+pub use cloud_only_placement_v2::*;
+
 #[cfg(feature = "edge_first")]
 mod edge_first_placement;
 #[cfg(feature = "edge_first")]
 pub use edge_first_placement::*;
 
+#[cfg(feature = "edge_first_v2")]
+mod edge_first_placement_v2;
+#[cfg(feature = "edge_first_v2")]
+pub use edge_first_placement_v2::*;
+
 #[cfg(feature = "edge_ward")]
 mod edge_ward_placement;
 #[cfg(feature = "edge_ward")]
 pub use edge_ward_placement::*;
+
+#[cfg(feature = "edge_ward_v2")]
+mod edge_ward_placement_v2;
+#[cfg(feature = "edge_ward_v2")]
+pub use edge_ward_placement_v2::*;
+
+#[cfg(feature = "edge_ward_v3")]
+mod edge_ward_placement_v3;
+#[cfg(feature = "edge_ward_v3")]
+pub use edge_ward_placement_v3::*;
 
 use super::function::Function;
 
@@ -57,7 +78,13 @@ impl FunctionLife {
         function: Arc<Function>,
         auction: Arc<Auction>,
         node_situation: Arc<NodeSituation>,
-        #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
+        #[cfg(any(
+            feature = "auction",
+            feature = "edge_first",
+            feature = "edge_first_v2",
+            feature = "edge_ward_v2",
+            feature = "edge_ward_v3",
+        ))]
         neighbor_monitor: Arc<NeighborMonitor>,
         node_query: Arc<NodeQuery>,
         function_tracking: Arc<FunctionTracking>,
@@ -67,27 +94,45 @@ impl FunctionLife {
         {
             info!("Using edge-first placement");
         }
+        #[cfg(feature = "edge_first_v2")]
+        {
+            info!("Using edge-first v2 placement");
+        }
         #[cfg(feature = "cloud_only")]
         {
             info!("Using cloud-only placement");
+        }
+        #[cfg(feature = "cloud_only_v2")]
+        {
+            info!("Using cloud-only v2 placement");
         }
         #[cfg(feature = "edge_ward")]
         {
             info!("Using edge-ward placement");
         }
-        #[cfg(not(any(
-            feature = "edge_first",
-            feature = "cloud_only",
-            feature = "edge_ward"
-        )))]
+        #[cfg(feature = "edge_ward_placement_v2")]
         {
-            info!("Using auction (default) placement");
+            info!("Using edge-ward v2 placement");
+        }
+        #[cfg(feature = "edge_ward_placement_v3")]
+        {
+            info!("Using edge-ward v3 placement");
+        }
+        #[cfg(feature = "auction")]
+        {
+            info!("Using auction placement");
         }
         Self {
             function,
             auction,
             node_situation,
-            #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
+            #[cfg(any(
+                feature = "auction",
+                feature = "edge_first",
+                feature = "edge_first_v2",
+                feature = "edge_ward_v2",
+                feature = "edge_ward_v3",
+            ))]
             neighbor_monitor,
             node_query,
             function_tracking,

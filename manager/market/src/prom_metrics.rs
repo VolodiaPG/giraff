@@ -17,7 +17,7 @@ lazy_static! {
                 "Time between the SLA is submitted and the function is \
                  placed."
             ),
-            &["function_name", "bid_id"],
+            &["function_name", "bid_id", "sla_id"],
         )
         .unwrap()
     };
@@ -27,7 +27,7 @@ lazy_static! {
                 concat!(PREFIX!(), "provisioned_functions"),
                 "Number of provisioned functions."
             ),
-            &[]
+            &["function_name", "sla_id"]
         )
         .unwrap()
     };
@@ -37,7 +37,7 @@ lazy_static! {
                 concat!(PREFIX!(), "refused_functions"),
                 "Number of aborted/refused functions."
             ),
-            &[],
+            &["function_name", "sla_id"],
         )
         .unwrap()
     };

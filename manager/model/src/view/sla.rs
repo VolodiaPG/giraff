@@ -39,18 +39,18 @@ pub struct SlaRequest {
     pub data_flow: Vec<DataFlow>,
 }
 
-impl Into<Sla> for SlaRequest {
-    fn into(self) -> Sla {
+impl From<SlaRequest> for Sla {
+    fn from(val: SlaRequest) -> Self {
         Sla {
             id:                 uuid::Uuid::new_v4().into(),
-            memory:             self.memory,
-            cpu:                self.cpu,
-            latency_max:        self.latency_max,
-            duration:           self.duration,
-            max_replica:        self.max_replica,
-            function_image:     self.function_image,
-            function_live_name: self.function_live_name,
-            data_flow:          self.data_flow,
+            memory:             val.memory,
+            cpu:                val.cpu,
+            latency_max:        val.latency_max,
+            duration:           val.duration,
+            max_replica:        val.max_replica,
+            function_image:     val.function_image,
+            function_live_name: val.function_live_name,
+            data_flow:          val.data_flow,
         }
     }
 }
@@ -59,7 +59,23 @@ impl Into<Sla> for SlaRequest {
 /// establish the routing
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct PutSla {
+pub struct PutSlaRequest {
     pub sla:         SlaRequest,
     pub target_node: NodeId,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PutSla {
+    pub sla:         Sla,
+    pub target_node: NodeId,
+}
+
+impl From<PutSlaRequest> for PutSla {
+    fn from(value: PutSlaRequest) -> Self {
+        PutSla {
+            sla:         value.sla.into(),
+            target_node: value.target_node,
+        }
+    }
 }

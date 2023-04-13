@@ -1,5 +1,9 @@
 use super::*;
 use anyhow::{anyhow, ensure, Context, Result};
+use model::domain::sla::Sla;
+use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::NodeId;
+use uom::si::f64::Time;
 
 impl FunctionLife {
     /// Here the operation will be sequential, first looking to place on a

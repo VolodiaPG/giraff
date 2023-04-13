@@ -1351,10 +1351,15 @@ in {
     registry = "unknown";
     src = fetchCrateLocal (workspaceSrc + "/fog_node");
     features = builtins.concatLists [
+      (lib.optional (rootFeatures' ? "fog_node/auction") "auction")
       (lib.optional (rootFeatures' ? "fog_node/cloud_only") "cloud_only")
+      (lib.optional (rootFeatures' ? "fog_node/cloud_only_v2") "cloud_only_v2")
       (lib.optional (rootFeatures' ? "fog_node/default") "default")
       (lib.optional (rootFeatures' ? "fog_node/edge_first") "edge_first")
+      (lib.optional (rootFeatures' ? "fog_node/edge_first_v2") "edge_first_v2")
       (lib.optional (rootFeatures' ? "fog_node/edge_ward") "edge_ward")
+      (lib.optional (rootFeatures' ? "fog_node/edge_ward_v2") "edge_ward_v2")
+      (lib.optional (rootFeatures' ? "fog_node/edge_ward_v3") "edge_ward_v3")
       (lib.optional (rootFeatures' ? "fog_node/jaeger") "jaeger")
       (lib.optional (rootFeatures' ? "fog_node/default" || rootFeatures' ? "fog_node/mimalloc") "mimalloc")
       (lib.optional (rootFeatures' ? "fog_node/jaeger" || rootFeatures' ? "fog_node/opentelemetry") "opentelemetry")

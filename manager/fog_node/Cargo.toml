@@ -24,12 +24,26 @@ jaeger = [
 valuation_rates = []
 
 # Placement methods
+# Default placement
+auction = []
 # Enable the bottom up placement method (placing at Edge first)
 edge_first = []
+# Enable the bottom up placement method (placing at Edge first)
+# While putting function the furthest possible first
+edge_first_v2 = []
 # Cloud only allocation
 cloud_only = []
+# Cloud only allocation v2 (with more chatter between cloud nodes)
+cloud_only_v2 = []
 # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
 edge_ward = []
+# Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
+# + Refuse functions if latency is expected not to be respected
+edge_ward_v2 = []
+# Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
+# + Refuse functions if latency is expected not to be respected
+# + Tries to allocate the furthest first
+edge_ward_v3 = []
 
 [dependencies]
 actix-web = "4.2.1"

@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use model::domain::sla::Sla;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
@@ -21,13 +21,28 @@ impl FunctionLife {
                     bids: vec!()
                 });
             };
+
+        let latency_outbound = self
+            .neighbor_monitor
+            .get_latency_to_avg(&parent)
+            .await
+            .ok_or_else(|| anyhow!("Cannot get Latency of {}", parent))?;
+
+        if latency_outbound + accumulated_latency > sla.latency_max {
+            bail!(
+                "Accumulated latency + latency to parent is expected to be \
+                 over the sla's max latency."
+            )
+        };
+
         let bid = self
             .node_query
             .request_neighbor_bid(
                 &BidRequest {
                     sla,
                     node_origin: self.node_situation.get_my_id(),
-                    accumulated_latency: accumulated_latency.to_owned(),
+                    accumulated_latency: accumulated_latency.to_owned()
+                        + latency_outbound,
                 },
                 parent,
             )

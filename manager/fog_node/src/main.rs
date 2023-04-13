@@ -309,7 +309,13 @@ async fn main() -> std::io::Result<()> {
         function.clone(),
         auction_service.clone(),
         node_situation.clone(),
-        #[cfg(not(any(feature = "cloud_only", feature = "edge_ward")))]
+        #[cfg(any(
+            feature = "auction",
+            feature = "edge_first",
+            feature = "edge_first_v2",
+            feature = "edge_ward_v2",
+            feature = "edge_ward_v3",
+        ))]
         neighbor_monitor_service.clone(),
         node_query.clone(),
         function_tracking_repo.clone(),

@@ -1,7 +1,7 @@
 use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
 use model::view::node::RegisterNode;
-use model::view::sla::PutSla;
+use model::view::sla::{PutSla, PutSlaRequest};
 
 use crate::controller;
 
@@ -28,13 +28,14 @@ impl From<anyhow::Error> for AnyhowErrorWrapper {
 /// Register a SLA and starts the auctioning process, as well as establishing
 /// the routing once the auction is completed
 pub async fn put_function(
-    payload: Json<PutSla>,
+    payload: Json<PutSlaRequest>,
     auction_service: Data<crate::service::auction::Auction>,
     faas_service: Data<crate::service::faas::FogNodeFaaS>,
     fog_node_network: Data<crate::service::fog_node_network::FogNodeNetwork>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
+    let payload: PutSla = payload.0.into();
     let res = controller::start_auction(
-        payload.0,
+        payload.clone(),
         &auction_service,
         &faas_service,
         &fog_node_network,
@@ -43,12 +44,18 @@ pub async fn put_function(
     match res {
         Ok(_) => {
             crate::prom_metrics::PROVISIONED_FUNCTIONS_COUNT
-                .with_label_values(&[])
+                .with_label_values(&[
+                    &payload.sla.function_live_name,
+                    &payload.sla.id.to_string(),
+                ])
                 .inc();
         }
         Err(_) => {
             crate::prom_metrics::REFUSED_FUNCTIONS_COUNT
-                .with_label_values(&[])
+                .with_label_values(&[
+                    &payload.sla.function_live_name,
+                    &payload.sla.id.to_string(),
+                ])
                 .inc();
         }
     }

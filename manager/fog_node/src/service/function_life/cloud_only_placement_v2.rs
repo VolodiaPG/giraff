@@ -4,7 +4,6 @@ use futures::future::{join, try_join_all};
 use model::domain::sla::Sla;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
-use uom::fmt::DisplayStyle::Abbreviation;
 use uom::si::f64::Time;
 
 impl FunctionLife {
@@ -18,43 +17,30 @@ impl FunctionLife {
     ) -> Result<BidProposals> {
         let mut requests = vec![];
 
-        for neighbor in self.node_situation.get_neighbors() {
-            if neighbor == from {
-                continue;
-            }
-            let Some(latency_outbound) = self
-                    .neighbor_monitor
-                    .get_latency_to_avg(&neighbor)
-                    .await
-                    else {
-                        warn!("Cannot get Latency of {}", neighbor);
-                        continue;
-                    };
-            if latency_outbound + accumulated_latency > sla.latency_max {
-                debug!(
-                    "Skipping neighbor {} because latency is too high ({}, a \
-                     total of {}).",
-                    neighbor,
-                    latency_outbound.into_format_args(
-                        uom::si::time::millisecond,
-                        Abbreviation
-                    ),
-                    (latency_outbound + accumulated_latency).into_format_args(
-                        uom::si::time::millisecond,
-                        Abbreviation
-                    ),
-                );
-                continue;
-            }
+        if std::env::var("IS_CLOUD").map(|x| x == "is_cloud").unwrap_or(false)
+        {
+            for neighbor in self.node_situation.get_neighbors() {
+                if neighbor == from {
+                    continue;
+                }
 
+                requests.push((
+                    BidRequest {
+                        sla,
+                        node_origin: self.node_situation.get_my_id(),
+                        accumulated_latency,
+                    },
+                    neighbor,
+                ));
+            }
+        } else if let Some(parent) = self.node_situation.get_parent_id() {
             requests.push((
                 BidRequest {
                     sla,
                     node_origin: self.node_situation.get_my_id(),
-                    accumulated_latency: accumulated_latency
-                        + latency_outbound,
+                    accumulated_latency,
                 },
-                neighbor,
+                parent,
             ));
         }
 
@@ -91,21 +77,31 @@ impl FunctionLife {
 
         let mut proposals = proposals.with_context(|| {
             format!(
-                "Failed to bid an transmit on the sla coming from {}",
+                "Failed to bid and transmit on the sla coming from {}",
                 from.clone()
             )
         })?;
 
         let result_bid = result_bid.context("Failed to bid on the sla")?;
 
-        if let Some((bid, bid_record)) = result_bid {
-            proposals.bids.push(BidProposal {
-                node_id: my_id,
-                id:      bid,
-                bid:     bid_record.0.bid,
-            });
+        if std::env::var("IS_CLOUD").map(|x| x == "is_cloud").unwrap_or(false)
+        {
+            if let Some((bid, bid_record)) = result_bid {
+                proposals.bids.push(BidProposal {
+                    node_id: my_id,
+                    id:      bid,
+                    bid:     bid_record.0.bid,
+                });
+            } else {
+                warn!("Bid unsatisfiable, passing on...");
+            }
         } else {
-            warn!("Bid unsatisfiable, passing on...");
+            debug!(
+                "Node is not a Cloud, c.f. IS_CLOUD env var value: {}",
+                std::env::var("IS_CLOUD").unwrap_or(
+                    "<no env var IS_CLOUD have been found.>".to_string()
+                )
+            )
         }
 
         Ok(proposals)

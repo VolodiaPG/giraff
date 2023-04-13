@@ -21,7 +21,7 @@ pub async fn start_auction(
 
     let started = Instant::now();
 
-    let sla = payload.sla.into();
+    let sla = payload.sla;
 
     let proposals = auction_service
         .call_for_bids(payload.target_node.clone(), &sla)
@@ -73,6 +73,7 @@ pub async fn start_auction(
         .with_label_values(&[
             &accepted.sla.function_live_name,
             &accepted.chosen.bid.id.to_string(),
+            &accepted.sla.id.to_string(),
         ])
         .set(duration.as_millis() as f64 / 1000.0);
 

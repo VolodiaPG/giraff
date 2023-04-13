@@ -1,5 +1,5 @@
 use crate::NodeSituation;
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use model::dto::node::NodeDescription;
 use model::view::auction::{BidProposals, BidRequest};
 use model::view::node::RegisterNode;
@@ -34,12 +34,17 @@ impl NodeQuery {
         data: &T,
     ) -> Result<Response> {
         let response = self.client.post(url).json(data).send().await?;
-        ensure!(
-            response.status().is_success(),
-            "Request to {} failed with code {}",
-            url,
-            response.status()
-        );
+        if !response.status().is_success() {
+            let status = response.status();
+            let content =
+                response.text().await.unwrap_or_else(|_| "".to_string());
+            bail!(
+                "Request to {} failed with code {} and content '{}'",
+                url,
+                status,
+                content
+            );
+        }
         Ok(response)
     }
 
@@ -65,7 +70,9 @@ impl NodeQuery {
         };
 
         trace!("Registering to {}", url);
-        self.post(url.as_str(), &register).await?;
+        self.post(url.as_str(), &register)
+            .await
+            .with_context(|| format!("Failed to register to {}", url))?;
 
         Ok(())
     }

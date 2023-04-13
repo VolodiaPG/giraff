@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use model::domain::sla::Sla;
 use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
@@ -12,21 +12,17 @@ impl FunctionLife {
     async fn follow_up_to_neighbors<'a>(
         &'a self,
         sla: &'a Sla,
-        from: NodeId,
+        from: &NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
-        // Filter nodes
-        let nodes: Vec<NodeId> = self
-            .node_situation
-            .get_neighbors()
-            .into_iter()
-            .filter(|node| node != &from)
-            .collect();
-
         let mut latencies: Vec<(NodeId, Time)> = Vec::new();
 
         // Get all latencies
-        for neighbor in nodes {
+        for neighbor in self.node_situation.get_neighbors() {
+            if neighbor == *from {
+                continue;
+            }
+
             let Some(latency_outbound) = self
                 .neighbor_monitor
                 .get_latency_to_avg(&neighbor)
@@ -53,9 +49,9 @@ impl FunctionLife {
             latencies.push((neighbor, latency))
         }
 
-        // Sort by closest
+        // Sort by furthest: we want to keep the best for when we need it
 
-        latencies.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+        latencies.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
 
         for (neighbor, accumulated_latency) in latencies {
             let Ok(bid) = self
@@ -90,26 +86,36 @@ impl FunctionLife {
         from: NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
-        let bid = if let Ok(Some((id, record))) =
-            self.auction.bid_on(sla.clone()).await
-        {
-            BidProposal {
-                node_id: self.node_situation.get_my_id(),
-                id,
-                bid: record.0.bid,
+        trace!("Transmitting bid to other nodes...");
+        let mut follow_up = self
+            .follow_up_to_neighbors(sla, &from, accumulated_latency)
+            .await
+            .context("Failed to follow up sla to my neighbors")?;
+        let bid = follow_up.bids.pop();
+        let bids = match bid {
+            Some(bid) => {
+                debug!("Using bid coming from a neighbor");
+                vec![bid]
             }
-        } else {
-            trace!("Transmitting bid to other node...");
-            let mut follow_up = self
-                .follow_up_to_neighbors(sla, from, accumulated_latency)
-                .await
-                .context("Failed to follow up sla to neighbors")?;
-            follow_up.bids.pop().ok_or(anyhow!(
-                "No canditates were returned after fetching candidates from \
-                 neighbors"
-            ))?
+            None => {
+                if let Ok(Some((id, record))) =
+                    self.auction.bid_on(sla.clone()).await
+                {
+                    info!("no bids are coming from any neighbors, bidded.");
+                    vec![BidProposal {
+                        node_id: self.node_situation.get_my_id(),
+                        id,
+                        bid: record.0.bid,
+                    }]
+                } else {
+                    info!(
+                        "no bids are coming from none of my neighbors + \
+                         cannot bid, passing."
+                    );
+                    vec![]
+                }
+            }
         };
-
-        Ok(BidProposals { bids: vec![bid] })
+        Ok(BidProposals { bids })
     }
 }

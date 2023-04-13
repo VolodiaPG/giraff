@@ -17,14 +17,18 @@ pre_commit: check (check "clippy")
 
 # Run cargo check
 check subcommand="check":
-    just _{{subcommand}}
-    just _{{subcommand}} --features valuation_rates
+    just _{{subcommand}} --features auction
+    just _{{subcommand}} --features valuation_rates,auction
 
     just _{{subcommand}} --features edge_first
+    just _{{subcommand}} --features edge_first_v2
     just _{{subcommand}} --features cloud_only
+    just _{{subcommand}} --features cloud_only_v2
     just _{{subcommand}} --features edge_ward
+    just _{{subcommand}} --features edge_ward_v2
+    just _{{subcommand}} --features edge_ward_v3
     
-    just _{{subcommand}} --features jaeger
+    just _{{subcommand}} --features jaeger,auction
 
 # Check outdated or unused deps (req. cargo-outdated + updeps crate)
 check_deps:
@@ -121,6 +125,8 @@ run_fog_node node_type debug="false":
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
+    if "{{node_type}}" in ["node_1", "node_2"]:
+        env_vars['IS_CLOUD'] = "is_cloud"
 
     if "{{debug}}" != "false":
         env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
@@ -159,7 +165,7 @@ prometheus:
         --web.console.templates=/usr/share/prometheus/consoles \
         --web.listen-address=:3090 
 
-run debug="false" *FLAGS="": (build FLAGS)
+run debug="false" *FLAGS="--features auction": (build FLAGS)
     {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{debug}}" \
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{debug}}" \
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_3 {{debug}}" \
@@ -183,25 +189,40 @@ k3d-clean:
     k3d cluster stop fog-node || true
     k3d cluster delete fog-node || true
 
+just compile_container image_path:
+    nix build ".#$image" --print-out-paths --no-link --quiet
+
 container $image user:
     #!/usr/bin/env bash
     set -e
-    image_path=$(nix build ".#$image" --print-out-paths --no-link --quiet)
-    name=$({{DOCKER}} load --quiet < $image_path | grep "Loaded image: localhost")
-    re="localhost/(.*)"
-    if [[ $name =~ $re  ]]; then
-        name="${BASH_REMATCH[1]}"
-        {{DOCKER}} tag "localhost/$name" ghcr.io/{{user}}/$name
-        {{DOCKER}} push --quiet ghcr.io/{{user}}/$name
-        echo -n "✅"
-    fi
+    
 
 # Push container images o ghcr.
 ghcr user filters="no-telemetry":
     #!/usr/bin/env bash
+    set -e
+    function run_docker() {
+        image_path=$1
+        name=$({{DOCKER}} load --quiet < $image_path | grep "Loaded image: localhost")
+        re="localhost/(.*)"
+        if [[ $name =~ $re  ]]; then
+            name="${BASH_REMATCH[1]}"
+            {{DOCKER}} tag "localhost/$name" ghcr.io/{{user}}/$name
+            {{DOCKER}} push --quiet ghcr.io/{{user}}/$name
+            echo -ne "\r\033[K✅ $image\n"
+        else
+            echo -ne "\r\033[K❌ $image\n"
+        fi
+    }
+
+
     derivations=$(nix flake show --json | jq  '.packages."x86_64-linux"|keys[]'| grep "fog_node\|market" | grep "market\|{{filters}}")
     for image in $derivations; do
-        (just container $image {{user}} || echo "❌Failed building $image")&
+        echo $image
+       
+    image_path=$(nix build ".#$image" --print-out-paths --no-link --quiet)
+    run_docker $image_path&
+        just container $image {{user}} #|| echo "❌Failed building $image"
     done
     wait
 
