@@ -224,9 +224,9 @@ NODE_CONNECTED_NODE = """(
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": 18 - 1, "mem": 1024 * (96 - 4)},
-    "paravance": {"core": 2 * 8 - 1, "mem": 1024 * (128 - 4)},
-    "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
+    "gros": {"core": (2 * 18) - 1, "mem": 1024 * (96 - 4)},
+    "paravance": {"core": (2 * 8 * 2) - 1, "mem": 1024 * (128 - 4)},
+    # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
 TIER_3_FLAVOR = {
@@ -250,8 +250,8 @@ TIER_2_FLAVOR = {
     # "valuation_per_millicpu": 1.1,
 }
 TIER_1_FLAVOR = {
-    "core": 17,
-    "mem": 1024 * 64,
+    "core": 15,
+    "mem": 1024 * 46,
     "reserved_core": 16,
     "reserved_mem": 1024 * 60,
     "valuation_per_mib": 0.1,

@@ -3,11 +3,13 @@ use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
-use anyhow::{Context, Result};
+use anyhow::{ensure, Context, Result};
+use model::domain::sla::Sla;
 use model::BidId;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use uom::si::f64::{Information, Ratio};
 
 pub struct Locked {}
 
@@ -23,6 +25,21 @@ pub struct Function<State = Unlocked> {
     lock_state:        PhantomData<State>,
     lock:              Arc<Semaphore>,
     permit:            Option<OwnedSemaphorePermit>,
+}
+
+/// Check if the SLA is satisfiable by the current node (designated by name
+/// and metrics).
+pub(in crate::service) fn satisfiability_check(
+    used_ram: &Information,
+    used_cpu: &Ratio,
+    available_ram: &Information,
+    available_cpu: &Ratio,
+    sla: &Sla,
+) -> bool {
+    let would_be_used_ram = *used_ram + (sla.memory * sla.max_replica as f64);
+    let would_be_used_cpu = *used_cpu + (sla.cpu * sla.max_replica as f64);
+
+    would_be_used_cpu < *available_cpu && would_be_used_ram < *available_ram
 }
 
 impl Function {
@@ -94,6 +111,42 @@ impl Function<Locked> {
                     id
                 )
             })?;
+
+        let (used_ram, used_cpu) = self
+            .resource_tracking
+            .get_used(&proposed.0.node)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to get used resources from tracking data for \
+                     node {}",
+                    &proposed.0.node
+                )
+            })?;
+        let (available_ram, available_cpu) = self
+            .resource_tracking
+            .get_available(&proposed.0.node)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to get available resources from tracking data \
+                     for node {}",
+                    &proposed.0.node
+                )
+            })?;
+
+        ensure!(
+            satisfiability_check(
+                &used_ram,
+                &used_cpu,
+                &available_ram,
+                &available_cpu,
+                &proposed.0.sla
+            ),
+            "The SLA cannot be respected because at least a constrainst is \
+             not satisfiable (anymore?!)"
+        );
+
         let name = proposed.0.node.clone();
         let sla_cpu = proposed.0.sla.cpu;
         let sla_memory = proposed.0.sla.memory;
@@ -108,13 +161,9 @@ impl Function<Locked> {
 
         self.function_tracking.save_provisioned(&id, provisioned);
 
-        let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
-            error!("Could not get tracked cpu and memory");
-                return Ok(());
-            };
         let Ok(()) = self
                 .resource_tracking
-                .set_used(name, memory + sla_memory, cpu + sla_cpu)
+                .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
                 .await else {
                     error!("Could not set updated tracked cpu and memory");
                     return Ok(());

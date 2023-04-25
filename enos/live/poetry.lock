@@ -767,9 +767,8 @@ description = ""
 category = "main"
 optional = false
 python-versions = ">=3.7"
-files = [
-    {file = "enoslib-8.1.3-py3-none-any.whl", hash = "sha256:4776735bd11c093e291a93e903b3763f00c80d6f3e428f9bfcf65084b08d550d"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 ansible = ">=2.9,<7.2"
@@ -781,6 +780,7 @@ python-grid5000 = ">=1.2.3,<2.0.0"
 pytz = ">=2022.1,<2023.0"
 requests = {version = "*", extras = ["socks"]}
 rich = {version = ">=12.0.0,<12.1.0", extras = ["jupyter"]}
+setuptools = ">=65,<68"
 sshtunnel = ">=0.3.1"
 
 [package.extras]
@@ -792,6 +792,12 @@ distem = ["distem (>=0.0.0,<0.1.0)"]
 iotlab = ["iotlabcli (>=3.2.1)", "iotlabsshcli (>=1.0.0)"]
 silecs = ["iotlabcli (>=3.2.1)", "iotlabsshcli (>=1.0.0)"]
 vagrant = ["python-vagrant (>=0.5.15)"]
+
+[package.source]
+type = "git"
+url = "https://gitlab.inria.fr/vparolgu/enoslib.git"
+reference = "08cfa2458e3fab5055219b35901a6d9eb8720c92"
+resolved_reference = "08cfa2458e3fab5055219b35901a6d9eb8720c92"
 
 [[package]]
 name = "executing"
@@ -2673,4 +2679,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "bee6d0c010bc46b46cab4432f223633796ed62bfadc53292d35a5525eb4ba610"
+content-hash = "d7c64bf93d28e5c1d94819f850a18ef0b00e222da19cd1ea6f25cfb9d46949fc"

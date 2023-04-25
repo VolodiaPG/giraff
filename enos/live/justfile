@@ -60,7 +60,7 @@ _is_connected city_name_node_target market_local_port:
     fi
 
 is_connected city_name_node_target market_local_port='8088':
-    @watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
+    watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
 
 expe $IOT_IP $TARGET_NODES:
@@ -129,7 +129,10 @@ docker_enos name fog_node_image market_image tempdir cmd="bash":
     cp .env.scenario {{tempdir}}/.env
     cp definitions.py {{tempdir}}/definitions.py
     {{DOCKER}} run -it --rm \
+        --privileged \
+        --cap-add=ALL \
         --workdir /home/enos \
+        -v /lib/modules:/lib/modules \
         -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
         -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
         -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
@@ -140,6 +143,7 @@ docker_enos name fog_node_image market_image tempdir cmd="bash":
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
         -v {{justfile_directory()}}/logs:/home/enos/logs \
         -v {{tempdir}}/.env:/home/enos/.env:ro \
+        -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
@@ -149,10 +153,47 @@ docker_enos name fog_node_image market_image tempdir cmd="bash":
         -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
         -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
         --name {{name}} \
-        enos_deployment:latest bash -c -E "{{cmd}}"
+        enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
 
 docker_scenarii name fog_node_image market_image tempdir +city_name_node_targets:
-    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "just scenarii {{city_name_node_targets}}"
+    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
+
+vpn:
+    #!/usr/bin/env bash
+    set -e
+    modprobe tun
+    rm -rf grid5000-openvpn || true
+    mkdir grid5000-openvpn
+    unzip grid5000-openvpn.zip -d grid5000-openvpn
+    cd grid5000-openvpn
+    cat /root/.python-grid5000.yaml | grep 'password: ' | sed 's/password: //' > grid5000vpnpassword
+    cat <<EOF >> Grid5000_VPN.ovpn
+    script-security 2
+    up /etc/openvpn/update-resolv-conf
+    down /etc/openvpn/update-resolv-conf
+    askpass "$PWD/grid5000vpnpassword"
+    daemon
+    EOF
+    openvpn Grid5000_VPN.ovpn
+
+sshconfig:
+    #!/usr/bin/env bash
+    set -e
+    login=$(cat /root/.python-grid5000.yaml | grep 'username: ' | sed 's/username: //')
+    cat <<EOF > /root/.ssh/config
+    Host access.grid5000.fr
+        User $login
+        ControlMaster auto
+        ControlPath /dev/shm/ssh-%h
+        ControlPersist 2h
+
+    Host !access.grid5000.fr *.grid5000.fr
+        User $login
+        ProxyJump access.grid5000.fr
+        StrictHostKeyChecking no
+        UserKnownHostsFile /dev/null
+        ForwardAgent yes
+    EOF
 
 _docker_campain name fog_node_image tempdir:
     #!/usr/bin/env bash
@@ -161,16 +202,22 @@ _docker_campain name fog_node_image tempdir:
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{name}} ghcr.io/volodiapg/fog_node:{{fog_node_image}} ghcr.io/volodiapg/market:latest {{tempdir}} ${cities[@]}
 
-docker_campain variation="valuation_rates" suffix="":
+docker_campain_in_nix variation suffix:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
+    # Build image before calling it in parrallel as it confuses podman
+    image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
+    {{DOCKER}} load < $image_path
     mprocs \
         "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry $tempdir" \
         "just _docker_campain edge_first_v2_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
         "just _docker_campain edge_ward_v3_{{variation}}_{{suffix}} edge_ward_v3_{{variation}}_no-telemetry $tempdir" \
+        "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
         "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
 
-# "just _docker_campain cloud_only_v2_{{variation}}_{{suffix}} cloud_only_v2_{{variation}}_no-telemetry $tempdir"
+docker_campain variation="valuation_rates" suffix="":
+    nix-shell --run "bash -c 'just docker_campain_in_nix {{variation}} {{suffix}}'"
+
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes

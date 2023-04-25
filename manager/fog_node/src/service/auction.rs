@@ -48,7 +48,7 @@ impl Auction {
                         node
                     )
                 })?;
-            if self.satisfiability_check(
+            if super::function::satisfiability_check(
                 &used_ram,
                 &used_cpu,
                 &available_ram,
@@ -129,24 +129,6 @@ impl Auction {
         trace!("price on {:?} is {:?}", name, price);
 
         Ok(Some((name, price)))
-    }
-
-    /// Check if the SLA is satisfiable by the current node (designated by name
-    /// and metrics).
-    fn satisfiability_check(
-        &self,
-        used_ram: &Information,
-        used_cpu: &Ratio,
-        available_ram: &Information,
-        available_cpu: &Ratio,
-        sla: &Sla,
-    ) -> bool {
-        let would_be_used_ram =
-            *used_ram + (sla.memory * sla.max_replica as f64);
-        let would_be_used_cpu = *used_cpu + (sla.cpu * sla.max_replica as f64);
-
-        would_be_used_cpu < *available_cpu
-            && would_be_used_ram < *available_ram
     }
 
     pub async fn bid_on(

@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
@@ -20,7 +21,7 @@
     };
     jupyenv = {
       url = "github:tweag/jupyenv";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
   };
 
@@ -130,7 +131,7 @@
             ];
             paths = with pkgs; [
               # Linux toolset
-              coreutils
+              busybox
               gnused
               bashInteractive
 
@@ -139,6 +140,9 @@
               jq
               openssh
               curl
+
+              openvpn # to connect to the inside of g5k
+              update-resolv-conf
 
               # Environment to run enos and stuff
               experiments
@@ -154,19 +158,32 @@
 
             mkdir /tmp
             mkdir -p /usr/bin
-            ln -s ${pkgs.coreutils}/bin/env /usr/bin/env
+            ln -s ${pkgs.busybox}/bin/env /usr/bin/env
+
+            mkdir -p /etc/openvpn
+            ln -s ${pkgs.update-resolv-conf}/libexec/openvpn/update-resolv-conf /etc/openvpn/update-resolv-conf
           '';
           config = {
             Env = ["RUN=python" "HOME=/root"];
           };
         };
 
+        # superchargedNixpkgs = nixpkgs-unstable.lib.extendDerivation nixpkgs-unstable.legacyPackages.${nixpkgs-unstable.system} (final: prev: {
+        #   texlive.combined.scheme-medium = prev.texlive.combined.scheme-medium.overrideAttrs (oldAttrs: {
+        #     buildInputs = (oldAttrs.buildInputs or []) ++ [prev.pgf3];
+        #   });
+        # });
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = mkJupyterlabNew ({...}: {
           nixpkgs = inputs.nixpkgs;
+          # nixpkgs = superchargedNixpkgs;
           imports = [
             {
               kernel.r.experiment = {
+                runtimePackages = with pkgs; [
+                  texlive.combined.scheme-full
+                  pgf3
+                ];
                 enable = true;
                 name = "faas_fog";
                 displayName = "faas_fog";
@@ -192,6 +209,14 @@
                     viridis
                     geomtextpath
                     scales
+                    zoo
+                    gghighlight
+                    ggdist
+                    ggbreak
+                    lemon
+                    ggprism
+                    ggh4x
+                    tikzDevice
                   ];
               };
             }

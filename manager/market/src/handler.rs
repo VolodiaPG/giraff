@@ -30,17 +30,10 @@ impl From<anyhow::Error> for AnyhowErrorWrapper {
 pub async fn put_function(
     payload: Json<PutSlaRequest>,
     auction_service: Data<crate::service::auction::Auction>,
-    faas_service: Data<crate::service::faas::FogNodeFaaS>,
-    fog_node_network: Data<crate::service::fog_node_network::FogNodeNetwork>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let payload: PutSla = payload.0.into();
-    let res = controller::start_auction(
-        payload.clone(),
-        &auction_service,
-        &faas_service,
-        &fog_node_network,
-    )
-    .await;
+    let res =
+        controller::start_auction(payload.clone(), &auction_service).await;
     match res {
         Ok(_) => {
             crate::prom_metrics::PROVISIONED_FUNCTIONS_COUNT

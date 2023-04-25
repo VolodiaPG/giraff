@@ -152,13 +152,15 @@ async fn main() -> std::io::Result<()> {
     let auction_process = Arc::new(crate::repository::auction::Auction::new());
 
     // Services
-    let auction_service = Arc::new(service::auction::Auction::new(
-        auction_process,
-        fog_node_communication.clone(),
-    ));
     let faas_service = Arc::new(service::faas::FogNodeFaaS::new(
         fog_node.clone(),
+        fog_node_communication.clone(),
+    ));
+    let auction_service = Arc::new(service::auction::Auction::new(
+        auction_process,
         fog_node_communication,
+        fog_node_network_service.clone(),
+        faas_service.clone(),
     ));
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);

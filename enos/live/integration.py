@@ -123,12 +123,25 @@ def log_cmd(env, results_list):
 
 
 def open_tunnel(address, port, local_port=None, rest_of_url=""):
+    print(
+        f"doing tunnels for {address}:{port} -> http://localhost:{local_port}{rest_of_url}"
+    )
     if local_port is None:
         local_port = port
-    tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
-    local_address, local_port, _ = tunnel.start()
-    print(f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}")
-    return local_address, local_port
+    for i in range(5):
+        try:
+            tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
+            local_address, local_port, _ = tunnel.start()
+            print(
+                f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}"
+            )
+            return local_address, local_port
+        except Exception as e:
+            if i == 4:
+                raise e
+            else:
+                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
+                time.sleep(30)
 
 
 @click.group()
@@ -158,6 +171,8 @@ def gen_vm_conf(node):
 def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
     attributions = {}
     vms = gen_vm_conf(node)
+    # add the market
+    vms[frozenset(NETWORK["flavor"].items())].append("market")
     for key, value in vms.items():
         flavor = {x: y for (x, y) in key}
         core = flavor["core"]
@@ -178,7 +193,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
                     )
 
                 conf.add_machine(
-                    roles=["master", "fog_node", "prom_agent", vm_id],
+                    roles=["master", "prom_agent", vm_id],  # "fog_node"
                     cluster=cluster,
                     number=nb_vms,
                     flavour_desc={"mem": mem, "core": core},
@@ -194,7 +209,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
         # Still an assignation left?
         if nb_vms > 0:
             conf.add_machine(
-                roles=["master", "fog_node", "prom_agent", vm_id],
+                roles=["master", "prom_agent", vm_id],  # "fog_node",
                 cluster=cluster,
                 number=nb_vms,
                 flavour_desc={"mem": mem, "core": core},
@@ -256,17 +271,21 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
             walltime=walltime,
             image="/home/volparolguarino/nixos.qcow2",
         )
+        # .add_machine(
+        #     roles=["master", "market", "prom_agent"],
+        #     cluster=cluster,
+        #     number=1,
+        #     flavour_desc={
+        #         "mem": NETWORK["flavor"]["mem"],
+        #         "core": NETWORK["flavor"]["core"],
+        #     },
+        # )
         .add_machine(
-            roles=["master", "market", "prom_agent"],
+            roles=["prom_master"],
             cluster=cluster,
             number=1,
-            flavour_desc={
-                "mem": NETWORK["flavor"]["mem"],
-                "core": NETWORK["flavor"]["core"],
-            },
-        )
-        .add_machine(roles=["prom_master"], cluster=cluster, number=1, flavour="large")
-        .add_machine(
+            flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
+        ).add_machine(
             roles=["prom_agent", "iot_emulation"],
             cluster=cluster,
             number=1,
@@ -297,20 +316,30 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
             if i == 4:
                 raise e
             else:
-                print(f"Encountered exception: {e}. Retrying in 10 seconds...")
-                time.sleep(10)
+                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
+                time.sleep(30)
 
-    en.wait_for(roles)
+    # Encapsulate the code block in a try-except block and a for loop to retry 5 times
+    for i in range(5):
+        try:
+            en.wait_for(roles)
 
-    roles = en.sync_info(roles, networks)
+            roles = en.sync_info(roles, networks)
 
-    attributes_roles(assignations, roles)
+            attributes_roles(assignations, roles)
 
-    roles = en.sync_info(roles, networks)
+            roles = en.sync_info(roles, networks)
 
-    env["provider"] = provider
-    env["roles"] = roles
-    env["networks"] = networks
+            env["provider"] = provider
+            env["roles"] = roles
+            env["networks"] = networks
+            break
+        except Exception as e:
+            if i == 4:
+                raise e
+            else:
+                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
+                time.sleep(30)
 
 
 @cli.command()
@@ -335,7 +364,7 @@ def k3s_setup(env=None):
                         --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
                         --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
                         --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1 \
-                    && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s; do sleep 10; done"""
+                    && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=300s; do systemctl restart k3s; done"""
                 # && until k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s; do sleep 10; done
             ),
             task_name="[master] Installing OpenFaaS",

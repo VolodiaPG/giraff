@@ -15,3 +15,4 @@ experiment.md
 .direnv/
 *.tar*
 Untitled*.ipynb
+*.tex
