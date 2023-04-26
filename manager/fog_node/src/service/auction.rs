@@ -122,7 +122,7 @@ impl Auction {
         let price_cpu = price_cpu / Ratio::new::<millicpu>(1.0);
         let price_ram = price_ram / Information::new::<mebibyte>(1.0);
 
-        let price = sla.cpu / price_cpu + sla.memory * price_ram;
+        let price = sla.cpu * price_cpu + sla.memory * price_ram;
 
         let price: f64 = price.into();
 
