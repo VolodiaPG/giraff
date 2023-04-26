@@ -1,6 +1,6 @@
 set dotenv-load
 
-RUN := env_var_or_default("RUN", "poetry run python")
+RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
 
 # Entrypoint, run deploy and then tunnels
@@ -124,8 +124,6 @@ lab:
 docker_enos name fog_node_image market_image tempdir cmd="bash":
     #!/usr/bin/env bash
     set -e
-    image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
-    {{DOCKER}} load < $image_path
     cp .env.scenario {{tempdir}}/.env
     cp definitions.py {{tempdir}}/definitions.py
     {{DOCKER}} run -it --rm \
@@ -206,6 +204,7 @@ docker_campain_in_nix variation suffix:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
+    mkdir -p metrics-arks logs
     # Build image before calling it in parrallel as it confuses podman
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
@@ -217,7 +216,7 @@ docker_campain_in_nix variation suffix:
         "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
 
 docker_campain variation="valuation_rates" suffix="":
-    nix-shell --run "bash -c 'just docker_campain_in_nix {{variation}} {{suffix}}'"
+    nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix {{variation}} {{suffix}}
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes

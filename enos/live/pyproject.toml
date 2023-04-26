@@ -7,7 +7,7 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-enoslib = { git = "https://gitlab.inria.fr/vparolgu/enoslib.git", rev = "08cfa2458e3fab5055219b35901a6d9eb8720c92" }
+enoslib = { git = "https://gitlab.inria.fr/vparolgu/enoslib.git", rev = "f0c3c00a7665c2cff79b63b966f5a56b4b2ead18" }
 click = "^8.1"
 alive-progress = "^3.0.1"
 aiohttp = "^3.8.4"

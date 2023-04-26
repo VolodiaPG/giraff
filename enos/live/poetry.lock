@@ -796,8 +796,8 @@ vagrant = ["python-vagrant (>=0.5.15)"]
 [package.source]
 type = "git"
 url = "https://gitlab.inria.fr/vparolgu/enoslib.git"
-reference = "08cfa2458e3fab5055219b35901a6d9eb8720c92"
-resolved_reference = "08cfa2458e3fab5055219b35901a6d9eb8720c92"
+reference = "f0c3c00a7665c2cff79b63b966f5a56b4b2ead18"
+resolved_reference = "f0c3c00a7665c2cff79b63b966f5a56b4b2ead18"
 
 [[package]]
 name = "executing"
@@ -2320,14 +2320,14 @@ win32 = ["pywin32"]
 
 [[package]]
 name = "setuptools"
-version = "65.7.0"
+version = "67.7.2"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "setuptools-65.7.0-py3-none-any.whl", hash = "sha256:8ab4f1dbf2b4a65f7eec5ad0c620e84c34111a68d3349833494b9088212214dd"},
-    {file = "setuptools-65.7.0.tar.gz", hash = "sha256:4d3c92fac8f1118bb77a22181355e29c239cabfe2b9effdaa665c66b711136d7"},
+    {file = "setuptools-67.7.2-py3-none-any.whl", hash = "sha256:23aaf86b85ca52ceb801d32703f12d77517b2556af839621c641fca11287952b"},
+    {file = "setuptools-67.7.2.tar.gz", hash = "sha256:f104fa03692a2602fa0fec6c6a9e63b6c8a968de13e17c026957dd1f53d80990"},
 ]
 
 [package.extras]
@@ -2679,4 +2679,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "d7c64bf93d28e5c1d94819f850a18ef0b00e222da19cd1ea6f25cfb9d46949fc"
+content-hash = "96dbb6a732ca625820acf85c03f6d069b2a605690e3e173fc3f5f74c5ff20915"
