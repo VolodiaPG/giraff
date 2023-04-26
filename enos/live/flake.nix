@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
@@ -21,7 +20,7 @@
     };
     jupyenv = {
       url = "github:tweag/jupyenv";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -31,29 +30,12 @@
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
-        overlay = self: super: {
+        overlay = self: _super: {
           experiments = self.poetry2nix.mkPoetryEnv {
             projectDir = ./.;
             python = self.python311;
-            overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
+            overrides = self.poetry2nix.overrides.withDefaults (newattr: oldattr: {
               # Fixes Enoslib
-              cryptography = oldattr.cryptography.overridePythonAttrs (
-                old: {
-                  cargoDeps = super.rustPlatform.fetchCargoTarball {
-                    src = old.src;
-                    sourceRoot = "${old.pname}-${old.version}/src/rust";
-                    name = "${old.pname}-${old.version}";
-                    sha256 = "sha256-Admz48/GS2t8diz611Ciin1HKQEyMDEwHxTpJ5tZ1ZA=";
-                  };
-                }
-              );
-              rfc3986-validator =
-                oldattr.rfc3986-validator.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools oldattr.setuptools-scm oldattr.pytest-runner];
-                  }
-                );
               pathspec =
                 oldattr.pathspec.overridePythonAttrs
                 (
@@ -61,32 +43,18 @@
                     buildInputs = (old.buildInputs or []) ++ [oldattr.flit-scm oldattr.pytest-runner];
                   }
                 );
+              rfc3986-validator =
+                oldattr.rfc3986-validator.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools oldattr.setuptools-scm];
+                  }
+                );
               ncclient =
                 oldattr.ncclient.overridePythonAttrs
                 (
                   old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.six];
-                  }
-                );
-              jupyter-server-terminals =
-                oldattr.jupyter-server-terminals.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                  }
-                );
-              jupyter-events =
-                oldattr.jupyter-events.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                  }
-                );
-              jupyter-server =
-                oldattr.jupyter-server.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatch-jupyter-builder oldattr.hatchling];
+                    buildInputs = (old.buildInputs or []) ++ [newattr.six];
                   }
                 );
               # Fixes alive-progress
@@ -110,6 +78,21 @@
                     '';
                   }
                 );
+              # Fixes aiohttp
+              aiohttp =
+                oldattr.aiohttp.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+                  }
+                );
+              beautifulsoup4 =
+                oldattr.beautifulsoup4.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+                  }
+                );
             });
           };
         };
@@ -118,7 +101,7 @@
           inherit system;
           overlays = [overlay];
         };
-        lib = nixpkgs.lib;
+        inherit (nixpkgs) lib;
 
         dockerImage = pkgs.dockerTools.buildImage {
           name = "enos_deployment";
@@ -168,15 +151,9 @@
           };
         };
 
-        # superchargedNixpkgs = nixpkgs-unstable.lib.extendDerivation nixpkgs-unstable.legacyPackages.${nixpkgs-unstable.system} (final: prev: {
-        #   texlive.combined.scheme-medium = prev.texlive.combined.scheme-medium.overrideAttrs (oldAttrs: {
-        #     buildInputs = (oldAttrs.buildInputs or []) ++ [prev.pgf3];
-        #   });
-        # });
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = mkJupyterlabNew ({...}: {
-          nixpkgs = inputs.nixpkgs;
-          # nixpkgs = superchargedNixpkgs;
+          inherit (inputs) nixpkgs;
           imports = [
             {
               kernel.r.experiment = {

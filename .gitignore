@@ -1,7 +1,7 @@
 # Nix
 result
 result-*
-
+.pre-commit-config.yaml
 # EnosLib
 current
 enos_*/
@@ -34,7 +34,6 @@ target/
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
-
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

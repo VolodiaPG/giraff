@@ -15,7 +15,7 @@
         inherit system;
         config.allowUnfree = true;
       };
-      lib = nixpkgs.lib;
+      inherit (nixpkgs) lib;
 
       vm = nixpkgs.lib.nixosSystem {
         inherit system;
@@ -30,7 +30,7 @@
 
       packages.${system}."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
         inherit lib pkgs;
-        config = vm.config;
+        inherit (vm) config;
         diskSize = "auto";
         additionalSpace = "2048M"; # Space added after all the necessary
         format = "qcow2-compressed";

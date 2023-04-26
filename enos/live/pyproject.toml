@@ -9,7 +9,9 @@ license = "MIT"
 python = ">=3.11,<4.0"
 enoslib = { git = "https://gitlab.inria.fr/vparolgu/enoslib.git", rev = "f0c3c00a7665c2cff79b63b966f5a56b4b2ead18" }
 click = "^8.1"
-alive-progress = "^3.0.1"
+cryptography = "39"
+alive-progress = "^3.1.1"
+attrs = "^22"
 aiohttp = "^3.8.4"
 
 # [tool.poetry.dev-dependencies]
