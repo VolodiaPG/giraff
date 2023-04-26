@@ -90,7 +90,7 @@ impl Function {
 impl<State> Drop for Function<State> {
     fn drop(&mut self) {
         trace!("Unlocking FunctionLife Service after drop...");
-        let permit = std::mem::replace(&mut self.permit, None);
+        let permit = self.permit.take();
         let Some(permit) =  permit else {
                 return;
             };

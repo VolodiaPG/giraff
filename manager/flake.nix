@@ -39,7 +39,7 @@
           # Define Rust environment to use
           rustChannel = "nightly";
           rustProfile = "minimal";
-          rustVersion = "2023-02-26";
+          rustVersion = "2023-04-26";
           target = "x86_64-unknown-linux-gnu";
           extraRustComponents = ["clippy" "rustfmt"];
 
