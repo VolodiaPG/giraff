@@ -261,12 +261,871 @@ TIER_1_FLAVOR = {
     # "valuation_per_millicpu": 0.9,
 }
 
+# NETWORK = {
+#     "name": "market",
+#     "flavor": TIER_1_FLAVOR,
+#     "children": [
+#         {"name": "marseille", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+#         {"name": "toulouse", "flavor": TIER_1_FLAVOR, "latency": 4, "children": []},
+#         {
+#             "name": "paris",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 3,
+#             "children": [
+#                 {
+#                     "name": "rennes",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 10,
+#                     "children": [
+#                         {
+#                             "name": "st-greg",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "st-greg-1-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "st-greg-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 7,
+#                                 },
+#                                 {
+#                                     "name": "st-greg-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "st-greg-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "st-greg-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "cesson",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "cesson-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "cesson-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "cesson-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "cesson-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "cesson-3-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "nantes",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 17,
+#                     "children": [
+#                         {
+#                             "name": "orvault",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 10,
+#                             "children": [
+#                                 {
+#                                     "name": "orvault-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "orvault-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,
+#                                 },
+#                                 {
+#                                     "name": "orvault-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "vertou",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 15,
+#                             "children": [
+#                                 {
+#                                     "name": "vertou-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "vertou-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "vertou-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "limoux",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 25,
+#                     "children": [
+#                         {
+#                             "name": "roquefeuil",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 31,
+#                             "children": [
+#                                 {
+#                                     "name": "roquefeuil-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 1,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "belcaire",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 29,
+#                             "children": [
+#                                 {
+#                                     "name": "belcaire-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "belcaire-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "espezel",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 36,
+#                             "children": [
+#                                 {
+#                                     "name": "espezel-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "espezel-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "espezel-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "espezel-4",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "espezel-5",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "espezel-6-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         },
+#         {
+#             "name": "edinburgh",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 3,
+#             "children": [
+#                 {
+#                     "name": "aberdeen",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 10,
+#                     "children": [
+#                         {
+#                             "name": "dunfermline",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "dunfermline-1-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "dunfermline-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 7,
+#                                 },
+#                                 {
+#                                     "name": "dunfermline-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "dunfermline-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "dunfermline-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "glasgow",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "glasgow-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "glasgow-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "glasgow-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "glasgow-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "glasgow-3-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "Inverness",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 17,
+#                     "children": [
+#                         {
+#                             "name": "stirling",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 10,
+#                             "children": [
+#                                 {
+#                                     "name": "stirling-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "stirling-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,
+#                                 },
+#                                 {
+#                                     "name": "stirling-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "st-andrews",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 15,
+#                             "children": [
+#                                 {
+#                                     "name": "st-andrews-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "st-andrews-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "st-andrews-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "perth",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 25,
+#                     "children": [
+#                         {
+#                             "name": "perth-lower",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 31,
+#                             "children": [
+#                                 {
+#                                     "name": "perth-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 1,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "ayr",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 29,
+#                             "children": [
+#                                 {
+#                                     "name": "ayr-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "ayr-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "dumfries",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 36,
+#                             "children": [
+#                                 {
+#                                     "name": "dumfries-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "dumfries-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "dumfries-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "dumfries-4",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "dumfries-5",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "dumfries-6-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         },
+#         {
+#             "name": "rome",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 3,
+#             "children": [
+#                 {
+#                     "name": "milan",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 10,
+#                     "children": [
+#                         {
+#                             "name": "naples",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "naples-1-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "naples-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 7,
+#                                 },
+#                                 {
+#                                     "name": "naples-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "naples-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "naples-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "turin",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "turin-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "turin-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "turin-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "turin-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "turin-3-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "palermo",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 17,
+#                     "children": [
+#                         {
+#                             "name": "genoa",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 10,
+#                             "children": [
+#                                 {
+#                                     "name": "genoa-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "genoa-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,
+#                                 },
+#                                 {
+#                                     "name": "genoa-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "bologna",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 15,
+#                             "children": [
+#                                 {
+#                                     "name": "bologna-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "bologna-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "bologna-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "florence",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 25,
+#                     "children": [
+#                         {
+#                             "name": "florence-lower",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 31,
+#                             "children": [
+#                                 {
+#                                     "name": "florence-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 1,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "bari",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 29,
+#                             "children": [
+#                                 {
+#                                     "name": "bari-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "bari-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "catania",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 36,
+#                             "children": [
+#                                 {
+#                                     "name": "catania-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "catania-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "catania-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "catania-4",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "catania-5",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "catania-6-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         },
+#         {
+#             "name": "barcelona",
+#             "flavor": TIER_1_FLAVOR,
+#             "latency": 3,
+#             "children": [
+#                 {
+#                     "name": "granada",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 10,
+#                     "children": [
+#                         {
+#                             "name": "madrid",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "madrid-1-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "madrid-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 7,
+#                                 },
+#                                 {
+#                                     "name": "madrid-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "madrid-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "madrid-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "valencia",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 7,
+#                             "children": [
+#                                 {
+#                                     "name": "valencia-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "valencia-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "valencia-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                                 {
+#                                     "name": "valencia-2-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "valencia-3-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 2,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "bilbao",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 17,
+#                     "children": [
+#                         {
+#                             "name": "cordoba",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 10,
+#                             "children": [
+#                                 {
+#                                     "name": "cordoba-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "cordoba-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,
+#                                 },
+#                                 {
+#                                     "name": "cordoba-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "seville",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 15,
+#                             "children": [
+#                                 {
+#                                     "name": "seville-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 10,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "seville-1",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,
+#                                 },
+#                                 {
+#                                     "name": "seville-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 5,
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#                 {
+#                     "name": "malaga",
+#                     "flavor": TIER_2_FLAVOR,
+#                     "latency": 25,
+#                     "children": [
+#                         {
+#                             "name": "cadiz",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 31,
+#                             "children": [
+#                                 {
+#                                     "name": "cadiz-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 1,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "toledo",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 29,
+#                             "children": [
+#                                 {
+#                                     "name": "toledo-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "toledo-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                             ],
+#                         },
+#                         {
+#                             "name": "zaragoza",
+#                             "flavor": TIER_3_FLAVOR,
+#                             "latency": 36,
+#                             "children": [
+#                                 {
+#                                     "name": "zaragoza-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 3,  # ms
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "zaragoza-2",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "zaragoza-3",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                                 {
+#                                     "name": "zaragoza-4",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "zaragoza-5",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                 },
+#                                 {
+#                                     "name": "zaragoza-6-in",
+#                                     "flavor": TIER_3_FLAVOR,
+#                                     "latency": 4,
+#                                     "iot_connected": 0,  # ms
+#                                 },
+#                             ],
+#                         },
+#                     ],
+#                 },
+#             ],
+#         },
+#     ],
+# }
+
 NETWORK = {
     "name": "market",
     "flavor": TIER_1_FLAVOR,
     "children": [
-        {"name": "marseille", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "toulouse", "flavor": TIER_1_FLAVOR, "latency": 4, "children": []},
         {
             "name": "paris",
             "flavor": TIER_1_FLAVOR,
@@ -286,192 +1145,6 @@ NETWORK = {
                                     "name": "st-greg-1-in",
                                     "flavor": TIER_3_FLAVOR,
                                     "latency": 3,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "st-greg-1",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 7,
-                                },
-                                {
-                                    "name": "st-greg-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                },
-                                {
-                                    "name": "st-greg-3",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,
-                                },
-                                {
-                                    "name": "st-greg-2-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 2,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                            ],
-                        },
-                        {
-                            "name": "cesson",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 7,
-                            "children": [
-                                {
-                                    "name": "cesson-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "cesson-1",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,
-                                },
-                                {
-                                    "name": "cesson-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                },
-                                {
-                                    "name": "cesson-2-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "cesson-3-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 2,
-                                    "iot_connected": 0,  # ms
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    "name": "nantes",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 17,
-                    "children": [
-                        {
-                            "name": "orvault",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 10,
-                            "children": [
-                                {
-                                    "name": "orvault-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "orvault-1",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 10,
-                                },
-                                {
-                                    "name": "orvault-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "vertou",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 15,
-                            "children": [
-                                {
-                                    "name": "vertou-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 10,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "vertou-1",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,
-                                },
-                                {
-                                    "name": "vertou-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                {
-                    "name": "limoux",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 25,
-                    "children": [
-                        {
-                            "name": "roquefeuil",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 31,
-                            "children": [
-                                {
-                                    "name": "roquefeuil-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 1,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "belcaire",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 29,
-                            "children": [
-                                {
-                                    "name": "belcaire-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "belcaire-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
-                                },
-                            ],
-                        },
-                        {
-                            "name": "espezel",
-                            "flavor": TIER_3_FLAVOR,
-                            "latency": 36,
-                            "children": [
-                                {
-                                    "name": "espezel-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "espezel-2",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
-                                },
-                                {
-                                    "name": "espezel-3",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "espezel-4",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
-                                },
-                                {
-                                    "name": "espezel-5",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
-                                },
-                                {
-                                    "name": "espezel-6-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 4,
                                     "iot_connected": 0,  # ms
                                 },
                             ],

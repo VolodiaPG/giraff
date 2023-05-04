@@ -190,6 +190,7 @@ sshconfig:
         UserKnownHostsFile /dev/null
         ForwardAgent yes
     EOF
+# ssh "$login@$CLUSTER.grid5000.fr" -c "sleep 999999"&
 
 _docker_campain name fog_node_image tempdir:
     #!/usr/bin/env bash
@@ -209,11 +210,12 @@ docker_campain_in_nix variation suffix:
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
     mprocs \
-        "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry $tempdir" \
-        "just _docker_campain edge_first_v2_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
-        "just _docker_campain edge_ward_v3_{{variation}}_{{suffix}} edge_ward_v3_{{variation}}_no-telemetry $tempdir" \
-        "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
-        "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
+        "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry $tempdir" 
+
+# "just _docker_campain edge_first_v2_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
+# "just _docker_campain edge_ward_v3_{{variation}}_{{suffix}} edge_ward_v3_{{variation}}_no-telemetry $tempdir" \
+# "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
+# "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
 
 docker_campain variation="valuation_rates" suffix="":
     nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix {{variation}} {{suffix}}

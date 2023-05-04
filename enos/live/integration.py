@@ -304,6 +304,8 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
     conf.finalize()
 
     provider = en.VMonG5k(conf)
+    env["provider"] = provider
+
 
     time.sleep(10)
 
@@ -330,7 +332,6 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
 
             roles = en.sync_info(roles, networks)
 
-            env["provider"] = provider
             env["roles"] = roles
             env["networks"] = networks
             break
@@ -352,20 +353,7 @@ def k3s_setup(env=None):
         p.shell(
             (
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
-                    && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
-                    && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
-                    && helm repo update \
-                    && helm upgrade openfaas --install openfaas/openfaas --version=12.0.0 \
-                        --namespace openfaas \
-                        --set functionNamespace=openfaas-fn \
-                        --set generateBasicAuth=true \
-                        --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
-                        --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
-                        --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
-                        --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
-                        --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1 \
-                    && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=300s; do systemctl restart k3s; done"""
-                # && until k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s; do sleep 10; done
+                    && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=10s; do sleep 10; done"""
             ),
             task_name="[master] Installing OpenFaaS",
         )

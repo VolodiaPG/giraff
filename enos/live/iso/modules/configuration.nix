@@ -1,31 +1,5 @@
 {pkgs, ...}: {
-  # Filesystems
-  fileSystems."/" = {
-    device = "/dev/disk/by-label/nixos";
-    autoResize = true;
-    fsType = "ext4";
-  };
-
-  boot = {
-    growPartition = true;
-    kernelParams = ["console=ttyS0" "preempt=none"];
-    loader.grub = {
-      device = "/dev/vda";
-    };
-    loader.timeout = 0;
-  };
-
   time.timeZone = "Europe/Paris";
-
-  systemd = {
-    enableEmergencyMode = false;
-    network = {
-      wait-online = {
-        anyInterface = true;
-      };
-    };
-  };
-  systemd.services.systemd-udev-settle.enable = false;
 
   services.chrony.enable = true;
   services.chrony.servers = ["ntp.rennes.grid5000.fr"];

@@ -5,46 +5,60 @@
       url = "github:edolstra/flake-compat";
       flake = false;
     };
+    alejandra = {
+      url = "github:kamadorueda/alejandra/3.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    impermanence.url = "github:nix-community/impermanence";
+  };
+
+  nixConfig = {
+    extra-trusted-substituters = "https://nix-community.cachix.org";
+    extra-trusted-public-keys = "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=";
   };
 
   outputs = inputs:
     with inputs; let
-      system = "x86_64-linux";
+      inherit (self) outputs;
 
-      pkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
-      inherit (nixpkgs) lib;
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "aarch64-linux"
+        "x86_64-linux"
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
 
-      vm = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
-          "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
-          ./configuration.nix
-        ];
-      };
+      forVMSystems = nixpkgs.lib.genAttrs [
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
     in {
-      nixosConfigurations."vm" = vm;
+      formatter = forAllSystems (system: alejandra.defaultPackage.${system});
 
-      packages.${system}."vm-g5k" = import "${nixpkgs}/nixos/lib/make-disk-image.nix" {
-        inherit lib pkgs;
-        inherit (vm) config;
-        diskSize = "auto";
-        additionalSpace = "2048M"; # Space added after all the necessary
-        format = "qcow2-compressed";
-      };
+      nixosModules = import ./modules;
 
-      devShells.${system} = {
-        default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            just
-            nixos-rebuild
-            qemu
-            mprocs
-          ];
-        };
-      };
+      packages = forVMSystems (
+        system: let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+          import ./pkgs {inherit pkgs inputs outputs;}
+      );
+
+      devShells = forAllSystems (
+        system: let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in {
+          default = pkgs.mkShell {
+            nativeBuildInputs = with pkgs; [
+              just
+              nixos-rebuild
+              qemu
+              mprocs
+              libguestfs-with-appliance
+              nix-output-monitor
+            ];
+          };
+        }
+      );
     };
 }
