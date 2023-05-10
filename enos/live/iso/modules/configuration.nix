@@ -65,6 +65,7 @@ in {
   '';
 
   networking.firewall.enable = false;
+  networking.firewall.allowPing = true;
 
   # Tell the Nix evaluator to garbage collect morke aggressively.
   # This is desirable in memory-constrained environments that don't

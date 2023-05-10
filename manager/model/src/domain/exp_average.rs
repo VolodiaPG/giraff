@@ -16,9 +16,10 @@ impl ExponentialMovingAverage {
         Self { alpha, current_ema: initial_ema }
     }
 
-    pub fn update(&mut self, value: Time) {
+    pub fn update(&mut self, value: Time) -> Time {
         let alpha = self.alpha.clone().into_inner();
         self.current_ema = alpha * value + (1.0 - alpha) * self.current_ema;
+        self.current_ema
     }
 
     pub fn get(&self) -> Time { self.current_ema }

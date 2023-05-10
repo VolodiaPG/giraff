@@ -45,11 +45,11 @@ _is_connected city_name_node_target market_local_port:
 is_connected city_name_node_target market_local_port='8088':
     watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
-deploy fog_node_image market_image name:
+deploy fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
     just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
 
-refresh fog_node_image market_image name:
+refresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py restart
     just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
 

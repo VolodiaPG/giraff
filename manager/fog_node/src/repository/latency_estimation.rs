@@ -5,17 +5,11 @@ use model::NodeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::time::Instant;
 use uom::si::f64::Time;
-
-#[cfg(feature = "jaeger")]
-type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
 
 #[derive(Debug)]
 pub struct IndividualErrorList {
-    list: Vec<(NodeId, anyhow::Error)>,
+    list: Vec<anyhow::Error>,
 }
 
 impl fmt::Display for IndividualErrorList {
@@ -24,114 +18,69 @@ impl fmt::Display for IndividualErrorList {
     }
 }
 
-impl From<Vec<(NodeId, anyhow::Error)>> for IndividualErrorList {
-    fn from(list: Vec<(NodeId, anyhow::Error)>) -> Self {
-        IndividualErrorList { list }
-    }
+impl From<Vec<anyhow::Error>> for IndividualErrorList {
+    fn from(list: Vec<anyhow::Error>) -> Self { IndividualErrorList { list } }
 }
 
 #[derive(Debug)]
 pub struct LatencyEstimation {
-    node_situation:     Arc<NodeSituation>,
-    outgoing_latencies:
-        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
-    incoming_latencies:
-        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
-    client:             Arc<HttpClient>,
-    alpha:              model::domain::exp_average::Alpha,
+    node_situation: Arc<NodeSituation>,
+    latency:        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
+    alpha:          model::domain::exp_average::Alpha,
 }
 
 impl LatencyEstimation {
     pub fn new(
         node_situation: Arc<NodeSituation>,
-        client: Arc<HttpClient>,
         alpha: model::domain::exp_average::Alpha,
     ) -> Self {
         Self {
             node_situation,
-            outgoing_latencies: Arc::new(dashmap::DashMap::new()),
-            incoming_latencies: Arc::new(dashmap::DashMap::new()),
-            client,
+            latency: Arc::new(dashmap::DashMap::new()),
             alpha,
         }
     }
 
-    /// Do the packet exchanges to get the latencies and return (outgoing,
-    /// incoming)
-    async fn make_latency_request_to(
-        &self,
-        node_id: &NodeId,
-    ) -> Result<(Time, Time)> {
-        let desc =
-            self.node_situation.get_fog_node_neighbor(node_id).with_context(
-                || format!("Failed to find neighbor node {}", node_id),
-            )?;
+    async fn ping(&self, node: NodeId) -> Result<()> {
+        let ip = self
+            .node_situation
+            .get_fog_node_neighbor(&node)
+            .with_context(|| format!("Failed to find node {node}"))?
+            .ip;
 
-        let ip = desc.ip;
-        let port = desc.port_http;
+        let (_, dur) = surge_ping::ping(ip, &[0; 32])
+            .await
+            .with_context(|| format!("Ping to {ip} failed"))?;
 
-        let sent_at = Instant::now();
-        let _response = self
-            .client
-            .get(format!("http://{ip}:{port}/api/health").as_str())
-            .send()
-            .await?;
-        let elapsed = sent_at.elapsed().as_millis();
+        let latency = Time::new::<uom::si::time::millisecond>(
+            dur.as_millis() as f64 / 2.0,
+        );
 
-        // TCP+HTTP: travel time = 2 * outgoing + 2 * incoming
-        // here we suppose incoming = outgoing
+        crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
+            .with_label_values(&[&format!("{ip}")])
+            .set(latency.value);
+        let latency = self.update_latency(&self.latency, &node, latency);
 
-        let latency = elapsed as f64 / 4.0;
-        let outgoing_latency =
-            Time::new::<uom::si::time::millisecond>(latency);
-        let incoming_latency = outgoing_latency;
+        crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
+            .with_label_values(&[&format!("{ip}")])
+            .set(latency.value);
 
-        Ok((outgoing_latency, incoming_latency))
+        Ok(())
     }
 
     pub async fn latency_to_neighbors(&self) -> Result<()> {
-        let mut handles = Vec::new();
-        let mut tried_nodes = Vec::new(); // same order as handles
-        for node in self.node_situation.get_neighbors() {
-            tried_nodes.push(node.clone());
-            handles.push(async move {
-                let (incoming, outgoing) =
-                    self.make_latency_request_to(&node).await?;
-
-                self.update_latency(&self.incoming_latencies, &node, incoming);
-                self.update_latency(&self.outgoing_latencies, &node, outgoing);
-
-                let desc = self
-                    .node_situation
-                    .get_fog_node_neighbor(&node)
-                    .with_context(|| {
-                        format!("Failed to find neighbor node {}", node)
-                    })?;
-
-                let ip = desc.ip;
-                let port = desc.port_http;
-                crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
-                    .with_label_values(&[&format!("{ip}:{port}")])
-                    .set(outgoing.value);
-
-                let Some(lat) = self.outgoing_latencies.get(&node) else {
-                    return Ok(());
-                };
-                crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
-                    .with_label_values(&[&format!("{ip}:{port}")])
-                    .set(lat.get().value);
-                Ok(())
-            });
+        let neighbors = self.node_situation.get_neighbors();
+        let mut handles = Vec::with_capacity(neighbors.len());
+        for node in neighbors {
+            handles.push(self.ping(node));
         }
 
-        let errors: Vec<(NodeId, anyhow::Error)> =
-            futures::future::join_all(handles)
-                .await
-                .into_iter()
-                .zip(tried_nodes.into_iter())
-                .filter(|(result, _id)| result.is_err())
-                .map(|(result, id)| (id, result.err().unwrap()))
-                .collect();
+        let errors: Vec<anyhow::Error> = futures::future::join_all(handles)
+            .await
+            .into_iter()
+            .filter(|result| result.is_err())
+            .map(|result| result.err().unwrap())
+            .collect();
 
         ensure!(
             errors.is_empty(),
@@ -142,7 +91,7 @@ impl LatencyEstimation {
     }
 
     pub async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies.get(id).map(|x| x.get())
+        self.latency.get(id).map(|x| x.get())
     }
 
     fn update_latency(
@@ -150,12 +99,16 @@ impl LatencyEstimation {
         map: &dashmap::DashMap<NodeId, ExponentialMovingAverage>,
         key: &NodeId,
         value: Time,
-    ) {
-        let mut entry =
-            map.get(key).map(|entry| entry.value().clone()).unwrap_or_else(
-                || ExponentialMovingAverage::new(self.alpha.clone(), value),
-            );
-        entry.update(value);
-        map.insert(key.clone(), entry);
+    ) -> Time {
+        let Some(mut entry) = map.get_mut(key)
+            else{
+                map.insert(
+                    key.clone(),
+                    ExponentialMovingAverage::new(self.alpha.clone(), value),
+                );
+                return value;
+            };
+
+        entry.value_mut().update(value)
     }
 }
