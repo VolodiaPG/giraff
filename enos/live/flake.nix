@@ -152,60 +152,68 @@
         };
 
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
-        jupyterlab = mkJupyterlabNew ({...}: {
-          inherit (inputs) nixpkgs;
-          imports = [
-            {
-              kernel.r.experiment = {
-                runtimePackages = with pkgs; [
-                  texlive.combined.scheme-full
-                  pgf3
-                ];
-                enable = true;
-                name = "faas_fog";
-                displayName = "faas_fog";
-                extraRPackages = ps:
-                  with ps; [
-                    (
-                      archive.overrideAttrs (old: {
-                        buildInputs =
-                          old.buildInputs
-                          ++ (with pkgs; [
-                            libarchive
-                          ]);
-                      })
-                    )
-                    cowplot
-                    reticulate
-                    vroom
-                    tidyverse
-                    igraph
-                    r2r
-                    formattable
-                    stringr
-                    viridis
-                    geomtextpath
-                    scales
-                    zoo
-                    gghighlight
-                    ggdist
-                    ggbreak
-                    lemon
-                    ggprism
-                    ggh4x
-                    tikzDevice
-                  ];
-              };
-            }
-          ];
-        });
+        jupyterlab = export:
+          mkJupyterlabNew ({...}: {
+            inherit (inputs) nixpkgs;
+            imports = [
+              {
+                kernel.r.experiment = {
+                  runtimePackages =
+                    []
+                    ++ lib.optionals export (with pkgs; [
+                      texlive.combined.scheme-full
+                      pgf3
+                    ]);
+                  enable = true;
+                  name = "faas_fog";
+                  displayName = "faas_fog";
+                  extraRPackages = ps:
+                    with ps;
+                      [
+                        (
+                          archive.overrideAttrs (old: {
+                            buildInputs =
+                              old.buildInputs
+                              ++ (with pkgs; [
+                                libarchive
+                              ]);
+                          })
+                        )
+                        cowplot
+                        reticulate
+                        vroom
+                        tidyverse
+                        igraph
+                        r2r
+                        formattable
+                        stringr
+                        viridis
+                        geomtextpath
+                        scales
+                        zoo
+                        gghighlight
+                        ggdist
+                        ggbreak
+                        lemon
+                        ggprism
+                        ggh4x
+                      ]
+                      ++ lib.optional export tikzDevice;
+                };
+              }
+            ];
+          });
       in {
         packages = {
           docker = dockerImage;
           default = pkgs.experiments;
         };
+        apps.jupyterlabExport = {
+          program = "${jupyterlab true}/bin/jupyter-lab";
+          type = "app";
+        };
         apps.jupyterlab = {
-          program = "${jupyterlab}/bin/jupyter-lab";
+          program = "${jupyterlab false}/bin/jupyter-lab";
           type = "app";
         };
         formatter = alejandra.defaultPackage.${system};

@@ -90,7 +90,7 @@ if __name__ == "__main__":
     today = datetime.today()
     today = today.strftime("%Y-%m-%d-%H-%M")
     prefix_dir = "metrics-arks"
-    prefix_filename = os.getenv("DEPLOYMENT_NAME")
+    prefix_filename = os.getenv("COLLECT_ARCHIVE_NAME")
     if prefix_filename is None:
         prefix_filename = ""
     try:

@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   outputs,
+  ...
 }: let
   inherit (inputs) nixpkgs;
   vm-persistence = nixpkgs.lib.nixosSystem {

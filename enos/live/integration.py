@@ -271,15 +271,6 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
             walltime=walltime,
             image="/home/volparolguarino/nixos.qcow2",
         )
-        # .add_machine(
-        #     roles=["master", "market", "prom_agent"],
-        #     cluster=cluster,
-        #     number=1,
-        #     flavour_desc={
-        #         "mem": NETWORK["flavor"]["mem"],
-        #         "core": NETWORK["flavor"]["core"],
-        #     },
-        # )
         .add_machine(
             roles=["prom_master"],
             cluster=cluster,
@@ -342,6 +333,16 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
                 print(f"Encountered exception: {e}. Retrying in 30 seconds...")
                 time.sleep(30)
 
+
+@cli.command()
+@enostask()
+def restart(env=None):
+    roles = env["roles"]
+    print("Restarting all...")
+
+    with actions(roles=roles["master"], gather_facts=False) as p:
+        # p.shell("shutdown 0 -r", task_name="[master] Rebooting")
+        p.reboot(reboot_command = "shutdown  0 -r", search_paths=["/run/current-system/sw/bin/"])
 
 @cli.command()
 @enostask()
@@ -537,17 +538,17 @@ def gen_conf(node, parent_id, parent_ip, ids):
 def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
     roles = env["roles"]
 
-    en.run_command(
-        "k3s kubectl delete -f /tmp/node_conf.yaml || true",
-        roles=roles["master"],
-        task_name="Removing existing fog_node software",
-    )
+    # en.run_command(
+    #     "k3s kubectl delete -f /tmp/node_conf.yaml || true",
+    #     roles=roles["master"],
+    #     task_name="Removing existing fog_node software",
+    # )
 
-    en.run_command(
-        "(k3s kubectl delete -f /tmp/market.yaml || true) && sleep 30",
-        roles=roles["master"],
-        task_name="Removing existing market software",
-    )
+    # en.run_command(
+    #     "(k3s kubectl delete -f /tmp/market.yaml || true) && sleep 30",
+    #     roles=roles["master"],
+    #     task_name="Removing existing market software",
+    # )
 
     ids = {
         node_name: (uuid.uuid4(), roles[node_name][0].address)

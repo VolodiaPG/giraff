@@ -56,6 +56,7 @@
               mprocs
               libguestfs-with-appliance
               nix-output-monitor
+              sshpass
             ];
           };
         }

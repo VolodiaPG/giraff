@@ -2,6 +2,9 @@ set dotenv-load
 
 RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
+export MANAGER_PATH := "../../manager"
+export IOT_EMULATION_PATH := "../../iot_emulation"
+export FUNCTIONS_PATH := "../../openfaas-functions"
 
 # Entrypoint, run deploy and then tunnels
 _default:
@@ -20,28 +23,8 @@ init user *FLAGS:
 
     {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
 
-
-mprocs:
-    mprocs --server 127.0.0.1:4050
-
-deploy fog_node_image=env_var_or_default("DEPLOYMENT_FOG_NODE_IMAGE", "ghcr.io/volodiapg/fog_node:auction_valuation_resources_no-telemetry") market_image=env_var_or_default("DEPLOYMENT_MARKET_IMAGE", "ghcr.io/volodiapg/market:latest") name=env_var_or_default("DEPLOYMENT_NAME", "Nix❄️+En0SLib FTW ❤️") +FLAGS='':
-    #!/usr/bin/env bash
-    set -e
-    {{RUN}} integration.py up --name="{{name}}" --walltime $DEPLOYMENT_WALLTIME --force {{FLAGS}}
-
-    {{RUN}} integration.py monitoring&
-    {{RUN}} integration.py iot-emulation&
-    ({{RUN}} integration.py k3s-setup && \
-        {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
-    wait
-    {{RUN}} integration.py network
-
-# Refresh the container images hosted by k3s on all deployed nodes
-refresh:
-    {{RUN}} integration.py k3s-refresh
-    {{RUN}} integration.py iot-emulation
-    {{RUN}} integration.py monitoring
-    {{RUN}} integration.py k3s-deploy
+lab:
+    nix run .#jupyterlab
 
 # Open SSH tunnels
 tunnels +FLAGS='':
@@ -62,11 +45,34 @@ _is_connected city_name_node_target market_local_port:
 is_connected city_name_node_target market_local_port='8088':
     watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
+deploy fog_node_image market_image name:
+    {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
+
+refresh fog_node_image market_image name:
+    {{RUN}} integration.py restart
+    just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
+
+# Delete the Job on grid'5000 and local EnosLib files
+clean:
+    {{RUN}} integration.py clean || true
+    rm -rf enos_* current cachedir __enos*   
+
+# Refresh the container images hosted by k3s on all deployed nodes
+_deploy fog_node_image market_image name:
+    #!/usr/bin/env bash
+    set -e
+    {{RUN}} integration.py monitoring&
+    {{RUN}} integration.py iot-emulation&
+    ({{RUN}} integration.py k3s-setup && \
+        {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
+    wait
+    {{RUN}} integration.py network
 
 expe $IOT_IP $TARGET_NODES:
     {{RUN}} expe.py
 
-scenario +city_name_node_targets:
+scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
     NODE_TARGETS=()
@@ -83,76 +89,35 @@ scenario +city_name_node_targets:
     
     sleep $WAIT_TIME
 
+    export COLLECT_ARCHIVE_NAME="{{archive_name}}"
     just collect
 
 scenarii +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
 
-    echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
+    # Convert the space-separated list of fog node image tags to a Bash array
+    TAGS=(${FOG_NODE_IMAGE_TAGS// / })
 
-    for ii in $(seq 1 $NB_REPETITIONS); do
-        just deploy $DEPLOYMENT_FOG_NODE_IMAGE $DEPLOYMENT_MARKET_IMAGE $DEPLOYMENT_NAME --force
-        just tunnels --command="'just scenario {{city_name_node_targets}}'"
+    for INDEX in "${!TAGS[@]}"; do
+        TAG="${TAGS[INDEX]}"
+        echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
+        if [ "$INDEX" -eq 0 ]; then
+            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $TAG
+        else
+            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $TAG
+        fi
+        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$TAG\" {{city_name_node_targets}}'"
     done
 
     just clean
 
-
-# Delete the Job on grid'5000 and local EnosLib files
-clean:
-    {{RUN}} integration.py clean || true
-    rm -rf enos_* current cachedir __enos*
-
 collect $port="9090" $period="1h":
     mkdir -p metrics
     {{RUN}} collect.py
-    (rm metrics/* || true) && (tar -xvf latest_metrics.tar.xz -C metrics || true)
 
 logs *FLAGS:
     {{RUN}} integration.py logs {{FLAGS}}
-
-interval period='20' enabled='true' iot_local_port='3003':
-    curl -X POST --url "http://localhost:{{iot_local_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
-
-lab:
-    nix run .#jupyterlab
-
-# lab_pdf:
-#     {{DOCKER}} exec jupyter_lab jupyter nbconvert experiment.ipynb --no-input --to pdf
-
-docker_enos name fog_node_image market_image tempdir cmd="bash":
-    #!/usr/bin/env bash
-    set -e
-    {{DOCKER}} run -it --rm \
-        --privileged \
-        --cap-add=ALL \
-        --workdir /home/enos \
-        -v /lib/modules:/lib/modules \
-        -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
-        -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
-        -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
-        -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
-        -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
-        -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
-        -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
-        -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
-        -v {{justfile_directory()}}/logs:/home/enos/logs \
-        -v {{tempdir}}/.env:/home/enos/.env:ro \
-        -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
-        -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
-        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
-        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
-        -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
-        -e SSH_AUTH_SOCK=/ssh-agent \
-        -e DEPLOYMENT_NAME={{name}} \
-        -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
-        -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
-        --name {{name}} \
-        enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
-
-docker_scenarii name fog_node_image market_image tempdir +city_name_node_targets:
-    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
 
 vpn:
     #!/usr/bin/env bash
@@ -192,6 +157,39 @@ sshconfig:
     EOF
 # ssh "$login@$CLUSTER.grid5000.fr" -c "sleep 999999"&
 
+docker_enos name fog_node_image market_image tempdir cmd="bash":
+    #!/usr/bin/env bash
+    set -e
+    {{DOCKER}} run -it --rm \
+        --privileged \
+        --cap-add=ALL \
+        --workdir /home/enos \
+        -v /lib/modules:/lib/modules \
+        -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
+        -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
+        -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
+        -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
+        -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
+        -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
+        -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
+        -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
+        -v {{justfile_directory()}}/logs:/home/enos/logs \
+        -v {{tempdir}}/.env:/home/enos/.env:ro \
+        -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
+        -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
+        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
+        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
+        -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
+        -e SSH_AUTH_SOCK=/ssh-agent \
+        -e DEPLOYMENT_NAME="{{name}}" \
+        -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
+        -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
+        --name "{{name}}" \
+        enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
+
+docker_scenarii name fog_node_image market_image tempdir +city_name_node_targets:
+    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
+
 _docker_campain name fog_node_image tempdir:
     #!/usr/bin/env bash
     set -e
@@ -201,21 +199,36 @@ _docker_campain name fog_node_image tempdir:
 
 docker_campain_in_nix variation suffix:
     #!/usr/bin/env bash
-    set -e
+    set -ex
     tempdir=$(mktemp -d)
     cp .env.scenario $tempdir/.env
     cp definitions.py $tempdir/definitions.py
     mkdir -p metrics-arks logs
     # Build image before calling it in parrallel as it confuses podman
+
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
-    mprocs \
-        "just _docker_campain auction_{{variation}}_{{suffix}} auction_{{variation}}_no-telemetry $tempdir" 
 
-# "just _docker_campain edge_first_v2_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
-# "just _docker_campain edge_ward_v3_{{variation}}_{{suffix}} edge_ward_v3_{{variation}}_no-telemetry $tempdir" \
-# "just _docker_campain edge_first_{{variation}}_{{suffix}} edge_first_{{variation}}_no-telemetry $tempdir" \
-# "just _docker_campain edge_ward_{{variation}}_{{suffix}} edge_ward_{{variation}}_no-telemetry $tempdir"
+    args=()
+    for i in $(seq 1 $NB_REPETITIONS); do
+        args+=("just _docker_campain {{variation}}_{{suffix}}_$i auction_{{variation}}_no-telemetry $tempdir")
+    done
+    
+    mprocs "${args[@]}"
+
+build_required_images user:
+    #!/usr/bin/env bash
+    set -e
+    
+    TAGS=(${FOG_NODE_IMAGE_TAGS// / })
+    cd $MANAGER_PATH
+    nix develop -c just ghcr {{user}} $FOG_NODE_IMAGE_TAGS
+    cd {{justfile_directory()}}
+    cd $IOT_EMULATION_PATH
+    nix develop -c  just ghcr {{user}}
+    cd {{justfile_directory()}}
+    cd $FUNCTIONS_PATH
+    nix develop -c just faas
 
 docker_campain variation="valuation_rates" suffix="":
     nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix {{variation}} {{suffix}}

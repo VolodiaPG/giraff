@@ -1,3 +1,6 @@
+export SSHPASS:="faas"
+export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
+
 # Entrypoint, run deploy and then tunnels
 _default:
     @just --list
@@ -8,12 +11,15 @@ fmt:
 build target:
     nom build {{target}}
 
-build-vm target: (build target)
+build-vm: (build ".#vm")
 
 update:
     nix flake update --experimental-features "nix-command flakes"
 
-upload city="rennes": (build-vm ".#vm")
+ssh-in:
+    @$SSH_CMD
+
+upload city="rennes": build-vm
     #!/usr/bin/env bash
     set -ex
     temp=/tmp/uploadg5k
@@ -30,8 +36,6 @@ upload city="rennes": (build-vm ".#vm")
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
         -enable-kvm \
         -nographic&
-    
-    export SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
@@ -56,14 +60,10 @@ upload city="rennes": (build-vm ".#vm")
     
     rm -rf $temp
 
-# build-vm:
-#     nix build --print-build-logs --experimental-features "nix-command flakes" .#vm-g5k
-
-_run_vm:
+_run_vm disk="result/nixos.qcow2":
     #!/usr/bin/env bash
-    set -ex
-    set -ex
-    cp result/nixos.qcow2 nixos.qcow2
+    set -e
+    cp {{disk}} nixos.qcow2
     temp=nixos.qcow2
     chmod u+rwx $temp
 
@@ -81,28 +81,13 @@ _run_vm:
 
 _openfaas_in_vm:
     #!/usr/bin/env bash
-    set -ex
-    export SSH_CMD="ssh -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@localhost -p 2221"
+    set -e
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
         sleep 10
     done
 
-    # $SSH_CMD "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml \
-    #             && k3s kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml \
-    #             && helm repo add openfaas https://openfaas.github.io/faas-netes/ \
-    #             && helm repo update \
-    #             && helm upgrade openfaas --install openfaas/openfaas --version 12.0.0 \
-    #                 --namespace openfaas  \
-    #                 --set functionNamespace=openfaas-fn \
-    #                 --set generateBasicAuth=true \
-    #                 --set prometheus.image=ghcr.io/volodiapg/prometheus:v2.42.0 \
-    #                 --set alertmanager.image=ghcr.io/volodiapg/alertmanager:v0.25.0 \
-    #                 --set stan.image=ghcr.io/volodiapg/nats-streaming:0.25.3 \
-    #                 --set nats.image=ghcr.io/volodiapg/nats:2.9.14 \
-    #                 --set nats.metrics.image=ghcr.io/volodiapg/prometheus-nats-exporter:0.10.1"
-    
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do
         sleep 10
@@ -122,8 +107,11 @@ _openfaas_in_vm:
     $SSH_CMD -N -L 9090:127.0.0.1:9090&
     wait
 
-vm:
+vm: build-vm
     mprocs "just _run_vm" "just _openfaas_in_vm"
+
+vm-nocopy:
+    mprocs "just _run_vm ./nixos.qcow2" "just _openfaas_in_vm"
     
     
     

@@ -190,15 +190,10 @@ k3d-clean:
     k3d cluster delete fog-node || true
 
 just compile_container image_path:
-    nix build ".#$image" --print-out-paths --no-link --quiet
-
-container $image user:
-    #!/usr/bin/env bash
-    set -e
-    
+    nom build ".#$image" --print-out-paths --no-link --quiet
 
 # Push container images o ghcr.
-ghcr user filters="no-telemetry":
+ghcr user +images:
     #!/usr/bin/env bash
     set -e
     function run_docker() {
@@ -216,14 +211,12 @@ ghcr user filters="no-telemetry":
     }
 
 
-    derivations=$(nix flake show --json | jq  '.packages."x86_64-linux"|keys[]'| grep "fog_node\|market" | grep "market\|{{filters}}")
-    for image in $derivations; do
-        echo $image
-       
-    image_path=$(nix build ".#$image" --print-out-paths --no-link --quiet)
-    run_docker $image_path&
-        just container $image {{user}} #|| echo "❌Failed building $image"
+    for image in {{images}}; do
+        image_path=$(nom build ".#fog_node_$image" --print-out-paths --no-link --quiet)
+        run_docker $image_path&
     done
+    image_path=$(nom build ".#market" --print-out-paths --no-link --quiet)
+    run_docker $image_path&
     wait
 
 # Cleans

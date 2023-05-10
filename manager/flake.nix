@@ -152,6 +152,7 @@
               kubectl
               (rustfmt.override {asNightly = true;})
               cargo2nix.packages.${system}.cargo2nix
+              nix-output-monitor
             ];
           };
         }
