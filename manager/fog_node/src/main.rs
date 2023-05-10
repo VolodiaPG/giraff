@@ -280,6 +280,7 @@ async fn main() -> std::io::Result<()> {
     let latency_estimation_repo = Arc::new(LatencyEstimation::new(
         node_situation.clone(),
         http_client.clone(),
+        model::domain::exp_average::Alpha::new(0.125).unwrap(),
     ));
     let cron_repo = Arc::new(
         Cron::new(Time::new::<second>(15.0))

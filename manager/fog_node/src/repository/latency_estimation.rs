@@ -1,6 +1,6 @@
 use crate::NodeSituation;
 use anyhow::{ensure, Context, Result};
-use model::domain::median::Median;
+use model::domain::exp_average::ExponentialMovingAverage;
 use model::NodeId;
 use std::fmt;
 use std::fmt::Debug;
@@ -33,21 +33,26 @@ impl From<Vec<(NodeId, anyhow::Error)>> for IndividualErrorList {
 #[derive(Debug)]
 pub struct LatencyEstimation {
     node_situation:     Arc<NodeSituation>,
-    outgoing_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
-    incoming_latencies: Arc<dashmap::DashMap<NodeId, Median>>,
+    outgoing_latencies:
+        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
+    incoming_latencies:
+        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
     client:             Arc<HttpClient>,
+    alpha:              model::domain::exp_average::Alpha,
 }
 
 impl LatencyEstimation {
     pub fn new(
         node_situation: Arc<NodeSituation>,
         client: Arc<HttpClient>,
+        alpha: model::domain::exp_average::Alpha,
     ) -> Self {
         Self {
             node_situation,
             outgoing_latencies: Arc::new(dashmap::DashMap::new()),
             incoming_latencies: Arc::new(dashmap::DashMap::new()),
             client,
+            alpha,
         }
     }
 
@@ -93,16 +98,8 @@ impl LatencyEstimation {
                 let (incoming, outgoing) =
                     self.make_latency_request_to(&node).await?;
 
-                Self::update_latency(
-                    &self.incoming_latencies,
-                    &node,
-                    incoming,
-                );
-                Self::update_latency(
-                    &self.outgoing_latencies,
-                    &node,
-                    outgoing,
-                );
+                self.update_latency(&self.incoming_latencies, &node, incoming);
+                self.update_latency(&self.outgoing_latencies, &node, outgoing);
 
                 let desc = self
                     .node_situation
@@ -120,12 +117,9 @@ impl LatencyEstimation {
                 let Some(lat) = self.outgoing_latencies.get(&node) else {
                     return Ok(());
                 };
-                let Some(median) = lat.get_median() else {
-                    return Ok(());
-                };
                 crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
                     .with_label_values(&[&format!("{ip}:{port}")])
-                    .set(median.value);
+                    .set(lat.get().value);
                 Ok(())
             });
         }
@@ -148,18 +142,19 @@ impl LatencyEstimation {
     }
 
     pub async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
-        self.outgoing_latencies.get(id).and_then(|x| x.get_median())
+        self.outgoing_latencies.get(id).map(|x| x.get())
     }
 
     fn update_latency(
-        map: &dashmap::DashMap<NodeId, Median>,
+        &self,
+        map: &dashmap::DashMap<NodeId, ExponentialMovingAverage>,
         key: &NodeId,
         value: Time,
     ) {
-        let mut entry = map
-            .get(key)
-            .map(|entry| entry.value().clone())
-            .unwrap_or_else(Median::default);
+        let mut entry =
+            map.get(key).map(|entry| entry.value().clone()).unwrap_or_else(
+                || ExponentialMovingAverage::new(self.alpha.clone(), value),
+            );
         entry.update(value);
         map.insert(key.clone(), entry);
     }

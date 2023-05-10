@@ -62,12 +62,14 @@ clean:
 _deploy fog_node_image market_image name:
     #!/usr/bin/env bash
     set -e
+    {{RUN}} integration.py network
+
     {{RUN}} integration.py monitoring&
     {{RUN}} integration.py iot-emulation&
     ({{RUN}} integration.py k3s-setup && \
         {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
+    
     wait
-    {{RUN}} integration.py network
 
 expe $IOT_IP $TARGET_NODES:
     {{RUN}} expe.py

@@ -2924,6 +2924,7 @@ in {
       helper = rustPackages."unknown".helper."0.1.0" {inherit profileName;};
       lazy_regex = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy-regex."2.5.0" {inherit profileName;};
       lazy_static = rustPackages."registry+https://github.com/rust-lang/crates.io-index".lazy_static."1.4.0" {inherit profileName;};
+      nutype = rustPackages."registry+https://github.com/rust-lang/crates.io-index".nutype."0.2.0" {inherit profileName;};
       ron = rustPackages."registry+https://github.com/rust-lang/crates.io-index".ron."0.8.0" {inherit profileName;};
       serde = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde."1.0.154" {inherit profileName;};
       serde_json = rustPackages."registry+https://github.com/rust-lang/crates.io-index".serde_json."1.0.94" {inherit profileName;};
@@ -3113,6 +3114,34 @@ in {
         else null
       } =
         rustPackages."registry+https://github.com/rust-lang/crates.io-index".libc."0.2.140" {inherit profileName;};
+    };
+  });
+
+  "registry+https://github.com/rust-lang/crates.io-index".nutype."0.2.0" = overridableMkRustCrate (profileName: rec {
+    name = "nutype";
+    version = "0.2.0";
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo {
+      inherit name version;
+      sha256 = "060a7fdadbae85c7063375e8fb9dd88c9ac336a22d1f0eb2fefd53dbf98edcb5";
+    };
+    dependencies = {
+      nutype_macros = buildRustPackages."registry+https://github.com/rust-lang/crates.io-index".nutype_macros."0.2.0" {profileName = "__noProfile";};
+    };
+  });
+
+  "registry+https://github.com/rust-lang/crates.io-index".nutype_macros."0.2.0" = overridableMkRustCrate (profileName: rec {
+    name = "nutype_macros";
+    version = "0.2.0";
+    registry = "registry+https://github.com/rust-lang/crates.io-index";
+    src = fetchCratesIo {
+      inherit name version;
+      sha256 = "6a0d2e869a6039d8b1d10f8a478f76538958808fbf95dae367875ee9635430b9";
+    };
+    dependencies = {
+      proc_macro2 = rustPackages."registry+https://github.com/rust-lang/crates.io-index".proc-macro2."1.0.51" {inherit profileName;};
+      quote = rustPackages."registry+https://github.com/rust-lang/crates.io-index".quote."1.0.23" {inherit profileName;};
+      syn = rustPackages."registry+https://github.com/rust-lang/crates.io-index".syn."1.0.109" {inherit profileName;};
     };
   });
 
