@@ -1,12 +1,11 @@
-from pathlib import Path
 import os
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import List, Optional
 
 from enoslib.api import run_ansible
 from enoslib.objects import Host, Network, Roles
 from enoslib.service.service import Service
-from enoslib.service.utils import _set_dir, _to_abs
-
+from enoslib.service.utils import _set_dir
 
 DEFAULT_UI_ENV = {"GF_SERVER_HTTP_PORT": "3000"}
 

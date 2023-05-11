@@ -24,9 +24,17 @@
     };
   };
 
+  nixConfig = {
+    extra-trusted-substituters = "https://nix-community.cachix.org";
+    extra-trusted-public-keys = "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=";
+  };
+
   outputs = inputs:
-    with inputs;
-      flake-utils.lib.eachDefaultSystem (system: let
+    with inputs; let
+      inherit (self) outputs;
+    in
+      nixpkgs.lib.recursiveUpdate
+      (flake-utils.lib.eachDefaultSystem (system: let
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
@@ -101,7 +109,48 @@
           inherit system;
           overlays = [overlay];
         };
-        inherit (nixpkgs) lib;
+      in {
+        packages.experiments = pkgs.experiments;
+        checks = {
+          pre-commit-check = pre-commit-hooks.lib.${system}.run {
+            src = ./.;
+            settings.statix.ignore = ["Cargo.nix"];
+            hooks = {
+              # Nix
+              alejandra.enable = true;
+              statix.enable = true;
+              deadnix = {
+                enable = true;
+                excludes = ["Cargo.nix"];
+              };
+              # Python
+              autoflake.enable = true;
+              isort.enable = true;
+              ruff.enable = true;
+              # Shell scripting
+              shfmt.enable = true;
+              shellcheck.enable = true;
+              bats.enable = true;
+              # Git (conventional commits)
+              commitizen.enable = true;
+            };
+          };
+        };
+        devShells.default = pkgs.mkShell {
+          inherit (self.checks.${system}.pre-commit-check) shellHook;
+          packages =
+            [poetry2nix.packages.${system}.poetry]
+            ++ (with pkgs; [
+              just
+              jq
+              experiments
+              poetry
+              ruff
+            ]);
+        };
+      }))
+      (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
+        pkgs = nixpkgs.legacyPackages.${system};
 
         dockerImage = pkgs.dockerTools.buildImage {
           name = "enos_deployment";
@@ -112,24 +161,26 @@
               "/bin"
               "/"
             ];
-            paths = with pkgs; [
-              # Linux toolset
-              busybox
-              gnused
-              bashInteractive
+            paths =
+              (with pkgs; [
+                # Linux toolset
+                busybox
+                gnused
+                bashInteractive
 
-              # My toolset
-              just
-              jq
-              openssh
-              curl
+                # My toolset
+                just
+                jq
+                openssh
+                curl
 
-              openvpn # to connect to the inside of g5k
-              update-resolv-conf
-
-              # Environment to run enos and stuff
-              experiments
-            ];
+                openvpn # to connect to the inside of g5k
+                update-resolv-conf
+              ])
+              ++ (with outputs.packages.${system}; [
+                # Environment to run enos and stuff
+                experiments
+              ]);
           };
           runAsRoot = ''
             #!${pkgs.runtimeShell}
@@ -150,7 +201,10 @@
             Env = ["RUN=python" "HOME=/root"];
           };
         };
-
+      in {
+        packages.docker = dockerImage;
+      }))
+      // flake-utils.lib.eachDefaultSystem (system: let
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = export:
           mkJupyterlabNew ({...}: {
@@ -204,10 +258,6 @@
             ];
           });
       in {
-        packages = {
-          docker = dockerImage;
-          default = pkgs.experiments;
-        };
         apps.jupyterlabExport = {
           program = "${jupyterlab true}/bin/jupyter-lab";
           type = "app";
@@ -216,44 +266,8 @@
           program = "${jupyterlab false}/bin/jupyter-lab";
           type = "app";
         };
-        formatter = alejandra.defaultPackage.${system};
-        checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            settings.statix.ignore = ["Cargo.nix"];
-            hooks = {
-              # Nix
-              alejandra.enable = true;
-              statix.enable = true;
-              deadnix = {
-                enable = true;
-                excludes = ["Cargo.nix"];
-              };
-              # Python
-              autoflake.enable = true;
-              isort.enable = true;
-              ruff.enable = true;
-              # Shell scripting
-              shfmt.enable = true;
-              shellcheck.enable = true;
-              bats.enable = true;
-              # Git (conventional commits)
-              commitizen.enable = true;
-            };
-          };
-        };
-
-        devShells.default = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
-          packages =
-            [poetry2nix.packages.${system}.poetry]
-            ++ (with pkgs; [
-              just
-              jq
-              experiments
-              poetry
-              ruff
-            ]);
-        };
-      });
+      })
+      // {
+        formatter = alejandra.defaultPackage;
+      };
 }

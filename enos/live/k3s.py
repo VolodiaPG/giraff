@@ -1,9 +1,8 @@
-from enoslib.api import actions, run
 from typing import Iterable
 
-from enoslib.service.service import Service
+from enoslib.api import actions, run
 from enoslib.objects import Host, Roles
-
+from enoslib.service.service import Service
 
 GUARD_DASHBOARD = (
     "k3s kubectl get service" " -n kubernetes-dashboard kubernetes-dashboard"

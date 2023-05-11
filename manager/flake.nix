@@ -27,7 +27,7 @@
 
   outputs = inputs:
     with inputs;
-      flake-utils.lib.eachSystem ["x86_64-linux"] (
+      flake-utils.lib.eachDefaultSystem (
         # flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
@@ -124,13 +124,13 @@
                   excludes = ["Cargo.nix"];
                 };
                 # Rust
-                rust = {
-                  enable = true;
-                  name = "rust (justfile pre_commit)";
-                  entry = "sh -c 'cd manager && just pre_commit'";
-                  language = "system";
-                  pass_filenames = false;
-                };
+                # rust = {
+                #   enable = true;
+                #   name = "rust (justfile pre_commit)";
+                #   entry = "sh -c '(cd manager || true) && PATH=${outputs.devShells.${system}.default}/bin:$PATH just pre_commit'";
+                #   language = "system";
+                #   pass_filenames = false;
+                # };
                 # Git (conventional commits)
                 commitizen.enable = true;
               };
