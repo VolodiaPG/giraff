@@ -14,8 +14,9 @@ ron = "0.8.0"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
 serde_with = "2.0.0"
+skiplist = "0.5.1"
 thiserror = "1.0.31"
-uom = { version = "0.33.0", default-features = false, features = [
+uom = { version = "0.34.0", default-features = false, features = [
     "f64",
     "si",
     "autoconvert",

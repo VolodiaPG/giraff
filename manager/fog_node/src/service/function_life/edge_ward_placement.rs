@@ -52,7 +52,7 @@ impl FunctionLife {
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
         let bid = if let Ok(Some((id, record))) =
-            self.auction.bid_on(sla.clone()).await
+            self.auction.bid_on(sla.clone(), accumulated_latency).await
         {
             BidProposal {
                 node_id: self.node_situation.get_my_id(),

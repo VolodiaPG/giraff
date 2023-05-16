@@ -43,7 +43,7 @@ impl FunctionLife {
             None => {
                 let (id, record) = self
                     .auction
-                    .bid_on(sla.clone())
+                    .bid_on(sla.clone(), accumulated_latency)
                     .await
                     .context("Failed to bid on sla")?
                     .ok_or_else(|| anyhow!("Cannot accept sla"))?;

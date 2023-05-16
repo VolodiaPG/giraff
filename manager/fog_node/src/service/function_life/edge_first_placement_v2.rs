@@ -1,10 +1,11 @@
 use super::*;
 use anyhow::Result;
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
+};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
-use uom::si::f64::Time;
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
@@ -13,32 +14,34 @@ impl FunctionLife {
         &'a self,
         sla: &'a Sla,
         from: &NodeId,
-        accumulated_latency: Time,
+        accumulated_latency: &AccumulatedLatency,
     ) -> Result<BidProposals> {
-        let mut latencies: Vec<(NodeId, Time)> = Vec::new();
+        let neighbors = self.node_situation.get_neighbors();
+        let mut latencies: Vec<(NodeId, AccumulatedLatency)> =
+            Vec::with_capacity(neighbors.len());
 
         // Get all latencies
-        for neighbor in self.node_situation.get_neighbors() {
+        for neighbor in neighbors {
             if neighbor == *from {
                 continue;
             }
 
-            let Some(latency_outbound) = self
+            let Some(latency) = self
                 .neighbor_monitor
-                .get_latency_to_avg(&neighbor)
+                .get_latency_to(&neighbor)
                 .await
                 else {
                     warn!("Cannot get Latency of {}", neighbor);
                     continue;
                 };
 
-            let latency = latency_outbound + accumulated_latency;
+            let latency = accumulated_latency.accumulate(latency);
 
-            if latency > sla.latency_max {
+            if latency.median > sla.latency_max {
                 trace!(
                     "Skipping neighbor {} because latency is too high ({}).",
                     neighbor,
-                    latency_outbound.into_format_args(
+                    latency.median.into_format_args(
                         uom::si::time::millisecond,
                         Abbreviation
                     )
@@ -51,7 +54,9 @@ impl FunctionLife {
 
         // Sort by furthest: we want to keep the best for when we need it
 
-        latencies.sort_by(|(_, a), (_, b)| b.partial_cmp(a).unwrap());
+        latencies.sort_by(|(_, a), (_, b)| {
+            b.median.partial_cmp(&a.median).unwrap()
+        });
 
         for (neighbor, accumulated_latency) in latencies {
             let Ok(bid) = self
@@ -84,11 +89,11 @@ impl FunctionLife {
         &self,
         sla: &Sla,
         from: NodeId,
-        accumulated_latency: Time,
+        accumulated_latency: AccumulatedLatency,
     ) -> Result<BidProposals> {
         trace!("Transmitting bid to other nodes...");
         let mut follow_up = self
-            .follow_up_to_neighbors(sla, &from, accumulated_latency)
+            .follow_up_to_neighbors(sla, &from, &accumulated_latency)
             .await
             .context("Failed to follow up sla to my neighbors")?;
         let bid = follow_up.bids.pop();
@@ -98,8 +103,10 @@ impl FunctionLife {
                 vec![bid]
             }
             None => {
-                if let Ok(Some((id, record))) =
-                    self.auction.bid_on(sla.clone()).await
+                if let Ok(Some((id, record))) = self
+                    .auction
+                    .bid_on(sla.clone(), &accumulated_latency)
+                    .await
                 {
                     info!("no bids are coming from any neighbors, bidded.");
                     vec![BidProposal {

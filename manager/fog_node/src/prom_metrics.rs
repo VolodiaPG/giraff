@@ -19,8 +19,8 @@ lazy_static! {
 
     pub static ref SLA_SEEN: GaugeVec = {
         register_gauge_vec!(
-            opts!(concat!(PREFIX!(), "sla_seen"), "Bids placed for submitted SLA"),
-            &["function_name", "sla_id"],
+            opts!(concat!(PREFIX!(), "sla_seen"), "SLA that passed here"),
+            &["function_name", "sla_id", "accumulated_latency_median", "accumulated_latency_median_uncertainty"],
         )
         .unwrap()
     };
@@ -107,6 +107,24 @@ lazy_static! {
     pub static ref LATENCY_NEIGHBORS_AVG_GAUGE: GaugeVec = {
         register_gauge_vec!(
             opts!(concat!(PREFIX!(),"neighbors_latency_rolling_avg"), "Latency with neighbors (parent & children) average computed on the node"),
+                        &["instance_to"],
+
+        )
+        .unwrap()
+    };
+
+    pub static ref LATENCY_NEIGHBORS_MEDIAN_GAUGE: GaugeVec = {
+        register_gauge_vec!(
+            opts!(concat!(PREFIX!(),"neighbors_latency_rolling_median"), "Latency with neighbors (parent & children) median computed on the node"),
+                        &["instance_to"],
+
+        )
+        .unwrap()
+    };
+
+    pub static ref LATENCY_NEIGHBORS_INTERQUARTILE_RANGE_GAUGE: GaugeVec = {
+        register_gauge_vec!(
+            opts!(concat!(PREFIX!(),"neighbors_latency_rolling_interquartile_range"), "Latency with neighbors (parent & children) median computed on the node"),
                         &["instance_to"],
 
         )

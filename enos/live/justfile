@@ -47,11 +47,11 @@ is_connected city_name_node_target market_local_port='8088':
 
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
-    just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
+    just _deploy {{fog_node_image}} {{market_image}}
 
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py restart
-    just _deploy {{fog_node_image}} {{market_image}} "$DEPLOYMENT_NAME"
+    just _deploy {{fog_node_image}} {{market_image}}
 
 # Delete the Job on grid'5000 and local EnosLib files
 clean:
@@ -59,7 +59,7 @@ clean:
     rm -rf enos_* current cachedir __enos*   
 
 # Refresh the container images hosted by k3s on all deployed nodes
-_deploy fog_node_image market_image name:
+_deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
     {{RUN}} integration.py network
@@ -105,9 +105,9 @@ scenarii +city_name_node_targets:
         TAG="${TAGS[INDEX]}"
         echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
         if [ "$INDEX" -eq 0 ]; then
-            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $TAG
+            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $TAG
+            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$TAG\" {{city_name_node_targets}}'"
     done
@@ -232,7 +232,7 @@ build_required_images user:
     cd $FUNCTIONS_PATH
     nix develop -c just faas
 
-docker_campain variation="valuation_rates" suffix="":
+docker_campain user variation="valuation_rates" suffix="": (build_required_images user)
     nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix {{variation}} {{suffix}}
 
 dev:

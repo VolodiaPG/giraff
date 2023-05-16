@@ -13,11 +13,20 @@ from time import sleep
 
 import click
 import enoslib as en
-from definitions import (EXTREMITIES, FOG_NODE_DEPLOYMENT, FOG_NODES,
-                         IOT_CONNECTION, MARKET_CONNECTED_NODE,
-                         MARKET_DEPLOYMENT, NB_CPU_PER_MACHINE_PER_CLUSTER,
-                         NETWORK, NODE_CONNECTED_NODE, adjacency_undirected,
-                         flatten)
+from definitions import (
+    EXTREMITIES,
+    FOG_NODE_DEPLOYMENT,
+    FOG_NODES,
+    IOT_CONNECTION,
+    MARKET_CONNECTED_NODE,
+    MARKET_DEPLOYMENT,
+    NB_CPU_PER_MACHINE_PER_CLUSTER,
+    NETWORK,
+    NODE_CONNECTED_NODE,
+    adjacency_undirected,
+    flatten,
+)
+
 # Enable rich logging
 from enoslib import enostask
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions
@@ -247,8 +256,16 @@ def init(g5k_user, force):
 @click.option("--force", is_flag=True, help="destroy and up")
 @click.option("--name", help="The name of the job")
 @click.option("--walltime", help="The wallime: hh:mm:ss")
+@click.option("--dry-run", help="Do not reserve")
 @enostask(new=True)
-def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None, **kwargs):
+def up(
+    force,
+    name="Nix❄️+En0SLib FTW ❤️",
+    walltime="2:00:00",
+    dry_run=False,
+    env=None,
+    **kwargs,
+):
     """Claim the resources and setup k3s."""
     env["CLUSTER"] = os.environ["CLUSTER"]
     cluster = env["CLUSTER"]
@@ -276,7 +293,8 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
             cluster=cluster,
             number=1,
             flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
-        ).add_machine(
+        )
+        .add_machine(
             roles=["prom_agent", "iot_emulation"],
             cluster=cluster,
             number=1,
@@ -294,9 +312,11 @@ def up(force, name="Nix❄️+En0SLib FTW ❤️", walltime="2:00:00", env=None,
 
     conf.finalize()
 
+    if dry_run:
+        return
+
     provider = en.VMonG5k(conf)
     env["provider"] = provider
-
 
     time.sleep(10)
 
@@ -342,7 +362,11 @@ def restart(env=None):
 
     with actions(roles=roles["master"], gather_facts=False) as p:
         # p.shell("shutdown 0 -r", task_name="[master] Rebooting")
-        p.reboot(reboot_command = "shutdown  0 -r", search_paths=["/run/current-system/sw/bin/"])
+        p.reboot(
+            reboot_command="shutdown  0 -r",
+            search_paths=["/run/current-system/sw/bin/"],
+        )
+
 
 @cli.command()
 @enostask()
@@ -385,10 +409,12 @@ def network(env=None):
         netem = env["netem"]
         netem.destroy()
 
-    # netem = en.AccurateNetemHTB()
-    netem = en.NetemHTB()
+    netem = en.AccurateNetemHTB()
+    # netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]
+    # netem = None
+    # roles = None
 
     gen_net(NETWORK, netem, roles)
 
@@ -400,7 +426,7 @@ def gen_net(nodes, netem, roles):
     adjacency = adjacency_undirected(nodes)
 
     for name, latency in IOT_CONNECTION:
-        adjacency[name].append(("iot_emulation", latency))
+        # adjacency[name].append(("iot_emulation", latency))
         adjacency["iot_emulation"].append((name, latency))
     # Convert to matrix
     # Initialize a matrix
@@ -443,13 +469,14 @@ def gen_net(nodes, netem, roles):
         latencies = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            # print(f"{node_name} -> {destination} = {latency}")
+            print(f"{node_name} -> {destination} = {latency}")
             netem.add_constraints(
                 src=roles[node_name],
                 dest=roles[destination],
                 delay=str(latency) + "ms",  # That's a really bad fix there...
                 # delay="20ms",
                 rate="1gbit",
+                # rate="100mbit",
                 symmetric=True,
             )
 

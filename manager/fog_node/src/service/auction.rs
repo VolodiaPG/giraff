@@ -4,6 +4,7 @@ use crate::repository::resource_tracking::ResourceTracking;
 use anyhow::{Context, Result};
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
+use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
@@ -69,7 +70,11 @@ impl Auction {
 
     /// Compute the bid value from the node environment
     #[cfg(not(feature = "valuation_rates"))]
-    async fn compute_bid(&self, sla: &Sla) -> Result<Option<(String, f64)>> {
+    async fn compute_bid(
+        &self,
+        sla: &Sla,
+        accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<(String, f64)>> {
         let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
@@ -77,7 +82,9 @@ impl Auction {
                     return Ok(None);
                 };
 
-        let price = sla.memory / available_ram + sla.cpu / available_cpu;
+        let price = sla.memory / available_ram
+            + sla.cpu / available_cpu
+            + accumulated_latency.median / sla.latency_max;
 
         let price: f64 = price.into();
 
@@ -87,7 +94,11 @@ impl Auction {
     }
 
     #[cfg(feature = "valuation_rates")]
-    async fn compute_bid(&self, sla: &Sla) -> Result<Option<(String, f64)>> {
+    async fn compute_bid(
+        &self,
+        sla: &Sla,
+        _accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<(String, f64)>> {
         use helper::uom_helper::cpu_ratio::millicpu;
         use uom::si::information::mebibyte;
 
@@ -134,9 +145,10 @@ impl Auction {
     pub async fn bid_on(
         &self,
         sla: Sla,
+        accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(BidId, FunctionRecord<Proposed>)>> {
         let Some((node, bid)) = self
-            .compute_bid(&sla)
+            .compute_bid(&sla, accumulated_latency)
             .await
             .context("Failed to compute bid for sla")? else{
                 return Ok(None);

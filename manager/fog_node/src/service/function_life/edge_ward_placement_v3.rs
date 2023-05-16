@@ -1,9 +1,10 @@
 use super::*;
 use anyhow::{anyhow, Context, Result};
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
+};
 use model::NodeId;
-use uom::si::f64::Time;
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
@@ -11,7 +12,7 @@ impl FunctionLife {
     async fn follow_up_to_parent<'a>(
         &'a self,
         sla: &'a Sla,
-        accumulated_latency: Time,
+        accumulated_latency: &AccumulatedLatency,
     ) -> Result<BidProposals> {
         let Some(parent) = self
             .node_situation
@@ -22,21 +23,22 @@ impl FunctionLife {
                 });
             };
 
-        let latency_outbound = self
+        let latency = self
             .neighbor_monitor
-            .get_latency_to_avg(&parent)
+            .get_latency_to(&parent)
             .await
             .ok_or_else(|| anyhow!("Cannot get Latency of {}", parent))?;
 
-        if latency_outbound + accumulated_latency < sla.latency_max {
+        let accumulated_latency = accumulated_latency.accumulate(latency);
+
+        if accumulated_latency.median < sla.latency_max {
             let bid = self
                 .node_query
                 .request_neighbor_bid(
                     &BidRequest {
                         sla,
                         node_origin: self.node_situation.get_my_id(),
-                        accumulated_latency: accumulated_latency.to_owned()
-                            + latency_outbound,
+                        accumulated_latency,
                     },
                     parent,
                 )
@@ -57,11 +59,11 @@ impl FunctionLife {
         &self,
         sla: &Sla,
         _from: NodeId,
-        accumulated_latency: Time,
+        accumulated_latency: AccumulatedLatency,
     ) -> Result<BidProposals> {
         trace!("Transmitting bid to other node...");
         let mut follow_up = self
-            .follow_up_to_parent(sla, accumulated_latency)
+            .follow_up_to_parent(sla, &accumulated_latency)
             .await
             .context("Failed to follow up sla to my parent")?;
         let bid = follow_up.bids.pop();
@@ -71,8 +73,10 @@ impl FunctionLife {
                 vec![bid]
             }
             None => {
-                if let Ok(Some((id, record))) =
-                    self.auction.bid_on(sla.clone()).await
+                if let Ok(Some((id, record))) = self
+                    .auction
+                    .bid_on(sla.clone(), &accumulated_latency)
+                    .await
                 {
                     info!("no bids are coming from above, bidded.");
                     vec![BidProposal {

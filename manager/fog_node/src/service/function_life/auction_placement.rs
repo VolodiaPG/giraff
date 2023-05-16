@@ -2,10 +2,11 @@ use super::*;
 use anyhow::{Context, Result};
 use futures::future::{join, try_join_all};
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
+};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
-use uom::si::f64::Time;
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
@@ -14,7 +15,7 @@ impl FunctionLife {
         &self,
         sla: &Sla,
         from: NodeId,
-        accumulated_latency: Time,
+        accumulated_latency: &AccumulatedLatency,
     ) -> Result<BidProposals> {
         let mut requests = vec![];
 
@@ -22,15 +23,21 @@ impl FunctionLife {
             if neighbor == from {
                 continue;
             }
-            let Some(latency_outbound) = self
+            let Some(latency) = self
                     .neighbor_monitor
-                    .get_latency_to_avg(&neighbor)
+                    .get_latency_to(&neighbor)
                     .await
                     else {
                         warn!("Cannot get Latency of {}", neighbor);
                         continue;
                     };
-            if latency_outbound + accumulated_latency > sla.latency_max {
+
+            if latency.median
+                + accumulated_latency.median
+                + accumulated_latency.median_uncertainty
+                > sla.latency_max
+            {
+                let latency_outbound = latency.median;
                 debug!(
                     "Skipping neighbor {} because latency is too high ({}, a \
                      total of {}).",
@@ -39,20 +46,20 @@ impl FunctionLife {
                         uom::si::time::millisecond,
                         Abbreviation
                     ),
-                    (latency_outbound + accumulated_latency).into_format_args(
-                        uom::si::time::millisecond,
-                        Abbreviation
-                    ),
+                    (latency_outbound + accumulated_latency.median)
+                        .into_format_args(
+                            uom::si::time::millisecond,
+                            Abbreviation
+                        ),
                 );
                 continue;
             }
-
             requests.push((
                 BidRequest {
                     sla,
                     node_origin: self.node_situation.get_my_id(),
                     accumulated_latency: accumulated_latency
-                        + latency_outbound,
+                        .accumulate(latency),
                 },
                 neighbor,
             ));
@@ -76,14 +83,14 @@ impl FunctionLife {
         &self,
         sla: &Sla,
         from: NodeId,
-        accumulated_latency: Time,
+        accumulated_latency: AccumulatedLatency,
     ) -> Result<BidProposals> {
         let (result_bid, proposals) = join(
-            self.auction.bid_on(sla.clone()),
+            self.auction.bid_on(sla.clone(), &accumulated_latency),
             self.follow_up_to_neighbors(
                 sla,
                 from.clone(),
-                accumulated_latency,
+                &accumulated_latency,
             ),
         )
         .await;

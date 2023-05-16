@@ -24,8 +24,9 @@ impl FunctionLife {
 
         let latency_outbound = self
             .neighbor_monitor
-            .get_latency_to_avg(&parent)
+            .get_latency_to(&parent)
             .await
+            .map(|x| x.median)
             .ok_or_else(|| anyhow!("Cannot get Latency of {}", parent))?;
 
         if latency_outbound + accumulated_latency > sla.latency_max {
@@ -67,7 +68,7 @@ impl FunctionLife {
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
         let bid = if let Ok(Some((id, record))) =
-            self.auction.bid_on(sla.clone()).await
+            self.auction.bid_on(sla.clone(), accumulated_latency).await
         {
             BidProposal {
                 node_id: self.node_situation.get_my_id(),

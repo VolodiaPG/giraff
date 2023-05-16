@@ -36,15 +36,15 @@ mod auction_placement;
 #[cfg(feature = "auction")]
 pub use auction_placement::*;
 
-#[cfg(feature = "cloud_only")]
-mod cloud_only_placement;
-#[cfg(feature = "cloud_only")]
-pub use cloud_only_placement::*;
+// #[cfg(feature = "cloud_only")]
+// mod cloud_only_placement;
+// #[cfg(feature = "cloud_only")]
+// pub use cloud_only_placement::*;
 
-#[cfg(feature = "cloud_only_v2")]
-mod cloud_only_placement_v2;
-#[cfg(feature = "cloud_only_v2")]
-pub use cloud_only_placement_v2::*;
+// #[cfg(feature = "cloud_only_v2")]
+// mod cloud_only_placement_v2;
+// #[cfg(feature = "cloud_only_v2")]
+// pub use cloud_only_placement_v2::*;
 
 #[cfg(feature = "edge_first")]
 mod edge_first_placement;

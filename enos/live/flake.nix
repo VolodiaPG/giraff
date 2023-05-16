@@ -205,6 +205,10 @@
         packages.docker = dockerImage;
       }))
       // flake-utils.lib.eachDefaultSystem (system: let
+        pkgs = nixpkgs.legacyPackages.${system};
+
+        inherit (pkgs) lib;
+
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = export:
           mkJupyterlabNew ({...}: {
@@ -214,7 +218,7 @@
                 kernel.r.experiment = {
                   runtimePackages =
                     []
-                    ++ lib.optionals export (with pkgs; [
+                    ++ nixpkgs.lib.optionals export (with pkgs; [
                       texlive.combined.scheme-full
                       pgf3
                     ]);
@@ -252,7 +256,7 @@
                         ggprism
                         ggh4x
                       ]
-                      ++ lib.optional export tikzDevice;
+                      ++ nixpkgs.lib.optional export tikzDevice;
                 };
               }
             ];

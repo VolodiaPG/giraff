@@ -2,12 +2,12 @@ use crate::service::fog_node_network::FogNodeNetwork;
 use anyhow::{bail, Context, Result};
 use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
+};
 use model::NodeId;
 use std::fmt::Debug;
 use std::sync::Arc;
-use uom::si::f64::Time;
-use uom::si::time::second;
 
 #[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
@@ -57,7 +57,7 @@ impl NodeCommunication {
             .json(&BidRequest {
                 sla,
                 node_origin: to.clone(),
-                accumulated_latency: Time::new::<second>(0.0),
+                accumulated_latency: AccumulatedLatency::default(),
             })
             .send()
             .await

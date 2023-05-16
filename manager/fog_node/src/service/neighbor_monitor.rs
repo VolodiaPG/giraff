@@ -3,7 +3,18 @@ use anyhow::{Context, Result};
 use model::NodeId;
 use std::fmt::Debug;
 use std::sync::Arc;
-use uom::si::f64::Time;
+
+impl From<crate::repository::latency_estimation::Latency>
+    for model::view::auction::Latency
+{
+    fn from(val: crate::repository::latency_estimation::Latency) -> Self {
+        model::view::auction::Latency {
+            median:              val.median,
+            average:             val.average,
+            interquantile_range: val.interquantile_range,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct NeighborMonitor {
@@ -24,7 +35,10 @@ impl NeighborMonitor {
     }
 
     #[allow(dead_code)]
-    pub async fn get_latency_to_avg(&self, id: &NodeId) -> Option<Time> {
-        self.rtt_estimation.get_latency_to(id).await.map(|x| x * 3.0)
+    pub async fn get_latency_to(
+        &self,
+        id: &NodeId,
+    ) -> Option<model::view::auction::Latency> {
+        self.rtt_estimation.get_latency_to(id).await.map(|x| x.into())
     }
 }

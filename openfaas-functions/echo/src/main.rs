@@ -149,19 +149,18 @@ async fn main() -> std::io::Result<()> {
         sla.latency_max.get::<uom::si::time::second>();
 
     let mut buckets = vec![
-        latency_constraint_sec * 0.25,
-        latency_constraint_sec * 0.5,
-        latency_constraint_sec * 0.75,
         latency_constraint_sec - 3.0 / 1000.0,
-        latency_constraint_sec - 2.0 / 1000.0,
-        latency_constraint_sec - 1.0 / 1000.0,
         latency_constraint_sec,
-        latency_constraint_sec + 1.0 / 1000.0,
-        latency_constraint_sec + 2.0 / 1000.0,
         latency_constraint_sec + 3.0 / 1000.0,
-        latency_constraint_sec * 1.5,
-        latency_constraint_sec * 1.75,
-        latency_constraint_sec * 2.0,
+        latency_constraint_sec * 2.0  - 3.0 / 1000.0,
+        latency_constraint_sec * 2.0 ,
+        latency_constraint_sec * 2.0  + 3.0 / 1000.0,
+        latency_constraint_sec * 3.0 - 3.0 / 1000.0,
+        latency_constraint_sec * 3.0,
+        latency_constraint_sec * 3.0 + 3.0 / 1000.0,
+        latency_constraint_sec * 4.0 - 3.0 / 1000.0,
+        latency_constraint_sec * 4.0,
+        latency_constraint_sec * 4.0 + 3.0 / 1000.0,
     ];
 
     buckets.sort_by(|a, b| a.partial_cmp(b).unwrap());

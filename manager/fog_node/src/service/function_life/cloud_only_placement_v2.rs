@@ -65,7 +65,7 @@ impl FunctionLife {
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
         let (result_bid, proposals) = join(
-            self.auction.bid_on(sla.clone()),
+            self.auction.bid_on(sla.clone(), accumulated_latency),
             self.follow_up_to_neighbors(
                 sla,
                 from.clone(),

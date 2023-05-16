@@ -1,11 +1,13 @@
 use crate::NodeSituation;
 use anyhow::{ensure, Context, Result};
 use model::domain::exp_average::ExponentialMovingAverage;
+use model::domain::moving_median::{MovingMedian, MovingMedianSize};
 use model::NodeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uom::si::f64::Time;
+use uom::si::time::millisecond;
 
 #[derive(Debug)]
 pub struct IndividualErrorList {
@@ -23,21 +25,37 @@ impl From<Vec<anyhow::Error>> for IndividualErrorList {
 }
 
 #[derive(Debug)]
+struct Latencies {
+    moving_average: ExponentialMovingAverage,
+    moving_median:  MovingMedian,
+}
+
+#[derive(Debug)]
+pub struct Latency {
+    pub median:              Time,
+    pub average:             Time,
+    pub interquantile_range: Time,
+}
+
+#[derive(Debug)]
 pub struct LatencyEstimation {
-    node_situation: Arc<NodeSituation>,
-    latency:        Arc<dashmap::DashMap<NodeId, ExponentialMovingAverage>>,
-    alpha:          model::domain::exp_average::Alpha,
+    node_situation:            Arc<NodeSituation>,
+    latency:                   Arc<dashmap::DashMap<NodeId, Latencies>>,
+    alpha:                     model::domain::exp_average::Alpha,
+    moving_median_window_size: MovingMedianSize,
 }
 
 impl LatencyEstimation {
     pub fn new(
         node_situation: Arc<NodeSituation>,
         alpha: model::domain::exp_average::Alpha,
+        moving_median_window_size: MovingMedianSize,
     ) -> Self {
         Self {
             node_situation,
             latency: Arc::new(dashmap::DashMap::new()),
             alpha,
+            moving_median_window_size,
         }
     }
 
@@ -61,9 +79,19 @@ impl LatencyEstimation {
             .set(latency.value);
         let latency = self.update_latency(&self.latency, &node, latency);
 
-        crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
-            .with_label_values(&[&format!("{ip}")])
-            .set(latency.value);
+        if let Some(latency) = latency {
+            crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
+                .with_label_values(&[&format!("{ip}")])
+                .set(latency.average.get::<millisecond>());
+
+            crate::prom_metrics::LATENCY_NEIGHBORS_MEDIAN_GAUGE
+                .with_label_values(&[&format!("{ip}")])
+                .set(latency.median.get::<millisecond>());
+
+            crate::prom_metrics::LATENCY_NEIGHBORS_INTERQUARTILE_RANGE_GAUGE
+                .with_label_values(&[&format!("{ip}")])
+                .set(latency.interquantile_range.get::<millisecond>());
+        }
 
         Ok(())
     }
@@ -90,25 +118,57 @@ impl LatencyEstimation {
         Ok(())
     }
 
-    pub async fn get_latency_to(&self, id: &NodeId) -> Option<Time> {
-        self.latency.get(id).map(|x| x.get())
+    pub async fn get_latency_to(&self, id: &NodeId) -> Option<Latency> {
+        self.latency.get(id).and_then(|x| {
+            let latencies = x.value();
+            match (
+                latencies.moving_median.median(),
+                latencies.moving_median.interquantile_range(),
+                latencies.moving_average.get(),
+            ) {
+                (Some(median), Some(interquantile_range), average) => {
+                    Some(Latency { median, interquantile_range, average })
+                }
+                _ => None,
+            }
+        })
     }
 
     fn update_latency(
         &self,
-        map: &dashmap::DashMap<NodeId, ExponentialMovingAverage>,
+        map: &dashmap::DashMap<NodeId, Latencies>,
         key: &NodeId,
         value: Time,
-    ) -> Time {
+    ) -> Option<Latency> {
         let Some(mut entry) = map.get_mut(key)
             else{
+                let moving_average = ExponentialMovingAverage::new(self.alpha.clone(), value);
+                let mut moving_median = MovingMedian::new(self.moving_median_window_size.clone());
+                moving_median.update(value);
+
                 map.insert(
                     key.clone(),
-                    ExponentialMovingAverage::new(self.alpha.clone(), value),
+                    Latencies{
+                        moving_average,
+                        moving_median,
+                    }
                 );
-                return value;
+
+                return None;
             };
 
-        entry.value_mut().update(value)
+        entry.value_mut().moving_average.update(value);
+        entry.value_mut().moving_median.update(value);
+
+        match (
+            entry.value().moving_median.median(),
+            entry.value().moving_median.interquantile_range(),
+            entry.value().moving_average.get(),
+        ) {
+            (Some(median), Some(interquantile_range), average) => {
+                Some(Latency { average, median, interquantile_range })
+            }
+            _ => None,
+        }
     }
 }
