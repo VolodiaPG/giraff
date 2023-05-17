@@ -3,7 +3,11 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
-
+use futures::stream::{self, select};
+use futures::StreamExt;
+use helper::pool::Pool;
+use helper::prom_metrics::PooledMetrics;
+use lazy_static::lazy_static;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
@@ -26,11 +30,11 @@ use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::service::node_life::NodeLife;
 use actix_web::web::Data;
-use actix_web::{middleware, web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
+use anyhow::Result;
 use bytes::Bytes;
-use futures::future::join_all;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use model::{BidId, FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 use openfaas::{Configuration, DefaultApiClient};
@@ -38,7 +42,7 @@ use openfaas::{Configuration, DefaultApiClient};
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::TextEncoder;
+use prometheus::Encoder;
 #[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
@@ -65,6 +69,10 @@ mod repeated_tasks;
 mod repository;
 mod service;
 
+lazy_static! {
+    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
+}
+
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
     let config = env::var("CONFIG")?;
@@ -78,23 +86,23 @@ fn load_config_from_env() -> anyhow::Result<String> {
 }
 
 async fn get_other_metrics(
-    function: &BidId,
-    functions: &FunctionTracking,
-    faas: &FaaSBackend,
-) -> Bytes {
-    let Some(record) = &functions.get_provisioned(function) else {
+    function: BidId,
+    functions: Arc<FunctionTracking>,
+    faas: Arc<FaaSBackend>,
+) -> Result<Bytes> {
+    let Some(record) = &functions.get_provisioned(&function) else {
         warn!("No records returned for {}", function);
-        return Bytes::default();
+        return Ok(Bytes::default());
     };
     match faas.get_metrics(record).await {
-        Ok(Some(metrics)) => metrics,
+        Ok(Some(metrics)) => Ok(metrics),
         Ok(None) => {
             warn!("No metrics returned for {}", function);
-            Bytes::default()
+            Ok(Bytes::default())
         }
         Err(err) => {
             warn!("Could not get metrics for function {}: {}", function, err);
-            Bytes::default()
+            Ok(Bytes::default())
         }
     }
 }
@@ -102,28 +110,36 @@ async fn get_other_metrics(
 pub async fn metrics(
     faas: Data<FaaSBackend>,
     functions: Data<FunctionTracking>,
-) -> actix_web::HttpResponse {
-    let encoder = TextEncoder::new();
-    let mut buffer: String = "".to_string();
-    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
-        return actix_web::HttpResponse::InternalServerError()
-            .body("Failed to encode prometheus metrics");
-    }
+) -> HttpResponse {
+    let faas = faas.into_inner();
+    let functions = functions.into_inner();
 
-    let faas = faas.get_ref();
-    let functions = functions.get_ref();
+    let stream_local = stream::iter(prometheus::gather())
+        .map(async move |mf| -> Result<Bytes> {
+            let mut buffer = BUFFER_POOL.get();
+            buffer.buffer.clear();
+            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
+            let res = Bytes::copy_from_slice(&buffer.buffer);
+            BUFFER_POOL.put(buffer);
+            Ok(res)
+        })
+        .buffer_unordered(25);
 
-    let others = functions.get_all_provisioned();
-    let others = others
-        .iter()
-        .map(|function| get_other_metrics(function, functions, faas));
+    let stream_functions = stream::iter(functions.get_all_provisioned())
+        .map(move |function| {
+            let functions = functions.clone();
+            let faas = faas.clone();
+            async move {
+                get_other_metrics(function, functions.clone(), faas.clone())
+                    .await
+            }
+        })
+        .buffer_unordered(25);
 
-    let metrics = join_all(others).await.concat();
-    let buffer = [buffer.as_bytes(), &metrics].concat();
-
-    actix_web::HttpResponse::Ok()
-        .insert_header(actix_web::http::header::ContentType::plaintext())
-        .body(buffer)
+    let stream = select(stream_local, stream_functions);
+    HttpResponse::Ok()
+        .content_type(actix_web::http::header::ContentType::plaintext())
+        .streaming(stream)
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.

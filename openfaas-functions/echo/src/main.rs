@@ -1,24 +1,26 @@
-#[macro_use]
-extern crate tracing;
+#![feature(async_closure)]
 
+use anyhow::Result;
+use bytes::Bytes;
+use futures::{stream, StreamExt};
+use helper::pool::Pool;
+use helper::prom_metrics::PooledMetrics;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 use model::domain::sla::Sla;
-use prometheus::{register_histogram_vec, HistogramVec, TextEncoder};
+use prometheus::{register_histogram_vec, Encoder, HistogramVec};
 use serde::Deserialize;
-use tracing::Subscriber;
+use tracing::{debug, Subscriber};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-
-use std::sync::Arc;
-
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
+use lazy_static::lazy_static;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -27,6 +29,7 @@ use opentelemetry::sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
+use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 #[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
@@ -42,6 +45,27 @@ struct IncomingPayload {
     sent_at: DateTime<Utc>,
     tag:     String,
     period:  u64,
+}
+
+lazy_static! {
+    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
+}
+
+pub async fn metrics() -> HttpResponse {
+    let stream = stream::iter(prometheus::gather())
+        .map(async move |mf| -> Result<Bytes> {
+            let mut buffer = BUFFER_POOL.get();
+            buffer.buffer.clear();
+            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
+            let res = Bytes::copy_from_slice(&buffer.buffer);
+            BUFFER_POOL.put(buffer);
+            Ok(res)
+        })
+        .buffer_unordered(25);
+
+    HttpResponse::Ok()
+        .content_type(actix_web::http::header::ContentType::plaintext())
+        .streaming(stream)
 }
 
 async fn handle(
@@ -107,19 +131,6 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
     set_global_default(subscriber).expect("Failed to set subscriber");
 }
 
-pub async fn metrics() -> HttpResponse {
-    let encoder = TextEncoder::new();
-    let mut buffer: String = "".to_string();
-    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
-        return HttpResponse::InternalServerError()
-            .body("Failed to encode prometheus metrics");
-    }
-
-    HttpResponse::Ok()
-        .insert_header(actix_web::http::header::ContentType::plaintext())
-        .body(buffer)
-}
-
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     #[cfg(feature = "jaeger")]
@@ -152,9 +163,9 @@ async fn main() -> std::io::Result<()> {
         latency_constraint_sec - 3.0 / 1000.0,
         latency_constraint_sec,
         latency_constraint_sec + 3.0 / 1000.0,
-        latency_constraint_sec * 2.0  - 3.0 / 1000.0,
-        latency_constraint_sec * 2.0 ,
-        latency_constraint_sec * 2.0  + 3.0 / 1000.0,
+        latency_constraint_sec * 2.0 - 3.0 / 1000.0,
+        latency_constraint_sec * 2.0,
+        latency_constraint_sec * 2.0 + 3.0 / 1000.0,
         latency_constraint_sec * 3.0 - 3.0 / 1000.0,
         latency_constraint_sec * 3.0,
         latency_constraint_sec * 3.0 + 3.0 / 1000.0,

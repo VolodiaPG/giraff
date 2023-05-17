@@ -12,8 +12,10 @@ _default:
 build *FLAGS:
     cargo build {{FLAGS}}
 
-pre_commit: check (check "clippy")
-    cargo fmt
+pre_commit:
+    @nix develop -c just check 
+    @nix develop -c just check "clippy" 
+    nix develop -c cargo fmt
 
 # Run cargo check
 check subcommand="check":

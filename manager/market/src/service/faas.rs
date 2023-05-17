@@ -7,6 +7,7 @@ use model::NodeId;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::trace;
 
 #[derive(Debug)]
 pub struct FogNodeFaaS {

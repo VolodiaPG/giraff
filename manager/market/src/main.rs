@@ -1,29 +1,41 @@
+#![feature(async_closure)]
 #![feature(future_join)]
-#[macro_use]
-extern crate log;
 
 use actix_web::web::Data;
+use bytes::Bytes;
+use helper::pool::Pool;
+use helper::prom_metrics::PooledMetrics;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use prometheus::Encoder;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-use actix_web::{middleware, web, App, HttpServer};
+use crate::handler::*;
+use crate::service::auction::Auction;
+use crate::service::faas::FogNodeFaaS;
+use crate::service::fog_node_network::FogNodeNetwork;
+use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
+use anyhow::Result;
+use futures::stream::{self};
+use futures::StreamExt;
+use lazy_static::lazy_static;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::TextEncoder;
 #[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
+use std::env;
+use std::sync::Arc;
 use tracing::subscriber::set_global_default;
-use tracing::Subscriber;
+use tracing::{debug, info, Subscriber};
 #[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
@@ -31,19 +43,32 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
 
-use std::env;
-use std::sync::Arc;
-
-use crate::handler::*;
-use crate::service::auction::Auction;
-use crate::service::faas::FogNodeFaaS;
-use crate::service::fog_node_network::FogNodeNetwork;
-
 mod controller;
 mod handler;
 mod prom_metrics;
 mod repository;
 mod service;
+
+lazy_static! {
+    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
+}
+
+pub async fn metrics() -> HttpResponse {
+    let stream = stream::iter(prometheus::gather())
+        .map(async move |mf| -> Result<Bytes> {
+            let mut buffer = BUFFER_POOL.get();
+            buffer.buffer.clear();
+            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
+            let res = Bytes::copy_from_slice(&buffer.buffer);
+            BUFFER_POOL.put(buffer);
+            Ok(res)
+        })
+        .buffer_unordered(25);
+
+    HttpResponse::Ok()
+        .content_type(actix_web::http::header::ContentType::plaintext())
+        .streaming(stream)
+}
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -92,19 +117,6 @@ pub fn get_subscriber(
     let reg = reg.with(tracing_leyer);
 
     reg.with(ForestLayer::default())
-}
-
-pub async fn metrics() -> actix_web::HttpResponse {
-    let encoder = TextEncoder::new();
-    let mut buffer: String = "".to_string();
-    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
-        return actix_web::HttpResponse::InternalServerError()
-            .body("Failed to encode prometheus metrics");
-    }
-
-    actix_web::HttpResponse::Ok()
-        .insert_header(actix_web::http::header::ContentType::plaintext())
-        .body(buffer)
 }
 
 /// Register a subscriber as global default to process span data.

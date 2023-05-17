@@ -2,6 +2,7 @@ use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
 use model::view::node::RegisterNode;
 use model::view::sla::{PutSla, PutSlaRequest};
+use tracing::error;
 
 use crate::controller;
 

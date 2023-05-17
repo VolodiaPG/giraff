@@ -11,6 +11,7 @@ use model::view::auction::{AcceptedBid, BidProposals, InstanciatedBid};
 use model::NodeId;
 use std::sync::Arc;
 use tokio::time::Instant;
+use tracing::{info, trace};
 
 pub struct Auction {
     auction_process:    Arc<AuctionRepository>,

@@ -5,6 +5,7 @@ use model::view::sla::PutSla;
 use model::NodeId;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::trace;
 
 /// Register a SLA and starts the auctioning process, can take a while.
 // TODO define "a while"; set a timeout

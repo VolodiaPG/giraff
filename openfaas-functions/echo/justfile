@@ -11,6 +11,7 @@ check:
 run:
 	#!/usr/bin/env bash
 	export SLA='{
+		"id": "e0d59045-ff5a-4354-828d-7b0c5119aeb8",
 		"memory": "50 MB",
 		"cpu": "50 millicpu",
 		"latencyMax": "10 ms",
@@ -20,6 +21,7 @@ run:
 		"functionLiveName": "debug",
 		"dataFlow": []
 	}'
+	echo $SLA
 	export RUST_LOG="warn,echo=trace"
 	cargo run
 
