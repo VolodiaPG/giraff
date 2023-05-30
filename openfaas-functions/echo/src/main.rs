@@ -15,7 +15,10 @@ use tracing::{debug, Subscriber};
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::dev::Service;
+use actix_web::{
+    middleware, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer,
+};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use chrono::serde::ts_microseconds;
@@ -30,6 +33,7 @@ use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
 use std::sync::Arc;
+
 use tracing::subscriber::set_global_default;
 #[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
@@ -69,15 +73,17 @@ pub async fn metrics() -> HttpResponse {
 }
 
 async fn handle(
+    req: HttpRequest,
     payload: web::Json<IncomingPayload>,
     histogram: web::Data<Arc<HistogramVec>>,
     sla_id: web::Data<Arc<String>>,
 ) -> HttpResponse {
-    let now = chrono::offset::Utc::now();
+    let first_byte_received =
+        *req.extensions().get::<DateTime<Utc>>().unwrap();
 
     let data = &payload.0;
 
-    let elapsed = now - data.sent_at;
+    let elapsed = first_byte_received - data.sent_at;
 
     histogram
         .with_label_values(&[&data.tag, &data.period.to_string(), &sla_id])
@@ -203,11 +209,19 @@ async fn main() -> std::io::Result<()> {
         let app =
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
-        app.app_data(web::Data::clone(&http_client))
-            .app_data(web::Data::clone(&histogram))
-            .app_data(web::Data::clone(&sla_id))
-            .route("/metrics", web::get().to(metrics))
-            .service(web::scope("/").route("", web::post().to(handle)))
+        app.wrap_fn(|req, srv| {
+            // Store the instant when the first byte was received in
+            // request extensions
+            req.extensions_mut().insert(Utc::now());
+
+            // Call the next middleware or handler
+            srv.call(req)
+        })
+        .app_data(web::Data::clone(&http_client))
+        .app_data(web::Data::clone(&histogram))
+        .app_data(web::Data::clone(&sla_id))
+        .route("/metrics", web::get().to(metrics))
+        .service(web::scope("/").route("", web::post().to(handle)))
     })
     .bind(("0.0.0.0", 3000))?
     .run()

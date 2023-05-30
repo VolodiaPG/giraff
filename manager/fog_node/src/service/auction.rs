@@ -75,6 +75,9 @@ impl Auction {
         sla: &Sla,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
+        use uom::si::f64::Time;
+        use uom::si::time::millisecond;
+
         let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
@@ -82,9 +85,12 @@ impl Auction {
                     return Ok(None);
                 };
 
-        let price = sla.memory / available_ram
-            + sla.cpu / available_cpu
-            + accumulated_latency.median / sla.latency_max;
+        let mut price = sla.memory / available_ram + sla.cpu / available_cpu;
+        if accumulated_latency.median > Time::new::<millisecond>(1.0) {
+            price = price * sla.latency_max / accumulated_latency.median;
+        } else {
+            price = price * sla.latency_max / Time::new::<millisecond>(1.0);
+        }
 
         let price: f64 = price.into();
 

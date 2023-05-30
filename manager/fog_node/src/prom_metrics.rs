@@ -130,4 +130,15 @@ lazy_static! {
         )
         .unwrap()
     };
+
+    pub static ref PROVISIONED_FUNCTION_COUNT: GaugeVec = {
+        register_gauge_vec!(
+            opts!(
+                concat!(PREFIX!(), "provisioned_functions"),
+                "Number of provisioned functions."
+            ),
+            &["function_name", "sla_id"]
+        )
+        .unwrap()
+    };
 }

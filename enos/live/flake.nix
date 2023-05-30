@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
@@ -255,6 +256,28 @@
                         lemon
                         ggprism
                         ggh4x
+
+                        gifski
+                        # gganimate
+                        multidplyr
+                        future_apply
+                        (
+                          gganimate.overrideAttrs (old: {
+                            buildInputs =
+                              old.buildInputs
+                              ++ (with pkgs; [
+                                future_apply
+                              ]);
+                            src = pkgs.fetchgit {
+                              url = "https://github.com/VolodiaPG/gganimate.git";
+                              hash = "sha256-RGtqslMy2hommHJinaHlkamT+hvmD6hOTthc5DbV6xw=";
+                            };
+                          })
+                        )
+                        plotly
+                        intergraph
+                        network
+                        ggnetwork
                       ]
                       ++ nixpkgs.lib.optional export tikzDevice;
                 };
@@ -268,6 +291,12 @@
         };
         apps.jupyterlab = {
           program = "${jupyterlab false}/bin/jupyter-lab";
+          type = "app";
+        };
+        apps.oculante = let
+          pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
+        in {
+          program = "${pkgs-unstable.oculante}/bin/oculante";
           type = "app";
         };
       })

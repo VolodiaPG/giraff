@@ -256,7 +256,7 @@ def init(g5k_user, force):
 @click.option("--force", is_flag=True, help="destroy and up")
 @click.option("--name", help="The name of the job")
 @click.option("--walltime", help="The wallime: hh:mm:ss")
-@click.option("--dry-run", help="Do not reserve")
+@click.option("--dry-run", is_flag=True, help="Do not reserve")
 @enostask(new=True)
 def up(
     force,

@@ -1,3 +1,4 @@
+use crate::prom_metrics::PROVISIONED_FUNCTION_COUNT;
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
@@ -159,6 +160,13 @@ impl Function<Locked> {
                 format!("Failed to provision the proposed function {}", id)
             })?;
 
+        PROVISIONED_FUNCTION_COUNT
+            .with_label_values(&[
+                &provisioned.0.sla.function_live_name,
+                &provisioned.0.sla.id.to_string(),
+            ])
+            .set(1.0);
+
         self.function_tracking.save_provisioned(&id, provisioned);
 
         let Ok(()) = self
@@ -168,6 +176,7 @@ impl Function<Locked> {
                     error!("Could not set updated tracked cpu and memory");
                     return Ok(());
                 };
+
         Ok(())
     }
 
@@ -194,6 +203,13 @@ impl Function<Locked> {
         let sla_memory = record.0.sla.memory;
 
         let record = (*record).clone().to_finished();
+
+        PROVISIONED_FUNCTION_COUNT
+            .with_label_values(&[
+                &record.0.sla.function_live_name,
+                &record.0.sla.id.to_string(),
+            ])
+            .set(0.0);
         self.function_tracking.save_finished(&function, record);
 
         let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{

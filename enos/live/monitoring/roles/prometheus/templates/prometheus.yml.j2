@@ -9,11 +9,11 @@ scrape_configs:
       - targets:
         - "{{ collector_address | ipwrap }}:{{ collector_port }}"
 
-  - job_name: telegraf
+{% for host in telegraf_targets %}
+  - job_name: "{{host}}"
     static_configs:
       - targets:
       # metrics path defaults to /metrics
-{% for host in telegraf_targets %}
         - "{{ host | ipwrap }}:30003"
         - "{{ host | ipwrap }}:30008"
         - "{{ host | ipwrap }}:3003"

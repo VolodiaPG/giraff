@@ -1127,45 +1127,97 @@ NETWORK = {
     "flavor": TIER_1_FLAVOR,
     "children": [
         {
-            "name": "paris",
-            "flavor": TIER_1_FLAVOR,
-            "latency": 3,
+            "name": "rennes",
+            "flavor": TIER_2_FLAVOR,
+            "latency": 10,
             "children": [
                 {
-                    "name": "rennes",
-                    "flavor": TIER_2_FLAVOR,
-                    "latency": 10,
+                    "name": "st-greg",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 17,
                     "children": [
                         {
-                            "name": "st-greg",
+                            "name": "st-greg-1-in",
                             "flavor": TIER_3_FLAVOR,
-                            "latency": 7,
-                            "children": [
-                                {
-                                    "name": "st-greg-1-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 3,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "st-greg-2-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 1,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "st-greg-3-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 7,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                                {
-                                    "name": "st-greg-4-in",
-                                    "flavor": TIER_3_FLAVOR,
-                                    "latency": 5,  # ms
-                                    "iot_connected": 0,  # ms
-                                },
-                            ],
+                            "latency": 3,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "st-greg-2-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 1,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "st-greg-3-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 7,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "st-greg-4-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 5,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "st-greg-5",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 5,  # ms
+                        },
+                        {
+                            "name": "cesson-6-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 3,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                    ],
+                },
+                {
+                    "name": "cesson",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 7,
+                    "children": [
+                        {
+                            "name": "cesson-1-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 3,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-2-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 1,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-3-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 7,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-4-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 5,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-6-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 6,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-7-in",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 4,  # ms
+                            "iot_connected": 0,  # ms
+                        },
+                        {
+                            "name": "cesson-5",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 3,  # ms
                         },
                     ],
                 },
