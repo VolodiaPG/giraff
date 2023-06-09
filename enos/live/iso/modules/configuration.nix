@@ -6,10 +6,12 @@
   # readLines = file: builtins.filter (x: x != "") (lib.strings.splitString "\n" (builtins.readFile file));
   readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
 in {
-  time.timeZone = "Europe/Paris";
+  # time.timeZone = "Europe/Paris";
 
   services.chrony.enable = true;
   services.chrony.servers = readLines ../config/ntp-servers.txt;
+
+  programs.fish.enable = true;
 
   # declare the gaming user and its fixed password
   users.mutableUsers = false;
@@ -64,7 +66,7 @@ in {
               insecure_skip_verify: true
   '';
 
-  networking.firewall.enable = false;
+  networking.firewall.enable = lib.mkForce false;
   networking.firewall.allowPing = true;
 
   # Tell the Nix evaluator to garbage collect morke aggressively.
@@ -72,7 +74,7 @@ in {
   # (yet) have swap set up.
   environment.variables.GC_INITIAL_HEAP_SIZE = "1M";
 
-  boot.kernel.sysctl."net.ipv4.tcp_congestion_control" = "bbr2";
+  boot.kernel.sysctl."net.ipv4.tcp_congestion_control" = lib.mkForce "bbr2";
 
   system.stateVersion = "22.05"; # Do not change
 }

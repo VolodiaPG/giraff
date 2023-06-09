@@ -9,6 +9,60 @@ use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
 
 impl FunctionLife {
+    async fn follow_up_to_single_neighbor(
+        &self,
+        neighbor: &NodeId,
+        sla: &Sla,
+        from: &NodeId,
+        accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<BidProposals>> {
+        if neighbor == from {
+            return Ok(None);
+        }
+        let Some(latency) = self
+        .neighbor_monitor
+        .get_latency_to(neighbor)
+        .await
+        else {
+            warn!("Cannot get Latency of {}", neighbor);
+            return Ok(None);
+        };
+
+        if latency.median
+            + accumulated_latency.median
+            + accumulated_latency.median_uncertainty
+            > sla.latency_max
+        {
+            let latency_outbound = latency.median;
+            debug!(
+                "Skipping neighbor {} because latency is too high ({}, a \
+                 total of {}).",
+                neighbor,
+                latency_outbound.into_format_args(
+                    uom::si::time::millisecond,
+                    Abbreviation
+                ),
+                (latency_outbound + accumulated_latency.median)
+                    .into_format_args(
+                        uom::si::time::millisecond,
+                        Abbreviation
+                    ),
+            );
+            return Ok(None);
+        }
+        let request = BidRequest {
+            sla,
+            node_origin: self.node_situation.get_my_id(),
+            accumulated_latency: accumulated_latency.accumulate(latency),
+        };
+
+        let bid = self
+            .node_query
+            .request_neighbor_bid(&request, neighbor.clone())
+            .await?;
+        Ok(Some(bid))
+    }
+
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
     /// came from.
     async fn follow_up_to_neighbors(
@@ -17,56 +71,14 @@ impl FunctionLife {
         from: NodeId,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<BidProposals> {
-        let mut requests = vec![];
-
-        for neighbor in self.node_situation.get_neighbors() {
-            if neighbor == from {
-                continue;
-            }
-            let Some(latency) = self
-                    .neighbor_monitor
-                    .get_latency_to(&neighbor)
-                    .await
-                    else {
-                        warn!("Cannot get Latency of {}", neighbor);
-                        continue;
-                    };
-
-            if latency.median
-                + accumulated_latency.median
-                + accumulated_latency.median_uncertainty
-                > sla.latency_max
-            {
-                let latency_outbound = latency.median;
-                debug!(
-                    "Skipping neighbor {} because latency is too high ({}, a \
-                     total of {}).",
-                    neighbor,
-                    latency_outbound.into_format_args(
-                        uom::si::time::millisecond,
-                        Abbreviation
-                    ),
-                    (latency_outbound + accumulated_latency.median)
-                        .into_format_args(
-                            uom::si::time::millisecond,
-                            Abbreviation
-                        ),
-                );
-                continue;
-            }
-            requests.push((
-                BidRequest {
-                    sla,
-                    node_origin: self.node_situation.get_my_id(),
-                    accumulated_latency: accumulated_latency
-                        .accumulate(latency),
-                },
+        let neighbors = self.node_situation.get_neighbors();
+        let promises = neighbors.iter().map(|neighbor| {
+            self.follow_up_to_single_neighbor(
                 neighbor,
-            ));
-        }
-
-        let promises = requests.iter().map(|(request, neighbor)| {
-            self.node_query.request_neighbor_bid(request, neighbor.clone())
+                sla,
+                &from,
+                accumulated_latency,
+            )
         });
 
         Ok(BidProposals {
@@ -74,7 +86,8 @@ impl FunctionLife {
                 .await
                 .context("Failed to get all neighboring bids")?
                 .into_iter()
-                .flat_map(|proposals: BidProposals| proposals.bids)
+                .flatten()
+                .flat_map(|proposals| proposals.bids)
                 .collect(),
         })
     }

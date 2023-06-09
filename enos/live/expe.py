@@ -51,6 +51,8 @@ HIGH_REQ_INTERVAL = int(
 )  # ms interval between two requests
 
 FUNCTION_RESERVATION_DURATION = int(os.getenv("FUNCTION_RESERVATION_DURATION", 60))  # s
+FUNCTION_LOAD_DURATION = int(os.getenv("FUNCTION_LOAD_DURATION", 55))  # s
+FUNCTION_LOAD_STARTS_AFTER = int(os.getenv("FUNCTION_LOAD_STARTS_AFTER", 60))  # s
 FUNCTION_RESERVATION_FINISHES_AFTER = int(
     os.getenv("FUNCTION_RESERVATION_FINISHES_AFTER", 15)
 )
@@ -117,6 +119,18 @@ for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY):
     )
 
 
+class AsyncSession:
+    def __init__(self):
+        self.timeout = aiohttp.ClientTimeout()
+
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession(timeout=self.timeout)
+        return self.session
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.session.close()
+
+
 async def put_request_fog_node(
     target_node: str,
     mem: int,
@@ -142,7 +156,7 @@ async def put_request_fog_node(
         },
         "targetNode": f"{target_node}",
     }
-    async with aiohttp.ClientSession() as session:
+    async with AsyncSession() as session:
         async with session.put(url, headers=headers, json=data) as response:
             http_code = response.status
             response = await response.content.read()
@@ -155,6 +169,7 @@ async def put_request_iot_emulation(
     function_id: str,
     function_name: str,
     request_interval: int,
+    duration: int,
 ):
     url = f"http://localhost:{IOT_LOCAL_PORT}/api/cron"
     headers = {"Content-Type": "application/json"}
@@ -163,10 +178,12 @@ async def put_request_iot_emulation(
         "nodeUrl": f"http://{faas_ip}:{faas_port}/function/fogfn-{function_id}",
         "functionId": function_id,
         "tag": function_name,
+        "initialWaitMs": FUNCTION_LOAD_STARTS_AFTER * 1000,
+        "durationMs": duration * 1000,
         "intervalMs": request_interval,
     }
 
-    async with aiohttp.ClientSession() as session:
+    async with AsyncSession() as session:
         async with session.put(url, headers=headers, json=data) as response:
             http_code = response.status
             response = await response.content.read()
@@ -218,8 +235,6 @@ async def register_new_function(
             faas_port = data["chosen"]["port"]
             function_id = data["chosen"]["bid"]["id"]
 
-            await asyncio.sleep(60)
-
             response, code = await asyncio.ensure_future(
                 put_request_iot_emulation(
                     faas_ip=faas_ip,
@@ -227,6 +242,7 @@ async def register_new_function(
                     function_id=function_id,
                     function_name=function_name,
                     request_interval=request_interval,
+                    duration=FUNCTION_LOAD_DURATION,
                 )
             )
 
@@ -317,8 +333,7 @@ async def main():
                 )
                 index += 1
 
-        for task in tasks:
-            await task
+        await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,10 @@
     modules = [
       "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
       "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+      # inputs.srvos.nixosModules.common
+      # inputs.srvos.nixosModules.server
+      # inputs.srvos.nixosModules.mixins-cloud-init
+      # inputs.srvos.nixosModules.mixins-trusted-nix-caches
       outputs.nixosModules.configuration
       outputs.nixosModules.filesystem
       outputs.nixosModules.init
@@ -33,6 +37,17 @@ in {
       );
     directoriesList = vm-persistence.config.environment.persistence."/nix/persist".directories;
     directories = builtins.map (set: "\"" + set.directory + "\"") directoriesList;
+
+    dirname = path: let
+      components = pkgs.lib.strings.splitString "/" path;
+      length = builtins.length components;
+      dirname = builtins.concatStringsSep "/" (pkgs.lib.lists.take (length - 1) components);
+    in
+      dirname;
+    filesList = map (set: set.file) vm-persistence.config.environment.persistence."/nix/persist".files;
+    files = builtins.map dirname filesList;
+
+    directoriesToBind = directories ++ files;
   in
     outputs.nixosModules.make-disk-image-stateless {
       inherit pkgs;
@@ -50,7 +65,7 @@ in {
 
         mount -t tmpfs none $mountPoint
 
-        mkdir -p $mountPoint{/boot,/nix,${builtins.concatStringsSep "," directories}}
+        mkdir -p $mountPoint{/boot,/nix,${builtins.concatStringsSep "," directoriesToBind}}
 
         mount /dev/vda1 $mountPoint/nix
 
@@ -58,10 +73,11 @@ in {
         mv $mountPoint/nix/nix/* $mountPoint/nix
 
         mkdir -p $mountPoint/nix/boot
-        mkdir -p $mountPoint/nix/persist{${builtins.concatStringsSep "," directories}}
+        mkdir -p $mountPoint/nix/persist{${builtins.concatStringsSep "," directoriesToBind}}
 
         mount -o bind $mountPoint/nix/boot $mountPoint/boot
-        ${builtins.concatStringsSep "; " (builtins.map (dir: "mount -o bind $mountPoint/nix/persist" + dir + " $mountPoint" + dir) directories)}
+        ${builtins.concatStringsSep "; " (builtins.map (dir: "mount -o bind $mountPoint/nix/persist" + dir + " $mountPoint" + dir) directoriesToBind)}
+        ${builtins.concatStringsSep "; " (builtins.map (dir: "touch $mountPoint" + dir) filesList)}
       '';
       inVMScript = ''
         #!${pkgs.bash}/bin/bash
@@ -73,6 +89,8 @@ in {
           --substituters ""
 
         NIXOS_INSTALL_BOOTLOADER=1 nixos-enter --root $mountPoint -- /nix/var/nix/profiles/system/bin/switch-to-configuration boot
+
+        # echo "network: {config: disabled}" > $mountPoint/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
       '';
     };
 }

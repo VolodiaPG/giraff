@@ -15,7 +15,7 @@
 
   boot = {
     growPartition = true;
-    kernelParams = ["console=ttyS0" "preempt=none"];
+    kernelParams = ["console=ttyS0"]; # "preempt=none"];
     loader.grub = {
       device = "/dev/vda";
     };
@@ -33,5 +33,9 @@
       "/var/log"
       "/root"
     ];
+    # files = [
+    #   "/etc/cloud/cloud-init.disabled"
+    #   "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
+    # ];
   };
 }

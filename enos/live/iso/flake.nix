@@ -1,6 +1,10 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    srvos = {
+      url = "github:numtide/srvos";
+    };
+    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
+    nixpkgs.follows = "srvos/nixpkgs";
     flake-compat = {
       url = "github:edolstra/flake-compat";
       flake = false;

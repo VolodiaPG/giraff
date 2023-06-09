@@ -35,10 +35,10 @@ use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::EnvFilter;
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use serde::{Deserialize, Serialize};
-use tokio::time;
+use tokio::time::{self, sleep};
 use uuid::Uuid;
 
 #[cfg(feature = "jaeger")]
@@ -58,11 +58,13 @@ pub struct Payload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CronConfig {
-    pub function_id: Uuid,
-    pub iot_url:     String,
-    pub node_url:    String,
-    pub tag:         String,
-    pub interval_ms: u64,
+    pub function_id:     Uuid,
+    pub iot_url:         String,
+    pub node_url:        String,
+    pub tag:             String,
+    pub initial_wait_ms: u64,
+    pub interval_ms:     u64,
+    pub duration_ms:     u64,
 }
 
 lazy_static::lazy_static! {
@@ -175,6 +177,10 @@ async fn loop_send_requests(
     let mut send_interval =
         time::interval(Duration::from_millis(config.interval_ms));
 
+    sleep(Duration::from_millis(config.initial_wait_ms)).await;
+
+    let start = SystemTime::now();
+    let until = Duration::from_millis(config.duration_ms);
     loop {
         send_interval.tick().await;
         if !jobs.contains_key(&id) {
@@ -188,6 +194,13 @@ async fn loop_send_requests(
         };
 
         yield_now().await;
+
+        let Ok(elapsed) = start.elapsed() else {
+            continue;
+        };
+        if elapsed > until {
+            break;
+        }
     }
 
     jobs.remove(&id);

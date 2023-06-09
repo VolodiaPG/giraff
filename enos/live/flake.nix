@@ -258,8 +258,6 @@
                         ggh4x
 
                         gifski
-                        # gganimate
-                        multidplyr
                         future_apply
                         (
                           gganimate.overrideAttrs (old: {
@@ -274,7 +272,6 @@
                             };
                           })
                         )
-                        plotly
                         intergraph
                         network
                         ggnetwork
@@ -291,12 +288,6 @@
         };
         apps.jupyterlab = {
           program = "${jupyterlab false}/bin/jupyter-lab";
-          type = "app";
-        };
-        apps.oculante = let
-          pkgs-unstable = nixpkgs-unstable.legacyPackages.${system};
-        in {
-          program = "${pkgs-unstable.oculante}/bin/oculante";
           type = "app";
         };
       })
