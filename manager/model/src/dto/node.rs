@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::fmt;
 use std::net::IpAddr;
 
-use helper::uom_helper::{information, ratio};
+use helper::prom_push::PrometheusAddress;
+use helper::uom_helper::{information, ratio, time};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use uom::si::f64::{Information, Ratio};
+use uom::si::f64::{Information, Ratio, Time};
 
 use crate::view::auction::AcceptedBid;
 use crate::{
@@ -84,29 +85,34 @@ pub enum NodeCategory {
 
 #[derive(Debug)]
 pub struct NodeSituationData {
-    pub situation:           NodeCategory,
-    pub my_id:               NodeId,
-    pub my_public_ip:        IpAddr,
-    pub my_public_port_http: FogNodeHTTPPort,
-    pub my_public_port_faas: FogNodeFaaSPortExternal,
-    pub tags:                Vec<String>,
-    pub reserved_memory:     Information,
-    pub reserved_cpu:        Ratio,
-    pub children:            dashmap::DashMap<NodeId, NodeDescription>,
+    pub situation:              NodeCategory,
+    pub my_id:                  NodeId,
+    pub my_public_ip:           IpAddr,
+    pub my_public_port_http:    FogNodeHTTPPort,
+    pub my_public_port_faas:    FogNodeFaaSPortExternal,
+    pub tags:                   Vec<String>,
+    pub reserved_memory:        Information,
+    pub reserved_cpu:           Ratio,
+    pub children:               dashmap::DashMap<NodeId, NodeDescription>,
+    pub prometheus_address:     PrometheusAddress,
+    pub prometheus_push_period: Time,
 }
 
 #[serde_with::serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NodeSituationDisk {
-    pub situation:           NodeCategory,
-    pub my_id:               NodeId,
-    pub my_public_ip:        IpAddr,
-    pub my_public_port_http: FogNodeHTTPPort,
-    pub tags:                Vec<String>,
+    pub situation:              NodeCategory,
+    pub my_id:                  NodeId,
+    pub my_public_ip:           IpAddr,
+    pub my_public_port_http:    FogNodeHTTPPort,
+    pub tags:                   Vec<String>,
     #[serde_as(as = "information::Helper")]
-    pub reserved_memory:     Information,
+    pub reserved_memory:        Information,
     #[serde_as(as = "ratio::Helper")]
-    pub reserved_cpu:        Ratio,
+    pub reserved_cpu:           Ratio,
+    pub prometheus_address:     PrometheusAddress,
+    #[serde_as(as = "time::Helper")]
+    pub prometheus_push_period: Time,
 }
 
 /// Loads node configuration from file
@@ -130,6 +136,8 @@ impl NodeSituationData {
             tags,
             reserved_memory,
             reserved_cpu,
+            prometheus_address,
+            prometheus_push_period,
         } = disk;
 
         Self {
@@ -142,6 +150,8 @@ impl NodeSituationData {
             reserved_memory,
             reserved_cpu,
             children: dashmap::DashMap::new(),
+            prometheus_address,
+            prometheus_push_period,
         }
     }
 }

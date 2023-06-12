@@ -6,7 +6,7 @@ _default:
 
 # Run the echo server
 run:
-    export SERVER_PORT={{server_port}} && cargo run --features jaeger
+    export SERVER_PORT={{server_port}} && cargo run #--features jaeger
 
 interval period='20' enabled='true':
     curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"

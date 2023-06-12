@@ -21,7 +21,9 @@ run:
 		"functionLiveName": "debug",
 		"dataFlow": []
 	}'
-	echo $SLA
+	export PUSH_PERIOD="5"
+	export INSTANCE_ADDRESS="127.0.0.1:3000"
+	export PROMETHEUS_ADDRESS="127.0.0.1:3091"
 	export RUST_LOG="warn,echo=trace"
 	cargo run
 

@@ -7,10 +7,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::instrument;
 
-#[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
 
 #[derive(Clone, Debug)]
 pub struct DefaultApiClient {

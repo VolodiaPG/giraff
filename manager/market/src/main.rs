@@ -28,7 +28,6 @@ use lazy_static::lazy_static;
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-#[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
@@ -148,7 +147,8 @@ async fn main() -> std::io::Result<()> {
     );
 
     #[cfg(not(feature = "jaeger"))]
-    let http_client = Arc::new(reqwest::Client::new());
+    let http_client =
+        Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
 
     let fog_node = Arc::new(repository::fog_node::FogNode::new());
     let fog_node_network_service = Arc::new(

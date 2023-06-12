@@ -1,16 +1,17 @@
 #![feature(async_closure)]
 
-use anyhow::Result;
-use bytes::Bytes;
-use futures::{stream, StreamExt};
+use anyhow::{Context, Result};
 use helper::pool::Pool;
 use helper::prom_metrics::PooledMetrics;
+use helper::prom_push::{FogNodeAddress, PrometheusAddress};
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 use model::domain::sla::Sla;
-use prometheus::{register_histogram_vec, Encoder, HistogramVec};
+use prometheus::{register_histogram_vec, HistogramVec};
 use serde::Deserialize;
-use tracing::{debug, Subscriber};
+use std::str::FromStr;
+use tokio_cron_scheduler::{Job, JobScheduler};
+use tracing::{debug, warn, Subscriber};
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -28,7 +29,6 @@ use lazy_static::lazy_static;
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-#[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
@@ -41,6 +41,13 @@ use tracing_forest::ForestLayer;
 use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
+
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
+
+const VAR_SLA: &str = "SLA";
+const VAR_PUSH_PERIOD: &str = "PUSH_PERIOD";
+const VAR_INSTANCE_ADDRESS: &str = "INSTANCE_ADDRESS";
+const VAR_PROMETHEUS_ADDRESS: &str = "PROMETHEUS_ADDRESS";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,22 +62,22 @@ lazy_static! {
     static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
 }
 
-pub async fn metrics() -> HttpResponse {
-    let stream = stream::iter(prometheus::gather())
-        .map(async move |mf| -> Result<Bytes> {
-            let mut buffer = BUFFER_POOL.get();
-            buffer.buffer.clear();
-            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
-            let res = Bytes::copy_from_slice(&buffer.buffer);
-            BUFFER_POOL.put(buffer);
-            Ok(res)
-        })
-        .buffer_unordered(25);
+// pub async fn metrics() -> HttpResponse {
+//     let stream = stream::iter(prometheus::gather())
+//         .map(async move |mf| -> Result<Bytes> {
+//             let mut buffer = BUFFER_POOL.get();
+//             buffer.buffer.clear();
+//             buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
+//             let res = Bytes::copy_from_slice(&buffer.buffer);
+//             BUFFER_POOL.put(buffer);
+//             Ok(res)
+//         })
+//         .buffer_unordered(25);
 
-    HttpResponse::Ok()
-        .content_type(actix_web::http::header::ContentType::plaintext())
-        .streaming(stream)
-}
+//     HttpResponse::Ok()
+//         .content_type(actix_web::http::header::ContentType::plaintext())
+//         .streaming(stream)
+// }
 
 async fn handle(
     req: HttpRequest,
@@ -138,7 +145,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<()> {
     #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
@@ -153,13 +160,16 @@ async fn main() -> std::io::Result<()> {
             .with(TracingMiddleware::default())
             .build(),
     );
+    #[cfg(not(feature = "jaeger"))]
+    let http_client =
+        Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
 
-    let Ok(sla_raw)= std::env::var("SLA") else {
-        panic!("SLA env variable not found");
+    let Ok(sla_raw)= std::env::var(VAR_SLA) else {
+        panic!("{} env variable not found", VAR_SLA);
     };
 
     let Ok(sla) = serde_json::from_str::<Sla>(&sla_raw) else{
-        panic!("Cannot read and deserialize SLA env variable");
+        panic!("Cannot read and deserialize {} env variable",VAR_SLA);
     };
 
     let latency_constraint_sec =
@@ -195,8 +205,9 @@ async fn main() -> std::io::Result<()> {
         .unwrap(),
     );
 
-    #[cfg(not(feature = "jaeger"))]
-    let http_client = Arc::new(reqwest::Client::new());
+    init_cron_tasks(http_client.to_owned())
+        .await
+        .context("Initializing CRON tasks")?;
 
     let http_client = web::Data::new(http_client);
     let histogram = web::Data::new(histogram);
@@ -220,7 +231,7 @@ async fn main() -> std::io::Result<()> {
         .app_data(web::Data::clone(&http_client))
         .app_data(web::Data::clone(&histogram))
         .app_data(web::Data::clone(&sla_id))
-        .route("/metrics", web::get().to(metrics))
+        // .route("/metrics", web::get().to(metrics))
         .service(web::scope("/").route("", web::post().to(handle)))
     })
     .bind(("0.0.0.0", 3000))?
@@ -232,4 +243,76 @@ async fn main() -> std::io::Result<()> {
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())
+}
+
+async fn init_cron_tasks(http_client: Arc<HttpClient>) -> Result<()> {
+    let scheduler = JobScheduler::new()
+        .await
+        .context("Failed to create the cron job scheduler")?;
+    scheduler.start().await.context("Failed to start the scheduler")?;
+
+    let push_period = usize::from_str(
+        std::env::var(VAR_PUSH_PERIOD)
+            .with_context(|| {
+                format!("Cannot get env var {}", VAR_PUSH_PERIOD)
+            })?
+            .as_str(),
+    )
+    .with_context(|| format!("Failed parsing env var {}", VAR_PUSH_PERIOD))?;
+
+    let instance = FogNodeAddress::new(
+        std::env::var(VAR_INSTANCE_ADDRESS).with_context(|| {
+            format!("Cannot get env var {}", VAR_INSTANCE_ADDRESS)
+        })?,
+    )
+    .with_context(|| {
+        format!("Failed parsing env var {}", VAR_INSTANCE_ADDRESS)
+    })?;
+
+    let prometheus_address = PrometheusAddress::new(
+        std::env::var(VAR_PROMETHEUS_ADDRESS).with_context(|| {
+            format!("Cannot get env var {}", VAR_PROMETHEUS_ADDRESS)
+        })?,
+    )
+    .with_context(|| {
+        format!("Failed parsing env var {}", VAR_PROMETHEUS_ADDRESS)
+    })?;
+
+    scheduler
+        .add(
+            Job::new_async(
+                format!("1/{} * * * * *", push_period).as_str(),
+                move |_, _| {
+                    let http_client = http_client.to_owned();
+                    let instance = instance.to_owned();
+                    let prometheus_address = prometheus_address.to_owned();
+                    Box::pin(push_metrics(
+                        http_client,
+                        instance,
+                        prometheus_address,
+                    ))
+                },
+            )
+            .context("Failed to create push metrics CRON job")?,
+        )
+        .await
+        .context("Failed to add periodic task to push prometheus metrics")?;
+
+    Ok(())
+}
+
+async fn push_metrics(
+    http_client: Arc<HttpClient>,
+    instance: FogNodeAddress,
+    prometheus_address: PrometheusAddress,
+) {
+    if let Err(err) = helper::prom_push::send_metrics(
+        http_client,
+        instance.into_inner(),
+        prometheus_address,
+    )
+    .await
+    {
+        warn!("Failed to push prometheus metrics: {}", err)
+    }
 }

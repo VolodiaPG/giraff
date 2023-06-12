@@ -986,8 +986,10 @@ dependencies = [
  "crossbeam-queue",
  "futures",
  "lazy-regex",
+ "nutype",
  "prometheus",
  "reqwest",
+ "reqwest-middleware",
  "ron",
  "serde",
  "serde_json",
@@ -2049,9 +2051,11 @@ dependencies = [
  "cfg-if",
  "fnv",
  "lazy_static",
+ "libc",
  "memchr",
  "parking_lot",
  "protobuf",
+ "reqwest",
  "thiserror",
 ]
 

@@ -9,15 +9,7 @@ use model::NodeId;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-#[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
-
-#[cfg(feature = "jaeger")]
-type HttpRequestBuilder = reqwest_middleware::RequestBuilder;
-#[cfg(not(feature = "jaeger"))]
-type HttpRequestBuilder = reqwest::RequestBuilder;
 
 #[derive(Debug)]
 pub struct NodeCommunication {
@@ -35,7 +27,7 @@ impl NodeCommunication {
         &self,
         to: &NodeId,
         route: &str,
-    ) -> Result<HttpRequestBuilder> {
+    ) -> Result<reqwest_middleware::RequestBuilder> {
         let Some(NodeRecord {ip, port_http, ..}) = self.network.get_node(to).await else {
             bail!("Failed to find a record correspod to the node {}", to);
         };

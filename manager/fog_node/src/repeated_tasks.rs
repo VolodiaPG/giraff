@@ -4,14 +4,20 @@ use crate::prom_metrics::{
 };
 use crate::repository::cron::Cron;
 use crate::repository::k8s::K8s;
+use crate::repository::node_situation::NodeSituation;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use anyhow::{Context, Result};
+use helper::prom_push::PrometheusAddress;
 use std::sync::Arc;
+
+type HttpClient = reqwest_middleware::ClientWithMiddleware;
 
 pub async fn init(
     cron: Arc<Cron>,
     neighbor_monitor: Arc<NeighborMonitor>,
     k8s_repo: Arc<K8s>,
+    node_situation: Arc<NodeSituation>,
+    http_client: Arc<HttpClient>,
 ) -> Result<()> {
     cron.add_periodic(move || {
         let neighbor_monitor = neighbor_monitor.clone();
@@ -29,6 +35,20 @@ pub async fn init(
         "Failed to add periodic task to get measurements of k8s cluster \
          metrics",
     )?;
+
+    cron.add_periodic(move || {
+        let prometheus_address =
+            node_situation.get_prometheus_address().to_owned();
+        let instance = format!(
+            "{}:{}",
+            node_situation.get_my_public_ip(),
+            node_situation.get_my_public_port_http()
+        );
+        let http_client = http_client.to_owned();
+        Box::pin(push_metrics(http_client, instance, prometheus_address))
+    })
+    .await
+    .context("Failed to add periodic task to push prometheus metrics")?;
 
     Ok(())
 }
@@ -69,4 +89,20 @@ async fn _measure(k8s_repo: Arc<K8s>) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn push_metrics(
+    http_client: Arc<HttpClient>,
+    instance: String,
+    prometheus_address: PrometheusAddress,
+) {
+    if let Err(err) = helper::prom_push::send_metrics(
+        http_client,
+        instance,
+        prometheus_address,
+    )
+    .await
+    {
+        warn!("Failed to push prometheus metrics: {}", err)
+    }
 }

@@ -48,6 +48,7 @@ pub async fn post_bid_accept(
     params: web::Path<PostBidAcceptParams>,
     function: Data<FunctionLife>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
+    #[allow(clippy::let_unit_value)]
     let res =
         controller::auction::provision_from_bid(params.id.clone(), &function)
             .await?;

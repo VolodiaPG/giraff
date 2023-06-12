@@ -9,10 +9,7 @@ use serde::Serialize;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-#[cfg(feature = "jaeger")]
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
 
 #[derive(Debug)]
 pub struct NodeQuery {

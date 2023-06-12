@@ -3,6 +3,8 @@ KUBECONFIG :=  ".." / "enos" / "live" / "iso" / "vm.kubeconfig"
 RUST_LOG := "warn,fog_node=trace,openfaas=warn,kube_metrics=trace,helper=trace,market=trace"
 DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
+PROMETHEUS_PORT := "3090"
+PROMETHEUS_PORT_PUSH := "3091"
 
 # Default command when no verb specified
 _default:
@@ -48,7 +50,7 @@ run_market *FLAGS:
    SERVER_PORT={{MARKET_PORT}} RUST_LOG={{RUST_LOG}} cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type debug="false":
+run_fog_node node_type MY_IP_ADDRESS debug="false":
     #!/usr/bin/env python3
     import os
     import base64
@@ -69,6 +71,8 @@ run_fog_node node_type debug="false":
         reserved_cpu: "4 cpus",
         reserved_memory: "4 GiB",
         tags: ["market connected"],
+        prometheus_push_period: "15s",
+        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     nodes["node_1"] = '''(
@@ -83,6 +87,8 @@ run_fog_node node_type debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 1"],
+        prometheus_push_period: "15s",
+        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     nodes["node_2"] = '''(
@@ -97,6 +103,8 @@ run_fog_node node_type debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 2"],
+        prometheus_push_period: "15s",
+        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     # Must be that port so expe.sh works magically
@@ -112,6 +120,8 @@ run_fog_node node_type debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 3"],
+        prometheus_push_period: "15s",
+        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     if node_type not in nodes:
@@ -165,13 +175,18 @@ prometheus:
         --storage.tsdb.path=/prometheus \
         --web.console.libraries=/usr/share/prometheus/console_libraries \
         --web.console.templates=/usr/share/prometheus/consoles \
-        --web.listen-address=:3090 
+        --web.listen-address=:{{PROMETHEUS_PORT}}
 
-run debug="false" *FLAGS="--features auction": (build FLAGS)
-    {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_3 {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_1 {{debug}}" \
+pushgateway:
+    ({{DOCKER}} stop pushgateway || true)
+    ({{DOCKER}} rm pushgateway || true)
+    {{DOCKER}} run  -p 3091:9091 prom/pushgateway
+
+run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
+    {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{MY_IP_ADDRESS}} {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{MY_IP_ADDRESS}} {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_3 {{MY_IP_ADDRESS}} {{debug}}" \
+    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_1 {{MY_IP_ADDRESS}} {{debug}}" \
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
 
 expe target_node_uuid localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT $IOT_LOCAL_PORT='30080':

@@ -3,10 +3,9 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
-use futures::stream::{self, select};
-use futures::StreamExt;
 use helper::pool::Pool;
 use helper::prom_metrics::PooledMetrics;
+
 use lazy_static::lazy_static;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
@@ -30,7 +29,7 @@ use crate::service::function_life::FunctionLife;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::service::node_life::NodeLife;
 use actix_web::web::Data;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{middleware, web, App, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use anyhow::Result;
@@ -42,8 +41,6 @@ use openfaas::{Configuration, DefaultApiClient};
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::Encoder;
-#[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
@@ -107,40 +104,40 @@ async fn get_other_metrics(
     }
 }
 
-pub async fn metrics(
-    faas: Data<FaaSBackend>,
-    functions: Data<FunctionTracking>,
-) -> HttpResponse {
-    let faas = faas.into_inner();
-    let functions = functions.into_inner();
+// pub async fn metrics(
+//     faas: Data<FaaSBackend>,
+//     functions: Data<FunctionTracking>,
+// ) -> HttpResponse {
+//     let faas = faas.into_inner();
+//     let functions = functions.into_inner();
 
-    let stream_local = stream::iter(prometheus::gather())
-        .map(async move |mf| -> Result<Bytes> {
-            let mut buffer = BUFFER_POOL.get();
-            buffer.buffer.clear();
-            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
-            let res = Bytes::copy_from_slice(&buffer.buffer);
-            BUFFER_POOL.put(buffer);
-            Ok(res)
-        })
-        .buffer_unordered(25);
+//     let stream_local = stream::iter(prometheus::gather())
+//         .map(async move |mf| -> Result<Bytes> {
+//             let mut buffer = BUFFER_POOL.get();
+//             buffer.buffer.clear();
+//             buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
+//             let res = Bytes::copy_from_slice(&buffer.buffer);
+//             BUFFER_POOL.put(buffer);
+//             Ok(res)
+//         })
+//         .buffer_unordered(25);
 
-    let stream_functions = stream::iter(functions.get_all_provisioned())
-        .map(move |function| {
-            let functions = functions.clone();
-            let faas = faas.clone();
-            async move {
-                get_other_metrics(function, functions.clone(), faas.clone())
-                    .await
-            }
-        })
-        .buffer_unordered(25);
+//     let stream_functions = stream::iter(functions.get_all_provisioned())
+//         .map(move |function| {
+//             let functions = functions.clone();
+//             let faas = faas.clone();
+//             async move {
+//                 get_other_metrics(function, functions.clone(), faas.clone())
+//                     .await
+//             }
+//         })
+//         .buffer_unordered(25);
 
-    let stream = select(stream_local, stream_functions);
-    HttpResponse::Ok()
-        .content_type(actix_web::http::header::ContentType::plaintext())
-        .streaming(stream)
-}
+//     let stream = select(stream_local, stream_functions);
+//     HttpResponse::Ok()
+//         .content_type(actix_web::http::header::ContentType::plaintext())
+//         .streaming(stream)
+// }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -201,7 +198,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
@@ -257,7 +254,8 @@ async fn main() -> std::io::Result<()> {
     );
 
     #[cfg(not(feature = "jaeger"))]
-    let http_client = Arc::new(reqwest::Client::new());
+    let http_client =
+        Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
 
     let auth = username.map(|username| (username, password));
 
@@ -309,7 +307,8 @@ async fn main() -> std::io::Result<()> {
         resource_tracking_repo.clone(),
         function_tracking_repo.clone(),
     ));
-    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
+    let faas_service =
+        Arc::new(FaaSBackend::new(client.clone(), node_situation.clone()));
     let node_life_service =
         Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let neighbor_monitor_service =
@@ -352,9 +351,15 @@ async fn main() -> std::io::Result<()> {
         node_situation.clone(),
     ));
 
-    init(cron_repo, neighbor_monitor_service.clone(), k8s_repo)
-        .await
-        .expect("Failed to register periodic actions");
+    init(
+        cron_repo,
+        neighbor_monitor_service.to_owned(),
+        k8s_repo,
+        node_situation.to_owned(),
+        http_client.to_owned(),
+    )
+    .await
+    .expect("Failed to register periodic actions");
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
@@ -382,7 +387,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::clone(&neighbor_monitor_service))
             // For metrics gathering
             .app_data(Data::clone(&function_tracking_repository))
-            .route("/metrics", web::get().to(metrics))
+            // .route("/metrics", web::get().to(metrics))
             .service(
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
