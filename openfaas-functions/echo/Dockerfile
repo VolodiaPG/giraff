@@ -9,7 +9,7 @@ RUN chmod +x /bin/fwatchdog
 # Main Function
 # ------------------------------------------------------------------------------
 
-FROM rust@sha256:916fa3bc4599b3e394b03662452a853be8565fac7a8ed91bef62319dd549599d as builder
+FROM rust@sha256:56418f03475cf7b107f87d7fabe99ce9a4a9f9904daafa99be7c50d9e7b8f84d as builder
 ARG FLAGS
 RUN apt-get update \
     && apt-get install -y libssl-dev pkg-config \

@@ -1,5 +1,8 @@
+use crate::monitoring::NeighborLatency;
 use crate::NodeSituation;
 use anyhow::{ensure, Context, Result};
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use model::domain::exp_average::ExponentialMovingAverage;
 use model::domain::moving_median::{MovingMedian, MovingMedianSize};
 use model::NodeId;
@@ -40,6 +43,7 @@ pub struct Latency {
 #[derive(Debug)]
 pub struct LatencyEstimation {
     node_situation:            Arc<NodeSituation>,
+    metrics:                   Arc<MetricsExporter>,
     latency:                   Arc<dashmap::DashMap<NodeId, Latencies>>,
     alpha:                     model::domain::exp_average::Alpha,
     moving_median_window_size: MovingMedianSize,
@@ -48,11 +52,13 @@ pub struct LatencyEstimation {
 impl LatencyEstimation {
     pub fn new(
         node_situation: Arc<NodeSituation>,
+        metrics: Arc<MetricsExporter>,
         alpha: model::domain::exp_average::Alpha,
         moving_median_window_size: MovingMedianSize,
     ) -> Self {
         Self {
             node_situation,
+            metrics,
             latency: Arc::new(dashmap::DashMap::new()),
             alpha,
             moving_median_window_size,
@@ -65,32 +71,35 @@ impl LatencyEstimation {
             .get_fog_node_neighbor(&node)
             .with_context(|| format!("Failed to find node {node}"))?
             .ip;
+        let port = self
+            .node_situation
+            .get_fog_node_neighbor(&node)
+            .with_context(|| format!("Failed to find node {node}"))?
+            .port_http;
 
         let (_, dur) = surge_ping::ping(ip, &[0; 32])
             .await
             .with_context(|| format!("Ping to {ip} failed"))?;
 
-        let latency = Time::new::<uom::si::time::millisecond>(
+        let raw_latency = Time::new::<uom::si::time::millisecond>(
             dur.as_millis() as f64 / 2.0,
         );
 
-        crate::prom_metrics::LATENCY_NEIGHBORS_GAUGE
-            .with_label_values(&[&format!("{ip}")])
-            .set(latency.value);
-        let latency = self.update_latency(&self.latency, &node, latency);
+        let latency = self.update_latency(&self.latency, &node, raw_latency);
 
         if let Some(latency) = latency {
-            crate::prom_metrics::LATENCY_NEIGHBORS_AVG_GAUGE
-                .with_label_values(&[&format!("{ip}")])
-                .set(latency.average.get::<millisecond>());
-
-            crate::prom_metrics::LATENCY_NEIGHBORS_MEDIAN_GAUGE
-                .with_label_values(&[&format!("{ip}")])
-                .set(latency.median.get::<millisecond>());
-
-            crate::prom_metrics::LATENCY_NEIGHBORS_INTERQUARTILE_RANGE_GAUGE
-                .with_label_values(&[&format!("{ip}")])
-                .set(latency.interquantile_range.get::<millisecond>());
+            self.metrics
+                .observe(NeighborLatency {
+                    raw:                 raw_latency.get::<millisecond>(),
+                    average:             latency.average.get::<millisecond>(),
+                    median:              latency.median.get::<millisecond>(),
+                    interquartile_range: latency
+                        .interquantile_range
+                        .get::<millisecond>(),
+                    instance_to:         format!("{}:{}", ip, port),
+                    timestamp:           Utc::now(),
+                })
+                .await?;
         }
 
         Ok(())

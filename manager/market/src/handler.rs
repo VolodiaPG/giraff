@@ -1,10 +1,13 @@
+use crate::controller;
+use crate::monitoring::{ProvisionedFunctionGauge, RefusedFunctionGauge};
 use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
+use anyhow::Context;
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use model::view::node::RegisterNode;
 use model::view::sla::{PutSla, PutSlaRequest};
 use tracing::error;
-
-use crate::controller;
 
 #[derive(Debug)]
 pub struct AnyhowErrorWrapper {
@@ -31,26 +34,33 @@ impl From<anyhow::Error> for AnyhowErrorWrapper {
 pub async fn put_function(
     payload: Json<PutSlaRequest>,
     auction_service: Data<crate::service::auction::Auction>,
+    metrics: Data<MetricsExporter>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let payload: PutSla = payload.0.into();
     let res =
         controller::start_auction(payload.clone(), &auction_service).await;
     match res {
         Ok(_) => {
-            crate::prom_metrics::PROVISIONED_FUNCTIONS_COUNT
-                .with_label_values(&[
-                    &payload.sla.function_live_name,
-                    &payload.sla.id.to_string(),
-                ])
-                .inc();
+            metrics
+                .observe(ProvisionedFunctionGauge {
+                    value:         1,
+                    sla_id:        payload.sla.id.to_string(),
+                    function_name: payload.sla.function_live_name,
+                    timestamp:     Utc::now(),
+                })
+                .await
+                .context("Failed to save metrics")?;
         }
         Err(_) => {
-            crate::prom_metrics::REFUSED_FUNCTIONS_COUNT
-                .with_label_values(&[
-                    &payload.sla.function_live_name,
-                    &payload.sla.id.to_string(),
-                ])
-                .inc();
+            metrics
+                .observe(RefusedFunctionGauge {
+                    value:         1,
+                    sla_id:        payload.sla.id.to_string(),
+                    function_name: payload.sla.function_live_name,
+                    timestamp:     Utc::now(),
+                })
+                .await
+                .context("Failed to save metrics")?;
         }
     }
     Ok(HttpResponse::Ok().json(res?))
@@ -82,4 +92,19 @@ pub async fn get_fog(
     Ok(HttpResponse::Ok().json(res))
 }
 
-pub async fn health() -> HttpResponse { HttpResponse::Ok().finish() }
+pub async fn health(metrics: Data<MetricsExporter>) -> HttpResponse {
+    if let Err(err) = metrics
+        .observe(crate::monitoring::Toto {
+            value:     1.0,
+            toto:      "sdqsdf".to_string(),
+            timestamp: Utc::now(),
+        })
+        .await
+        .context("Failed to save metrics")
+    {
+        error!("Failed health: {:?}", err);
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    HttpResponse::Ok().finish()
+}

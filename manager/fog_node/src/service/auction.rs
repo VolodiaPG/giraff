@@ -1,7 +1,9 @@
-use crate::prom_metrics::BID_GAUGE;
+use crate::monitoring::BidGauge;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use anyhow::{Context, Result};
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
 use model::view::auction::AccumulatedLatency;
@@ -12,14 +14,16 @@ use uom::si::f64::{Information, Ratio};
 pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
     db:                Arc<FunctionTracking>,
+    metrics:           Arc<MetricsExporter>,
 }
 
 impl Auction {
     pub fn new(
         resource_tracking: Arc<ResourceTracking>,
         db: Arc<FunctionTracking>,
+        metrics: Arc<MetricsExporter>,
     ) -> Self {
-        Self { resource_tracking, db }
+        Self { resource_tracking, db, metrics }
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
@@ -161,13 +165,15 @@ impl Auction {
             };
         let record = FunctionRecord::new(bid, sla, node);
         let id = self.db.insert(record.clone());
-        BID_GAUGE
-            .with_label_values(&[
-                &record.0.sla.function_live_name,
-                &id.to_string(),
-                &record.0.sla.id.to_string(),
-            ])
-            .set(bid);
+        self.metrics
+            .observe(BidGauge {
+                bid,
+                function_name: record.0.sla.function_live_name.clone(),
+                sla_id: record.0.sla.id.to_string(),
+                bid_id: id.to_string(),
+                timestamp: Utc::now(),
+            })
+            .await?;
         Ok(Some((id, record)))
     }
 }

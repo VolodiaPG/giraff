@@ -21,9 +21,11 @@ run:
 		"functionLiveName": "debug",
 		"dataFlow": []
 	}'
-	export PUSH_PERIOD="5"
-	export INSTANCE_ADDRESS="127.0.0.1:3000"
-	export PROMETHEUS_ADDRESS="127.0.0.1:3091"
+	export INFLUX_ADDRESS="127.0.0.1:9086"
+	export INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
+	export INFLUX_ORG="faasfog"
+	export INFLUX_BUCKET="faasfog"
+
 	export RUST_LOG="warn,echo=trace"
 	cargo run
 

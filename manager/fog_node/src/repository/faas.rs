@@ -1,6 +1,10 @@
-use super::node_situation::NodeSituation;
+use crate::{INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN};
+
 use anyhow::{Context, Result};
-use bytes::Bytes;
+use helper::env_load;
+use helper::monitoring::{
+    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
+};
 use model::dto::function::{FunctionRecord, Proposed, Provisioned};
 use model::BidId;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
@@ -9,26 +13,16 @@ use openfaas::DefaultApiClient;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use uom::si::time::second;
 
 const ENV_VAR_SLA: &str = "SLA";
-const ENV_VAR_PUSH_PERIOD: &str = "PUSH_PERIOD";
-const ENV_VAR_PROMEHTEUS_ADDRESS: &str = "PROMETHEUS_ADDRESS";
-const ENV_VAR_INSTANCE_ADDRESS: &str = "INSTANCE_ADDRESS";
 
 #[derive(Debug)]
 pub struct FaaSBackend {
-    client:         Arc<DefaultApiClient>,
-    node_situation: Arc<NodeSituation>,
+    client: Arc<DefaultApiClient>,
 }
 
 impl FaaSBackend {
-    pub fn new(
-        client: Arc<DefaultApiClient>,
-        node_situation: Arc<NodeSituation>,
-    ) -> Self {
-        Self { client, node_situation }
-    }
+    pub fn new(client: Arc<DefaultApiClient>) -> Self { Self { client } }
 
     pub async fn provision_function(
         &self,
@@ -44,25 +38,16 @@ impl FaaSBackend {
                 format!("Failed to serialize the sla of function {}", id)
             })?,
         );
-        env_vars.insert(
-            ENV_VAR_INSTANCE_ADDRESS.to_string(),
-            format!(
-                "{}:{}",
-                self.node_situation.get_my_public_ip(),
-                self.node_situation.get_my_public_port_http()
-            ),
-        );
-        env_vars.insert(
-            ENV_VAR_PROMEHTEUS_ADDRESS.to_string(),
-            self.node_situation.get_prometheus_address().clone().into_inner(),
-        );
-        env_vars.insert(
-            ENV_VAR_PUSH_PERIOD.to_string(),
-            self.node_situation
-                .get_prometheus_push_period()
-                .get::<second>()
-                .to_string(),
-        );
+
+        let bucket = env_load!(InfluxBucket, INFLUX_BUCKET);
+        let address = env_load!(InfluxAddress, INFLUX_ADDRESS);
+        let org = env_load!(InfluxOrg, INFLUX_ORG);
+        let token = env_load!(InfluxToken, INFLUX_TOKEN);
+
+        env_vars.insert(INFLUX_BUCKET.to_string(), bucket.into_inner());
+        env_vars.insert(INFLUX_ADDRESS.to_string(), address.into_inner());
+        env_vars.insert(INFLUX_ORG.to_string(), org.into_inner());
+        env_vars.insert(INFLUX_TOKEN.to_string(), token.into_inner());
 
         let definition = FunctionDefinition {
             image: bid.0.sla.function_image.to_owned(),
@@ -87,21 +72,6 @@ impl FaaSBackend {
 
         let bid = bid.to_provisioned(function_name);
         Ok(bid)
-    }
-
-    pub async fn get_metrics(
-        &self,
-        record: &FunctionRecord<Provisioned>,
-    ) -> Result<Option<Bytes>> {
-        self.client
-            .functions_get_metrics(&record.0.function_name)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to get metrics for provisioned function named {}",
-                    record.0.function_name
-                )
-            })
     }
 
     pub async fn remove_function(

@@ -2,6 +2,7 @@ use crate::service::function_life::FunctionLife;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
+use helper::monitoring::MetricsExporter;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
 use model::BidId;
@@ -31,8 +32,10 @@ impl From<anyhow::Error> for AnyhowErrorWrapper {
 pub async fn post_bid(
     payload: web::Json<BidRequestOwned>,
     function: Data<FunctionLife>,
+    metrics: Data<MetricsExporter>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
-    let res = controller::auction::bid_on(payload.0, &function).await?;
+    let res =
+        controller::auction::bid_on(payload.0, &function, &metrics).await?;
     Ok(HttpResponse::Ok().json(res))
 }
 

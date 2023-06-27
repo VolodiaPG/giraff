@@ -83,22 +83,4 @@ impl FunctionTracking {
             _ => None,
         })
     }
-
-    pub fn get_finished(
-        &self,
-        id: &BidId,
-    ) -> Option<Arc<FunctionRecord<Finished>>> {
-        self.database.get(id).and_then(|x| match x.value() {
-            States::Finished(x) => Some(x.clone()),
-            _ => None,
-        })
-    }
-
-    pub fn get_all_provisioned(&self) -> Vec<BidId> {
-        self.database
-            .iter()
-            .filter(|x| matches!(x.value(), States::Provisioned(_)))
-            .map(|x| x.key().clone())
-            .collect()
-    }
 }

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:Nixos/nixpkgs/nixos-22.11";
+    nixpkgs.url = "github:Nixos/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -38,7 +38,7 @@
           # Define Rust environment to use
           rustChannel = "nightly";
           rustProfile = "minimal";
-          rustVersion = "2023-04-26";
+          rustVersion = "2023-06-15";
           target = "x86_64-unknown-linux-gnu";
           extraRustComponents = ["clippy" "rustfmt"];
 

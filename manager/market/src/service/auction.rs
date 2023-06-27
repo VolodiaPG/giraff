@@ -1,8 +1,11 @@
 use super::faas::FogNodeFaaS;
 use super::fog_node_network::FogNodeNetwork;
+use crate::monitoring::FunctionDeploymentDuration;
 use crate::repository::auction::Auction as AuctionRepository;
 use crate::repository::node_communication::NodeCommunication;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use model::domain::auction::AuctionResult;
 use model::domain::sla::Sla;
 use model::dto::function::ChosenBid;
@@ -11,13 +14,14 @@ use model::view::auction::{AcceptedBid, BidProposals, InstanciatedBid};
 use model::NodeId;
 use std::sync::Arc;
 use tokio::time::Instant;
-use tracing::{info, trace};
+use tracing::trace;
 
 pub struct Auction {
     auction_process:    Arc<AuctionRepository>,
     node_communication: Arc<NodeCommunication>,
     fog_node_network:   Arc<FogNodeNetwork>,
     faas:               Arc<FogNodeFaaS>,
+    metrics:            Arc<MetricsExporter>,
 }
 
 impl Auction {
@@ -26,8 +30,15 @@ impl Auction {
         node_communication: Arc<NodeCommunication>,
         fog_node_network: Arc<FogNodeNetwork>,
         faas: Arc<FogNodeFaaS>,
+        metrics: Arc<MetricsExporter>,
     ) -> Self {
-        Self { auction_process, node_communication, fog_node_network, faas }
+        Self {
+            auction_process,
+            node_communication,
+            fog_node_network,
+            faas,
+            metrics,
+        }
     }
 
     async fn call_for_bids(
@@ -119,23 +130,25 @@ impl Auction {
             )
             .await;
 
-        if let Ok(accepted) = res {
-            let finished = Instant::now();
+        let accepted = res
+            .context("Failed to provision function after several retries.")?;
 
-            let duration = finished - started;
+        let finished = Instant::now();
 
-            crate::prom_metrics::FUNCTION_DEPLOYMENT_TIME_GAUGE
-                .with_label_values(&[
-                    &sla.function_live_name,
-                    &chosen_bid.bid.id.to_string(),
-                    &sla.id.to_string(),
-                ])
-                .set(duration.as_millis() as f64 / 1000.0);
+        let duration = chrono::Duration::from_std(finished - started)
+            .context("Failed to convert std duration to chrono duration")?;
 
-            return Ok(accepted);
-        }
+        self.metrics
+            .observe(FunctionDeploymentDuration {
+                value:         duration.num_milliseconds(),
+                function_name: sla.function_live_name,
+                bid_id:        chosen_bid.bid.id.to_string(),
+                sla_id:        sla.id.to_string(),
+                timestamp:     Utc::now(),
+            })
+            .await
+            .context("Failed to save metrics")?;
 
-        info!("Provisioning a function failed, retrying and bidding again...");
-        bail!("Failed to provision function after several retries.")
+        Ok(accepted)
     }
 }

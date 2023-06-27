@@ -1,30 +1,25 @@
 #![feature(async_closure)]
 
-use anyhow::{Context, Result};
-use helper::pool::Pool;
-use helper::prom_metrics::PooledMetrics;
-use helper::prom_push::{FogNodeAddress, PrometheusAddress};
-#[cfg(feature = "mimalloc")]
-use mimalloc::MiMalloc;
-use model::domain::sla::Sla;
-use prometheus::{register_histogram_vec, HistogramVec};
-use serde::Deserialize;
-use std::str::FromStr;
-use tokio_cron_scheduler::{Job, JobScheduler};
-use tracing::{debug, warn, Subscriber};
-
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use actix_web::dev::Service;
 use actix_web::{
     middleware, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer,
 };
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
+use anyhow::{Context, Result};
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
-use lazy_static::lazy_static;
+use helper::monitoring::{
+    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
+    MetricsExporter,
+};
+use helper::{env_load, env_var};
+use helper_derive::influx_observation;
+use model::domain::sla::Sla;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -32,9 +27,10 @@ use opentelemetry::sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
+use serde::Deserialize;
 use std::sync::Arc;
-
 use tracing::subscriber::set_global_default;
+use tracing::{debug, warn, Subscriber};
 #[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
@@ -42,12 +38,22 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-type HttpClient = reqwest_middleware::ClientWithMiddleware;
-
 const VAR_SLA: &str = "SLA";
-const VAR_PUSH_PERIOD: &str = "PUSH_PERIOD";
-const VAR_INSTANCE_ADDRESS: &str = "INSTANCE_ADDRESS";
-const VAR_PROMETHEUS_ADDRESS: &str = "PROMETHEUS_ADDRESS";
+env_var!(INFLUX_ADDRESS);
+env_var!(INFLUX_TOKEN);
+env_var!(INFLUX_ORG);
+env_var!(INFLUX_BUCKET);
+
+/// SLA that passed here
+#[influx_observation]
+struct Latency {
+    #[influxdb(field)]
+    value:  f64,
+    #[influxdb(tag)]
+    sla_id: String,
+    #[influxdb(tag)]
+    tag:    String,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,35 +61,13 @@ struct IncomingPayload {
     #[serde(with = "ts_microseconds")]
     sent_at: DateTime<Utc>,
     tag:     String,
-    period:  u64,
 }
-
-lazy_static! {
-    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
-}
-
-// pub async fn metrics() -> HttpResponse {
-//     let stream = stream::iter(prometheus::gather())
-//         .map(async move |mf| -> Result<Bytes> {
-//             let mut buffer = BUFFER_POOL.get();
-//             buffer.buffer.clear();
-//             buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
-//             let res = Bytes::copy_from_slice(&buffer.buffer);
-//             BUFFER_POOL.put(buffer);
-//             Ok(res)
-//         })
-//         .buffer_unordered(25);
-
-//     HttpResponse::Ok()
-//         .content_type(actix_web::http::header::ContentType::plaintext())
-//         .streaming(stream)
-// }
 
 async fn handle(
     req: HttpRequest,
     payload: web::Json<IncomingPayload>,
-    histogram: web::Data<Arc<HistogramVec>>,
-    sla_id: web::Data<Arc<String>>,
+    metrics: web::Data<MetricsExporter>,
+    sla_id: web::Data<String>,
 ) -> HttpResponse {
     let first_byte_received =
         *req.extensions().get::<DateTime<Utc>>().unwrap();
@@ -92,9 +76,19 @@ async fn handle(
 
     let elapsed = first_byte_received - data.sent_at;
 
-    histogram
-        .with_label_values(&[&data.tag, &data.period.to_string(), &sla_id])
-        .observe(elapsed.num_milliseconds().abs() as f64 / 1000.0);
+    if let Err(err) = metrics
+        .observe(Latency {
+            value:     elapsed.num_milliseconds().abs() as f64 / 1000.0,
+            sla_id:    sla_id.to_string(),
+            tag:       payload.tag.clone(),
+            timestamp: first_byte_received,
+        })
+        .await
+    {
+        warn!("Failed to save metrics: {:?}", err);
+        return HttpResponse::InternalServerError()
+            .body(format!("Failed to save metrics: {:?}", err));
+    }
 
     HttpResponse::Ok().finish()
 }
@@ -172,46 +166,21 @@ async fn main() -> Result<()> {
         panic!("Cannot read and deserialize {} env variable",VAR_SLA);
     };
 
-    let latency_constraint_sec =
-        sla.latency_max.get::<uom::si::time::second>();
-
-    let mut buckets = vec![
-        latency_constraint_sec - 3.0 / 1000.0,
-        latency_constraint_sec,
-        latency_constraint_sec + 3.0 / 1000.0,
-        latency_constraint_sec * 2.0 - 3.0 / 1000.0,
-        latency_constraint_sec * 2.0,
-        latency_constraint_sec * 2.0 + 3.0 / 1000.0,
-        latency_constraint_sec * 3.0 - 3.0 / 1000.0,
-        latency_constraint_sec * 3.0,
-        latency_constraint_sec * 3.0 + 3.0 / 1000.0,
-        latency_constraint_sec * 4.0 - 3.0 / 1000.0,
-        latency_constraint_sec * 4.0,
-        latency_constraint_sec * 4.0 + 3.0 / 1000.0,
-    ];
-
-    buckets.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    buckets.dedup();
-
-    let histogram = Arc::new(
-        register_histogram_vec!(
-        "echo_function_http_request_to_processing_echo_duration_seconds_print",
-        "The HTTP request latencies in seconds for the /print route, time to \
-         first process the request by the echo node, tagged with the content \
-         `tag`.",
-        &["tag", "period", "sla_id"],
-        buckets
-    )
-        .unwrap(),
+    let metrics = Arc::new(
+        MetricsExporter::new(
+            env_load!(InfluxAddress, INFLUX_ADDRESS),
+            env_load!(InfluxOrg, INFLUX_ORG),
+            env_load!(InfluxToken, INFLUX_TOKEN),
+            env_load!(InfluxBucket, INFLUX_BUCKET),
+            InstanceName::new(sla.id.to_string())?,
+        )
+        .await
+        .expect("Cannot build the InfluxDB2 database connection"),
     );
 
-    init_cron_tasks(http_client.to_owned())
-        .await
-        .context("Initializing CRON tasks")?;
-
-    let http_client = web::Data::new(http_client);
-    let histogram = web::Data::new(histogram);
-    let sla_id = web::Data::new(Arc::new(sla.id.to_string()));
+    let http_client = web::Data::from(http_client);
+    let metrics = web::Data::from(metrics);
+    let sla_id = web::Data::from(Arc::new(sla.id.to_string()));
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -229,9 +198,8 @@ async fn main() -> Result<()> {
             srv.call(req)
         })
         .app_data(web::Data::clone(&http_client))
-        .app_data(web::Data::clone(&histogram))
+        .app_data(web::Data::clone(&metrics))
         .app_data(web::Data::clone(&sla_id))
-        // .route("/metrics", web::get().to(metrics))
         .service(web::scope("/").route("", web::post().to(handle)))
     })
     .bind(("0.0.0.0", 3000))?
@@ -243,76 +211,4 @@ async fn main() -> Result<()> {
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())
-}
-
-async fn init_cron_tasks(http_client: Arc<HttpClient>) -> Result<()> {
-    let scheduler = JobScheduler::new()
-        .await
-        .context("Failed to create the cron job scheduler")?;
-    scheduler.start().await.context("Failed to start the scheduler")?;
-
-    let push_period = usize::from_str(
-        std::env::var(VAR_PUSH_PERIOD)
-            .with_context(|| {
-                format!("Cannot get env var {}", VAR_PUSH_PERIOD)
-            })?
-            .as_str(),
-    )
-    .with_context(|| format!("Failed parsing env var {}", VAR_PUSH_PERIOD))?;
-
-    let instance = FogNodeAddress::new(
-        std::env::var(VAR_INSTANCE_ADDRESS).with_context(|| {
-            format!("Cannot get env var {}", VAR_INSTANCE_ADDRESS)
-        })?,
-    )
-    .with_context(|| {
-        format!("Failed parsing env var {}", VAR_INSTANCE_ADDRESS)
-    })?;
-
-    let prometheus_address = PrometheusAddress::new(
-        std::env::var(VAR_PROMETHEUS_ADDRESS).with_context(|| {
-            format!("Cannot get env var {}", VAR_PROMETHEUS_ADDRESS)
-        })?,
-    )
-    .with_context(|| {
-        format!("Failed parsing env var {}", VAR_PROMETHEUS_ADDRESS)
-    })?;
-
-    scheduler
-        .add(
-            Job::new_async(
-                format!("1/{} * * * * *", push_period).as_str(),
-                move |_, _| {
-                    let http_client = http_client.to_owned();
-                    let instance = instance.to_owned();
-                    let prometheus_address = prometheus_address.to_owned();
-                    Box::pin(push_metrics(
-                        http_client,
-                        instance,
-                        prometheus_address,
-                    ))
-                },
-            )
-            .context("Failed to create push metrics CRON job")?,
-        )
-        .await
-        .context("Failed to add periodic task to push prometheus metrics")?;
-
-    Ok(())
-}
-
-async fn push_metrics(
-    http_client: Arc<HttpClient>,
-    instance: FogNodeAddress,
-    prometheus_address: PrometheusAddress,
-) {
-    if let Err(err) = helper::prom_push::send_metrics(
-        http_client,
-        instance.into_inner(),
-        prometheus_address,
-    )
-    .await
-    {
-        warn!("Failed to push prometheus metrics: {}", err)
-    }
 }

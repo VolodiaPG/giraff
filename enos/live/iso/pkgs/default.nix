@@ -17,6 +17,7 @@
       outputs.nixosModules.configuration
       outputs.nixosModules.filesystem
       outputs.nixosModules.init
+      outputs.nixosModules.monitoring
     ];
     specialArgs = {inherit inputs outputs;};
   };

@@ -3,10 +3,12 @@
 extern crate core;
 #[macro_use]
 extern crate tracing;
-use helper::pool::Pool;
-use helper::prom_metrics::PooledMetrics;
+use helper::{env_load, env_var};
 
-use lazy_static::lazy_static;
+use helper::monitoring::{
+    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
+    MetricsExporter,
+};
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 
@@ -32,10 +34,9 @@ use actix_web::web::Data;
 use actix_web::{middleware, web, App, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use anyhow::Result;
-use bytes::Bytes;
+use anyhow::Context;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
-use model::{BidId, FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
+use model::{FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 use openfaas::{Configuration, DefaultApiClient};
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
@@ -61,14 +62,18 @@ use uom::si::time::second;
 
 mod controller;
 mod handler_http;
-mod prom_metrics;
+mod monitoring;
 mod repeated_tasks;
 mod repository;
 mod service;
 
-lazy_static! {
-    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
-}
+env_var!(INFLUX_ADDRESS);
+env_var!(INFLUX_TOKEN);
+env_var!(INFLUX_ORG);
+env_var!(INFLUX_BUCKET);
+env_var!(INSTANCE_NAME);
+
+const INFLUX_DEFAULT_ADDRESS: &str = "0.0.0.0:9086";
 
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {
@@ -81,63 +86,6 @@ fn load_config_from_env() -> anyhow::Result<String> {
 
     Ok(config)
 }
-
-async fn get_other_metrics(
-    function: BidId,
-    functions: Arc<FunctionTracking>,
-    faas: Arc<FaaSBackend>,
-) -> Result<Bytes> {
-    let Some(record) = &functions.get_provisioned(&function) else {
-        warn!("No records returned for {}", function);
-        return Ok(Bytes::default());
-    };
-    match faas.get_metrics(record).await {
-        Ok(Some(metrics)) => Ok(metrics),
-        Ok(None) => {
-            warn!("No metrics returned for {}", function);
-            Ok(Bytes::default())
-        }
-        Err(err) => {
-            warn!("Could not get metrics for function {}: {}", function, err);
-            Ok(Bytes::default())
-        }
-    }
-}
-
-// pub async fn metrics(
-//     faas: Data<FaaSBackend>,
-//     functions: Data<FunctionTracking>,
-// ) -> HttpResponse {
-//     let faas = faas.into_inner();
-//     let functions = functions.into_inner();
-
-//     let stream_local = stream::iter(prometheus::gather())
-//         .map(async move |mf| -> Result<Bytes> {
-//             let mut buffer = BUFFER_POOL.get();
-//             buffer.buffer.clear();
-//             buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
-//             let res = Bytes::copy_from_slice(&buffer.buffer);
-//             BUFFER_POOL.put(buffer);
-//             Ok(res)
-//         })
-//         .buffer_unordered(25);
-
-//     let stream_functions = stream::iter(functions.get_all_provisioned())
-//         .map(move |function| {
-//             let functions = functions.clone();
-//             let faas = faas.clone();
-//             async move {
-//                 get_other_metrics(function, functions.clone(), faas.clone())
-//                     .await
-//             }
-//         })
-//         .buffer_unordered(25);
-
-//     let stream = select(stream_local, stream_functions);
-//     HttpResponse::Ok()
-//         .content_type(actix_web::http::header::ContentType::plaintext())
-//         .streaming(stream)
-// }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -270,6 +218,44 @@ async fn main() -> anyhow::Result<()> {
         http_client.clone(),
     ));
 
+    let metrics = Arc::new(
+        match MetricsExporter::new(
+            env_load!(InfluxAddress, INFLUX_ADDRESS),
+            env_load!(InfluxOrg, INFLUX_ORG),
+            env_load!(InfluxToken, INFLUX_TOKEN),
+            env_load!(InfluxBucket, INFLUX_BUCKET),
+            env_load!(InstanceName, INSTANCE_NAME),
+        )
+        .await
+        {
+            Ok(metrics) => Ok(metrics),
+            Err(err) => {
+                let default = MetricsExporter::new(
+                    InfluxAddress::new(INFLUX_DEFAULT_ADDRESS)?,
+                    env_load!(InfluxOrg, INFLUX_ORG),
+                    env_load!(InfluxToken, INFLUX_TOKEN),
+                    env_load!(InfluxBucket, INFLUX_BUCKET),
+                    env_load!(InstanceName, INSTANCE_NAME),
+                )
+                .await
+                .context("Failed to fallback to default value for Influx");
+
+                if default.is_ok() {
+                    error!(
+                        "Failed to connect to specified Influx {:?}, falling \
+                         back to default",
+                        err
+                    );
+                    default
+                } else {
+                    Err(err)
+                }
+            }
+        }
+        .context("Failed to connect to Influx")
+        .unwrap(),
+    );
+
     let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituation::new(NodeSituationData::new(
         disk_data.unwrap(),
@@ -285,6 +271,7 @@ async fn main() -> anyhow::Result<()> {
     let resource_tracking_repo = Arc::new(
         crate::repository::resource_tracking::ResourceTracking::new(
             k8s_repo.clone(),
+            metrics.clone(),
             node_situation.get_reserved_cpu(),
             node_situation.get_reserved_memory(),
         )
@@ -293,6 +280,7 @@ async fn main() -> anyhow::Result<()> {
     );
     let latency_estimation_repo = Arc::new(LatencyEstimation::new(
         node_situation.clone(),
+        metrics.clone(),
         model::domain::exp_average::Alpha::new(0.3).unwrap(),
         model::domain::moving_median::MovingMedianSize::new(50).unwrap(),
     ));
@@ -306,9 +294,9 @@ async fn main() -> anyhow::Result<()> {
     let auction_service = Arc::new(Auction::new(
         resource_tracking_repo.clone(),
         function_tracking_repo.clone(),
+        metrics.clone(),
     ));
-    let faas_service =
-        Arc::new(FaaSBackend::new(client.clone(), node_situation.clone()));
+    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
     let node_life_service =
         Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let neighbor_monitor_service =
@@ -320,6 +308,7 @@ async fn main() -> anyhow::Result<()> {
         node_query.clone(),
         resource_tracking_repo.clone(),
         function_tracking_repo.clone(),
+        metrics.clone(),
     ));
     let function_life_service = Arc::new(FunctionLife::new(
         function.clone(),
@@ -353,10 +342,9 @@ async fn main() -> anyhow::Result<()> {
 
     init(
         cron_repo,
-        neighbor_monitor_service.to_owned(),
+        neighbor_monitor_service.clone(),
         k8s_repo,
-        node_situation.to_owned(),
-        http_client.to_owned(),
+        metrics.clone(),
     )
     .await
     .expect("Failed to register periodic actions");
@@ -368,6 +356,7 @@ async fn main() -> anyhow::Result<()> {
     let function_life_service = Data::from(function_life_service);
     let node_life_service = Data::from(node_life_service);
     let neighbor_monitor_service = Data::from(neighbor_monitor_service);
+    let metrics = Data::from(metrics);
 
     // For metrics gathering
     let function_tracking_repository = Data::from(function_tracking_repo);
@@ -385,6 +374,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(Data::clone(&function_life_service))
             .app_data(Data::clone(&node_life_service))
             .app_data(Data::clone(&neighbor_monitor_service))
+            .app_data(Data::clone(&metrics))
             // For metrics gathering
             .app_data(Data::clone(&function_tracking_repository))
             // .route("/metrics", web::get().to(metrics))

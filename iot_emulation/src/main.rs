@@ -2,29 +2,36 @@ extern crate core;
 #[macro_use]
 extern crate tracing;
 
-use chrono::serde::ts_microseconds;
-use chrono::{DateTime, Utc};
-#[cfg(feature = "mimalloc")]
-use mimalloc::MiMalloc;
-
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use actix_web::web::{Data, Json};
 use actix_web::{middleware, web, App, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
+use anyhow::Context;
+use chrono::serde::ts_microseconds;
+use chrono::{DateTime, Utc};
+use helper::monitoring::{
+    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
+    MetricsExporter,
+};
+use helper::{env_load, env_var};
+use helper_derive::influx_observation;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-use prometheus::{register_counter_vec, CounterVec, TextEncoder};
 #[cfg(feature = "jaeger")]
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tokio::task::yield_now;
+use tokio::time::{self, sleep};
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 #[cfg(feature = "jaeger")]
@@ -33,12 +40,6 @@ use tracing_forest::ForestLayer;
 use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::EnvFilter;
-
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-
-use serde::{Deserialize, Serialize};
-use tokio::time::{self, sleep};
 use uuid::Uuid;
 
 #[cfg(feature = "jaeger")]
@@ -52,7 +53,6 @@ pub struct Payload {
     #[serde(with = "ts_microseconds")]
     sent_at: DateTime<Utc>,
     tag:     String,
-    period:  u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -67,22 +67,44 @@ pub struct CronConfig {
     pub duration_ms:     u64,
 }
 
-lazy_static::lazy_static! {
-    static ref HTTP_CRON_SEND_FAILS: CounterVec = register_counter_vec!(
-        "iot_emulation_http_request_to_processing_echo_fails",
-        "Counter of number of failed send.",
-        &["tag", "period"]
-    )
-    .unwrap();
+/// Counter of number of failed send
+#[influx_observation]
+struct SendFails {
+    #[influxdb(field)]
+    n:   u64,
+    #[influxdb(tag)]
+    tag: String,
 }
 
+env_var!(INFLUX_ADDRESS);
+env_var!(INFLUX_TOKEN);
+env_var!(INFLUX_ORG);
+env_var!(INFLUX_BUCKET);
+env_var!(INSTANCE_NAME);
+
+#[instrument(
+    level = "trace",
+    skip(config),
+    fields(tag=%config.tag)
+)]
 async fn put_cron(
     config: Json<CronConfig>,
-    cron_jobs: Data<Arc<dashmap::DashMap<String, Arc<CronConfig>>>>,
-    client: Data<Arc<HttpClient>>,
+    cron_jobs: Data<dashmap::DashMap<String, Arc<CronConfig>>>,
+    client: Data<HttpClient>,
+    metrics: Data<MetricsExporter>,
 ) -> HttpResponse {
-    let config = Arc::new(config.0);
-    let client = client.get_ref().clone();
+    put_cron_content(config.0, &cron_jobs, &client, &metrics).await;
+
+    HttpResponse::Ok().finish()
+}
+
+async fn put_cron_content(
+    config: CronConfig,
+    cron_jobs: &Arc<dashmap::DashMap<String, Arc<CronConfig>>>,
+    client: &Arc<HttpClient>,
+    metrics: &Arc<MetricsExporter>,
+) -> HttpResponse {
+    let config = Arc::new(config);
     let tag = config.tag.clone();
     info!(
         "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}.",
@@ -91,7 +113,12 @@ async fn put_cron(
 
     cron_jobs.insert(tag.clone(), config);
 
-    tokio::spawn(loop_send_requests(tag, cron_jobs.get_ref().clone(), client));
+    tokio::spawn(loop_send_requests(
+        tag,
+        cron_jobs.clone(),
+        client.clone(),
+        metrics.clone(),
+    ));
 
     HttpResponse::Ok().finish()
 }
@@ -102,14 +129,16 @@ async fn put_cron(
 //     fields(tag=%config.tag)
 // )]
 /// Returns if the function should be removed from cron
-async fn ping(config: &CronConfig, client: &HttpClient) -> bool {
+async fn ping(
+    config: &CronConfig,
+    client: &HttpClient,
+    metrics: &MetricsExporter,
+) -> bool {
     let tag = config.tag.clone();
 
-    let res = client.post(&config.node_url).json(&Payload {
-        tag:     tag.clone(),
-        sent_at: chrono::offset::Utc::now(),
-        period:  config.interval_ms,
-    });
+    let res = client
+        .post(&config.node_url)
+        .json(&Payload { tag: tag.clone(), sent_at: Utc::now() });
 
     let res = res.send().await;
 
@@ -120,9 +149,12 @@ async fn ping(config: &CronConfig, client: &HttpClient) -> bool {
                  error is {:?}",
                 config, err
             );
-            HTTP_CRON_SEND_FAILS
-                .with_label_values(&[&tag, &config.interval_ms.to_string()])
-                .inc();
+            if let Err(err) = metrics
+                .observe(SendFails { n: 1, tag, timestamp: Utc::now() })
+                .await
+            {
+                warn!("Something went wrong saving the metrics {:?}", err);
+            }
         }
         Ok(response) => {
             let code = response.status();
@@ -139,35 +171,23 @@ async fn ping(config: &CronConfig, client: &HttpClient) -> bool {
                     config.tag,
                     code.canonical_reason()
                 );
-                HTTP_CRON_SEND_FAILS
-                    .with_label_values(&[
-                        &tag,
-                        &config.interval_ms.to_string(),
-                    ])
-                    .inc();
+                if let Err(err) = metrics
+                    .observe(SendFails { n: 1, tag, timestamp: Utc::now() })
+                    .await
+                {
+                    warn!("Something went wrong saving the metrics {:?}", err);
+                }
             }
         }
     };
     false
 }
 
-pub async fn metrics() -> HttpResponse {
-    let encoder = TextEncoder::new();
-    let mut buffer: String = "".to_string();
-    if encoder.encode_utf8(&prometheus::gather(), &mut buffer).is_err() {
-        return HttpResponse::InternalServerError()
-            .body("Failed to encode prometheus metrics");
-    }
-
-    HttpResponse::Ok()
-        .insert_header(actix_web::http::header::ContentType::plaintext())
-        .body(buffer)
-}
-
 async fn loop_send_requests(
     id: String,
     jobs: Arc<dashmap::DashMap<String, Arc<CronConfig>>>,
     client: Arc<HttpClient>,
+    metrics: Arc<MetricsExporter>,
 ) {
     let Some(config) = jobs.get(&id).map(|x| x.value().clone()) else {
         error!("Config was empty at initizalization for function {}", id);
@@ -188,7 +208,7 @@ async fn loop_send_requests(
             break;
         }
 
-        if ping(&config, &client).await {
+        if ping(&config, &client, &metrics).await {
             info!("Removed cron for function {}", config.tag);
             break;
         };
@@ -250,7 +270,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
 
     #[cfg(feature = "jaeger")]
@@ -277,6 +297,22 @@ async fn main() -> std::io::Result<()> {
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(reqwest::Client::new());
 
+    let metrics = Arc::new(
+        MetricsExporter::new(
+            env_load!(InfluxAddress, INFLUX_ADDRESS),
+            env_load!(InfluxOrg, INFLUX_ORG),
+            env_load!(InfluxToken, INFLUX_TOKEN),
+            env_load!(InfluxBucket, INFLUX_BUCKET),
+            env_load!(InstanceName, INSTANCE_NAME),
+        )
+        .await
+        .expect("Cannot build the InfluxDB2 database connection"),
+    );
+
+    let http_client = web::Data::from(http_client);
+    let metrics = web::Data::from(metrics);
+    let jobs = web::Data::from(jobs);
+
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -285,9 +321,9 @@ async fn main() -> std::io::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::JsonConfig::default().limit(4096))
-            .app_data(web::Data::new(jobs.clone()))
-            .app_data(web::Data::new(http_client.clone()))
-            .route("/metrics", web::get().to(metrics))
+            .app_data(web::Data::clone(&http_client))
+            .app_data(web::Data::clone(&jobs))
+            .app_data(web::Data::clone(&metrics))
             .service(
                 web::scope("/api").route("/cron", web::put().to(put_cron)),
             )

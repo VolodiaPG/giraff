@@ -27,6 +27,10 @@ base64 = { version = "0.13.0", default-features = false, features = [
 bytes = "1.2.0"
 chrono = "0.4"
 futures = "0.3.28"
+influxdb2 = "0.4.2"
+influxdb2-derive = "0.1.1"
+influxdb2-structmap = "0.2"
+num-traits = "0.2"
 lazy-regex = "2.3.0"
 lazy_static = "1.4.0"
 # log = "0.4.17"
@@ -36,7 +40,6 @@ opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
-prometheus = "0.13.3"
 reqwest = { version = "0.11.11", features = ["json", "gzip"] }
 reqwest-middleware = "0.2.0"
 reqwest-tracing = { version = "0.4.0", features = [
@@ -64,4 +67,5 @@ uom = { version = "0.34.0", default-features = false, features = [
 uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
 
 helper = { path = "../helper" }
+helper_derive = { path = "../helper_derive" }
 model = { path = "../model" }

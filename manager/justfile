@@ -47,7 +47,14 @@ _clippy *FLAGS:
 
 # Run the market
 run_market *FLAGS:
-   SERVER_PORT={{MARKET_PORT}} RUST_LOG={{RUST_LOG}} cargo run --bin market {{FLAGS}}
+   SERVER_PORT={{MARKET_PORT}} \
+    RUST_LOG={{RUST_LOG}} \
+    INFLUX_ADDRESS="127.0.0.1:9086" \
+    INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+    INFLUX_ORG="faasfog" \
+    INFLUX_BUCKET="faasfog" \
+    INSTANCE_NAME="marketplace" \
+    cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node node_type MY_IP_ADDRESS debug="false":
@@ -71,8 +78,6 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         reserved_cpu: "4 cpus",
         reserved_memory: "4 GiB",
         tags: ["market connected"],
-        prometheus_push_period: "15s",
-        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     nodes["node_1"] = '''(
@@ -87,8 +92,6 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 1"],
-        prometheus_push_period: "15s",
-        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     nodes["node_2"] = '''(
@@ -103,8 +106,6 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 2"],
-        prometheus_push_period: "15s",
-        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     # Must be that port so expe.sh works magically
@@ -120,8 +121,6 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node connected 3"],
-        prometheus_push_period: "15s",
-        prometheus_address: "{{MY_IP_ADDRESS}}:3091",
     )'''
 
     if node_type not in nodes:
@@ -137,6 +136,13 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
+
+    env_vars['INFLUX_ADDRESS']="{{MY_IP_ADDRESS}}:9086"
+    env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
+    env_vars['INFLUX_ORG']="faasfog"
+    env_vars['INFLUX_BUCKET']="faasfog" 
+    env_vars['INSTANCE_NAME']="{{node_type}}" 
+
     if "{{node_type}}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"
 

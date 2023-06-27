@@ -55,6 +55,10 @@ bytes = "1.2.0"
 chrono = "0.4.23"
 dashmap = "5.4.0"
 futures = "0.3.28"
+influxdb2 = "0.4.2"
+influxdb2-derive = "0.1.1"
+influxdb2-structmap = "0.2"
+num-traits = "0.2"
 k8s-openapi = { version = "0.17.0", features = ["v1_26"] }
 kube = { version = "0.79.0", features = ["client", "runtime"] }
 lazy-regex = "2.3.1"
@@ -65,7 +69,6 @@ opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
-prometheus = { version = "0.13.3", features = ["push"] }
 reqwest = { version = "0.11.12", features = ["json", "gzip"] }
 reqwest-middleware = "0.2.0"
 reqwest-tracing = { version = "0.4.0", features = [
@@ -95,6 +98,7 @@ uom = { version = "0.34.0", default-features = false, features = [
 uuid = { version = "1.2.2", features = ["v4", "fast-rng", "serde"] }
 
 helper = { path = "../helper" }
+helper_derive = { path = "../helper_derive" }
 kube_metrics = { path = "../kube_metrics" }
 model = { path = "../model" }
 openfaas = { path = "../openfaas" }

@@ -6,7 +6,13 @@ _default:
 
 # Run the echo server
 run:
-    export SERVER_PORT={{server_port}} && cargo run #--features jaeger
+    SERVER_PORT={{server_port}} \
+        INFLUX_ADDRESS="127.0.0.1:9086" \
+        INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+        INFLUX_ORG="faasfog" \
+        INFLUX_BUCKET="faasfog" \
+        INSTANCE_NAME="iot_emulation" \
+        cargo run #--features jaeger
 
 interval period='20' enabled='true':
     curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"

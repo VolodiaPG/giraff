@@ -85,26 +85,37 @@ _openfaas_in_vm:
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
-        sleep 10
+        sleep 2
     done
 
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do
-        sleep 10
+        sleep 2
     done
 
     until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
     do
-        sleep 10
+        sleep 2
     done
     
     $SSH_CMD "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2
+
+    while ! $SSH_CMD "sh -c 'systemctl is-active --quiet influxdb2'"; do
+        sleep 2
+    done
+    while ! $SSH_CMD "sh -c 'systemctl is-active --quiet grafana'"; do
+        sleep 2
+    done
+
     
-    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
-    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
     $SSH_CMD -N -L 6443:127.0.0.1:6443&
     $SSH_CMD -N -L 8080:127.0.0.1:8080&
     $SSH_CMD -N -L 9090:127.0.0.1:9090&
+    $SSH_CMD -N -L 9086:127.0.0.1:9086&
+    $SSH_CMD -N -L 9030:127.0.0.1:9030&
+    $SSH_CMD -N -L 14268:127.0.0.1:14268&
+    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
+    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
     wait
 
 vm: build-vm

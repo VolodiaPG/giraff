@@ -33,6 +33,10 @@ bytes = "1.4.0"
 chrono = { version = "0.4.23", features = ["serde"] }
 env_logger = "0.10"
 futures = "0.3.28"
+influxdb2 = "0.4.2"
+influxdb2-derive = "0.1.1"
+influxdb2-structmap = "0.2"
+num-traits = "0.2"
 lazy_static = "1.4.0"
 mimalloc = { version = "0.1.32", default-features = false }
 opentelemetry = { version = "0.18.0", features = ["rt-tokio"], optional = true }
@@ -40,7 +44,6 @@ opentelemetry-jaeger = { version = "0.17.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
-prometheus = "0.13.3"
 reqwest = { version = "0.11.11", features = ["json", "gzip"] }
 reqwest-middleware = "0.2.0"
 reqwest-tracing = { version = "0.4.0", features = [
@@ -49,7 +52,6 @@ reqwest-tracing = { version = "0.4.0", features = [
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.20.1", features = ["full"] }
-tokio-cron-scheduler = "0.9.4"
 tracing = "0.1.37"
 tracing-actix-web = { version = "0.7.2", features = [
     "opentelemetry_0_18",
@@ -65,4 +67,5 @@ uom = { version = "0.34.0", default-features = false, features = [
 ] }
 
 helper = { path = "./helper" }
+helper_derive = { path = "./helper_derive" }
 model = { path = "./model" }

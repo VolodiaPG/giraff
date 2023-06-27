@@ -1,13 +1,12 @@
 use std::fmt::Debug;
 use std::net::IpAddr;
 
-use helper::prom_push::PrometheusAddress;
 use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
 use model::{
     FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
 };
-use uom::si::f64::{Information, Ratio, Time};
+use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug)]
 pub struct NodeSituation {
@@ -114,12 +113,4 @@ impl NodeSituation {
     }
 
     pub fn get_reserved_cpu(&self) -> Ratio { self.database.reserved_cpu }
-
-    pub fn get_prometheus_address(&self) -> &PrometheusAddress {
-        &self.database.prometheus_address
-    }
-
-    pub fn get_prometheus_push_period(&self) -> Time {
-        self.database.prometheus_push_period
-    }
 }

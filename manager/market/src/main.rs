@@ -1,29 +1,22 @@
 #![feature(async_closure)]
 #![feature(future_join)]
-
 use actix_web::web::Data;
-use bytes::Bytes;
-use helper::pool::Pool;
-use helper::prom_metrics::PooledMetrics;
+use helper::monitoring::{
+    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
+    MetricsExporter,
+};
+use helper::{env_load, env_var};
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-use prometheus::Encoder;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
-
 use crate::handler::*;
-use crate::service::auction::Auction;
-use crate::service::faas::FogNodeFaaS;
-use crate::service::fog_node_network::FogNodeNetwork;
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use actix_web::{middleware, web, App, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use anyhow::Result;
-use futures::stream::{self};
-use futures::StreamExt;
-use lazy_static::lazy_static;
+use anyhow::Context;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
@@ -31,7 +24,7 @@ use opentelemetry::sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
-use std::env;
+use std::env::var;
 use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing::{debug, info, Subscriber};
@@ -44,30 +37,15 @@ use tracing_subscriber::{fmt, EnvFilter, Registry};
 
 mod controller;
 mod handler;
-mod prom_metrics;
+mod monitoring;
 mod repository;
 mod service;
 
-lazy_static! {
-    static ref BUFFER_POOL: Pool<PooledMetrics> = Pool::new(25);
-}
-
-pub async fn metrics() -> HttpResponse {
-    let stream = stream::iter(prometheus::gather())
-        .map(async move |mf| -> Result<Bytes> {
-            let mut buffer = BUFFER_POOL.get();
-            buffer.buffer.clear();
-            buffer.encoder.encode(&[mf.clone()], &mut buffer.buffer)?;
-            let res = Bytes::copy_from_slice(&buffer.buffer);
-            BUFFER_POOL.put(buffer);
-            Ok(res)
-        })
-        .buffer_unordered(25);
-
-    HttpResponse::Ok()
-        .content_type(actix_web::http::header::ContentType::plaintext())
-        .streaming(stream)
-}
+env_var!(INFLUX_ADDRESS);
+env_var!(INFLUX_TOKEN);
+env_var!(INFLUX_ORG);
+env_var!(INFLUX_BUCKET);
+env_var!(INSTANCE_NAME);
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -77,9 +55,9 @@ pub fn get_subscriber(
     // Env variable LOG_CONFIG_PATH points at the path where
     // LOG_CONFIG_FILENAME is located
     let log_config_path =
-        env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
+        var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
-    let log_config_filename = env::var("LOG_CONFIG_FILENAME")
+    let log_config_filename = var("LOG_CONFIG_FILENAME")
         .unwrap_or_else(|_| "marketplace.log".to_string());
 
     let file_appender =
@@ -91,11 +69,11 @@ pub fn get_subscriber(
         .unwrap_or(EnvFilter::new(env_filter));
 
     #[cfg(feature = "jaeger")]
-    let collector_ip =
-        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
+    let collector_ip = std::env::var("COLLECTOR_IP")
+        .unwrap_or_else(|_| "localhost".to_string());
     #[cfg(feature = "jaeger")]
-    let collector_port =
-        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
+    let collector_port = std::env::var("COLLECTOR_PORT")
+        .unwrap_or_else(|_| "14268".to_string());
     #[cfg(feature = "jaeger")]
     let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
         opentelemetry_jaeger::new_collector_pipeline()
@@ -127,7 +105,7 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 }
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
@@ -136,8 +114,20 @@ async fn main() -> std::io::Result<()> {
 
     debug!("Tracing initialized.");
 
-    let my_port_http = env::var("SERVER_PORT")
-        .expect("Please specify SERVER_PORT env variable");
+    let my_port_http =
+        var("SERVER_PORT").expect("Please specify SERVER_PORT env variable");
+
+    let metrics = Arc::new(
+        MetricsExporter::new(
+            env_load!(InfluxAddress, INFLUX_ADDRESS),
+            env_load!(InfluxOrg, INFLUX_ORG),
+            env_load!(InfluxToken, INFLUX_TOKEN),
+            env_load!(InfluxBucket, INFLUX_BUCKET),
+            env_load!(InstanceName, INSTANCE_NAME),
+        )
+        .await
+        .expect("Cannot build the InfluxDB2 database connection"),
+    );
 
     #[cfg(feature = "jaeger")]
     let http_client = Arc::new(
@@ -173,14 +163,15 @@ async fn main() -> std::io::Result<()> {
         fog_node_communication,
         fog_node_network_service.clone(),
         faas_service.clone(),
+        metrics.clone(),
     ));
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
 
-    let fog_node_network_service =
-        Data::from(fog_node_network_service as Arc<FogNodeNetwork>);
-    let auction_service = Data::from(auction_service as Arc<Auction>);
-    let faas_service = Data::from(faas_service as Arc<FogNodeFaaS>);
+    let fog_node_network_service = Data::from(fog_node_network_service);
+    let auction_service = Data::from(auction_service);
+    let faas_service = Data::from(faas_service);
+    let metrics = Data::from(metrics);
 
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -192,14 +183,14 @@ async fn main() -> std::io::Result<()> {
         app.app_data(Data::clone(&faas_service))
             .app_data(Data::clone(&auction_service))
             .app_data(Data::clone(&fog_node_network_service))
-            .route("/metrics", web::get().to(metrics))
+            .app_data(Data::clone(&metrics))
             .service(
                 web::scope("/api")
                     .route("/function", web::put().to(put_function))
                     .route("/register", web::post().to(post_register_node))
                     .route("/functions", web::get().to(get_functions))
                     .route("/fog", web::get().to(get_fog))
-                    .route("/health", web::head().to(health)),
+                    .route("/health", web::get().to(health)),
             )
     })
     .bind(("0.0.0.0", my_port_http.parse().unwrap()))?

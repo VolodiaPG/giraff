@@ -1,17 +1,18 @@
+use crate::monitoring::{CpuObservedFromFogNode, MemoryObservedFromFogNode};
+
 use super::k8s::K8s;
-use crate::prom_metrics::{
-    CPU_AVAILABLE_GAUGE, CPU_USED_GAUGE, MEMORY_AVAILABLE_GAUGE,
-    MEMORY_USED_GAUGE,
-};
 use anyhow::{ensure, Context, Result};
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use std::fmt::Debug;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::{self, byte};
 use uom::si::ratio::part_per_billion;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ResourceTracking {
+    metrics:             Arc<MetricsExporter>,
     resources_available: dashmap::DashMap<String, (Information, Ratio)>,
     resources_used:      dashmap::DashMap<String, (Information, Ratio)>,
     nodes:               Vec<String>,
@@ -20,6 +21,7 @@ pub struct ResourceTracking {
 impl ResourceTracking {
     pub async fn new(
         k8s: Arc<K8s>,
+        metrics: Arc<MetricsExporter>,
         reserved_cpu: Ratio,
         reserved_memory: Information,
     ) -> Result<Self> {
@@ -93,7 +95,7 @@ impl ResourceTracking {
         let nodes =
             { resources_available.iter().map(|x| x.key().clone()).collect() };
 
-        Ok(Self { resources_available, resources_used, nodes })
+        Ok(Self { resources_available, metrics, resources_used, nodes })
     }
 
     /// Check if the key exists in all storages
@@ -129,10 +131,25 @@ impl ResourceTracking {
                 )
             })?;
 
-        MEMORY_USED_GAUGE.with_label_values(&[name]).set(used_mem.value);
-        MEMORY_AVAILABLE_GAUGE.with_label_values(&[name]).set(avail_mem.value);
-        CPU_USED_GAUGE.with_label_values(&[name]).set(used_cpu.value);
-        CPU_AVAILABLE_GAUGE.with_label_values(&[name]).set(avail_cpu.value);
+        let timestamp = Utc::now();
+        self.metrics
+            .observe(MemoryObservedFromFogNode {
+                initial_allocatable: avail_mem.get::<information::gigabyte>(),
+                used: used_mem.get::<information::gigabyte>(),
+                name: name.to_string(),
+                timestamp,
+            })
+            .await?;
+        self.metrics
+            .observe(CpuObservedFromFogNode {
+                initial_allocatable: avail_cpu
+                    .get::<helper::uom_helper::cpu_ratio::cpu>(
+                ),
+                used: used_cpu.get::<helper::uom_helper::cpu_ratio::cpu>(),
+                name: name.to_string(),
+                timestamp,
+            })
+            .await?;
 
         Ok(())
     }

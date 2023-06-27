@@ -1,5 +1,14 @@
 [workspace]
-members = ["fog_node", "market", "helper", "model", "kube_metrics", "openfaas"]
+resolver = "2"
+members = [
+    "fog_node",
+    "market",
+    "helper",
+    "helper_derive",
+    "model",
+    "kube_metrics",
+    "openfaas",
+]
 
 [profile.release]
 strip = true

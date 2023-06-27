@@ -1,10 +1,12 @@
-use crate::prom_metrics::PROVISIONED_FUNCTION_COUNT;
+use crate::monitoring::ProvisionedFunctions;
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
 use anyhow::{ensure, Context, Result};
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::BidId;
 use std::marker::PhantomData;
@@ -23,6 +25,7 @@ pub struct Function<State = Unlocked> {
     node_query:        Arc<NodeQuery>,
     resource_tracking: Arc<ResourceTracking>,
     function_tracking: Arc<FunctionTracking>,
+    metrics:           Arc<MetricsExporter>,
     lock_state:        PhantomData<State>,
     lock:              Arc<Semaphore>,
     permit:            Option<OwnedSemaphorePermit>,
@@ -51,6 +54,7 @@ impl Function {
         node_query: Arc<NodeQuery>,
         resource_tracking: Arc<ResourceTracking>,
         function_tracking: Arc<FunctionTracking>,
+        metrics: Arc<MetricsExporter>,
     ) -> Self {
         Self {
             function,
@@ -59,6 +63,7 @@ impl Function {
             node_query,
             resource_tracking,
             function_tracking,
+            metrics,
             lock_state: PhantomData,
             lock: Arc::new(Semaphore::new(1)),
             permit: None,
@@ -81,6 +86,7 @@ impl Function {
             node_query: self.node_query.clone(),
             resource_tracking: self.resource_tracking.clone(),
             function_tracking: self.function_tracking.clone(),
+            metrics: self.metrics.clone(),
             lock_state: PhantomData,
             lock: self.lock.clone(),
             permit,
@@ -159,14 +165,14 @@ impl Function<Locked> {
             .with_context(|| {
                 format!("Failed to provision the proposed function {}", id)
             })?;
-
-        PROVISIONED_FUNCTION_COUNT
-            .with_label_values(&[
-                &provisioned.0.sla.function_live_name,
-                &provisioned.0.sla.id.to_string(),
-            ])
-            .set(1.0);
-
+        self.metrics
+            .observe(ProvisionedFunctions {
+                n:             0,
+                function_name: provisioned.0.sla.function_live_name.clone(),
+                sla_id:        provisioned.0.sla.id.to_string(),
+                timestamp:     Utc::now(),
+            })
+            .await?;
         self.function_tracking.save_provisioned(&id, provisioned);
 
         let Ok(()) = self
@@ -204,12 +210,14 @@ impl Function<Locked> {
 
         let record = (*record).clone().to_finished();
 
-        PROVISIONED_FUNCTION_COUNT
-            .with_label_values(&[
-                &record.0.sla.function_live_name,
-                &record.0.sla.id.to_string(),
-            ])
-            .set(0.0);
+        self.metrics
+            .observe(ProvisionedFunctions {
+                n:             0,
+                function_name: record.0.sla.function_live_name.clone(),
+                sla_id:        record.0.sla.id.to_string(),
+                timestamp:     Utc::now(),
+            })
+            .await?;
         self.function_tracking.save_finished(&function, record);
 
         let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{

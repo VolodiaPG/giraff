@@ -1,23 +1,17 @@
-use crate::prom_metrics::{
-    CPU_ALLOCATABLE_GAUGE, CPU_USAGE_GAUGE, MEMORY_ALLOCATABLE_GAUGE,
-    MEMORY_USAGE_GAUGE,
-};
+use crate::monitoring::{CpuObservedFromPlatform, MemoryObservedFromPlatform};
 use crate::repository::cron::Cron;
 use crate::repository::k8s::K8s;
-use crate::repository::node_situation::NodeSituation;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use anyhow::{Context, Result};
-use helper::prom_push::PrometheusAddress;
+use chrono::Utc;
+use helper::monitoring::MetricsExporter;
 use std::sync::Arc;
-
-type HttpClient = reqwest_middleware::ClientWithMiddleware;
 
 pub async fn init(
     cron: Arc<Cron>,
     neighbor_monitor: Arc<NeighborMonitor>,
     k8s_repo: Arc<K8s>,
-    node_situation: Arc<NodeSituation>,
-    http_client: Arc<HttpClient>,
+    metrics: Arc<MetricsExporter>,
 ) -> Result<()> {
     cron.add_periodic(move || {
         let neighbor_monitor = neighbor_monitor.clone();
@@ -28,27 +22,14 @@ pub async fn init(
 
     cron.add_periodic(move || {
         let k8s_repo = k8s_repo.clone();
-        Box::pin(measure(k8s_repo))
+        let metrics = metrics.clone();
+        Box::pin(measure(k8s_repo, metrics))
     })
     .await
     .context(
         "Failed to add periodic task to get measurements of k8s cluster \
          metrics",
     )?;
-
-    cron.add_periodic(move || {
-        let prometheus_address =
-            node_situation.get_prometheus_address().to_owned();
-        let instance = format!(
-            "{}:{}",
-            node_situation.get_my_public_ip(),
-            node_situation.get_my_public_port_http()
-        );
-        let http_client = http_client.to_owned();
-        Box::pin(push_metrics(http_client, instance, prometheus_address))
-    })
-    .await
-    .context("Failed to add periodic task to push prometheus metrics")?;
 
     Ok(())
 }
@@ -59,13 +40,16 @@ async fn ping(neighbor_monitor: Arc<NeighborMonitor>) {
     };
 }
 
-async fn measure(k8s_repo: Arc<K8s>) {
-    let _ = _measure(k8s_repo).await.map_err(|err| {
+async fn measure(k8s_repo: Arc<K8s>, metrics: Arc<MetricsExporter>) {
+    let _ = _measure(k8s_repo, metrics).await.map_err(|err| {
         warn!("An error occurred while CRON measuring from K8S: {:?}", err)
     });
 }
 
-async fn _measure(k8s_repo: Arc<K8s>) -> anyhow::Result<()> {
+async fn _measure(
+    k8s_repo: Arc<K8s>,
+    metricsdb: Arc<MetricsExporter>,
+) -> anyhow::Result<()> {
     let aggregated_metrics = k8s_repo.get_k8s_metrics().await?;
     for (name, metrics) in aggregated_metrics {
         let allocatable = metrics.allocatable.as_ref().ok_or_else(|| {
@@ -78,31 +62,25 @@ async fn _measure(k8s_repo: Arc<K8s>) -> anyhow::Result<()> {
                 "Usage resource key not found in retrieved metrics"
             )
         })?;
-        MEMORY_ALLOCATABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(allocatable.memory.value);
-        MEMORY_USAGE_GAUGE.with_label_values(&[&name]).set(usage.memory.value);
-        CPU_ALLOCATABLE_GAUGE
-            .with_label_values(&[&name])
-            .set(allocatable.cpu.value);
-        CPU_USAGE_GAUGE.with_label_values(&[&name]).set(usage.cpu.value);
+
+        let timestamp = Utc::now();
+        metricsdb
+            .observe(MemoryObservedFromPlatform {
+                allocatable: allocatable.memory.value,
+                used: usage.memory.value,
+                name: name.to_string(),
+                timestamp,
+            })
+            .await?;
+        metricsdb
+            .observe(CpuObservedFromPlatform {
+                allocatable: allocatable.cpu.value,
+                used: usage.cpu.value,
+                name: name.to_string(),
+                timestamp,
+            })
+            .await?;
     }
 
     Ok(())
-}
-
-async fn push_metrics(
-    http_client: Arc<HttpClient>,
-    instance: String,
-    prometheus_address: PrometheusAddress,
-) {
-    if let Err(err) = helper::prom_push::send_metrics(
-        http_client,
-        instance,
-        prometheus_address,
-    )
-    .await
-    {
-        warn!("Failed to push prometheus metrics: {}", err)
-    }
 }
