@@ -309,7 +309,7 @@
         "ihaskell": "ihaskell",
         "nix-dart": "nix-dart",
         "nixpkgs": [
-          "nixpkgs"
+          "nixpkgs-unstable"
         ],
         "nixpkgs-stable": "nixpkgs-stable",
         "npmlock2nix": "npmlock2nix",

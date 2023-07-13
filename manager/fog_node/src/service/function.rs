@@ -167,7 +167,7 @@ impl Function<Locked> {
             })?;
         self.metrics
             .observe(ProvisionedFunctions {
-                n:             0,
+                n:             1,
                 function_name: provisioned.0.sla.function_live_name.clone(),
                 sla_id:        provisioned.0.sla.id.to_string(),
                 timestamp:     Utc::now(),

@@ -35,7 +35,7 @@ edge_first_v2 = []
 # # Cloud only allocation v2 (with more chatter between cloud nodes)
 # cloud_only_v2 = []
 # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
-# edge_ward = []
+edge_ward = []
 # # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
 # # + Refuse functions if latency is expected not to be respected
 # edge_ward_v2 = []
@@ -54,11 +54,13 @@ base64 = { version = "0.13.1", default-features = false, features = [
 bytes = "1.2.0"
 chrono = "0.4.23"
 dashmap = "5.4.0"
+fast-math = "0.1.1"
 futures = "0.3.28"
 influxdb2 = "0.4.2"
 influxdb2-derive = "0.1.1"
 influxdb2-structmap = "0.2"
 num-traits = "0.2"
+nutype = "0.3.0"
 k8s-openapi = { version = "0.17.0", features = ["v1_26"] }
 kube = { version = "0.79.0", features = ["client", "runtime"] }
 lazy-regex = "2.3.1"

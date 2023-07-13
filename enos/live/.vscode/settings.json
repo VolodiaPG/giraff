@@ -1,5 +1,5 @@
 {
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "none",
     "peacock.color": "#FFD700",
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#ffdf33",
@@ -21,5 +21,8 @@
         "titleBar.inactiveForeground": "#15202b99"
     },
     "peacock.remoteColor": "gold",
-    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
+    "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    }
 }

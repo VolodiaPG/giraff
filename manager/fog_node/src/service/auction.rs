@@ -3,13 +3,23 @@ use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use anyhow::{Context, Result};
 use chrono::Utc;
+use helper::env_var;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
+use nutype::nutype;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
+
+#[nutype(validate(finite, min = 0.0, max = 1.0))]
+#[derive(PartialEq, PartialOrd)]
+pub struct PricingRatio(f64);
+
+env_var!(PRICING_CPU);
+env_var!(PRICING_MEM);
+env_var!(PRICING_GEOLOCATION);
 
 pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
@@ -72,6 +82,11 @@ impl Auction {
         Ok(None)
     }
 
+    #[cfg(not(feature = "valuation_rates"))]
+    fn sigmoid(x: f32) -> f32 {
+        1.0 / (1.0 + fast_math::exp_raw(-6.0 * (x - 0.5)))
+    }
+
     /// Compute the bid value from the node environment
     #[cfg(not(feature = "valuation_rates"))]
     async fn compute_bid(
@@ -79,24 +94,34 @@ impl Auction {
         sla: &Sla,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
-        use uom::si::f64::Time;
-        use uom::si::time::millisecond;
+        use helper::env_load;
 
-        let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
+        let pricing_cpu = env_load!(PricingRatio, PRICING_CPU, f64);
+        let pricing_mem = env_load!(PricingRatio, PRICING_MEM, f64);
+        let pricing_geolocation =
+            env_load!(PricingRatio, PRICING_GEOLOCATION, f64);
+
+        let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")? else{
                     return Ok(None);
                 };
 
-        let mut price = sla.memory / available_ram + sla.cpu / available_cpu;
-        if accumulated_latency.median > Time::new::<millisecond>(1.0) {
-            price = price * sla.latency_max / accumulated_latency.median;
-        } else {
-            price = price * sla.latency_max / Time::new::<millisecond>(1.0);
-        }
-
-        let price: f64 = price.into();
+        let ram_ratio_sla: f64 = (sla.memory / available_ram).into();
+        let cpu_ratio_sla: f64 = (sla.cpu / available_cpu).into();
+        let ram_ratio: f64 = (used_ram / available_ram).into();
+        let cpu_ratio: f64 = (used_cpu / available_cpu).into();
+        let latency_ratio: f64 = (sla.latency_max
+            / (accumulated_latency.median
+                - accumulated_latency.median_uncertainty))
+            .into();
+        let price = pricing_mem.into_inner() * ram_ratio_sla
+            + pricing_cpu.into_inner() * cpu_ratio_sla
+            + pricing_geolocation.into_inner()
+                * (Auction::sigmoid(ram_ratio as f32) as f64
+                    + Auction::sigmoid(cpu_ratio as f32) as f64
+                    + Auction::sigmoid(latency_ratio as f32) as f64);
 
         trace!("price on {:?} is {:?}", name, price);
 
@@ -109,43 +134,27 @@ impl Auction {
         sla: &Sla,
         _accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
-        use helper::uom_helper::cpu_ratio::millicpu;
-        use uom::si::information::mebibyte;
+        use helper::env_load;
 
-        let Some((name, _used_ram, _used_cpu, _available_ram, _available_cpu)) =
+        let pricing_cpu = env_load!(PricingRatio, PRICING_CPU, f64);
+        let pricing_mem = env_load!(PricingRatio, PRICING_MEM, f64);
+        let pricing_geolocation =
+            env_load!(PricingRatio, PRICING_GEOLOCATION, f64);
+
+        let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")? else{
                     return Ok(None);
                 };
 
-        let price_ram: f64 = std::env::var("VALUATION_PER_MIB")
-            .context(
-                "Failed to get value from 
-        the environment variable VALUATION_PER_MIB",
-            )?
-            .parse()
-            .context(
-                "Failed to convert environment variable VALUATION_PER_MIB to \
-                 a f64",
-            )?;
-        let price_cpu: f64 = std::env::var("VALUATION_PER_MILLICPU")
-            .context(
-                "Failed to get value from 
-        the environment variable VALUATION_PER_MILLICPU",
-            )?
-            .parse()
-            .context(
-                "Failed to convert environment variable \
-                 VALUATION_PER_MILLICPU to a f64",
-            )?;
-
-        let price_cpu = price_cpu / Ratio::new::<millicpu>(1.0);
-        let price_ram = price_ram / Information::new::<mebibyte>(1.0);
-
-        let price = sla.cpu * price_cpu + sla.memory * price_ram;
-
-        let price: f64 = price.into();
+        let ram_ratio_sla: f64 = (sla.memory / available_ram).into();
+        let cpu_ratio_sla: f64 = (sla.cpu / available_cpu).into();
+        let ram_ratio: f64 = (used_ram / available_ram).into();
+        let cpu_ratio: f64 = (used_cpu / available_cpu).into();
+        let price = pricing_mem.into_inner() * ram_ratio_sla
+            + pricing_cpu.into_inner() * cpu_ratio_sla
+            + pricing_geolocation.into_inner() * (ram_ratio + cpu_ratio);
 
         trace!("price on {:?} is {:?}", name, price);
 

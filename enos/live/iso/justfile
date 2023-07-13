@@ -103,17 +103,17 @@ _openfaas_in_vm:
     while ! $SSH_CMD "sh -c 'systemctl is-active --quiet influxdb2'"; do
         sleep 2
     done
-    while ! $SSH_CMD "sh -c 'systemctl is-active --quiet grafana'"; do
-        sleep 2
-    done
+    # while ! $SSH_CMD "sh -c 'systemctl is-active --quiet grafana'"; do
+    #     sleep 2
+    # done
 
     
     $SSH_CMD -N -L 6443:127.0.0.1:6443&
     $SSH_CMD -N -L 8080:127.0.0.1:8080&
     $SSH_CMD -N -L 9090:127.0.0.1:9090&
     $SSH_CMD -N -L 9086:127.0.0.1:9086&
-    $SSH_CMD -N -L 9030:127.0.0.1:9030&
-    $SSH_CMD -N -L 14268:127.0.0.1:14268&
+    # $SSH_CMD -N -L 9030:127.0.0.1:9030&
+    # $SSHq_CMD -N -L 14268:127.0.0.1:14268&
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
     wait

@@ -76,6 +76,8 @@ impl LatencyEstimation {
             .get_fog_node_neighbor(&node)
             .with_context(|| format!("Failed to find node {node}"))?
             .port_http;
+        let my_ip = self.node_situation.get_my_public_ip();
+        let my_port = self.node_situation.get_my_public_port_http();
 
         let (_, dur) = surge_ping::ping(ip, &[0; 32])
             .await
@@ -97,6 +99,7 @@ impl LatencyEstimation {
                         .interquantile_range
                         .get::<millisecond>(),
                     instance_to:         format!("{}:{}", ip, port),
+                    instance_address:    format!("{}:{}", my_ip, my_port),
                     timestamp:           Utc::now(),
                 })
                 .await?;

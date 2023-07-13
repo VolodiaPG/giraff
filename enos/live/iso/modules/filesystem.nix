@@ -33,9 +33,12 @@
       "/var/log"
       "/root"
     ];
-    # files = [
-    #   "/etc/cloud/cloud-init.disabled"
-    #   "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
-    # ];
+    files = [
+      "/etc/influxdb/influxdb.conf"
+      "/var/lib/influxdb2/influxd.bolt"
+      "/var/lib/influxdb2/influxd.sqlite"
+      #   "/etc/cloud/cloud-init.disabled"
+      #   "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
+    ];
   };
 }

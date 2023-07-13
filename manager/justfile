@@ -28,7 +28,7 @@ check subcommand="check":
     just _{{subcommand}} --features edge_first_v2
     # just _{{subcommand}} --features cloud_only
     # just _{{subcommand}} --features cloud_only_v2
-    # just _{{subcommand}} --features edge_ward
+    just _{{subcommand}} --features edge_ward
     # just _{{subcommand}} --features edge_ward_v2
     just _{{subcommand}} --features edge_ward_v3
     
@@ -143,6 +143,10 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['INFLUX_BUCKET']="faasfog" 
     env_vars['INSTANCE_NAME']="{{node_type}}" 
 
+    env_vars['PRICING_CPU']="1.0" 
+    env_vars['PRICING_MEM']="1.0" 
+    env_vars['PRICING_GEOLOCATION']="1.0"
+
     if "{{node_type}}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"
 
@@ -232,7 +236,6 @@ ghcr user +images:
             echo -ne "\r\033[K❌ $image\n"
         fi
     }
-
 
     for image in {{images}}; do
         image_path=$(nom build ".#fog_node_$image" --print-out-paths --no-link --quiet)

@@ -27,4 +27,7 @@
     "lldb.showDisassembly": "never",
     "lldb.dereferencePointers": true,
     "lldb.consoleMode": "commands",
+    "rust-analyzer.linkedProjects": [
+        "./fog_node/Cargo.toml"
+    ],
 }

@@ -1,23 +1,31 @@
 import base64
+import csv
 import heapq
+from io import TextIOWrapper
 import logging
 import os
 import signal
 import subprocess
+import tarfile
+import tempfile
 import time
 import uuid
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from time import sleep
-
+import multiprocessing as mp
 import click
 import enoslib as en
+from influxdb_client import InfluxDBClient
+from collect import listener, worker
 from definitions import (
+    ADJACENCY,
     EXTREMITIES,
     FOG_NODE_DEPLOYMENT,
     FOG_NODES,
     IOT_CONNECTION,
+    LEVELS,
     MARKET_CONNECTED_NODE,
     MARKET_DEPLOYMENT,
     NB_CPU_PER_MACHINE_PER_CLUSTER,
@@ -287,13 +295,16 @@ def up(
             job_name=name,
             walltime=walltime,
             image="/home/volparolguarino/nixos.qcow2",
+            reservation=os.environ["RESERVATION"]
+            if "RESERVATION" in os.environ
+            else None,
         )
-        .add_machine(
-            roles=["prom_master"],
-            cluster=cluster,
-            number=1,
-            flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
-        )
+        # .add_machine(
+        #     roles=["prom_master"],
+        #     cluster=cluster,
+        #     number=1,
+        #     flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
+        # )
         .add_machine(
             roles=["prom_agent", "iot_emulation"],
             cluster=cluster,
@@ -360,12 +371,16 @@ def restart(env=None):
     roles = env["roles"]
     print("Restarting all...")
 
-    with actions(roles=roles["master"], gather_facts=False) as p:
-        # p.shell("shutdown 0 -r", task_name="[master] Rebooting")
-        p.reboot(
-            reboot_command="shutdown  0 -r",
-            search_paths=["/run/current-system/sw/bin/"],
-        )
+    # with actions(roles=roles["master"], gather_facts=False) as p:
+    #     # p.shell("shutdown 0 -r", task_name="[master] Rebooting")
+    #     p.reboot(
+    #         reboot_command="shutdown  0 -r",
+    #         search_paths=["/run/current-system/sw/bin/"],
+    #     )
+    with actions(roles= roles["master"]) as p:
+        p.reboot()
+
+    en.wait_for(roles=roles["master"])
 
 
 @cli.command()
@@ -391,11 +406,16 @@ def iot_emulation(env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
+            # --env INFLUX_ADDRESS="{roles["prom_master"][0].address}:9086" \
             f"""(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/iot_emulation:latest \
                 && docker run --name iot_emulation \
-                    --env COLLECTOR_IP={roles["prom_master"][0].address} \
+                    --env INFLUX_ADDRESS="10.42.0.1:9086" \
+                    --env INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+                    --env INFLUX_ORG="faasfog" \
+                    --env INFLUX_BUCKET="faasfog"  \
+                    --env INSTANCE_NAME="iot_emulation" \
                     -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
@@ -405,21 +425,30 @@ def iot_emulation(env=None, **kwargs):
 @cli.command()
 @enostask()
 def network(env=None):
-    if "netem" in env:
-        netem = env["netem"]
-        netem.destroy()
+    for i in range(15):
+        try:
+            if "netem" in env:
+                netem = env["netem"]
+                netem.destroy()
 
-    netem = en.AccurateNetemHTB()
-    # netem = en.NetemHTB()
-    env["netem"] = netem
-    roles = env["roles"]
-    # netem = None
-    # roles = None
+            netem = en.AccurateNetemHTB()
+            # netem = en.NetemHTB()
+            env["netem"] = netem
+            roles = env["roles"]
+            # netem = None
+            # roles = None
 
-    gen_net(NETWORK, netem, roles)
+            gen_net(NETWORK, netem, roles)
 
-    netem.deploy()
-    netem.validate()
+            netem.deploy()
+            netem.validate()
+            break
+        except Exception as e:
+            if i == 5:
+                raise e
+            else:
+                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
+                time.sleep(30)
 
 
 def gen_net(nodes, netem, roles):
@@ -486,36 +515,37 @@ def gen_net(nodes, netem, roles):
 def monitoring(env=None, **kwargs):
     """Remove the constraints on the network links"""
     roles = env["roles"]
-    if "monitor" in roles:
-        monitor = env["monitor"]
-        monitor.destroy()
+    # if "monitor" in roles:
+    #     monitor = env["monitor"]
+    #     monitor.destroy()
 
-    monitor = mon.TPGMonitoring(
-        collector=roles["prom_master"][0],
-        agent=roles["prom_agent"],
-        ui=roles["prom_master"][0],
-        telegraf_image=TELEGRAF_IMAGE,
-        prometheus_image=PROMETHEUS_IMAGE,
-        grafana_image=GRAFANA_IMAGE,
-    )
-    monitor.deploy()
-    env["monitor"] = monitor
+    # monitor = mon.TPGMonitoring(
+    #     collector=roles["prom_master"][0],
+    #     agent=roles["prom_agent"],
+    #     ui=roles["prom_master"][0],
+    #     telegraf_image=TELEGRAF_IMAGE,
+    #     prometheus_image=PROMETHEUS_IMAGE,
+    #     grafana_image=GRAFANA_IMAGE,
+    # )
+    # monitor.deploy()
+    # env["monitor"] = monitor
 
-    with actions(roles=roles["prom_master"], gather_facts=False) as p:
-        p.shell(
-            """(docker stop jaeger || true)
-            (docker rm jaeger || true)
-            docker run -d --name jaeger \
-                -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
-                -p 5775:5775/udp \
-                -p 6831:6831/udp \
-                -p 6832:6832/udp \
-                -p 5778:5778 \
-                -p 16686:16686 \
-                -p 14268:14268 \
-                -p 9411:9411 \
-                quay.io/jaegertracing/all-in-one:1.41"""
-        )
+    # with actions(roles=roles["prom_master"], gather_facts=False) as p:
+    #     p.shell(
+    #         """(docker stop jaeger || true)
+    #         (docker rm jaeger || true)
+    #         docker run -d --name jaeger \
+    #             -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+    #             -p 5775:5775/udp \
+    #             -p 6831:6831/udp \
+    #             -p 6832:6832/udp \
+    #             -p 5778:5778 \
+    #             -p 16686:16686 \
+    #             -p 14268:14268 \
+    #             -p 9411:9411 \
+    #             quay.io/jaegertracing/all-in-one:1.41"""
+    #     )
+    pass
 
 
 @cli.command()
@@ -609,24 +639,29 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
         )
     )
 
-    for (name, conf, tier_flavor) in confs:
+    for name, conf, tier_flavor in confs:
         deployment = FOG_NODE_DEPLOYMENT.format(
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
-            collector_ip=roles["prom_master"][0].address,
+            # influx_ip=roles["prom_master"][0].address,
+            influx_ip="10.42.0.1",
             node_name=name,
             fog_node_image=fog_node_image,
-            valuation_per_mib=tier_flavor["valuation_per_mib"],
-            valuation_per_millicpu=tier_flavor["valuation_per_millicpu"],
+            pricing_cpu=tier_flavor["pricing_cpu"],
+            pricing_mem=tier_flavor["pricing_mem"],
+            pricing_geolocation=tier_flavor["pricing_geolocation"],
             is_cloud="is_cloud"
             if tier_flavor.get("is_cloud") is not None
             and tier_flavor.get("is_cloud") is True
             else "no_cloud",
         )
+        print(f"Doing name {name}")
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
     roles[NETWORK["name"]][0].set_extra(
         market_deployment=MARKET_DEPLOYMENT.format(
-            collector_ip=roles["prom_master"][0].address, market_image=market_image
+            # influx_ip=roles["prom_master"][0].address,
+            influx_ip="10.42.0.1",
+            market_image=market_image,
         )
     )
 
@@ -678,6 +713,131 @@ def health(env=None, all=False, **kwargs):
     res = en.run_command(command, roles=roles["master"])
     log_cmd(env, [res])
 
+def names(queue):
+    names = aliases()
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            writer.writerow(["instance", "name"])
+            for key, value in names.items():
+                writer.writerow([key, value])
+        tmpfile.close()  # Close before sending to threads
+        queue.put(("names", tmpfile.name))
+
+def number_of_functions(queue):
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            low_latency = int(os.getenv("NB_FUNCTIONS_LOW_LATENCY"))
+            rest_latency = int(os.getenv("NB_FUNCTIONS_REST"))
+            
+            high_load_low_latency =int(os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY"))
+            high_load_high_latency = low_latency - high_load_low_latency
+            low_load_low_latency = int(os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY"))
+            low_load_high_latency = rest_latency - low_load_low_latency
+
+            writer = csv.writer(file, delimiter="\t")
+            writer.writerow(["instance", "load", "latency", "value"])
+
+            for source, _lat in IOT_CONNECTION:
+                writer.writerow([source, "high", "low", high_load_low_latency])
+                writer.writerow([source, "high", "high", high_load_high_latency])
+                writer.writerow([source, "low", "low", low_load_low_latency])
+                writer.writerow([source, "low", "high", low_load_high_latency])
+        tmpfile.close()  # Close before sending to threads
+        queue.put(("nb_functions", tmpfile.name))
+
+def network_shape(queue):
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            writer.writerow(["source", "destination", "latency"])
+            for source, tup in ADJACENCY.items():
+                for destination, latency in tup:
+                    writer.writerow([source, destination, latency])
+        tmpfile.close()  # Close before sending to threads
+        queue.put(("network_shape", tmpfile.name))
+
+def network_node_levels(queue):
+    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
+        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter="\t")
+            writer.writerow(["source", "level"])
+            for source, level in LEVELS.items():
+                writer.writerow([source, level])
+        tmpfile.close()  # Close before sending to threads
+        queue.put(("node_levels", tmpfile.name))
+
+
+@enostask()
+def _collect(env=None, **kwargs):
+    return env["agent_tunnels"]
+
+
+@cli.command()
+@click.option("--address", help="A particular address to look at")
+def collect(address=None, **kwargs):
+    if address is None:
+        addresses = set(_collect(**kwargs))
+    else:
+        addresses = set([address])
+    token = os.getenv("INFLUX_TOKEN")
+    org = os.getenv("INFLUX_ORG")
+    bucket = os.getenv("INFLUX_BUCKET")
+
+    today = datetime.today()
+    today = today.strftime("%Y-%m-%d-%H-%M")
+    prefix_dir = "metrics-arks"
+    prefix_filename = os.getenv("COLLECT_ARCHIVE_NAME")
+    if prefix_filename is None:
+        prefix_filename = ""
+    try:
+        os.mkdir(prefix_dir)
+    except FileExistsError:
+        pass
+    archive = f"{prefix_dir}/metrics_{prefix_filename}_{today}.tar.xz"
+    measurements = set()
+    for address in addresses:
+        with InfluxDBClient(url="http://" + address, token=token, org=org) as client:
+            query = f"""import "influxdata/influxdb/schema"
+                schema.measurements(bucket: "{bucket}")
+            """
+            tables = client.query_api().query(query)
+            measurements.update([list(value)[2] for value in tables.to_values()])
+    print(measurements)
+    manager = mp.Manager()
+    queue = manager.Queue()
+    pool = mp.Pool(mp.cpu_count() + 2)
+
+    # put listener to work first
+    pool.apply_async(listener, (queue, archive))
+    pool.apply_async(names, (queue,))
+    pool.apply_async(network_shape, (queue,))
+    pool.apply_async(network_node_levels, (queue,))
+
+    jobs = []
+    for measurement_name in measurements:
+        job = pool.apply_async(
+            worker, (queue, addresses, token, bucket, org, measurement_name)
+        )
+        jobs.append(job)
+
+    # collect results from the workers through the pool result queue
+    for job in jobs:
+        if job is not None:
+            job.get()
+
+    queue.put("kill")
+    pool.close()
+    pool.join()
+
+    print(f"Finished writing archive {archive}")
+
+    try:
+        os.remove("latest_metrics.tar.xz")
+    except (FileExistsError, FileNotFoundError):
+        pass
+    os.symlink(archive, "latest_metrics.tar.xz")
+
 
 @cli.command()
 @click.option("--all", is_flag=True, help="all namespaces")
@@ -718,25 +878,32 @@ def logs(env=None, all=False, **kwargs):
     log_cmd(env, res)
 
 
+@enostask()
+def do_open_tunnels(env=None, **kwargs):
+    roles = env["roles"]
+    open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
+    # if "prom_master" in env["roles"]:
+    #     open_tunnel(env["roles"]["prom_master"][0].address, 9086, 9086)
+    if "iot_emulation" in roles:
+        open_tunnel(roles["iot_emulation"][0].address, 3003)
+
+    env["agent_tunnels"] = list()
+    for prom_agent in roles["prom_agent"]:
+        local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)
+        env["agent_tunnels"].append(f"{local_address}:{local_port}")
+
+
 @cli.command()
 @click.option(
     "--command",
     required=False,
     help="Pass command to execute once done, will close tunnels after task is exited",
 )
-@enostask()
-def tunnels(env=None, command=None, **kwargs):
+def tunnels(command=None, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
     procs = []
     try:
-        roles = env["roles"]
-
-        open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
-        if "prom_master" in env["roles"]:
-            open_tunnel(env["roles"]["prom_master"][0].address, 9090)
-            open_tunnel(env["roles"]["prom_master"][0].address, 16686, 9096)
-        if "iot_emulation" in env["roles"]:
-            open_tunnel(env["roles"]["iot_emulation"][0].address, 3003)
+        do_open_tunnels()
 
         if command is not None:
             pro = subprocess.Popen(

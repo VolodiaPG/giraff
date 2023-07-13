@@ -26,6 +26,9 @@ init user *FLAGS:
 lab:
     nix run .#jupyterlab
 
+labExport:
+    nix run .#jupyterlabExport
+
 # Open SSH tunnels
 tunnels +FLAGS='':
     {{RUN}} integration.py tunnels {{FLAGS}}
@@ -39,7 +42,7 @@ _is_connected city_name_node_target market_local_port:
     if [[ $(curl -s "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
         echo "✅ {{city_name_node_target}} is connected"
     else
-        echo "❌"
+        echo "❌ {{city_name_node_target}}"
     fi
 
 is_connected city_name_node_target market_local_port='8088':
@@ -64,7 +67,7 @@ _deploy fog_node_image market_image:
     set -e
     {{RUN}} integration.py network
 
-    {{RUN}} integration.py monitoring&
+    # {{RUN}} integration.py monitoring&r
     {{RUN}} integration.py iot-emulation&
     ({{RUN}} integration.py k3s-setup && \
         {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
@@ -79,34 +82,66 @@ scenario archive_name +city_name_node_targets:
     set -ex
     NODE_TARGETS=()
     for city in {{city_name_node_targets}}; do
+        echo "Checking connection to $city"
         until [[ "$(just _is_connected $city $MARKET_LOCAL_PORT)" =~ "✅" ]]; do sleep 10 && echo -e "."; done
         NODE_TARGETS+=($(curl "localhost:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     
-    sleep 30
+    # sleep 30
 
     just expe $IOT_IP "$joined"
     
     sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{archive_name}}"
-    just collect
+    {{RUN}} integration.py collect || true
+    just logs --all
 
 scenarii +city_name_node_targets:
     #!/usr/bin/env bash
-    set -ex
+    set -e
+
+    # Function to generate a random number within a range
+    get_random_number() {
+    local min=$1
+    local max=$2
+    echo $((RANDOM % (max - min + 1) + min))
+    }
+
+    # Function to shuffle the array
+    shuffle_array() {
+    local array=("$@")
+    local array_size=${#array[@]}
+
+    for ((i = 0; i < array_size; i++)); do
+        # Generate a random index
+        local random_index=$(get_random_number 0 $((array_size - 1)))
+
+        # Swap the current element with the element at the random index
+        local temp=${array[i]}
+        array[i]=${array[random_index]}
+        array[random_index]=$temp
+    done
+
+    # Print the shuffled array
+    echo "${array[@]}"
+    }
 
     # Convert the space-separated list of fog node image tags to a Bash array
     TAGS=(${FOG_NODE_IMAGE_TAGS// / })
 
+    TAGS=($(shuffle_array "${TAGS[@]}"))
+
     for INDEX in "${!TAGS[@]}"; do
         TAG="${TAGS[INDEX]}"
-        echo "Using image $DEPLOYMENT_FOG_NODE_IMAGE and $DEPLOYMENT_MARKET_IMAGE"
+        echo "Using image $IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG and $IMAGE_REGISTRY/$MARKET_IMAGE"
         if [ "$INDEX" -eq 0 ]; then
             just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         else
+            # just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+
             just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$TAG\" {{city_name_node_targets}}'"
@@ -114,9 +149,13 @@ scenarii +city_name_node_targets:
 
     just clean
 
-collect $port="9090" $period="1h":
+collect:
     mkdir -p metrics
-    {{RUN}} collect.py
+    {{RUN}} integration.py collect --address $INFLUX_ADDRESS
+
+_collect:
+    mkdir -p metrics
+    {{RUN}} integration.py collect
 
 logs *FLAGS:
     {{RUN}} integration.py logs {{FLAGS}}
@@ -159,7 +198,7 @@ sshconfig:
     EOF
 # ssh "$login@$CLUSTER.grid5000.fr" -c "sleep 999999"&
 
-docker_enos name fog_node_image market_image tempdir cmd="bash":
+docker_enos name tempdir cmd="bash":
     #!/usr/bin/env bash
     set -e
     {{DOCKER}} run -it --rm \
@@ -184,24 +223,22 @@ docker_enos name fog_node_image market_image tempdir cmd="bash":
         -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME="{{name}}" \
-        -e DEPLOYMENT_FOG_NODE_IMAGE={{fog_node_image}} \
-        -e DEPLOYMENT_MARKET_IMAGE={{market_image}} \
         --name "{{name}}" \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
 
-docker_scenarii name fog_node_image market_image tempdir +city_name_node_targets:
-    just docker_enos {{name}} {{fog_node_image}} {{market_image}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
+docker_scenarii name tempdir +city_name_node_targets:
+    just docker_enos {{name}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
 
-_docker_campain name fog_node_image tempdir:
+_docker_campain name tempdir:
     #!/usr/bin/env bash
     set -e
     cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
-    just docker_scenarii {{name}} ghcr.io/volodiapg/fog_node:{{fog_node_image}} ghcr.io/volodiapg/market:latest {{tempdir}} ${cities[@]}
+    just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
 
-docker_campain_in_nix variation suffix:
+docker_campain_in_nix suffix:
     #!/usr/bin/env bash
-    set -ex
+    set -e
     tempdir=$(mktemp -d)
     cp .env.scenario $tempdir/.env
     cp definitions.py $tempdir/definitions.py
@@ -213,7 +250,7 @@ docker_campain_in_nix variation suffix:
 
     args=()
     for i in $(seq 1 $NB_REPETITIONS); do
-        args+=("just _docker_campain {{variation}}_{{suffix}}_$i auction_{{variation}}_no-telemetry $tempdir")
+        args+=("just _docker_campain {{suffix}}_$i $tempdir")
     done
     
     mprocs "${args[@]}"
@@ -222,7 +259,8 @@ build_required_images user:
     #!/usr/bin/env bash
     set -e
     
-    TAGS=(${FOG_NODE_IMAGE_TAGS// / })
+    # TAGS=(${FOG_NODE_IMAGE_TAGS// / })
+    echo $FOG_NODE_IMAGE_TAGS
     cd $MANAGER_PATH
     nix develop -c just ghcr {{user}} $FOG_NODE_IMAGE_TAGS
     cd {{justfile_directory()}}

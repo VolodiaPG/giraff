@@ -802,6 +802,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
+name = "fast-math"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2465292146cdfc2011350fe3b1c616ac83cf0faeedb33463ba1c332ed8948d66"
+dependencies = [
+ "ieee754",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -837,6 +846,7 @@ dependencies = [
  "bytes",
  "chrono",
  "dashmap 5.4.0",
+ "fast-math",
  "futures",
  "helper",
  "helper_derive",
@@ -851,6 +861,7 @@ dependencies = [
  "mimalloc",
  "model",
  "num-traits",
+ "nutype 0.3.1",
  "openfaas",
  "opentelemetry 0.18.0",
  "opentelemetry-jaeger",
@@ -1091,7 +1102,7 @@ dependencies = [
  "lazy-regex",
  "lazy_static",
  "num-traits",
- "nutype",
+ "nutype 0.2.0",
  "regex",
  "reqwest",
  "reqwest-middleware",
@@ -1274,6 +1285,12 @@ dependencies = [
  "unicode-bidi",
  "unicode-normalization",
 ]
+
+[[package]]
+name = "ieee754"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9007da9cacbd3e6343da136e98b0d2df013f553d35bdec8b518f07bea768e19c"
 
 [[package]]
 name = "indexmap"
@@ -1793,7 +1810,7 @@ dependencies = [
  "helper",
  "lazy-regex",
  "lazy_static",
- "nutype",
+ "nutype 0.2.0",
  "ron",
  "serde",
  "serde_json",
@@ -1894,7 +1911,16 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "060a7fdadbae85c7063375e8fb9dd88c9ac336a22d1f0eb2fefd53dbf98edcb5"
 dependencies = [
- "nutype_macros",
+ "nutype_macros 0.2.0",
+]
+
+[[package]]
+name = "nutype"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ae1c26994c543093dea62dc235aba699a8ea1ba5bcab09449a757449a643a91"
+dependencies = [
+ "nutype_macros 0.3.1",
 ]
 
 [[package]]
@@ -1906,6 +1932,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "nutype_macros"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f23758ee2f73e58d93bad0e422ed9cbb9a9609797c2ee3b27f8c1537b38a2ca"
+dependencies = [
+ "proc-macro2",
+ "quote",
  "syn 1.0.109",
 ]
 

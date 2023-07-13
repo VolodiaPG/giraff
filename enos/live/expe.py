@@ -6,6 +6,17 @@ import random
 import aiohttp
 from alive_progress import alive_bar
 
+
+def random(min, max):
+    # Generate a random number of nbytes
+    random_number = os.urandom(4)
+
+    # Convert the bytes to an integer
+    random_integer = int.from_bytes(random_number, byteorder="big")
+
+    return (random_integer % (max - min + 1)) + min
+
+
 for k, v in os.environ.items():
     if k in ["TARGET_NODES", "IOT_IP", "MARKET_LOCAL_PORT", "IOT_LOCAL_PORT"]:
         print(f"{k}={v}")
@@ -15,16 +26,28 @@ IOT_IP = os.getenv("IOT_IP")
 MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
 IOT_LOCAL_PORT = int(os.getenv("IOT_LOCAL_PORT", 3003))
 
-FUNCTION_MEMORY_REQ_INTERVAL_LOW = int(
+FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY = int(
     os.getenv("FUNCTION_MEMORY_REQ_INTERVAL_LOW", 100)
 )  # MiB
-FUNCTION_CPU_REQ_INTERVAL_LOW = int(
+FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY = int(
     os.getenv("FUNCTION_CPU_REQ_INTERVAL_LOW", 500)
 )  # Millicpu
-FUNCTION_MEMORY_REQ_INTERVAL_HIGH = int(
+FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY = int(
     os.getenv("FUNCTION_MEMORY_REQ_INTERVAL_HIGH", 50)
 )  # MiB
-FUNCTION_CPU_REQ_INTERVAL_HIGH = int(
+FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY = int(
+    os.getenv("FUNCTION_CPU_REQ_INTERVAL_HIGH", 50)
+)  # Millicpu
+FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY = int(
+    os.getenv("FUNCTION_MEMORY_REQ_INTERVAL_LOW", 100)
+)  # MiB
+FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY = int(
+    os.getenv("FUNCTION_CPU_REQ_INTERVAL_LOW", 500)
+)  # Millicpu
+FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY = int(
+    os.getenv("FUNCTION_MEMORY_REQ_INTERVAL_HIGH", 50)
+)  # MiB
+FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY = int(
     os.getenv("FUNCTION_CPU_REQ_INTERVAL_HIGH", 50)
 )  # Millicpu
 
@@ -76,10 +99,10 @@ function_latencies = []
 for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY):
     function_latencies.append(
         (
-            random.randint(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
+            random(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
             HIGH_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_HIGH,
-            FUNCTION_CPU_REQ_INTERVAL_HIGH,
+            FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY,
+            FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY,
             "low",
             "high",
         )
@@ -87,10 +110,10 @@ for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY):
 for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY):
     function_latencies.append(
         (
-            random.randint(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
+            random(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
             LOW_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_LOW,
-            FUNCTION_CPU_REQ_INTERVAL_LOW,
+            FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY,
+            FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY,
             "low",
             "low",
         )
@@ -98,10 +121,10 @@ for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY):
 for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY):
     function_latencies.append(
         (
-            random.randint(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
+            random(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
             HIGH_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_HIGH,
-            FUNCTION_CPU_REQ_INTERVAL_HIGH,
+            FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY,
+            FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY,
             "high",
             "high",
         )
@@ -109,10 +132,10 @@ for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY):
 for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY):
     function_latencies.append(
         (
-            random.randint(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
+            random(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
             LOW_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_LOW,
-            FUNCTION_CPU_REQ_INTERVAL_LOW,
+            FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY,
+            FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY,
             "high",
             "low",
         )
@@ -311,9 +334,7 @@ async def main():
                     latency_type,
                     request_interval_type,
                 ) = function
-                sleep_before_start = random.randint(
-                    0, FUNCTION_RESERVATION_FINISHES_AFTER
-                )
+                sleep_before_start = random(0, FUNCTION_RESERVATION_FINISHES_AFTER)
 
                 tasks.append(
                     asyncio.create_task(

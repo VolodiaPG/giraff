@@ -21,7 +21,7 @@
     };
     jupyenv = {
       url = "github:tweag/jupyenv";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
   };
 
@@ -147,6 +147,8 @@
               experiments
               poetry
               ruff
+              black
+              mprocs
             ]);
         };
       }))
@@ -206,23 +208,33 @@
         packages.docker = dockerImage;
       }))
       // flake-utils.lib.eachDefaultSystem (system: let
-        pkgs = nixpkgs.legacyPackages.${system};
+        #   superchargedNixpkgs = nixpkgs-unstable.lib.extendDerivation nixpkgs-unstable.legacyPackages.${nixpkgs-unstable.system} (final: prev: {
+        #   texlive.combined.scheme-medium = prev.texlive.combined.scheme-medium.overrideAttrs (oldAttrs: {
+        #     buildInputs = (oldAttrs.buildInputs or []) ++ [prev.pgf3];
+        #   });
+        # });
+        pkgs = nixpkgs-unstable.legacyPackages.${system};
 
         inherit (pkgs) lib;
 
         inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = export:
           mkJupyterlabNew ({...}: {
-            inherit (inputs) nixpkgs;
+            # inherit (inputs) nixpkgs;
+
+            nixpkgs = nixpkgs-unstable;
             imports = [
               {
                 kernel.r.experiment = {
                   runtimePackages =
-                    []
+                    [pkgs.busybox]
                     ++ nixpkgs.lib.optionals export (with pkgs; [
                       texlive.combined.scheme-full
                       pgf3
-                    ]);
+                    ])
+                    ++ outputs.devShells.${system}.default.buildInputs
+                    ++ outputs.devShells.${system}.default.nativeBuildInputs
+                    ++ outputs.devShells.${system}.default.propagatedBuildInputs;
                   enable = true;
                   name = "faas_fog";
                   displayName = "faas_fog";
@@ -256,6 +268,11 @@
                         lemon
                         ggprism
                         ggh4x
+                        tibbletime
+                        snakecase
+
+                        doParallel
+                        foreach
 
                         gifski
                         future_apply

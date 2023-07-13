@@ -46,7 +46,7 @@ in {
   };
 
   services.grafana = {
-    enable = true;
+    enable = false;
     #   addr = "0.0.0.0";
     settings.server.http_port = 9030;
     settings.server.http_addr = "0.0.0.0";

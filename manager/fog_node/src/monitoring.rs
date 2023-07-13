@@ -85,6 +85,8 @@ struct NeighborLatency {
     interquartile_range: f64,
     #[influxdb(tag)]
     instance_to:         String,
+    #[influxdb(tag)]
+    instance_address:    String,
 }
 
 /// Number of provisioned functions
