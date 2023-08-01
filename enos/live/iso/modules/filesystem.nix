@@ -3,9 +3,9 @@
     inputs.impermanence.nixosModules.impermanence
   ];
   fileSystems."/" = {
-    device = "tmpfs";
+    device = "none";
     fsType = "tmpfs";
-    options = ["relatime" "size=2G" "mode=755"]; # mode=755 so only root can write to those files
+    options = ["defaults" "relatime" "size=2G" "mode=755"]; # mode=755 so only root can write to those files
   };
 
   fileSystems."/nix" = {
@@ -34,11 +34,15 @@
       "/root"
     ];
     files = [
+      # Preserve influxdb login informations as created initially in Nix
       "/etc/influxdb/influxdb.conf"
       "/var/lib/influxdb2/influxd.bolt"
       "/var/lib/influxdb2/influxd.sqlite"
-      #   "/etc/cloud/cloud-init.disabled"
-      #   "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
+      # Preserve ssh info
+      # "/etc/ssh/ssh_host_rsa_key"
+      # "/etc/ssh/ssh_host_rsa_key.pub"
+      # "/etc/ssh/ssh_host_ed25519_key"
+      # "/etc/ssh/ssh_host_ed25519_key.pub"
     ];
   };
 }

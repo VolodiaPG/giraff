@@ -23,6 +23,7 @@ for k, v in os.environ.items():
 
 TARGET_NODES = os.getenv("TARGET_NODES").split()
 IOT_IP = os.getenv("IOT_IP")
+MARKET_IP = os.getenv("MARKET_IP")
 MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
 IOT_LOCAL_PORT = int(os.getenv("IOT_LOCAL_PORT", 3003))
 
@@ -162,7 +163,7 @@ async def put_request_fog_node(
     docker_fn_name: str,
     function_name: str,
 ):
-    url = f"http://localhost:{MARKET_LOCAL_PORT}/api/function"
+    url = f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/function"
     headers = {"Content-Type": "application/json"}
     data = {
         "sla": {
@@ -194,7 +195,7 @@ async def put_request_iot_emulation(
     request_interval: int,
     duration: int,
 ):
-    url = f"http://localhost:{IOT_LOCAL_PORT}/api/cron"
+    url = f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/cron"
     headers = {"Content-Type": "application/json"}
     data = {
         "iotUrl": f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/print",
@@ -358,5 +359,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    print(f"Using market ({MARKET_IP}) and iot_emulation({IOT_IP})")
     asyncio.run(main())
     print(f"--> Did {successes}, failed to provision {errors} functions.")

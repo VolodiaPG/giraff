@@ -37,15 +37,16 @@ tunnels +FLAGS='':
 endpoints:
 	{{RUN}} integration.py endpoints
 
-_is_connected city_name_node_target market_local_port:
+_is_connected city_name_node_target market_port:
     #!/usr/bin/env bash
-    if [[ $(curl -s "localhost:{{market_local_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
-        echo "✅ {{city_name_node_target}} is connected"
+    market_ip=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
+    if [[ $(curl -s "$market_ip:{{market_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
+        echo "✅ {{city_name_node_target}}@$market_ip is connected"
     else
-        echo "❌ {{city_name_node_target}}"
+        echo "❌ {{city_name_node_target}}@$market_ip"
     fi
 
-is_connected city_name_node_target market_local_port='8088':
+is_connected city_name_node_target market_local_port:
     watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
@@ -74,30 +75,31 @@ _deploy fog_node_image market_image:
     
     wait
 
-expe $IOT_IP $TARGET_NODES:
+expe $IOT_IP $MARKET_IP $TARGET_NODES:
     {{RUN}} expe.py
 
 scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
     NODE_TARGETS=()
+    MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
     for city in {{city_name_node_targets}}; do
         echo "Checking connection to $city"
         until [[ "$(just _is_connected $city $MARKET_LOCAL_PORT)" =~ "✅" ]]; do sleep 10 && echo -e "."; done
-        NODE_TARGETS+=($(curl "localhost:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
+        NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     
     # sleep 30
 
-    just expe $IOT_IP "$joined"
+    just expe $IOT_IP $MARKET_IP "$joined"
     
     sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{archive_name}}"
     {{RUN}} integration.py collect || true
-    just logs --all
+    # just logs --all
 
 scenarii +city_name_node_targets:
     #!/usr/bin/env bash
@@ -140,10 +142,12 @@ scenarii +city_name_node_targets:
         if [ "$INDEX" -eq 0 ]; then
             just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         else
-            # just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
-
-            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
+            || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
+
+        sleep 60
+
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$TAG\" {{city_name_node_targets}}'"
     done
 
@@ -182,20 +186,20 @@ sshconfig:
     #!/usr/bin/env bash
     set -e
     login=$(cat /root/.python-grid5000.yaml | grep 'username: ' | sed 's/username: //')
-    cat <<EOF > /root/.ssh/config
-    Host access.grid5000.fr
-        User $login
-        ControlMaster auto
-        ControlPath /dev/shm/ssh-%h
-        ControlPersist 2h
+# cat <<EOF > /root/.ssh/config
+# Host access.grid5000.fr
+#     User $login
+#     ControlMaster auto
+#     ControlPath /dev/shm/ssh-%h
+#     ControlPersist 2h
 
-    Host !access.grid5000.fr *.grid5000.fr
-        User $login
-        ProxyJump access.grid5000.fr
-        StrictHostKeyChecking no
-        UserKnownHostsFile /dev/null
-        ForwardAgent yes
-    EOF
+# Host !access.grid5000.fr *.grid5000.fr
+#     User $login
+#     ProxyJump access.grid5000.fr
+#     StrictHostKeyChecking no
+#     UserKnownHostsFile /dev/null
+#     ForwardAgent yes
+# EOF
 # ssh "$login@$CLUSTER.grid5000.fr" -c "sleep 999999"&
 
 docker_enos name tempdir cmd="bash":
@@ -224,7 +228,10 @@ docker_enos name tempdir cmd="bash":
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME="{{name}}" \
         --name "{{name}}" \
+        --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
+
+# --cgroup-manager=cgroupfs fix needs to be investigated because ... Linux ?!?
 
 docker_scenarii name tempdir +city_name_node_targets:
     just docker_enos {{name}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
@@ -236,11 +243,11 @@ _docker_campain name tempdir:
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
 
-docker_campain_in_nix suffix:
+docker_campain_in_nix suffix dotenvfile:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
-    cp .env.scenario $tempdir/.env
+    cp {{dotenvfile}} $tempdir/.env
     cp definitions.py $tempdir/definitions.py
     mkdir -p metrics-arks logs
     # Build image before calling it in parrallel as it confuses podman
@@ -270,8 +277,8 @@ build_required_images user:
     cd $FUNCTIONS_PATH
     nix develop -c just faas
 
-docker_campain user variation="valuation_rates" suffix="": (build_required_images user)
-    nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix {{variation}} {{suffix}}
+docker_campain user variation="valuation_rates" dotenvfile=".env": (build_required_images user)
+    nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix "{{variation}}{{dotenvfile}}" {{dotenvfile}}
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes

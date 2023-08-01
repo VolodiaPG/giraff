@@ -1,18 +1,11 @@
 {
   inputs = {
-    srvos = {
-      url = "github:numtide/srvos";
-    };
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.11";
-    nixpkgs.follows = "srvos/nixpkgs";
-    flake-compat = {
-      url = "github:edolstra/flake-compat";
-      flake = false;
-    };
-    alejandra = {
-      url = "github:kamadorueda/alejandra/3.0.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    srvos.url = "github:numtide/srvos";
+    srvos.inputs.nixpkgs.follows = "nixpkgs";
+    flake-compat.url = "github:edolstra/flake-compat";
+    flake-compat.flake = false;
+    alejandra.url = "github:kamadorueda/alejandra/3.0.0";
     impermanence.url = "github:nix-community/impermanence";
     flake-utils.url = "github:numtide/flake-utils";
   };

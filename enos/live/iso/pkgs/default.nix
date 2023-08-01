@@ -8,12 +8,9 @@
   vm-persistence = nixpkgs.lib.nixosSystem {
     inherit (pkgs) system;
     modules = [
+      # inputs.srvos.nixosModules.server
       "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
       "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
-      # inputs.srvos.nixosModules.common
-      # inputs.srvos.nixosModules.server
-      # inputs.srvos.nixosModules.mixins-cloud-init
-      # inputs.srvos.nixosModules.mixins-trusted-nix-caches
       outputs.nixosModules.configuration
       outputs.nixosModules.filesystem
       outputs.nixosModules.init

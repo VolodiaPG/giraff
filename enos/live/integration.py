@@ -18,6 +18,7 @@ import multiprocessing as mp
 import click
 import enoslib as en
 from influxdb_client import InfluxDBClient
+from inspect import isfunction
 from collect import listener, worker
 from definitions import (
     ADJACENCY,
@@ -50,7 +51,6 @@ KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
 TELEGRAF_IMAGE = "ghcr.io/volodiapg/telegraf:latest"
 PROMETHEUS_IMAGE = "ghcr.io/volodiapg/prometheus:latest"
 GRAFANA_IMAGE = "ghcr.io/volodiapg/grafana:latest"
-
 
 def get_aliases(env):
     roles = env["roles"]
@@ -171,6 +171,7 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
+    en.set_config(g5k_auto_jump=False, ansible_forks=32)
 
 
 def gen_vm_conf(node):
@@ -317,6 +318,8 @@ def up(
         NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine
     )
 
+    env["assignations"] = assignations
+
     print(
         f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs"
     )
@@ -368,19 +371,41 @@ def up(
 @cli.command()
 @enostask()
 def restart(env=None):
-    roles = env["roles"]
-    print("Restarting all...")
+    """
+    Restarts the VMs, because they are Stateless NixOS instances, rebooting will umount all tmpfs (aka /) and will reset everything, except some stuff
+    
+    Because of some random shit, it looks like once in a while an instance reboots and then refuses to join back the network, the problem seems to be inside the VM itself
+    To mitigate, it is adviced to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
+    However, precautions have been taken in this function to only reboot one VM at a time per host (though only waiting a small amount of time before passing to the next)
+    """
+    roles = env["roles"]["master"]
+    inv_map = {}
+    layers = []
+    for k, v in env["assignations"].items():
+        inv_map[v] = inv_map.get(v, []) + [k]
+    for k, v in inv_map.items():
+        for ii, el in enumerate(env["roles"][k]):
+            if ii >= len(layers):
+                layers.append([el])
+            else:
+                layers[ii] = layers[ii] + [el]   
 
-    # with actions(roles=roles["master"], gather_facts=False) as p:
-    #     # p.shell("shutdown 0 -r", task_name="[master] Rebooting")
-    #     p.reboot(
-    #         reboot_command="shutdown  0 -r",
-    #         search_paths=["/run/current-system/sw/bin/"],
-    #     )
-    with actions(roles= roles["master"]) as p:
-        p.reboot()
+    for hosts in layers:
+        with actions(roles=hosts, gather_facts=False, strategy="free", background=True) as p:
+            p.wait_for(retries = 5)
+            p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
+            p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
+            sleep(10)
+    # with actions(roles=roles, gather_facts=False, strategy="free", background=True) as p:
+    #     p.wait_for(retries = 5)
+    #     p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
+    #     p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
+    #     sleep(20)
+    sleep(20)
+    en.wait_for(roles=roles, retries=15)
 
-    en.wait_for(roles=roles["master"])
+    with actions(roles=roles, gather_facts=False, strategy="free") as p:
+            p.shell('bash -c "[ ! -f /iwasthere ]"', task_name="Checking if reboot took effect, aka is iwasthere is no more")
 
 
 @cli.command()
@@ -431,8 +456,8 @@ def network(env=None):
                 netem = env["netem"]
                 netem.destroy()
 
-            netem = en.AccurateNetemHTB()
-            # netem = en.NetemHTB()
+            # netem = en.AccurateNetemHTB()
+            netem = en.NetemHTB()
             env["netem"] = netem
             roles = env["roles"]
             # netem = None
@@ -498,7 +523,7 @@ def gen_net(nodes, netem, roles):
         latencies = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            print(f"{node_name} -> {destination} = {latency}")
+            # print(f"{node_name} -> {destination} = {latency}")
             netem.add_constraints(
                 src=roles[node_name],
                 dest=roles[destination],
@@ -640,6 +665,11 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
     )
 
     for name, conf, tier_flavor in confs:
+        pricing_cpu_initial = tier_flavor["pricing_cpu_initial"]
+        pricing_cpu_initial = pricing_cpu_initial() if callable(pricing_cpu_initial) else pricing_cpu_initial
+        pricing_mem_initial = tier_flavor["pricing_mem_initial"]
+        pricing_mem_initial = pricing_mem_initial() if callable(pricing_mem_initial) else pricing_mem_initial
+        
         deployment = FOG_NODE_DEPLOYMENT.format(
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
             # influx_ip=roles["prom_master"][0].address,
@@ -648,13 +678,15 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
             fog_node_image=fog_node_image,
             pricing_cpu=tier_flavor["pricing_cpu"],
             pricing_mem=tier_flavor["pricing_mem"],
+            pricing_cpu_initial=pricing_cpu_initial,
+            pricing_mem_initial=pricing_mem_initial,
             pricing_geolocation=tier_flavor["pricing_geolocation"],
             is_cloud="is_cloud"
             if tier_flavor.get("is_cloud") is not None
             and tier_flavor.get("is_cloud") is True
             else "no_cloud",
         )
-        print(f"Doing name {name}")
+        # print(f"Doing name {name}")
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
     roles[NETWORK["name"]][0].set_extra(
@@ -665,40 +697,22 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
         )
     )
 
-    try:
-        res = en.run_command(
-            "cat << EOF > /tmp/node_conf.yaml\n"
-            "{{ fog_node_deployment }}\n"
-            "EOF\n"
-            "k3s kubectl create -f /tmp/node_conf.yaml",
-            roles=roles["master"],
-            task_name="Deploying fog_node software",
-        )
-        log_cmd(env, [res])
-    except EnosFailedHostsError as err:
-        for host in err.hosts:
-            payload = host.payload
-            print(payload)
-
-    try:
-        res = en.run_command(
-            "cat << EOF > /tmp/market.yaml\n"
-            "{{ market_deployment }}\n"
-            "EOF\n"
-            "k3s kubectl create -f /tmp/market.yaml",
-            roles=roles["market"],
-            task_name="Deploying market software",
-        )
-        log_cmd(env, [res])
-    except EnosFailedHostsError as err:
-        for host in err.hosts:
-            payload = host.payload
-            if "stdout" in payload and payload["stdout"]:
-                print(payload["sdout"])
-            if "stderr" in payload and payload["stderr"]:
-                log.error(payload["stderr"])
-
-    # establish_netem(env)
+    en.run_command(
+        "cat << EOF > /tmp/node_conf.yaml\n"
+        "{{ fog_node_deployment }}\n"
+        "EOF\n"
+        "k3s kubectl create -f /tmp/node_conf.yaml",
+        roles=roles["master"],
+        task_name="Deploying fog_node software",
+    )
+    en.run_command(
+        "cat << EOF > /tmp/market.yaml\n"
+        "{{ market_deployment }}\n"
+        "EOF\n"
+        "k3s kubectl create -f /tmp/market.yaml",
+        roles=roles["market"],
+        task_name="Deploying market software",
+    )
 
 
 @cli.command()
@@ -813,6 +827,7 @@ def collect(address=None, **kwargs):
     pool.apply_async(names, (queue,))
     pool.apply_async(network_shape, (queue,))
     pool.apply_async(network_node_levels, (queue,))
+    pool.apply_async(number_of_functions, (queue,))
 
     jobs = []
     for measurement_name in measurements:
@@ -881,16 +896,17 @@ def logs(env=None, all=False, **kwargs):
 @enostask()
 def do_open_tunnels(env=None, **kwargs):
     roles = env["roles"]
-    open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
+    # open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
     # if "prom_master" in env["roles"]:
     #     open_tunnel(env["roles"]["prom_master"][0].address, 9086, 9086)
-    if "iot_emulation" in roles:
-        open_tunnel(roles["iot_emulation"][0].address, 3003)
+    # if "iot_emulation" in roles:
+    #     open_tunnel(roles["iot_emulation"][0].address, 3003)
 
     env["agent_tunnels"] = list()
     for prom_agent in roles["prom_agent"]:
-        local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)
-        env["agent_tunnels"].append(f"{local_address}:{local_port}")
+        # local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)
+        # env["agent_tunnels"].append(f"{local_address}:{local_port}")
+        env["agent_tunnels"].append(f"{prom_agent.address}:9086")
 
 
 @cli.command()
@@ -901,26 +917,26 @@ def do_open_tunnels(env=None, **kwargs):
 )
 def tunnels(command=None, **kwargs):
     """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
-    procs = []
-    try:
-        do_open_tunnels()
+    # procs = []
+    # try:
+    do_open_tunnels()
 
-        if command is not None:
-            pro = subprocess.Popen(
-                command,
-                shell=True,
-                preexec_fn=os.setsid,
-            )
-            pro.wait()
-        else:
-            sleep(1)
-            print("Press Enter to kill.")
-            input()
-    finally:
-        for pro in procs:
-            os.killpg(
-                os.getpgid(pro.pid), signal.SIGTERM
-            )  # Send the signal to all the process groups
+    if command is not None:
+        pro = subprocess.Popen(
+            command,
+            shell=True,
+            preexec_fn=os.setsid,
+        )
+        pro.wait()
+    else:
+        sleep(1)
+        print("Press Enter to kill.")
+        input()
+    # finally:
+    #     for pro in procs:
+    #         os.killpg(
+    #             os.getpgid(pro.pid), signal.SIGTERM
+    #         )  # Send the signal to all the process groups
 
 
 @cli.command()
@@ -935,6 +951,14 @@ def endpoints(env=None, **kwargs):
 
     print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
+
+@cli.command()
+@enostask()
+def market_ip(env=None, **kwargs):
+    """List the address of the end-nodes in the Fog network"""
+    role = env["roles"]["market"][0]
+    address = role.address
+    print(f"address: {address}")
 
 @cli.command()
 def iot_connections(env=None, **kwargs):
