@@ -1,10 +1,23 @@
 import asyncio
+from dataclasses import dataclass
 import json
 import os
 import random
+import pickle
 
 import aiohttp
 from alive_progress import alive_bar
+
+@dataclass
+class Function:
+    target_node: str
+    mem: int
+    cpu: int
+    latency: int
+    sleep_before_start:int
+    docker_fn_name: str
+    function_name: str
+    request_interval: int
 
 
 def random(min, max):
@@ -21,7 +34,7 @@ for k, v in os.environ.items():
     if k in ["TARGET_NODES", "IOT_IP", "MARKET_LOCAL_PORT", "IOT_LOCAL_PORT"]:
         print(f"{k}={v}")
 
-TARGET_NODES = os.getenv("TARGET_NODES").split()
+TARGET_NODES = os.getenv("TARGET_NODES", "").split()
 IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
 MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
@@ -155,30 +168,23 @@ class AsyncSession:
         await self.session.close()
 
 
-async def put_request_fog_node(
-    target_node: str,
-    mem: int,
-    cpu: int,
-    latency: int,
-    docker_fn_name: str,
-    function_name: str,
-):
+async def put_request_fog_node(function: Function):
     url = f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/function"
     headers = {"Content-Type": "application/json"}
     data = {
         "sla": {
-            "memory": f"{mem} MB",
-            "cpu": f"{cpu} millicpu",
-            "latencyMax": f"{latency} ms",
+            "memory": f"{function.mem} MB",
+            "cpu": f"{function.cpu} millicpu",
+            "latencyMax": f"{function.latency} ms",
             "maxReplica": 1,
             "duration": f"{FUNCTION_RESERVATION_DURATION} seconds",
-            "functionImage": f"ghcr.io/volodiapg/{docker_fn_name}:latest",
-            "functionLiveName": f"{function_name}",
+            "functionImage": f"ghcr.io/volodiapg/{function.docker_fn_name}:latest",
+            "functionLiveName": f"{function.function_name}",
             "dataFlow": [
-                {"from": {"dataSource": f"{target_node}"}, "to": "thisFunction"}
+                {"from": {"dataSource": f"{function.target_node}"}, "to": "thisFunction"}
             ],
         },
-        "targetNode": f"{target_node}",
+        "targetNode": f"{function.target_node}",
     }
     async with AsyncSession() as session:
         async with session.put(url, headers=headers, json=data) as response:
@@ -191,8 +197,7 @@ async def put_request_iot_emulation(
     faas_ip: str,
     faas_port: int,
     function_id: str,
-    function_name: str,
-    request_interval: int,
+    function: Function,
     duration: int,
 ):
     url = f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/cron"
@@ -201,10 +206,10 @@ async def put_request_iot_emulation(
         "iotUrl": f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/print",
         "nodeUrl": f"http://{faas_ip}:{faas_port}/function/fogfn-{function_id}",
         "functionId": function_id,
-        "tag": function_name,
+        "tag": function.function_name,
         "initialWaitMs": FUNCTION_LOAD_STARTS_AFTER * 1000,
         "durationMs": duration * 1000,
-        "intervalMs": request_interval,
+        "intervalMs": function.request_interval,
     }
 
     async with AsyncSession() as session:
@@ -214,45 +219,15 @@ async def put_request_iot_emulation(
             return response, http_code
 
 
-async def register_new_function(
-    target_node: str,
-    index: int,
-    sleep_before_start: int,
-    latency: int,
-    request_interval: int,
-    memory: int,
-    cpu: int,
-    request_interval_type: str,
-    latency_type: str,
-) -> bool:
-    await asyncio.sleep(sleep_before_start)
-
-    docker_fn_name = "echo"
-    function_name = (
-        f"{docker_fn_name}"
-        f"-{index}"
-        f"-{latency}"
-        f"-{cpu}"
-        f"-{memory}"
-        f"-{request_interval_type}"
-        f"-{latency_type}"
-        f"-{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}"
-        f"-{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}"
-    )
+async def register_new_function(function: Function) -> bool:
+    await asyncio.sleep(function.sleep_before_start)
 
     response, code = await asyncio.ensure_future(
-        put_request_fog_node(
-            target_node=target_node,
-            mem=memory,
-            cpu=cpu,
-            latency=latency,
-            docker_fn_name=docker_fn_name,
-            function_name=function_name,
-        )
+        put_request_fog_node(function)
     )
 
     if code == 200:
-        print(f"[{request_interval_type}][{latency_type}] Provisioned {function_name}")
+        # print(f"[{request_interval_type}][{latency_type}] Provisioned {function_name}")
         try:
             data = json.loads(response)
             faas_ip = data["chosen"]["ip"]
@@ -264,16 +239,15 @@ async def register_new_function(
                     faas_ip=faas_ip,
                     faas_port=faas_port,
                     function_id=function_id,
-                    function_name=function_name,
-                    request_interval=request_interval,
+                    function=function,
                     duration=FUNCTION_LOAD_DURATION,
                 )
             )
 
             if code == 200:
-                print(
-                    f"[{request_interval_type}][{latency_type}] Registered cron for {function_name}"
-                )
+                # print(
+                #     f"[{request_interval_type}][{latency_type}] Registered cron for {function_name}"
+                # )
                 return True
         except json.JSONDecodeError:
             pass
@@ -289,29 +263,11 @@ errors = 0
 
 async def do_request_progress(
     bar: any,
-    target_node: str,
-    index: int,
-    sleep_before_start: int,
-    latency: int,
-    request_interval: int,
-    memory: int,
-    cpu: int,
-    request_interval_type: str,
-    latency_type: str,
+    function: Function
 ):
     global successes
     global errors
-    success = await register_new_function(
-        target_node=target_node,
-        index=index,
-        sleep_before_start=sleep_before_start,
-        latency=latency,
-        request_interval=request_interval,
-        memory=memory,
-        cpu=cpu,
-        request_interval_type=request_interval_type,
-        latency_type=latency_type,
-    )
+    success = await register_new_function(function)
     if success:
         successes += 1
     else:
@@ -320,45 +276,80 @@ async def do_request_progress(
     bar()
 
 
-async def main():
-    tasks = []
-    bar_len = len(function_latencies) * len(TARGET_NODES)
-    with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
-        for target_node in TARGET_NODES:
-            index = 0
-            for function in function_latencies:
-                (
-                    latency,
-                    request_interval,
-                    memory,
-                    cpu,
-                    latency_type,
-                    request_interval_type,
-                ) = function
-                sleep_before_start = random(0, FUNCTION_RESERVATION_FINISHES_AFTER)
+async def save_file(filename: str):
+    functions = []
+    for target_node in TARGET_NODES:
+        index = 0
+        for function in function_latencies:
+            (
+                latency,
+                request_interval,
+                memory,
+                cpu,
+                latency_type,
+                request_interval_type,
+            ) = function
+            sleep_before_start = random(0, FUNCTION_RESERVATION_FINISHES_AFTER)
 
+            docker_fn_name = "echo"
+            function_name = (
+                f"{docker_fn_name}"
+                f"-{index}"
+                f"-{latency}"
+                f"-{cpu}"
+                f"-{memory}"
+                f"-{request_interval_type}"
+                f"-{latency_type}"
+                f"-{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}"
+                f"-{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}"
+            )
+
+            functions.append(Function(
+                target_node=target_node,
+                mem=memory,
+                cpu=cpu,
+                latency=latency,
+                function_name=function_name,
+                docker_fn_name=docker_fn_name,
+                request_interval=request_interval,
+                sleep_before_start=sleep_before_start
+            ))
+
+            index += 1
+
+    with open(filename, 'wb') as outp:  # Overwrites any existing file.
+        pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
+
+async def load_file(filename: str):
+    with open(filename, 'rb') as inp:
+        functions = pickle.load(inp)
+        tasks = []
+        bar_len = len(functions)
+        with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
+            for function in functions:
                 tasks.append(
                     asyncio.create_task(
                         do_request_progress(
                             bar=bar,
-                            target_node=target_node,
-                            index=index,
-                            sleep_before_start=sleep_before_start,
-                            latency=latency,
-                            request_interval=request_interval,
-                            memory=memory,
-                            cpu=cpu,
-                            request_interval_type=request_interval_type,
-                            latency_type=latency_type,
+                            function=function
                         )
                     )
                 )
-                index += 1
 
-        await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks)
+
+async def main():
+    if os.getenv("EXPE_SAVE_FILE") is not None:
+        await save_file(os.getenv("EXPE_SAVE_FILE"))
+    elif os.getenv("EXPE_LOAD_FILE") is not None:
+        print(f"Using market ({MARKET_IP}) and iot_emulation({IOT_IP})")
+        await load_file(os.getenv("EXPE_LOAD_FILE"))
+        print(f"--> Did {successes}, failed to provision {errors} functions.")
+
+    else:
+        print("Not EXPE_SAVE_FILE nor EXPE_LOAD_FILE were passed, aborting")
+        return 1
 
 
 if __name__ == "__main__":
-    print(f"Using market ({MARKET_IP}) and iot_emulation({IOT_IP})")
     asyncio.run(main())
-    print(f"--> Did {successes}, failed to provision {errors} functions.")

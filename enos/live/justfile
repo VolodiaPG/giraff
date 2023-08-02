@@ -76,6 +76,7 @@ _deploy fog_node_image market_image:
     wait
 
 expe $IOT_IP $MARKET_IP $TARGET_NODES:
+    EXPE_SAVE_FILE=$EXPE_LOAD_FILE {{RUN}} expe.py
     {{RUN}} expe.py
 
 scenario archive_name +city_name_node_targets:
@@ -204,6 +205,8 @@ sshconfig:
 
 docker_enos name tempdir cmd="bash":
     #!/usr/bin/env bash
+    echo "Generating requests for all subsequent experiments..."
+    # EXPE_SAVE_FILE={{tempdir}}/requests {{RUN}} expe.py
     set -e
     {{DOCKER}} run -it --rm \
         --privileged \
@@ -227,6 +230,7 @@ docker_enos name tempdir cmd="bash":
         -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME="{{name}}" \
+        -e EXPE_LOAD_FILE=/home/enos/requests \
         --name "{{name}}" \
         --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
