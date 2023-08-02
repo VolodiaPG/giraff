@@ -17,3 +17,5 @@ experiment.md
 Untitled*.ipynb
 *.tex
 vroom/
+*.bak
+*.csv
