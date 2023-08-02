@@ -255,9 +255,17 @@ docker_campain_in_nix suffix dotenvfile:
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
 
+    today=$( date +%Y%m%d )
+    number=0
+    fname={{suffix}}-$today.log
+    while [ -e "$fname" ]; do
+        printf -v fname '%s-%02d.log' "{{suffix}}-$today" "$(( ++number ))"
+    done
+
+    mkdir -p campaing_logs
     args=()
     for i in $(seq 1 $NB_REPETITIONS); do
-        args+=("just _docker_campain {{suffix}}_$i $tempdir")
+        args+=("just _docker_campain {{suffix}}_$i $tempdir 2>&1 | tee campaing_logs/$fname")
     done
     
     mprocs "${args[@]}"
