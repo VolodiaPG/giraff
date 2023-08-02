@@ -76,7 +76,6 @@ _deploy fog_node_image market_image:
     wait
 
 expe $IOT_IP $MARKET_IP $TARGET_NODES:
-    EXPE_SAVE_FILE=$EXPE_LOAD_FILE {{RUN}} expe.py
     {{RUN}} expe.py
 
 scenario archive_name +city_name_node_targets:
@@ -91,9 +90,8 @@ scenario archive_name +city_name_node_targets:
     done
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
+    export TARGET_NODE_NAMES="{{city_name_node_targets}}"
     
-    # sleep 30
-
     just expe $IOT_IP $MARKET_IP "$joined"
     
     sleep $WAIT_TIME
@@ -205,8 +203,6 @@ sshconfig:
 
 docker_enos name tempdir cmd="bash":
     #!/usr/bin/env bash
-    echo "Generating requests for all subsequent experiments..."
-    # EXPE_SAVE_FILE={{tempdir}}/requests {{RUN}} expe.py
     set -e
     {{DOCKER}} run -it --rm \
         --privileged \
@@ -223,6 +219,7 @@ docker_enos name tempdir cmd="bash":
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
         -v {{justfile_directory()}}/logs:/home/enos/logs \
         -v {{tempdir}}/.env:/home/enos/.env:ro \
+        -v {{tempdir}}/requests:/home/enos/requests:ro \
         -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
@@ -238,6 +235,8 @@ docker_enos name tempdir cmd="bash":
 # --cgroup-manager=cgroupfs fix needs to be investigated because ... Linux ?!?
 
 docker_scenarii name tempdir +city_name_node_targets:
+    echo "Generating requests for all subsequent experiments..."
+    EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
     just docker_enos {{name}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
 
 _docker_campain name tempdir:

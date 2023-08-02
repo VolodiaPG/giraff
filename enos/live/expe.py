@@ -14,7 +14,7 @@ class Function:
     mem: int
     cpu: int
     latency: int
-    sleep_before_start:int
+    sleep_before_start: int
     docker_fn_name: str
     function_name: str
     request_interval: int
@@ -31,10 +31,14 @@ def random(min, max):
 
 
 for k, v in os.environ.items():
-    if k in ["TARGET_NODES", "IOT_IP", "MARKET_LOCAL_PORT", "IOT_LOCAL_PORT"]:
+    if k in ["TARGET_NODES","TARGET_NODE_NAMES", "IOT_IP", "MARKET_LOCAL_PORT", "IOT_LOCAL_PORT", "EXPE_SAVE_FILE", "EXPE_LOAD_FILE"]:
         print(f"{k}={v}")
 
 TARGET_NODES = os.getenv("TARGET_NODES", "").split()
+TARGET_NODE_NAMES = os.getenv("TARGET_NODE_NAMES", "").split() # Shoud be in the same order than TARGET_NODES
+if len(TARGET_NODES) != 0:
+    assert(len(TARGET_NODES) == len(TARGET_NODE_NAMES))
+
 IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
 MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
@@ -278,7 +282,7 @@ async def do_request_progress(
 
 async def save_file(filename: str):
     functions = []
-    for target_node in TARGET_NODES:
+    for target_node_name in TARGET_NODE_NAMES:
         index = 0
         for function in function_latencies:
             (
@@ -305,7 +309,7 @@ async def save_file(filename: str):
             )
 
             functions.append(Function(
-                target_node=target_node,
+                target_node=target_node_name,
                 mem=memory,
                 cpu=cpu,
                 latency=latency,
@@ -321,12 +325,18 @@ async def save_file(filename: str):
         pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
 
 async def load_file(filename: str):
+    nodes = {}
+    for ii in range(len(TARGET_NODE_NAMES)):
+        nodes[TARGET_NODE_NAMES[ii].replace("'", "")] = TARGET_NODES[ii].replace("'", "")
+    
     with open(filename, 'rb') as inp:
         functions = pickle.load(inp)
         tasks = []
         bar_len = len(functions)
         with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
             for function in functions:
+                # Use the id of the node instead of its name
+                function.target_node = nodes[function.target_node.replace("'", "")]
                 tasks.append(
                     asyncio.create_task(
                         do_request_progress(
