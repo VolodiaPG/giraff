@@ -76,6 +76,59 @@ class ConstantPricing(Pricing):
         return Bid(1.0, node.name)
 
 
+class LinearPricing(Pricing):
+    def __init__(
+        self,
+        slope: float,
+        fog_level: int,
+        max_level: int,
+        max_initial_price: float,
+    ) -> None:
+        self.slope = slope
+        self.initial_price = self.generate_initial_price(
+            fog_level,
+            max_level,
+            max_initial_price,
+        )
+
+    def generate_initial_price(
+        self,
+        location: int,
+        max_location: int,
+        max_initial_price: float,
+    ):
+        # Ensure location is within the valid range (1 to max_location)
+        location = min(max(1, location), max_location)
+
+        # Calculate the base price as an inverse function of location
+        # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
+        base_price = (
+            (1 - max_initial_price) * location + max_location * max_initial_price - 1
+        ) / (
+            max_location - 1
+        )  # to guarantee that price for location=1 is max_price and price for max_location is 1
+        # Add random noise to the base price to create variation
+        noise = (max_initial_price - 1) / (max_location - 1) * 2  # half of the slope
+        random_variation = random.uniform(
+            -noise, noise
+        )  # Adjust the range of variation as needed
+
+        # Calculate the final price by adding random variation to the base price
+        price = base_price + random_variation
+
+        # Ensure the price is within the desired range (1 to max_initial_price )
+        price = min(max(1, price), max_initial_price)
+        return price
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        u1 = node.cores_used / node.cores
+        u2 = (node.cores_used + sla.core) / node.cores
+        integral = (
+            (u2 - u1) * (self.slope * u2 + self.slope * u1 + 2 * self.initial_price) / 2
+        )
+        return Bid(integral, node.name)
+
+
 class AuctionBidRequest(Request):
     def __init__(
         self,
@@ -333,7 +386,7 @@ def submit_function(
     )
 
 
-def init_network(env, latencies, node, parent=None, flat_list={}):
+def init_network_constant_price(env, latencies, node, parent=None, flat_list={}):
     children = node["children"] if "children" in node else []
     fog_node = FogNode(
         env,
@@ -347,7 +400,29 @@ def init_network(env, latencies, node, parent=None, flat_list={}):
     flat_list[node["name"]] = fog_node
 
     for child in children:
-        child, _ = init_network(env, latencies, child, node, flat_list)
+        child, _ = init_network_constant_price(env, latencies, child, node, flat_list)
+        fog_node.add_children(child)
+
+    return fog_node, flat_list
+
+
+def init_network_linear_price(env, latencies, node, parent=None, flat_list={}, level=0):
+    children = node["children"] if "children" in node else []
+    fog_node = FogNode(
+        env,
+        latencies,
+        node["name"],
+        parent,
+        node["flavor"]["reserved_core"],
+        node["flavor"]["reserved_mem"],
+        LinearPricing(1.0, level, 4, 2.0),
+    )
+    flat_list[node["name"]] = fog_node
+
+    for child in children:
+        child, _ = init_network_linear_price(
+            env, latencies, child, node, flat_list, level + 1
+        )
         fog_node.add_children(child)
 
     return fog_node, flat_list
@@ -372,7 +447,8 @@ print("FaaS Fog")
 env = simpy.Environment()
 
 latencies = generate_latencies(NETWORK)
-_first_node, network = init_network(env, latencies, NETWORK)
+# _first_node, network = init_network_constant_price(env, latencies, NETWORK)
+_first_node, network = init_network_linear_price(env, latencies, NETWORK)
 
 marketplace = MarketPlace(env, network, monitoring)
 
