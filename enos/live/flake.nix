@@ -3,27 +3,18 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    poetry2nix = {
-      url = "github:nix-community/poetry2nix";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
-    };
-    pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.nixpkgs-stable.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
-    };
-    alejandra = {
-      url = "github:kamadorueda/alejandra/3.0.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    jupyenv = {
-      url = "github:tweag/jupyenv";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    poetry2nix.url = "github:nix-community/poetry2nix";
+    poetry2nix.inputs.nixpkgs.follows = "nixpkgs";
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    pre-commit-hooks.inputs.nixpkgs.follows = "nixpkgs";
+    pre-commit-hooks.inputs.nixpkgs-stable.follows = "nixpkgs";
+    pre-commit-hooks.inputs.flake-utils.follows = "flake-utils";
+    alejandra.url = "github:kamadorueda/alejandra/3.0.0";
+    alejandra.inputs.nixpkgs.follows = "nixpkgs";
+    jupyenv.url = "github:tweag/jupyenv";
+    jupyenv.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   nixConfig = {
@@ -35,7 +26,7 @@
     with inputs; let
       inherit (self) outputs;
     in
-      nixpkgs-unstable.lib.recursiveUpdate
+      nixpkgs.lib.recursiveUpdate
       (flake-utils.lib.eachDefaultSystem (system: let
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
@@ -185,6 +176,8 @@
         };
         devShells.default = pkgs.mkShell {
           inherit (self.checks.${system}.pre-commit-check) shellHook;
+          # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
+          PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
           packages =
             [poetry2nix.packages.${system}.poetry]
             ++ (with pkgs; [
@@ -256,7 +249,7 @@
         packages.docker = dockerImage;
       }))
       // flake-utils.lib.eachDefaultSystem (system: let
-        pkgs = nixpkgs-unstable.legacyPackages.${system};
+        pkgs = nixpkgs.legacyPackages.${system};
 
         inherit (pkgs) lib;
 

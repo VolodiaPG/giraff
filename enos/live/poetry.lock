@@ -2515,6 +2515,18 @@ testing = ["build[virtualenv]", "filelock (>=3.4.0)", "flake8-2020", "ini2toml[l
 testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (>=2.2)", "jaraco.path (>=3.2.0)", "pytest", "pytest-enabler", "pytest-xdist", "tomli", "virtualenv (>=13.0.0)", "wheel"]
 
 [[package]]
+name = "simpy"
+version = "4.0.2"
+description = "Event discrete, process based simulation for Python."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "simpy-4.0.2-py2.py3-none-any.whl", hash = "sha256:603cdf4299e396c9f16b10806e749decb0d08a7e72e0c26f9eb9762b9bde29cc"},
+    {file = "simpy-4.0.2.tar.gz", hash = "sha256:6d8adc0229df6b02fb7e26dcd1338703b4f4f63f167a5ac2a7213cb80aba4484"},
+]
+
+[[package]]
 name = "six"
 version = "1.16.0"
 description = "Python 2 and 3 compatibility utilities"
@@ -2891,4 +2903,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "dc98a261a89bcbf2d6805bb7b435d30112012b065554a4c02eca9d49d1969566"
+content-hash = "0a9a619caa24a1c29cfc1d417c979d400835ed4eadce009619299ece2c19b267"
