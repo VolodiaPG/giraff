@@ -24,5 +24,7 @@
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix",
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
-    }
+    },
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true
 }

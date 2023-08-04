@@ -300,5 +300,6 @@ sim:
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     export EXPE_SAVE_FILE=./requests 
     export TARGET_NODE_NAMES="${cities[@]}"
+    export RANDOM_SEED=42
     {{RUN}} expe.py
     {{RUN}} simulator.py

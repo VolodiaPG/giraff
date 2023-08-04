@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 import os
 import random
-from typing import List, Tuple, Dict
+from typing import Any, Generator, List, Tuple, Dict
 from alive_progress import alive_bar
 import simpy
 from definitions import NETWORK, gen_net
@@ -12,14 +12,11 @@ import expe
 MS = 1
 SECS = 1000
 
-RANDOM_SEED = 42
 SIM_TIME = expe.FUNCTION_RESERVATION_FINISHES_AFTER * SECS
 
-
-class Request(ABC):
-    @abstractmethod
-    def __call__(self, node: FogNode, caller: str):
-        pass
+RANDOM_SEED = expe.RANDOM_SEED
+if RANDOM_SEED is not None:
+    random.seed(RANDOM_SEED)
 
 
 @dataclass
@@ -58,9 +55,34 @@ class Monitoring:
         self._currently_provisioned = value
 
 
+class Request(ABC):
+    """A visitor pattern driven request. Can act upon a given Fog node in any way desired way"""
+
+    @abstractmethod
+    def __call__(self, node: FogNode, caller: str) -> Any:
+        pass
+
+
+class Pricing(ABC):
+    """A visitor pattern driven cost estimator, from a given SLA"""
+
+    @abstractmethod
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        pass
+
+
+class ConstantPricing(Pricing):
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        return Bid(1.0, node.name)
+
+
 class AuctionBidRequest(Request):
     def __init__(
-        self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
+        self,
+        env,
+        sla: SLA,
+        network: Dict[Tuple[str, str], float],
+        acc_latency=0.0,
     ) -> None:
         super().__init__()
         self.env = env
@@ -69,8 +91,8 @@ class AuctionBidRequest(Request):
         self.network = network
 
     def __call__(self, node: FogNode, caller: str):
-        bids = list()
-        requests = []
+        bids: Any = []
+        requests: List[Any] = []
         for child in node.children + [node.parent] if node.parent is not None else []:
             if child.name == caller:
                 continue
@@ -80,7 +102,10 @@ class AuctionBidRequest(Request):
                     node.send(
                         child,
                         AuctionBidRequest(
-                            self.env, self.sla, self.network, self.acc_latency + delay
+                            self.env,
+                            self.sla,
+                            self.network,
+                            self.acc_latency + delay,
                         ),
                     )
                 )
@@ -94,14 +119,18 @@ class AuctionBidRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            bids.append(Bid(1.0, node.name))
+            bids.append(node.pricing_strat(node, self.sla, self.acc_latency))
 
         return bids
 
 
 class EdgeWardRequest(Request):
     def __init__(
-        self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
+        self,
+        env,
+        sla: SLA,
+        network: Dict[Tuple[str, str], float],
+        acc_latency=0.0,
     ) -> None:
         super().__init__()
         self.env = env
@@ -118,7 +147,7 @@ class EdgeWardRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            bids.append(Bid(1.0, node.name))
+            bids.append(node.pricing_strat(node, self.sla, self.acc_latency))
 
         if len(bids) > 0:
             return bids
@@ -129,7 +158,10 @@ class EdgeWardRequest(Request):
             node.send(
                 parent,
                 EdgeWardRequest(
-                    self.env, self.sla, self.network, self.acc_latency + delay
+                    self.env,
+                    self.sla,
+                    self.network,
+                    self.acc_latency + delay,
                 ),
             )
         )
@@ -149,7 +181,11 @@ class SortableFogNode:
 
 class EdgeFirstRequest(Request):
     def __init__(
-        self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
+        self,
+        env,
+        sla: SLA,
+        network: Dict[Tuple[str, str], float],
+        acc_latency=0.0,
     ) -> None:
         super().__init__()
         self.env = env
@@ -162,9 +198,9 @@ class EdgeFirstRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            return [Bid(1.0, node.name)]
+            return [node.pricing_strat(node, self.sla, self.acc_latency)]
 
-        nodes = []
+        nodes: Any = []
         for child in node.children + [node.parent] if node.parent is not None else []:
             if child.name == caller:
                 continue
@@ -180,7 +216,10 @@ class EdgeFirstRequest(Request):
                 node.send(
                     child,
                     AuctionBidRequest(
-                        self.env, self.sla, self.network, self.acc_latency + delay
+                        self.env,
+                        self.sla,
+                        self.network,
+                        self.acc_latency + delay,
                     ),
                 )
             )
@@ -197,7 +236,7 @@ class ProvisionRequest(Request):
         self.price = price
         self.sla = sla
 
-    def __call__(self, node: FogNode, _caller: str) -> bool:
+    def __call__(self, node: FogNode, _caller: str) -> Any:
         # yield self.env.timeout(0)
         if node.cores_used + self.sla.core > node.cores:
             return False
@@ -227,11 +266,12 @@ class FogNode(object):
         parent: FogNode | None,
         cores: float,
         mem: float,
+        pricing_strat: Pricing,
     ):
         self.env = env
         self.network = network
         self.name = name
-        self.children: list[FogNode] = []
+        self.children: List[FogNode] = []
         self.parent = parent
 
         self.cores = cores
@@ -239,6 +279,8 @@ class FogNode(object):
         self.cores_used = 0.0
         self.mem_used = 0.0
         self.provisioned: List[SLA] = []
+
+        self.pricing_strat = pricing_strat
 
     def add_children(self, node: FogNode):
         node.parent = self
@@ -300,6 +342,7 @@ def init_network(env, latencies, node, parent=None, flat_list={}):
         parent,
         node["flavor"]["reserved_core"],
         node["flavor"]["reserved_mem"],
+        ConstantPricing(),
     )
     flat_list[node["name"]] = fog_node
 
@@ -325,7 +368,6 @@ monitoring = Monitoring()
 
 # Setup and start the simulation
 print("FaaS Fog")
-random.seed(RANDOM_SEED)
 
 env = simpy.Environment()
 

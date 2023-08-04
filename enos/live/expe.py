@@ -6,9 +6,11 @@ import os
 import random
 import pickle
 import sys
+from typing import Any
 
 import aiohttp
 from alive_progress import alive_bar
+
 
 @dataclass
 class Function:
@@ -22,24 +24,42 @@ class Function:
     request_interval: int
 
 
-def random(min, max):
+RANDOM_SEED = os.getenv("RANDOM_SEED")
+if RANDOM_SEED is not None:
+    random.seed(int(RANDOM_SEED))
+
+
+def generate_rand(min, max):
     # Generate a random number of nbytes
-    random_number = os.urandom(4)
+    if RANDOM_SEED is None:
+        random_number = os.urandom(4)
 
-    # Convert the bytes to an integer
-    random_integer = int.from_bytes(random_number, byteorder="big")
+        # Convert the bytes to an integer
+        random_integer = int.from_bytes(random_number, byteorder="big")
 
-    return (random_integer % (max - min + 1)) + min
+        return (random_integer % (max - min + 1)) + min
+
+    return random.randint(min, max)
 
 
 for k, v in os.environ.items():
-    if k in ["TARGET_NODES","TARGET_NODE_NAMES", "IOT_IP", "MARKET_LOCAL_PORT", "IOT_LOCAL_PORT", "EXPE_SAVE_FILE", "EXPE_LOAD_FILE"]:
+    if k in [
+        "TARGET_NODES",
+        "TARGET_NODE_NAMES",
+        "IOT_IP",
+        "MARKET_LOCAL_PORT",
+        "IOT_LOCAL_PORT",
+        "EXPE_SAVE_FILE",
+        "EXPE_LOAD_FILE",
+    ]:
         print(f"{k}={v}")
 
 TARGET_NODES = os.getenv("TARGET_NODES", "").split()
-TARGET_NODE_NAMES = os.getenv("TARGET_NODE_NAMES", "").split() # Shoud be in the same order than TARGET_NODES
+TARGET_NODE_NAMES = os.getenv(
+    "TARGET_NODE_NAMES", ""
+).split()  # Shoud be in the same order than TARGET_NODES
 if len(TARGET_NODES) != 0:
-    assert(len(TARGET_NODES) == len(TARGET_NODE_NAMES))
+    assert len(TARGET_NODES) == len(TARGET_NODE_NAMES)
 
 IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
@@ -119,7 +139,7 @@ function_latencies = []
 for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY):
     function_latencies.append(
         (
-            random(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
+            generate_rand(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
             HIGH_REQ_INTERVAL,
             FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY,
             FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY,
@@ -130,7 +150,7 @@ for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY):
 for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY):
     function_latencies.append(
         (
-            random(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
+            generate_rand(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
             LOW_REQ_INTERVAL,
             FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY,
             FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY,
@@ -141,7 +161,7 @@ for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY):
 for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY):
     function_latencies.append(
         (
-            random(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
+            generate_rand(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
             HIGH_REQ_INTERVAL,
             FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY,
             FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY,
@@ -152,7 +172,7 @@ for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY):
 for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY):
     function_latencies.append(
         (
-            random(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
+            generate_rand(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
             LOW_REQ_INTERVAL,
             FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY,
             FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY,
@@ -187,7 +207,10 @@ async def put_request_fog_node(function: Function):
             "functionImage": f"ghcr.io/volodiapg/{function.docker_fn_name}:latest",
             "functionLiveName": f"{function.function_name}",
             "dataFlow": [
-                {"from": {"dataSource": f"{function.target_node}"}, "to": "thisFunction"}
+                {
+                    "from": {"dataSource": f"{function.target_node}"},
+                    "to": "thisFunction",
+                }
             ],
         },
         "targetNode": f"{function.target_node}",
@@ -228,9 +251,7 @@ async def put_request_iot_emulation(
 async def register_new_function(function: Function) -> bool:
     await asyncio.sleep(function.sleep_before_start)
 
-    response, code = await asyncio.ensure_future(
-        put_request_fog_node(function)
-    )
+    response, code = await asyncio.ensure_future(put_request_fog_node(function))
 
     if code == 200:
         # print(f"[{request_interval_type}][{latency_type}] Provisioned {function_name}")
@@ -267,10 +288,7 @@ successes = 0
 errors = 0
 
 
-async def do_request_progress(
-    bar: any,
-    function: Function
-):
+async def do_request_progress(bar: Any, function: Function):
     global successes
     global errors
     success = await register_new_function(function)
@@ -295,7 +313,7 @@ async def save_file(filename: str):
                 latency_type,
                 request_interval_type,
             ) = function
-            sleep_before_start = random(0, FUNCTION_RESERVATION_FINISHES_AFTER)
+            sleep_before_start = generate_rand(0, FUNCTION_RESERVATION_FINISHES_AFTER)
 
             docker_fn_name = "echo"
             function_name = (
@@ -310,33 +328,39 @@ async def save_file(filename: str):
                 f"-{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}"
             )
 
-            functions.append(Function(
-                target_node=target_node_name,
-                mem=memory,
-                cpu=cpu,
-                latency=latency,
-                function_name=function_name,
-                docker_fn_name=docker_fn_name,
-                request_interval=request_interval,
-                sleep_before_start=sleep_before_start
-            ))
+            functions.append(
+                Function(
+                    target_node=target_node_name,
+                    mem=memory,
+                    cpu=cpu,
+                    latency=latency,
+                    function_name=function_name,
+                    docker_fn_name=docker_fn_name,
+                    request_interval=request_interval,
+                    sleep_before_start=sleep_before_start,
+                )
+            )
 
             index += 1
 
-    with open(filename, 'wb') as outp:  # Overwrites any existing file.
+    with open(filename, "wb") as outp:  # Overwrites any existing file.
         pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
 
+
 def load_functions(filename):
-    sys.modules['__main__'].Function = Function
+    sys.modules["__main__"].Function = Function
     functions = []
-    with open(filename, 'rb') as inp:
+    with open(filename, "rb") as inp:
         functions = pickle.load(inp)
     return functions
+
 
 async def load_file(filename: str):
     nodes = {}
     for ii in range(len(TARGET_NODE_NAMES)):
-        nodes[TARGET_NODE_NAMES[ii].replace("'", "")] = TARGET_NODES[ii].replace("'", "")
+        nodes[TARGET_NODE_NAMES[ii].replace("'", "")] = TARGET_NODES[ii].replace(
+            "'", ""
+        )
     functions = load_functions(filename)
     tasks = []
     bar_len = len(functions)
@@ -345,15 +369,11 @@ async def load_file(filename: str):
             # Use the id of the node instead of its name
             function.target_node = nodes[function.target_node.replace("'", "")]
             tasks.append(
-                asyncio.create_task(
-                    do_request_progress(
-                        bar=bar,
-                        function=function
-                    )
-                )
+                asyncio.create_task(do_request_progress(bar=bar, function=function))
             )
 
         await asyncio.gather(*tasks)
+
 
 async def main():
     if os.getenv("EXPE_SAVE_FILE") is not None:

@@ -187,6 +187,7 @@
               poetry
               ruff
               black
+              mypy
               mprocs
             ]);
         };
