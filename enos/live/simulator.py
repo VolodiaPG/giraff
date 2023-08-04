@@ -1,5 +1,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from dataclasses import dataclass, field
 import os
 import random
@@ -39,9 +40,13 @@ class Bid:
 
 @dataclass
 class Monitoring:
+    # Function number
     _currently_provisioned = 0
     total_provisioned = 0
     total_submitted = 0
+
+    # Costs and earnings
+    earnings: Dict[str, float] = field(default_factory=lambda: defaultdict(lambda: 0.0))
 
     @property
     def currently_provisioned(self):
@@ -356,7 +361,7 @@ class MarketPlace:
         return ret
 
     def auction(self, first_node: str, auction: AuctionBidRequest):
-        bids = yield self.env.process(self.send(first_node, auction))
+        bids: List[Bid] = yield self.env.process(self.send(first_node, auction))
 
         if len(bids) == 0:
             return
@@ -371,6 +376,7 @@ class MarketPlace:
                 ProvisionRequest(env, self.monitoring, auction.sla, price),
             )
         )
+        self.monitoring.earnings[winner.bidder] += winner.bid
         return ret
 
 
@@ -472,3 +478,4 @@ with alive_bar(
 print(
     f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )
+print(f"Earnings: {monitoring.earnings}")
