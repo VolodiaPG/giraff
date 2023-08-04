@@ -293,3 +293,12 @@ docker_campain user variation="valuation_rates" dotenvfile=".env": (build_requir
 
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
+
+sim:
+    #!/usr/bin/env bash
+    export cities=()
+    for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
+    export EXPE_SAVE_FILE=./requests 
+    export TARGET_NODE_NAMES="${cities[@]}"
+    {{RUN}} expe.py
+    {{RUN}} simulator.py

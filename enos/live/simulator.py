@@ -1,36 +1,19 @@
-"""
-Gas Station Refueling example
-
-Covers:
-
-- Resources: Resource
-- Resources: Container
-- Waiting for other processes
-
-Scenario:
-  A gas station has a limited number of gas pumps that share a common
-  fuel reservoir. Cars randomly arrive at the gas station, request one
-  of the fuel pumps and start refueling from that reservoir.
-
-  A gas station control process observes the gas station's fuel level
-  and calls a tank truck for refueling if the station's level drops
-  below a threshold.
-
-"""
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import os
 import random
 from typing import List, Tuple, Dict
 from alive_progress import alive_bar
 import simpy
+from definitions import NETWORK, gen_net
+import expe
 
 MS = 1
 SECS = 1000
 
 RANDOM_SEED = 42
-T_INTER = [1, 1000]  # Interval between car arrivals [min, max] (ms)
-SIM_TIME = 1000 * SECS  # Simulation time (milliseconds)
+SIM_TIME = expe.FUNCTION_RESERVATION_FINISHES_AFTER * SECS
 
 
 class Request(ABC):
@@ -57,6 +40,24 @@ class Bid:
         self.sort_index = self.bid
 
 
+@dataclass
+class Monitoring:
+    _currently_provisioned = 0
+    total_provisioned = 0
+    total_submitted = 0
+
+    @property
+    def currently_provisioned(self):
+        return self._currently_provisioned
+
+    @currently_provisioned.setter
+    def currently_provisioned(self, value):
+        diff = value - self._currently_provisioned
+        if diff > 0:
+            self.total_provisioned += diff
+        self._currently_provisioned = value
+
+
 class AuctionBidRequest(Request):
     def __init__(
         self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
@@ -69,12 +70,13 @@ class AuctionBidRequest(Request):
 
     def __call__(self, node: FogNode, caller: str):
         bids = list()
+        requests = []
         for child in node.children + [node.parent] if node.parent is not None else []:
             if child.name == caller:
                 continue
             delay = self.network[(node.name, child.name)]
             if delay + self.acc_latency <= self.sla.latency:
-                req = yield env.process(
+                req = env.process(
                     node.send(
                         child,
                         AuctionBidRequest(
@@ -82,12 +84,110 @@ class AuctionBidRequest(Request):
                         ),
                     )
                 )
-                bids.extend(req)
+                requests.append(req)
 
-        if node.cores_used + self.sla.core <= node.cores:
+        for req in requests:
+            req = yield req
+            bids.extend(req)
+
+        if (
+            node.cores_used + self.sla.core <= node.cores
+            and node.mem_used + self.sla.mem <= node.mem
+        ):
             bids.append(Bid(1.0, node.name))
 
         return bids
+
+
+class EdgeWardRequest(Request):
+    def __init__(
+        self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
+    ) -> None:
+        super().__init__()
+        self.env = env
+        self.acc_latency = acc_latency
+        self.sla = sla
+        self.network = network
+
+    def __call__(self, node: FogNode, caller: str):
+        bids = list()
+        if node.parent is None:
+            return []
+
+        if (
+            node.cores_used + self.sla.core <= node.cores
+            and node.mem_used + self.sla.mem <= node.mem
+        ):
+            bids.append(Bid(1.0, node.name))
+
+        if len(bids) > 0:
+            return bids
+
+        parent = node.parent
+        delay = self.network[(node.name, parent.name)]
+        req = yield env.process(
+            node.send(
+                parent,
+                EdgeWardRequest(
+                    self.env, self.sla, self.network, self.acc_latency + delay
+                ),
+            )
+        )
+
+        return req
+
+
+@dataclass(order=True)
+class SortableFogNode:
+    sort_index: float = field(init=False)
+    node: FogNode
+    latency: float
+
+    def __post_init__(self):
+        self.sort_index = self.latency
+
+
+class EdgeFirstRequest(Request):
+    def __init__(
+        self, env, sla: SLA, network: Dict[Tuple[str, str], float], acc_latency=0.0
+    ) -> None:
+        super().__init__()
+        self.env = env
+        self.acc_latency = acc_latency
+        self.sla = sla
+        self.network = network
+
+    def __call__(self, node: FogNode, caller: str):
+        if (
+            node.cores_used + self.sla.core <= node.cores
+            and node.mem_used + self.sla.mem <= node.mem
+        ):
+            return [Bid(1.0, node.name)]
+
+        nodes = []
+        for child in node.children + [node.parent] if node.parent is not None else []:
+            if child.name == caller:
+                continue
+            delay = self.network[(node.name, child.name)]
+            if delay + self.acc_latency <= self.sla.latency:
+                continue
+            nodes.append(SortableFogNode(child, self.acc_latency + delay))
+
+        nodes.sort()
+
+        for node, _ in nodes:
+            req = yield env.process(
+                node.send(
+                    child,
+                    AuctionBidRequest(
+                        self.env, self.sla, self.network, self.acc_latency + delay
+                    ),
+                )
+            )
+            if len(req) != 0:
+                return req
+
+        return []
 
 
 class ProvisionRequest(Request):
@@ -101,11 +201,18 @@ class ProvisionRequest(Request):
         # yield self.env.timeout(0)
         if node.cores_used + self.sla.core > node.cores:
             return False
+        if node.mem_used + self.sla.mem > node.mem:
+            return False
+
         node.cores_used += self.sla.core
+        node.mem_used += self.sla.mem
+
         node.provisioned.append(self.sla)
         monitoring.currently_provisioned += 1
         yield self.env.timeout(self.sla.duration)
+
         node.cores_used -= self.sla.core
+        node.mem_used -= self.sla.mem
         node.provisioned.remove(self.sla)
         monitoring.currently_provisioned -= 1
         return True
@@ -172,47 +279,49 @@ class MarketPlace:
         return ret
 
 
-@dataclass
-class Monitoring:
-    _currently_provisioned = 0
-    total_functions = 0
-    total_nb_functions_provisioned = 0
+def submit_function(
+    env, network, marketplace, function: expe.Function, mon: Monitoring
+):
+    #  CPU is in millicpu
+    sla = SLA(function.mem, function.cpu / 1000, function.latency, 800 * SECS)
+    yield env.timeout(function.sleep_before_start * SECS)
+    mon.total_submitted += 1
+    yield env.process(
+        marketplace.auction(function.target_node, EdgeFirstRequest(env, sla, network))
+    )
 
-    @property
-    def currently_provisioned(self):
-        return self._currently_provisioned
 
-    @currently_provisioned.setter
-    def currently_provisioned(self, value):
-        diff = value - self._currently_provisioned
-        if diff > 0:
-            self.total_nb_functions_provisioned += diff
-        self._currently_provisioned = value
+def init_network(env, latencies, node, parent=None, flat_list={}):
+    children = node["children"] if "children" in node else []
+    fog_node = FogNode(
+        env,
+        latencies,
+        node["name"],
+        parent,
+        node["flavor"]["reserved_core"],
+        node["flavor"]["reserved_mem"],
+    )
+    flat_list[node["name"]] = fog_node
+
+    for child in children:
+        child, _ = init_network(env, latencies, child, node, flat_list)
+        fog_node.add_children(child)
+
+    return fog_node, flat_list
+
+
+def generate_latencies(net):
+    ret = {}
+
+    def gen_network_cb(source, destination, delay):
+        ret[(source, destination)] = delay
+
+    gen_net(net, gen_network_cb)
+
+    return ret
 
 
 monitoring = Monitoring()
-
-
-def submit_function(env, network, marketplace, sla: SLA, mon: Monitoring):
-    yield env.process(marketplace.auction("edge", AuctionBidRequest(env, sla, network)))
-    mon.total_functions += 1
-
-
-def function_generator(env, marketplace, network, mon):
-    """Generate new SLA describing functions that arrive at the marketplace"""
-    while True:
-        yield env.timeout(random.randint(*T_INTER))
-        sla = SLA(200, 0.25, 1 * SECS, 800 * SECS)
-        env.process(submit_function(env, network, marketplace, sla, mon))
-
-
-def function_generator_ll(env, marketplace, network, mon):
-    """Generate new SLA describing functions that arrive at the marketplace"""
-    while True:
-        yield env.timeout(random.randint(*T_INTER))
-        sla = SLA(200, 0.25, 4 * MS, 800 * SECS)
-        env.process(submit_function(env, network, marketplace, sla, mon))
-
 
 # Setup and start the simulation
 print("FaaS Fog")
@@ -220,41 +329,28 @@ random.seed(RANDOM_SEED)
 
 env = simpy.Environment()
 
-latencies = {
-    ("cloud", "teclo"): 3 * MS,
-    ("telco", "cloud"): 3 * MS,
-    ("telco", "edge"): 3 * MS,
-    ("edge", "telco"): 3 * MS,
-    ("cloud", "edge"): 6 * MS,
-    ("edge", "cloud"): 6 * MS,
-}
-
-cloud = FogNode(env, latencies, "cloud", None, 32, 1024 * 128)
-telco = FogNode(env, latencies, "telco", cloud, 8, 1024 * 16)
-edge = FogNode(env, latencies, "edge", telco, 2, 1024 * 4)
-
-cloud.add_children(telco)
-telco.add_children(edge)
-
-network = {"cloud": cloud, "telco": telco, "edge": edge}
+latencies = generate_latencies(NETWORK)
+_first_node, network = init_network(env, latencies, NETWORK)
 
 marketplace = MarketPlace(env, network, monitoring)
 
-env.process(function_generator(env, marketplace, latencies, monitoring))
-env.process(function_generator_ll(env, marketplace, latencies, monitoring))
+functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
+for function in functions:
+    # Use the id of the node instead of its name
+    function.target_node = function.target_node.replace("'", "")
+    env.process(submit_function(env, latencies, marketplace, function, monitoring))
 
 # Execute!
-# env.run(until=SIM_TIME)
 with alive_bar(
     int(SIM_TIME / SECS), title="Simulating...", ctrl_c=False, dual_line=True
 ) as bar:
     for ii in range(SIM_TIME):
         if ii % SECS == 0:
-            bar.text = f"--> Done {monitoring.currently_provisioned}, failed to provision {monitoring.total_functions} functions..."
+            bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
             bar()
         env.run(until=1 + ii)
 
 
 print(
-    f"--> Done {monitoring.total_nb_functions_provisioned}, failed to provision {monitoring.total_functions} functions."
+    f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )

@@ -34,6 +34,7 @@ from definitions import (
     NODE_CONNECTED_NODE,
     adjacency_undirected,
     flatten,
+    gen_net,
 )
 
 # Enable rich logging
@@ -171,7 +172,7 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
-    en.set_config(g5k_auto_jump=False, ansible_forks=32)
+    en.set_config(g5k_auto_jump=False, ansible_forks=200)
 
 
 def gen_vm_conf(node):
@@ -450,20 +451,29 @@ def iot_emulation(env=None, **kwargs):
 @cli.command()
 @enostask()
 def network(env=None):
+        
+
     for i in range(15):
         try:
             if "netem" in env:
                 netem = env["netem"]
                 netem.destroy()
 
-            # netem = en.AccurateNetemHTB()
             netem = en.NetemHTB()
             env["netem"] = netem
             roles = env["roles"]
-            # netem = None
-            # roles = None
+            def add_netem_cb(source, destination, delay):
+                netem.add_constraints(
+                    src=roles[source],
+                    dest=roles[destination],
+                    delay=str(delay) + "ms",  # That's a really bad fix there...
+                    # delay="20ms",
+                    rate="1gbit",
+                    # rate="100mbit",
+                    symmetric=True,
+                )
 
-            gen_net(NETWORK, netem, roles)
+            gen_net(NETWORK, add_netem_cb)
 
             netem.deploy()
             netem.validate()
@@ -474,65 +484,6 @@ def network(env=None):
             else:
                 print(f"Encountered exception: {e}. Retrying in 30 seconds...")
                 time.sleep(30)
-
-
-def gen_net(nodes, netem, roles):
-    adjacency = adjacency_undirected(nodes)
-
-    for name, latency in IOT_CONNECTION:
-        # adjacency[name].append(("iot_emulation", latency))
-        adjacency["iot_emulation"].append((name, latency))
-    # Convert to matrix
-    # Initialize a matrix
-
-    ii = 0
-    positions = {}
-    for name in adjacency.keys():
-        positions[name] = ii
-        ii += 1
-
-    def dijkstra(src: str):
-        # Create a priority queue to store vertices that
-        # are being preprocessed
-        pq = []
-        heapq.heappush(pq, (0, src))
-
-        # Create a vector for distances and initialize all
-        # distances as infinite (INF)
-        dist = defaultdict(lambda: float("inf"))
-        dist[src] = 0
-
-        while pq:
-            # The first vertex in pair is the minimum distance
-            # vertex, extract it from priority queue.
-            # vertex label is stored in second of pair
-            d, u = heapq.heappop(pq)
-
-            # 'i' is used to get all adjacent vertices of a
-            # vertex
-            for v, latency in adjacency[u]:
-                # If there is shorted path to v through u.
-                if dist[v] > dist[u] + latency:
-                    # Updating distance of v
-                    dist[v] = dist[u] + latency
-                    heapq.heappush(pq, (dist[v], v))
-
-        return dist
-
-    for node_name in adjacency.keys():
-        latencies = dijkstra(node_name)  # modifies subtree_cumul
-        for destination in latencies.keys():
-            latency = latencies[destination]
-            # print(f"{node_name} -> {destination} = {latency}")
-            netem.add_constraints(
-                src=roles[node_name],
-                dest=roles[destination],
-                delay=str(latency) + "ms",  # That's a really bad fix there...
-                # delay="20ms",
-                rate="1gbit",
-                # rate="100mbit",
-                symmetric=True,
-            )
 
 
 @cli.command()

@@ -1,5 +1,6 @@
 from collections import defaultdict
 import functools
+import heapq
 import random
 
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
@@ -1328,6 +1329,13 @@ NETWORK = {
 #                             "latency": 10,
 #                             "children": [],
 #                             "iot_connected": 0,
+#                         },
+#                         {
+#                             "name": "node_34",
+#                             "flavor": TIER_4_FLAVOR,
+#                             "latency": 5,
+#                             "children": [],
+#                             "iot_connected": 0,
 #                         }
 #                     ],
 #                 }
@@ -1409,6 +1417,56 @@ def adjacency_undirected(node):
 
     fun(node)
     return ret
+
+def gen_net(nodes, callback):
+    adjacency = adjacency_undirected(nodes)
+
+    for name, latency in IOT_CONNECTION:
+        # adjacency[name].append(("iot_emulation", latency))
+        adjacency["iot_emulation"].append((name, latency))
+    # Convert to matrix
+    # Initialize a matrix
+
+    ii = 0
+    positions = {}
+    for name in adjacency.keys():
+        positions[name] = ii
+        ii += 1
+
+    def dijkstra(src: str):
+        # Create a priority queue to store vertices that
+        # are being preprocessed
+        pq = []
+        heapq.heappush(pq, (0, src))
+
+        # Create a vector for distances and initialize all
+        # distances as infinite (INF)
+        dist = defaultdict(lambda: float("inf"))
+        dist[src] = 0
+
+        while pq:
+            # The first vertex in pair is the minimum distance
+            # vertex, extract it from priority queue.
+            # vertex label is stored in second of pair
+            d, u = heapq.heappop(pq)
+
+            # 'i' is used to get all adjacent vertices of a
+            # vertex
+            for v, latency in adjacency[u]:
+                # If there is shorted path to v through u.
+                if dist[v] > dist[u] + latency:
+                    # Updating distance of v
+                    dist[v] = dist[u] + latency
+                    heapq.heappush(pq, (dist[v], v))
+
+        return dist
+
+    for node_name in adjacency.keys():
+        latencies = dijkstra(node_name)  # modifies subtree_cumul
+        for destination in latencies.keys():
+            latency = latencies[destination]
+            # print(f"{node_name} -> {destination} = {latency}")
+            callback(node_name, destination, latency)
 
 
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))

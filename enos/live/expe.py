@@ -1,9 +1,11 @@
 import asyncio
+from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 import os
 import random
 import pickle
+import sys
 
 import aiohttp
 from alive_progress import alive_bar
@@ -324,29 +326,34 @@ async def save_file(filename: str):
     with open(filename, 'wb') as outp:  # Overwrites any existing file.
         pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
 
+def load_functions(filename):
+    sys.modules['__main__'].Function = Function
+    functions = []
+    with open(filename, 'rb') as inp:
+        functions = pickle.load(inp)
+    return functions
+
 async def load_file(filename: str):
     nodes = {}
     for ii in range(len(TARGET_NODE_NAMES)):
         nodes[TARGET_NODE_NAMES[ii].replace("'", "")] = TARGET_NODES[ii].replace("'", "")
-    
-    with open(filename, 'rb') as inp:
-        functions = pickle.load(inp)
-        tasks = []
-        bar_len = len(functions)
-        with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
-            for function in functions:
-                # Use the id of the node instead of its name
-                function.target_node = nodes[function.target_node.replace("'", "")]
-                tasks.append(
-                    asyncio.create_task(
-                        do_request_progress(
-                            bar=bar,
-                            function=function
-                        )
+    functions = load_functions(filename)
+    tasks = []
+    bar_len = len(functions)
+    with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
+        for function in functions:
+            # Use the id of the node instead of its name
+            function.target_node = nodes[function.target_node.replace("'", "")]
+            tasks.append(
+                asyncio.create_task(
+                    do_request_progress(
+                        bar=bar,
+                        function=function
                     )
                 )
+            )
 
-            await asyncio.gather(*tasks)
+        await asyncio.gather(*tasks)
 
 async def main():
     if os.getenv("EXPE_SAVE_FILE") is not None:
