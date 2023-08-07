@@ -19,7 +19,7 @@ SECS = 1000
 SIM_TIME = expe.FUNCTION_RESERVATION_FINISHES_AFTER * SECS
 
 RANDOM_SEED = expe.RANDOM_SEED
-if RANDOM_SEED is not None:
+if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(RANDOM_SEED)
 
 
@@ -356,6 +356,69 @@ class EdgeFirstRequest(Request):
         return []
 
 
+@dataclass
+class FurthestPlacementRequestData:
+    rank: float
+    bid: Bid
+
+
+class FurthestPlacementRequest(Request):
+    def __init__(
+        self,
+        env,
+        sla: SLA,
+        network: Dict[Tuple[str, str], float],
+        acc_latency=0.0,
+    ) -> None:
+        super().__init__()
+        self.env = env
+        self.acc_latency = acc_latency
+        self.sla = sla
+        self.network = network
+
+    def __call__(self, node: FogNode, caller: str):
+        bids: Any = []
+        requests: List[Any] = []
+        for child in node.children + [node.parent] if node.parent is not None else []:
+            if child.name == caller:
+                continue
+            delay = self.network[(node.name, child.name)]
+            if delay + self.acc_latency <= self.sla.latency:
+                req = env.process(
+                    node.send(
+                        child,
+                        FurthestPlacementRequest(
+                            self.env,
+                            self.sla,
+                            self.network,
+                            self.acc_latency + delay,
+                        ),
+                    )
+                )
+                requests.append(req)
+
+        for req in requests:
+            req = yield req
+            bids.extend(req)
+
+        if (
+            node.cores_used + self.sla.core <= node.cores
+            and node.mem_used + self.sla.mem <= node.mem
+        ):
+            bids.append(
+                FurthestPlacementRequestData(
+                    LEVELS.get(node.name),
+                    node.pricing_strat(node, self.sla, self.acc_latency),
+                )
+            )
+
+        if caller == "":  # First call
+            bids = sorted(bids, key=lambda x: x.rank)
+            return [bids[0].bid] if len(bids) > 0 else []
+
+        return bids
+
+
 class ProvisionRequest(Request):
     def __init__(self, env, monitoring: Monitoring, sla: SLA, price: float) -> None:
         super().__init__()
@@ -528,6 +591,7 @@ placement_strategy = choose_from(
         "auction": AuctionBidRequest,
         "edge_first": EdgeFirstRequest,
         "edge_ward": EdgeWardRequest,
+        "furthest": FurthestPlacementRequest,
     },
 )
 
@@ -553,7 +617,6 @@ latencies = generate_latencies(NETWORK)
 _first_node, network = init_network(env, latencies, NETWORK, pricing_strategy)
 
 marketplace = MarketPlace(env, network, monitoring)
-
 
 functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:

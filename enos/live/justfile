@@ -294,13 +294,12 @@ docker_campain user variation="valuation_rates" dotenvfile=".env": (build_requir
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
-sim methods="auction edge_ward edge_first" pricing="constant linear same":
+sim methods="auction edge_ward edge_first" pricing="constant linear same" $RANDOM_SEED="":
     #!/usr/bin/env bash
     export cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     export EXPE_SAVE_FILE=./requests 
     export TARGET_NODE_NAMES="${cities[@]}"
-    export RANDOM_SEED=42
     {{RUN}} expe.py
     # methods=(${ {{methods}}// / })
     # pricing=(${ {{pricing}}// / })

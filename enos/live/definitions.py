@@ -281,20 +281,26 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
 MAX_LOCATION = 4
 MAX_INITIAL_PRICE = 2
 SLOPE = 1
+
+
 def pricing(location):
     location = min(max(1, location), MAX_LOCATION)
-    base_price = MAX_INITIAL_PRICE - (MAX_INITIAL_PRICE * (location - 1) / (MAX_LOCATION - 1))
-    
+    base_price = MAX_INITIAL_PRICE - (
+        MAX_INITIAL_PRICE * (location - 1) / (MAX_LOCATION - 1)
+    )
+
     random_variation = random.uniform(-5, 5)  # Adjust the range of variation as needed
 
     price = base_price + random_variation
 
-    price = min(max(1, price), MAX_INITIAL_PRICE )
-    
+    price = min(max(1, price), MAX_INITIAL_PRICE)
+
     return price
+
 
 def generate_initial_pricing(location):
     return functools.partial(pricing, location)
+
 
 TIER_4_FLAVOR = {
     "core": 2,
@@ -1417,6 +1423,7 @@ def adjacency_undirected(node):
 
     fun(node)
     return ret
+
 
 def gen_net(nodes, callback):
     adjacency = adjacency_undirected(nodes)

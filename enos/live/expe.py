@@ -25,7 +25,7 @@ class Function:
 
 
 RANDOM_SEED = os.getenv("RANDOM_SEED")
-if RANDOM_SEED is not None:
+if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
 
 
