@@ -440,6 +440,9 @@ monitoring = Monitoring()
 # Setup and start the simulation
 print("FaaS Fog")
 
+max_level = 0
+for level in LEVELS.values():
+    max_level = max(max_level, level)
 
 placement_strategy = choose_from(
     "PLACEMENT_STRATEGY",
@@ -455,7 +458,9 @@ pricing_strategy = choose_from(
     {
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
-        "linear": functools.partial(lambda level: LinearPricing(1.0, level, 3, 2.0)),
+        "linear": functools.partial(
+            lambda level: LinearPricing(1.0, level, max_level, 2.0)
+        ),
     },
 )
 
@@ -490,9 +495,6 @@ print(
     f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )
 
-max_level = 0
-for level in LEVELS.values():
-    max_level = max(max_level, level)
 earnings = [0] * (max_level + 1)
 provisioned = [0] * (max_level + 1)
 count = [0] * (max_level + 1)
