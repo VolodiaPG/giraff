@@ -459,7 +459,7 @@ pricing_strategy = choose_from(
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
         "linear": functools.partial(
-            lambda level: LinearPricing(1.0, level, max_level, 2.0)
+            lambda level: LinearPricing(4.0, level, max_level, 20.0)
         ),
     },
 )
@@ -499,12 +499,13 @@ earnings = [0] * (max_level + 1)
 provisioned = [0] * (max_level + 1)
 count = [0] * (max_level + 1)
 
+
 for node, level in LEVELS.items():
     earnings[level] += monitoring.earnings[node]
     provisioned[level] += monitoring.provisioned[node]
     count[level] += 1
 
-for ii in range(max_level):
+for ii in range(max_level + 1):
     print(
         f"Lvl {ii} ({count[ii]} nodes): {earnings[ii]/count[ii]:0.2f}€ for {provisioned[ii]/count[ii]:0.2f} func"
     )
