@@ -10,6 +10,7 @@ from alive_progress import alive_bar
 import simpy
 from definitions import LEVELS, NETWORK, gen_net
 import expe
+import scipy.integrate as integrate
 
 MS = 1
 SECS = 1000
@@ -117,13 +118,91 @@ class LinearPricing(Pricing):
         price = min(max(1, price), max_initial_price)
         return price
 
+    # def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    #     u1 = node.cores_used / node.cores
+    #     u2 = (node.cores_used + sla.core) / node.cores
+    #     integral = (
+    #         (u2 - u1) * (self.slope * u2 + self.slope * u1 + 2 * self.initial_price) / 2
+    #     )
+    #     return Bid(integral, node.name)
+
+    def price(self, utilization):
+        # return self.slope * utilization
+        return self.initial_price + self.slope * utilization
+
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
-        u1 = node.cores_used / node.cores
-        u2 = (node.cores_used + sla.core) / node.cores
-        integral = (
-            (u2 - u1) * (self.slope * u2 + self.slope * u1 + 2 * self.initial_price) / 2
+        price, _ = integrate.quad(
+            self.price,
+            (node.cores_used) / node.cores,
+            (node.cores_used + sla.core) / node.cores,
         )
-        return Bid(integral, node.name)
+        return Bid(price, node.name)
+
+
+class LinearPerPartPricing(Pricing):
+    def __init__(
+        self,
+        slopes: List[float],
+        breaking_points: List[float],
+        fog_level: int,
+        max_level: int,
+        max_initial_price: float,
+    ) -> None:
+        assert len(slopes) == len(breaking_points) + 1
+        assert len(breaking_points) != 0
+        self.slopes = slopes
+        self.breaking_points = breaking_points
+        self.initial_price = self.generate_initial_price(
+            fog_level,
+            max_level,
+            max_initial_price,
+        )
+
+    def generate_initial_price(
+        self,
+        location: int,
+        max_location: int,
+        max_initial_price: float,
+    ):
+        # Ensure location is within the valid range (1 to max_location)
+        location = min(max(1, location), max_location - location)
+
+        # Calculate the base price as an inverse function of location
+        # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
+        base_price = (
+            (1 - max_initial_price) * location + max_location * max_initial_price - 1
+        ) / (
+            max_location - 1
+        )  # to guarantee that price for location=1 is max_price and price for max_location is 1
+        # Add random noise to the base price to create variation
+        noise = (max_initial_price - 1) / (max_location - 1) * 2  # half of the slope
+        random_variation = random.uniform(
+            -noise, noise
+        )  # Adjust the range of variation as needed
+
+        # Calculate the final price by adding random variation to the base price
+        price = base_price + random_variation
+
+        # Ensure the price is within the desired range (1 to max_initial_price )
+        price = min(max(1, price), max_initial_price)
+        return price
+
+    def price(self, utilization):
+        slope_ii = 0
+        for ii, break_point in enumerate(self.breaking_points):
+            if utilization <= break_point:
+                break
+            slope_ii = ii + 1
+        # return self.slopes[slope_ii] * utilization
+        return self.initial_price + self.slopes[slope_ii] * utilization
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        return Bid(price, node.name)
 
 
 class AuctionBidRequest(Request):
@@ -459,7 +538,12 @@ pricing_strategy = choose_from(
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
         "linear": functools.partial(
-            lambda level: LinearPricing(4.0, level, max_level, 20.0)
+            lambda level: LinearPricing(8.0, level, max_level, 20.0)
+        ),
+        "linear_part": functools.partial(
+            lambda level: LinearPerPartPricing(
+                [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 20.0
+            )
         ),
     },
 )
@@ -506,6 +590,9 @@ for node, level in LEVELS.items():
     count[level] += 1
 
 for ii in range(max_level + 1):
+    mean_gain_node = earnings[ii] / count[ii]
+    mean_nb_func = provisioned[ii] / count[ii]
+    mean_gain_per_func = mean_gain_node / mean_nb_func if mean_nb_func != 0 else 0.0
     print(
-        f"Lvl {ii} ({count[ii]} nodes): {earnings[ii]/count[ii]:0.2f}€ for {provisioned[ii]/count[ii]:0.2f} func"
+        f"Lvl {ii} ({count[ii]} nodes): {mean_gain_node:0.2f}€ for {mean_nb_func:0.2f} func -> {mean_gain_per_func:0.2f}€/func"
     )

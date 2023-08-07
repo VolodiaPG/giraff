@@ -174,8 +174,12 @@
             };
           };
         };
-        devShells.default = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
+        devShells.default = let 
+        venv = outputs.packages.${system}.experiments;
+        in pkgs.mkShell {
+          shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
+            ln -sfT ${venv} ./.venv
+          '';
           # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
           PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
           packages =

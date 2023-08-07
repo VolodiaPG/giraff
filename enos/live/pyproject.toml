@@ -6,16 +6,17 @@ authors = ["Volodia PAROL-GUARINO <volodia.parol-guarino@proton.me>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4.0"
+python = "~3.11"
 # enoslib = { git = "https://gitlab.inria.fr/vparolgu/enoslib.git", rev = "f0c3c00a7665c2cff79b63b966f5a56b4b2ead18" }
 enoslib = { git = "https://gitlab.inria.fr/discovery/enoslib.git", rev = "eb9ad3b062f34ff7d3e23a9708188a7e6664bec2" }
-click = "^8.1"
-cryptography = "39"
-alive-progress = "^3.1.1"
-attrs = "^22"
-aiohttp = "^3.8.4"
-influxdb-client = "^1.36.1"
-simpy = "^4.0.2"
+click = "~8.1"
+cryptography = "~39"
+alive-progress = "~3.1"
+attrs = "~22"
+aiohttp = "~3.8"
+influxdb-client = "~1.36"
+simpy = "~4.0"
+scipy = "~1.10"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
