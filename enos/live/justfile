@@ -294,7 +294,7 @@ docker_campain user variation="valuation_rates" dotenvfile=".env": (build_requir
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
-sim:
+sim methods="auction edge_ward edge_first":
     #!/usr/bin/env bash
     export cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
@@ -302,4 +302,4 @@ sim:
     export TARGET_NODE_NAMES="${cities[@]}"
     export RANDOM_SEED=42
     {{RUN}} expe.py
-    {{RUN}} simulator.py
+    parallel --keep-order PLACEMENT_STRATEGY={} {{RUN}} simulator.py ::: {{methods}}

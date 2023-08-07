@@ -189,6 +189,7 @@
               black
               mypy
               mprocs
+              parallel
             ]);
         };
       }))

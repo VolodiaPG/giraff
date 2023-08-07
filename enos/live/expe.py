@@ -42,17 +42,18 @@ def generate_rand(min, max):
     return random.randint(min, max)
 
 
-for k, v in os.environ.items():
-    if k in [
-        "TARGET_NODES",
-        "TARGET_NODE_NAMES",
-        "IOT_IP",
-        "MARKET_LOCAL_PORT",
-        "IOT_LOCAL_PORT",
-        "EXPE_SAVE_FILE",
-        "EXPE_LOAD_FILE",
-    ]:
-        print(f"{k}={v}")
+if __name__ == "__main__":
+    for k, v in os.environ.items():
+        if k in [
+            "TARGET_NODES",
+            "TARGET_NODE_NAMES",
+            "IOT_IP",
+            "MARKET_LOCAL_PORT",
+            "IOT_LOCAL_PORT",
+            "EXPE_SAVE_FILE",
+            "EXPE_LOAD_FILE",
+        ]:
+            print(f"{k}={v}")
 
 TARGET_NODES = os.getenv("TARGET_NODES", "").split()
 TARGET_NODE_NAMES = os.getenv(

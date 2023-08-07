@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 import os
 import random
-from typing import Any, Generator, List, Tuple, Dict
+from typing import Any, List, Tuple, Dict
 from alive_progress import alive_bar
 import simpy
 from definitions import LEVELS, NETWORK, gen_net
@@ -37,23 +37,15 @@ class Bid:
 @dataclass
 class Monitoring:
     # Function number
-    _currently_provisioned = 0
+    currently_provisioned = 0
+    provisioned: Dict[str, float] = field(
+        default_factory=lambda: defaultdict(lambda: 0.0)
+    )
     total_provisioned = 0
     total_submitted = 0
 
     # Costs and earnings
     earnings: Dict[str, float] = field(default_factory=lambda: defaultdict(lambda: 0.0))
-
-    @property
-    def currently_provisioned(self):
-        return self._currently_provisioned
-
-    @currently_provisioned.setter
-    def currently_provisioned(self, value):
-        diff = value - self._currently_provisioned
-        if diff > 0:
-            self.total_provisioned += diff
-        self._currently_provisioned = value
 
 
 class Request(ABC):
@@ -73,8 +65,11 @@ class Pricing(ABC):
 
 
 class ConstantPricing(Pricing):
+    def __init__(self, price) -> None:
+        self.price = price
+
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
-        return Bid(1.0, node.name)
+        return Bid(self.price, node.name)
 
 
 class LinearPricing(Pricing):
@@ -99,7 +94,7 @@ class LinearPricing(Pricing):
         max_initial_price: float,
     ):
         # Ensure location is within the valid range (1 to max_location)
-        location = min(max(1, location), max_location)
+        location = min(max(1, location), max_location - location)
 
         # Calculate the base price as an inverse function of location
         # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
@@ -300,15 +295,18 @@ class ProvisionRequest(Request):
         node.mem_used += self.sla.mem
 
         node.provisioned.append(self.sla)
-        self.monitoring.currently_provisioned += 1
 
+        self.monitoring.currently_provisioned += 1
+        self.monitoring.total_provisioned += 1
         self.monitoring.earnings[node.name] += self.price
+        self.monitoring.provisioned[node.name] += 1
 
         yield self.env.timeout(self.sla.duration)
 
         node.cores_used -= self.sla.core
         node.mem_used -= self.sla.mem
         node.provisioned.remove(self.sla)
+
         self.monitoring.currently_provisioned -= 1
         return True
 
@@ -418,7 +416,8 @@ def init_network_linear_price(env, latencies, node, parent=None, flat_list={}, l
         parent,
         node["flavor"]["reserved_core"],
         node["flavor"]["reserved_mem"],
-        LinearPricing(1.0, level, 4, 2.0),
+        # LinearPricing(2.0, level, 3, 20.0),
+        ConstantPricing(level + 1),
     )
     flat_list[node["name"]] = fog_node
 
@@ -450,10 +449,23 @@ print("FaaS Fog")
 env = simpy.Environment()
 
 latencies = generate_latencies(NETWORK)
-_first_node, network = init_network_constant_price(env, latencies, NETWORK)
-# _first_node, network = init_network_linear_price(env, latencies, NETWORK)
+# _first_node, network = init_network_constant_price(env, latencies, NETWORK)
+_first_node, network = init_network_linear_price(env, latencies, NETWORK)
 
 marketplace = MarketPlace(env, network, monitoring)
+
+placement_strategies = {
+    "auction": AuctionBidRequest,
+    "edge_first": EdgeFirstRequest,
+    "edge_ward": EdgeWardRequest,
+}
+placement_strategy = placement_strategies.get(os.getenv("PLACEMENT_STRATEGY", ""))
+
+if placement_strategy is None:
+    raise Exception(
+        f"One should specify the PLACEMENT_STRATEGY env var to one of {placement_strategies.keys()}"
+    )
+print(f"Using PLACEMENT_STRATEGY {placement_strategy}")
 
 functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:
@@ -461,7 +473,7 @@ for function in functions:
     function.target_node = function.target_node.replace("'", "")
     env.process(
         submit_function(
-            env, latencies, marketplace, function, monitoring, AuctionBidRequest
+            env, latencies, marketplace, function, monitoring, placement_strategy
         )
     )
 
@@ -478,18 +490,19 @@ print(
     f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )
 
-print(monitoring.earnings)
 max_level = 0
 for level in LEVELS.values():
     max_level = max(max_level, level)
 earnings = [0] * (max_level + 1)
+provisioned = [0] * (max_level + 1)
 count = [0] * (max_level + 1)
 
 for node, level in LEVELS.items():
-    print(node, level, monitoring.earnings[node])
     earnings[level] += monitoring.earnings[node]
+    provisioned[level] += monitoring.provisioned[node]
     count[level] += 1
 
 for ii in range(max_level):
-    print(f"Lvl {ii}: {earnings[level]/count[level]}")
-print(earnings)
+    print(
+        f"Lvl {ii} ({count[ii]} nodes): {earnings[ii]/count[ii]:0.2f}€ for {provisioned[ii]/count[ii]:0.2f} func"
+    )
