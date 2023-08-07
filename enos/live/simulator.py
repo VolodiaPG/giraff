@@ -7,6 +7,7 @@ import os
 import random
 from typing import Any, List, Tuple, Dict
 from alive_progress import alive_bar
+import numpy
 import simpy
 from definitions import LEVELS, NETWORK, gen_net
 import expe
@@ -38,16 +39,15 @@ class Bid:
 
 @dataclass
 class Monitoring:
-    # Function number
     currently_provisioned = 0
     provisioned: Dict[str, float] = field(
         default_factory=lambda: defaultdict(lambda: 0.0)
     )
     total_provisioned = 0
     total_submitted = 0
-
-    # Costs and earnings
-    earnings: Dict[str, float] = field(default_factory=lambda: defaultdict(lambda: 0.0))
+    earnings: Dict[str, List[float]] = field(
+        default_factory=lambda: defaultdict(lambda: [])
+    )
 
 
 class Request(ABC):
@@ -373,13 +373,12 @@ class ProvisionRequest(Request):
 
         node.cores_used += self.sla.core
         node.mem_used += self.sla.mem
-
         node.provisioned.append(self.sla)
 
+        self.monitoring.provisioned[node.name] += 1
+        self.monitoring.earnings[node.name].append(self.price)
         self.monitoring.currently_provisioned += 1
         self.monitoring.total_provisioned += 1
-        self.monitoring.earnings[node.name] += self.price
-        self.monitoring.provisioned[node.name] += 1
 
         yield self.env.timeout(self.sla.duration)
 
@@ -579,20 +578,27 @@ print(
     f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )
 
-earnings = [0] * (max_level + 1)
-provisioned = [0] * (max_level + 1)
+earnings: List[List[List[float]]] = [[] for _ in range(max_level + 1)]
+provisioned: List[List[float]] = [[] for _ in range(max_level + 1)]
 count = [0] * (max_level + 1)
 
-
 for node, level in LEVELS.items():
-    earnings[level] += monitoring.earnings[node]
-    provisioned[level] += monitoring.provisioned[node]
+    earnings[level].append(monitoring.earnings[node])
+    provisioned[level].append(monitoring.provisioned[node])
     count[level] += 1
 
+
+def quantile(x, q):
+    if len(x) == 0:
+        return float("nan")
+    return numpy.quantile(x, q)
+
+
 for ii in range(max_level + 1):
-    mean_gain_node = earnings[ii] / count[ii]
-    mean_nb_func = provisioned[ii] / count[ii]
-    mean_gain_per_func = mean_gain_node / mean_nb_func if mean_nb_func != 0 else 0.0
+    earn = functools.reduce(lambda x, y: x + y, earnings[ii])
+    prov = provisioned[ii]
     print(
-        f"Lvl {ii} ({count[ii]} nodes): {mean_gain_node:0.2f}€ for {mean_nb_func:0.2f} func -> {mean_gain_per_func:0.2f}€/func"
+        f"""Lvl {ii} ({count[ii]} nodes):
+    Earnings: tot: {numpy.sum(earn):.2f} med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] avg: {numpy.mean(earn):.2f}
+    Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}"""
     )
