@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
+import functools
 import os
 import random
 from typing import Any, List, Tuple, Dict
@@ -254,7 +255,7 @@ class EdgeFirstRequest(Request):
                 continue
             nodes.append(SortableFogNode(child, self.acc_latency + delay))
 
-        sorted(nodes, key=lambda x: x.latency)
+        nodes = sorted(nodes, key=lambda x: x.latency)
 
         for nodepack in nodes:
             node = nodepack.node
@@ -361,7 +362,7 @@ class MarketPlace:
         if len(bids) == 0:
             return
 
-        sorted(bids, key=lambda x: x.bid)
+        bids = sorted(bids, key=lambda x: x.bid)
 
         winner = bids[0]
         price = bids[1].bid if len(bids) > 1 else bids[0].bid
@@ -387,27 +388,9 @@ def submit_function(
     )
 
 
-def init_network_constant_price(env, latencies, node, parent=None, flat_list={}):
-    children = node["children"] if "children" in node else []
-    fog_node = FogNode(
-        env,
-        latencies,
-        node["name"],
-        parent,
-        node["flavor"]["reserved_core"],
-        node["flavor"]["reserved_mem"],
-        ConstantPricing(),
-    )
-    flat_list[node["name"]] = fog_node
-
-    for child in children:
-        child, _ = init_network_constant_price(env, latencies, child, node, flat_list)
-        fog_node.add_children(child)
-
-    return fog_node, flat_list
-
-
-def init_network_linear_price(env, latencies, node, parent=None, flat_list={}, level=0):
+def init_network(
+    env, latencies, node, pricing_strategy, parent=None, flat_list={}, level=0
+):
     children = node["children"] if "children" in node else []
     fog_node = FogNode(
         env,
@@ -417,13 +400,13 @@ def init_network_linear_price(env, latencies, node, parent=None, flat_list={}, l
         node["flavor"]["reserved_core"],
         node["flavor"]["reserved_mem"],
         # LinearPricing(2.0, level, 3, 20.0),
-        ConstantPricing(level + 1),
+        pricing_strategy(level + 1),
     )
     flat_list[node["name"]] = fog_node
 
     for child in children:
-        child, _ = init_network_linear_price(
-            env, latencies, child, node, flat_list, level + 1
+        child, _ = init_network(
+            env, latencies, child, pricing_strategy, node, flat_list, level + 1
         )
         fog_node.add_children(child)
 
@@ -441,31 +424,48 @@ def generate_latencies(net):
     return ret
 
 
+def choose_from(env_var, mapping):
+    key = os.getenv(env_var, "")
+    ret = mapping.get(key)
+    if ret is None:
+        raise Exception(
+            f"One should specify the {env_var} ({key}) env var to one of {mapping.keys()}"
+        )
+    print(f"Using {env_var} {key} -> {ret}")
+    return ret
+
+
 monitoring = Monitoring()
 
 # Setup and start the simulation
 print("FaaS Fog")
 
+
+placement_strategy = choose_from(
+    "PLACEMENT_STRATEGY",
+    {
+        "auction": AuctionBidRequest,
+        "edge_first": EdgeFirstRequest,
+        "edge_ward": EdgeWardRequest,
+    },
+)
+
+pricing_strategy = choose_from(
+    "PRICING_STRATEGY",
+    {
+        "same": functools.partial(lambda _: ConstantPricing(1.0)),
+        "constant": ConstantPricing,
+        "linear": functools.partial(lambda level: LinearPricing(1.0, level, 3, 2.0)),
+    },
+)
+
 env = simpy.Environment()
 
 latencies = generate_latencies(NETWORK)
-# _first_node, network = init_network_constant_price(env, latencies, NETWORK)
-_first_node, network = init_network_linear_price(env, latencies, NETWORK)
+_first_node, network = init_network(env, latencies, NETWORK, pricing_strategy)
 
 marketplace = MarketPlace(env, network, monitoring)
 
-placement_strategies = {
-    "auction": AuctionBidRequest,
-    "edge_first": EdgeFirstRequest,
-    "edge_ward": EdgeWardRequest,
-}
-placement_strategy = placement_strategies.get(os.getenv("PLACEMENT_STRATEGY", ""))
-
-if placement_strategy is None:
-    raise Exception(
-        f"One should specify the PLACEMENT_STRATEGY env var to one of {placement_strategies.keys()}"
-    )
-print(f"Using PLACEMENT_STRATEGY {placement_strategy}")
 
 functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:
