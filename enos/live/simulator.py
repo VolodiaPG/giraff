@@ -7,7 +7,7 @@ import random
 from typing import Any, Generator, List, Tuple, Dict
 from alive_progress import alive_bar
 import simpy
-from definitions import NETWORK, gen_net
+from definitions import LEVELS, NETWORK, gen_net
 import expe
 
 MS = 1
@@ -30,12 +30,8 @@ class SLA:
 
 @dataclass(order=True)
 class Bid:
-    sort_index: float = field(init=False)
     bid: float
     bidder: str
-
-    def __post_init__(self):
-        self.sort_index = self.bid
 
 
 @dataclass
@@ -229,12 +225,8 @@ class EdgeWardRequest(Request):
 
 @dataclass(order=True)
 class SortableFogNode:
-    sort_index: float = field(init=False)
     node: FogNode
     latency: float
-
-    def __post_init__(self):
-        self.sort_index = self.latency
 
 
 class EdgeFirstRequest(Request):
@@ -263,21 +255,23 @@ class EdgeFirstRequest(Request):
             if child.name == caller:
                 continue
             delay = self.network[(node.name, child.name)]
-            if delay + self.acc_latency <= self.sla.latency:
+            if delay + self.acc_latency > self.sla.latency:
                 continue
             nodes.append(SortableFogNode(child, self.acc_latency + delay))
 
-        nodes.sort()
+        sorted(nodes, key=lambda x: x.latency)
 
-        for node, _ in nodes:
+        for nodepack in nodes:
+            node = nodepack.node
+            delay = nodepack.latency
             req = yield env.process(
                 node.send(
                     child,
-                    AuctionBidRequest(
+                    EdgeFirstRequest(
                         self.env,
                         self.sla,
                         self.network,
-                        self.acc_latency + delay,
+                        delay,
                     ),
                 )
             )
@@ -293,6 +287,7 @@ class ProvisionRequest(Request):
         self.env = env
         self.price = price
         self.sla = sla
+        self.monitoring = monitoring
 
     def __call__(self, node: FogNode, _caller: str) -> Any:
         # yield self.env.timeout(0)
@@ -305,13 +300,16 @@ class ProvisionRequest(Request):
         node.mem_used += self.sla.mem
 
         node.provisioned.append(self.sla)
-        monitoring.currently_provisioned += 1
+        self.monitoring.currently_provisioned += 1
+
+        self.monitoring.earnings[node.name] += self.price
+
         yield self.env.timeout(self.sla.duration)
 
         node.cores_used -= self.sla.core
         node.mem_used -= self.sla.mem
         node.provisioned.remove(self.sla)
-        monitoring.currently_provisioned -= 1
+        self.monitoring.currently_provisioned -= 1
         return True
 
 
@@ -360,35 +358,34 @@ class MarketPlace:
         ret = yield env.process(request(self.network[destination], ""))
         return ret
 
-    def auction(self, first_node: str, auction: AuctionBidRequest):
+    def auction(self, first_node: str, sla: SLA, auction: Request):
         bids: List[Bid] = yield self.env.process(self.send(first_node, auction))
-
         if len(bids) == 0:
             return
 
-        bids.sort()
+        sorted(bids, key=lambda x: x.bid)
+
         winner = bids[0]
         price = bids[1].bid if len(bids) > 1 else bids[0].bid
-
+        # print(winner.bidder)
         ret = yield self.env.process(
             self.send(
                 winner.bidder,
-                ProvisionRequest(env, self.monitoring, auction.sla, price),
+                ProvisionRequest(env, self.monitoring, sla, price),
             )
         )
-        self.monitoring.earnings[winner.bidder] += winner.bid
         return ret
 
 
 def submit_function(
-    env, network, marketplace, function: expe.Function, mon: Monitoring
+    env, network, marketplace, function: expe.Function, mon: Monitoring, strat_type
 ):
     #  CPU is in millicpu
-    sla = SLA(function.mem, function.cpu / 1000, function.latency, 800 * SECS)
+    sla = SLA(function.mem, function.cpu / 1000, function.latency * MS, 800 * SECS)
     yield env.timeout(function.sleep_before_start * SECS)
     mon.total_submitted += 1
     yield env.process(
-        marketplace.auction(function.target_node, EdgeFirstRequest(env, sla, network))
+        marketplace.auction(function.target_node, sla, strat_type(env, sla, network))
     )
 
 
@@ -453,8 +450,8 @@ print("FaaS Fog")
 env = simpy.Environment()
 
 latencies = generate_latencies(NETWORK)
-# _first_node, network = init_network_constant_price(env, latencies, NETWORK)
-_first_node, network = init_network_linear_price(env, latencies, NETWORK)
+_first_node, network = init_network_constant_price(env, latencies, NETWORK)
+# _first_node, network = init_network_linear_price(env, latencies, NETWORK)
 
 marketplace = MarketPlace(env, network, monitoring)
 
@@ -462,20 +459,37 @@ functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:
     # Use the id of the node instead of its name
     function.target_node = function.target_node.replace("'", "")
-    env.process(submit_function(env, latencies, marketplace, function, monitoring))
+    env.process(
+        submit_function(
+            env, latencies, marketplace, function, monitoring, AuctionBidRequest
+        )
+    )
 
 # Execute!
-with alive_bar(
-    int(SIM_TIME / SECS), title="Simulating...", ctrl_c=False, dual_line=True
-) as bar:
+with alive_bar(SIM_TIME, title="Simulating...", ctrl_c=False, dual_line=True) as bar:
     for ii in range(SIM_TIME):
         if ii % SECS == 0:
             bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
-            bar()
+            bar(SECS)
         env.run(until=1 + ii)
 
 
 print(
     f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
 )
-print(f"Earnings: {monitoring.earnings}")
+
+print(monitoring.earnings)
+max_level = 0
+for level in LEVELS.values():
+    max_level = max(max_level, level)
+earnings = [0] * (max_level + 1)
+count = [0] * (max_level + 1)
+
+for node, level in LEVELS.items():
+    print(node, level, monitoring.earnings[node])
+    earnings[level] += monitoring.earnings[node]
+    count[level] += 1
+
+for ii in range(max_level):
+    print(f"Lvl {ii}: {earnings[level]/count[level]}")
+print(earnings)
