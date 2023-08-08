@@ -1,10 +1,12 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections import defaultdict
+import csv
 from dataclasses import dataclass, field
 import functools
 import os
 import random
+import sys
 from typing import Any, List, Tuple, Dict
 from alive_progress import alive_bar
 import numpy
@@ -72,6 +74,14 @@ class ConstantPricing(Pricing):
 
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
         return Bid(self.price, node.name)
+
+
+class RandomPricing(Pricing):
+    def __init__(self, max_price: float) -> None:
+        self.max_price = max_price
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        return Bid(random.uniform(0, self.max_price), node.name)
 
 
 class LinearPricing(Pricing):
@@ -357,6 +367,77 @@ class EdgeFirstRequest(Request):
 
 
 @dataclass
+class EdgeFirstRequestData:
+    distance: float
+    bid: Bid
+
+
+class EdgeFirstRequestTwo(Request):
+    def __init__(
+        self,
+        env,
+        sla: SLA,
+        network: Dict[Tuple[str, str], float],
+        acc_latency=0.0,
+    ) -> None:
+        super().__init__()
+        self.env = env
+        self.acc_latency = acc_latency
+        self.sla = sla
+        self.network = network
+
+    def __call__(self, node: FogNode, caller: str):
+        # yield self.env.timeout(0)  # Make the method a generator
+        ret = yield self.env.process(self.call_inner(node, caller))
+        if caller == "":
+            return [ret.bid] if ret is not None else []
+        return ret
+
+    def call_inner(self, node: FogNode, caller: str):
+        if (
+            node.cores_used + self.sla.core <= node.cores
+            and node.mem_used + self.sla.mem <= node.mem
+        ):
+            return EdgeFirstRequestData(
+                self.acc_latency, node.pricing_strat(node, self.sla, self.acc_latency)
+            )
+
+        nodes: Any = []
+        for child in node.children + [node.parent] if node.parent is not None else []:
+            if child.name == caller:
+                continue
+            delay = self.network[(node.name, child.name)]
+            if delay + self.acc_latency > self.sla.latency:
+                continue
+            nodes.append(SortableFogNode(child, self.acc_latency + delay))
+
+        nodes = sorted(nodes, key=lambda x: x.latency)
+
+        for ii, nodepack in enumerate(nodes):
+            node = nodepack.node
+            delay = nodepack.latency
+            req = yield env.process(
+                node.send(
+                    child,
+                    EdgeFirstRequestTwo(
+                        self.env,
+                        self.sla,
+                        self.network,
+                        delay,
+                    ),
+                )
+            )
+            if req is None:
+                continue
+            if ii == len(nodes) - 1:
+                return req
+            if req.distance < nodes[ii + 1].latency:
+                return req
+
+        return None
+
+
+@dataclass
 class FurthestPlacementRequestData:
     rank: float
     bid: Bid
@@ -569,37 +650,36 @@ def choose_from(env_var, mapping):
     key = os.getenv(env_var, "")
     ret = mapping.get(key)
     if ret is None:
-        raise Exception(
-            f"One should specify the {env_var} ({key}) env var to one of {mapping.keys()}"
-        )
-    print(f"Using {env_var} {key} -> {ret}")
-    return ret
+        print(f"{env_var} not in [{' '.join(list(mapping.keys()))}]")
+    else:
+        print(f"Using {env_var} {key} -> {ret}", file=sys.stderr)
+    return ret, key
 
 
 monitoring = Monitoring()
 
 # Setup and start the simulation
-print("FaaS Fog")
-
 max_level = 0
 for level in LEVELS.values():
     max_level = max(max_level, level)
 
-placement_strategy = choose_from(
+placement_strategy, placement_strategy_name = choose_from(
     "PLACEMENT_STRATEGY",
     {
         "auction": AuctionBidRequest,
         "edge_first": EdgeFirstRequest,
+        "edge_first2": EdgeFirstRequestTwo,
         "edge_ward": EdgeWardRequest,
         "furthest": FurthestPlacementRequest,
     },
 )
 
-pricing_strategy = choose_from(
+pricing_strategy, pricing_strategy_name = choose_from(
     "PRICING_STRATEGY",
     {
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
+        "random": functools.partial(lambda _: RandomPricing(20.0)),
         "linear": functools.partial(
             lambda level: LinearPricing(8.0, level, max_level, 20.0)
         ),
@@ -610,6 +690,9 @@ pricing_strategy = choose_from(
         ),
     },
 )
+
+if not pricing_strategy or not placement_strategy:
+    exit(1)
 
 env = simpy.Environment()
 
@@ -629,16 +712,19 @@ for function in functions:
     )
 
 # Execute!
-with alive_bar(SIM_TIME, title="Simulating...", ctrl_c=False, dual_line=True) as bar:
+with alive_bar(
+    SIM_TIME, title="Simulating...", ctrl_c=False, dual_line=True, file=sys.stderr
+) as bar:
     for ii in range(SIM_TIME):
-        if ii % SECS == 0:
+        if ii % (SECS) == 0:
             bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
             bar(SECS)
         env.run(until=1 + ii)
 
 
 print(
-    f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}."
+    f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}.",
+    file=sys.stderr,
 )
 
 earnings: List[List[List[float]]] = [[] for _ in range(max_level + 1)]
@@ -657,11 +743,52 @@ def quantile(x, q):
     return numpy.quantile(x, q)
 
 
+writer = csv.writer(sys.stdout, delimiter="\t")
+if (os.getenv("JOB_INDEX", "1")) == "1":
+    writer.writerow(
+        [
+            "placement",
+            "pricing",
+            "seed",
+            "level",
+            "nodes",
+            "earnings_tot",
+            "earnings_med",
+            "earnings_qt025",
+            "earnings_qt975",
+            "earnings_avg",
+            "provisioned_tot",
+            "provisioned_med",
+            "provisioned_qt025",
+            "provisioned_qt975",
+            "provisioned_avg",
+        ]
+    )
 for ii in range(max_level + 1):
     earn = functools.reduce(lambda x, y: x + y, earnings[ii])
     prov = provisioned[ii]
     print(
         f"""Lvl {ii} ({count[ii]} nodes):
     Earnings: tot: {numpy.sum(earn):.2f} med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] avg: {numpy.mean(earn):.2f}
-    Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}"""
+    Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}""",
+        file=sys.stderr,
+    )
+    writer.writerow(
+        [
+            placement_strategy_name,
+            pricing_strategy_name,
+            RANDOM_SEED or int(-1),
+            ii,
+            count[ii],
+            numpy.sum(earn),
+            numpy.median(earn),
+            quantile(earn, 0.025),
+            quantile(earn, 0.075),
+            numpy.mean(earn),
+            numpy.sum(prov),
+            numpy.median(prov),
+            quantile(prov, 0.025),
+            quantile(prov, 0.075),
+            numpy.mean(prov),
+        ]
     )

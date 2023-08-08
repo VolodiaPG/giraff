@@ -294,17 +294,17 @@ docker_campain user variation="valuation_rates" dotenvfile=".env": (build_requir
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
-sim methods="auction edge_ward edge_first" pricing="constant linear same" $RANDOM_SEED="":
+sim filename="sim.csv" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="":
     #!/usr/bin/env bash
+    set -e
     export cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     export EXPE_SAVE_FILE=./requests 
     export TARGET_NODE_NAMES="${cities[@]}"
+    export pricing=${pricing:=$({{RUN}} simulator.py | sed -n 's/PRICING_STRATEGY not in \[\(.*\)\].*/\1/p')}
+    export methods=${methods:=$({{RUN}} simulator.py | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
     {{RUN}} expe.py
-    # methods=(${ {{methods}}// / })
-    # pricing=(${ {{pricing}}// / })
-    # echo $methods
-    parallel --keep-order PLACEMENT_STRATEGY={1} PRICING_STRATEGY={2} {{RUN}} simulator.py ::: {{methods}} ::: {{pricing}}
+    parallel --keep-order PLACEMENT_STRATEGY={1} PRICING_STRATEGY={2} RANDOM_SEED={3} JOB_INDEX={%} {{RUN}} simulator.py ::: $methods ::: $pricing ::: ${RANDOM_SEED_INIT:=$(shuf -i 0-256000 -n {{nb_iter}})} > {{filename}}
 
 simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     #!/usr/bin/env bash
@@ -314,4 +314,4 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     export TARGET_NODE_NAMES="${cities[@]}"
     export RANDOM_SEED=42
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
-    {{RUN}} simulator.py
+    {{RUN}} simulator.py > sim.simple.dump.csv

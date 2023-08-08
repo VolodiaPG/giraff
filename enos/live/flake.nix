@@ -194,6 +194,7 @@
               mypy
               mprocs
               parallel
+              bashInteractive
             ]);
         };
       }))
