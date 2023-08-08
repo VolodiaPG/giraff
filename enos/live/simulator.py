@@ -4,6 +4,7 @@ from collections import defaultdict
 import csv
 from dataclasses import dataclass, field
 import functools
+import math
 import os
 import random
 import sys
@@ -205,6 +206,33 @@ class LinearPerPartPricing(Pricing):
             slope_ii = ii + 1
         # return self.slopes[slope_ii] * utilization
         return self.initial_price + self.slopes[slope_ii] * utilization
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        return Bid(price, node.name)
+
+
+class LogisticPricing(Pricing):
+    def __init__(
+        self, A: float, K: float, C: float, Q: float, V: float, B: float
+    ) -> None:
+        self.A = A
+        self.K = K
+        self.C = C
+        self.Q = Q
+        self.V = V
+        self.B = B
+
+    def price(self, utilization):
+        return self.A + (self.K - self.A) / (
+            math.pow(
+                self.C + self.Q * math.exp(-1.0 * self.B * utilization), 1 / self.V
+            )
+        )
 
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
         price, _ = integrate.quad(
@@ -687,6 +715,10 @@ pricing_strategy, pricing_strategy_name = choose_from(
             lambda level: LinearPerPartPricing(
                 [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 10.0
             )
+        ),
+        "logistic": functools.partial(lambda _: LogisticPricing(0, 1, 1, 10, 0.9, 5)),
+        "logistic_inv": functools.partial(
+            lambda _: LogisticPricing(1, 0, 1, 10, 0.9, 5)
         ),
     },
 )
