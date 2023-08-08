@@ -1342,7 +1342,7 @@ NETWORK = {
 #                             "latency": 5,
 #                             "children": [],
 #                             "iot_connected": 0,
-#                         }
+#                         },
 #                     ],
 #                 }
 #             ],
