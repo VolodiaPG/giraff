@@ -679,13 +679,13 @@ pricing_strategy, pricing_strategy_name = choose_from(
     {
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
-        "random": functools.partial(lambda _: RandomPricing(20.0)),
+        "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear": functools.partial(
-            lambda level: LinearPricing(8.0, level, max_level, 20.0)
+            lambda level: LinearPricing(8.0, level, max_level, 10.0)
         ),
         "linear_part": functools.partial(
             lambda level: LinearPerPartPricing(
-                [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 20.0
+                [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 10.0
             )
         ),
     },
@@ -743,27 +743,6 @@ def quantile(x, q):
     return numpy.quantile(x, q)
 
 
-writer = csv.writer(sys.stdout, delimiter="\t")
-if (os.getenv("JOB_INDEX", "1")) == "1":
-    writer.writerow(
-        [
-            "placement",
-            "pricing",
-            "seed",
-            "level",
-            "nodes",
-            "earnings_tot",
-            "earnings_med",
-            "earnings_qt025",
-            "earnings_qt975",
-            "earnings_avg",
-            "provisioned_tot",
-            "provisioned_med",
-            "provisioned_qt025",
-            "provisioned_qt975",
-            "provisioned_avg",
-        ]
-    )
 for ii in range(max_level + 1):
     earn = functools.reduce(lambda x, y: x + y, earnings[ii])
     prov = provisioned[ii]
@@ -773,22 +752,33 @@ for ii in range(max_level + 1):
     Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}""",
         file=sys.stderr,
     )
+
+seed = RANDOM_SEED or int(-1)
+writer = csv.writer(sys.stdout, delimiter="\t")
+if (os.getenv("JOB_INDEX", "1")) == "1":
     writer.writerow(
         [
-            placement_strategy_name,
-            pricing_strategy_name,
-            RANDOM_SEED or int(-1),
-            ii,
-            count[ii],
-            numpy.sum(earn),
-            numpy.median(earn),
-            quantile(earn, 0.025),
-            quantile(earn, 0.075),
-            numpy.mean(earn),
-            numpy.sum(prov),
-            numpy.median(prov),
-            quantile(prov, 0.025),
-            quantile(prov, 0.075),
-            numpy.mean(prov),
+            "job_id",
+            "node",
+            "placement",
+            "pricing",
+            "seed",
+            "level",
+            "earning",
+            "provisioned",
         ]
     )
+for node, level in LEVELS.items():
+    for cost in monitoring.earnings[node]:
+        writer.writerow(
+            [
+                os.getenv("JOB_INDEX", "1"),
+                node,
+                placement_strategy_name,
+                pricing_strategy_name,
+                seed,
+                level,
+                cost,
+                monitoring.provisioned[node],
+            ]
+        )
