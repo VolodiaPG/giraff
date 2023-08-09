@@ -41,14 +41,17 @@ class Bid:
 
 
 @dataclass
+class ProvisionedFunction:
+    bid: float
+    latency: float
+
+
+@dataclass
 class Monitoring:
     currently_provisioned = 0
-    provisioned: Dict[str, float] = field(
-        default_factory=lambda: defaultdict(lambda: 0.0)
-    )
     total_provisioned = 0
     total_submitted = 0
-    earnings: Dict[str, List[float]] = field(
+    earnings: Dict[str, List[ProvisionedFunction]] = field(
         default_factory=lambda: defaultdict(lambda: [])
     )
 
@@ -547,8 +550,9 @@ class ProvisionRequest(Request):
         node.mem_used += self.sla.mem
         node.provisioned.append(self.sla)
 
-        self.monitoring.provisioned[node.name] += 1
-        self.monitoring.earnings[node.name].append(self.price)
+        self.monitoring.earnings[node.name].append(
+            ProvisionedFunction(self.price, self.sla.latency)
+        )
         self.monitoring.currently_provisioned += 1
         self.monitoring.total_provisioned += 1
 
@@ -711,6 +715,7 @@ pricing_strategy, pricing_strategy_name = choose_from(
         "linear": functools.partial(
             lambda level: LinearPricing(8.0, level, max_level, 10.0)
         ),
+        "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear_part": functools.partial(
             lambda level: LinearPerPartPricing(
                 [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 10.0
@@ -764,8 +769,8 @@ provisioned: List[List[float]] = [[] for _ in range(max_level + 1)]
 count = [0] * (max_level + 1)
 
 for node, level in LEVELS.items():
-    earnings[level].append(monitoring.earnings[node])
-    provisioned[level].append(monitoring.provisioned[node])
+    earnings[level].append([ee.bid for ee in monitoring.earnings[node]])
+    provisioned[level].append(len(monitoring.earnings[node]))
     count[level] += 1
 
 
@@ -786,8 +791,9 @@ for ii in range(max_level + 1):
     )
 
 seed = RANDOM_SEED or int(-1)
+JOB_INDEX = int(os.getenv("JOB_INDEX", "1"))
 writer = csv.writer(sys.stdout, delimiter="\t")
-if (os.getenv("JOB_INDEX", "1")) == "1":
+if JOB_INDEX == 1:
     writer.writerow(
         [
             "job_id",
@@ -797,20 +803,20 @@ if (os.getenv("JOB_INDEX", "1")) == "1":
             "seed",
             "level",
             "earning",
-            "provisioned",
+            "latency",
         ]
     )
 for node, level in LEVELS.items():
-    for cost in monitoring.earnings[node]:
+    for ee in monitoring.earnings[node]:
         writer.writerow(
             [
-                os.getenv("JOB_INDEX", "1"),
+                JOB_INDEX,
                 node,
                 placement_strategy_name,
                 pricing_strategy_name,
                 seed,
                 level,
-                cost,
-                monitoring.provisioned[node],
+                ee.bid,
+                ee.latency,
             ]
         )

@@ -353,6 +353,13 @@ NETWORK = {
     "flavor": TIER_1_FLAVOR,
     "children": [
         {"name": "marseille", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille2", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille3", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille4", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille5", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille6", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille7", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
+        {"name": "marseille8", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
         {"name": "toulouse", "flavor": TIER_1_FLAVOR, "latency": 4, "children": []},
         {
             "name": "paris",

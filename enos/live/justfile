@@ -304,7 +304,7 @@ sim filename="sim.csv" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="":
     export pricing=${pricing:=$({{RUN}} simulator.py | sed -n 's/PRICING_STRATEGY not in \[\(.*\)\].*/\1/p')}
     export methods=${methods:=$({{RUN}} simulator.py | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
     {{RUN}} expe.py
-    parallel --keep-order PLACEMENT_STRATEGY={1} PRICING_STRATEGY={2} RANDOM_SEED={3} JOB_INDEX={%} {{RUN}} simulator.py ::: $methods ::: $pricing ::: ${RANDOM_SEED_INIT:=$(shuf -i 0-256000 -n {{nb_iter}})} > {{filename}}
+    parallel --keep-order PLACEMENT_STRATEGY={1} PRICING_STRATEGY={2} RANDOM_SEED={3} JOB_INDEX={#} {{RUN}} simulator.py ::: $methods ::: $pricing ::: ${RANDOM_SEED_INIT:=$(shuf -i 0-256000 -n {{nb_iter}})} > {{filename}}
 
 simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     #!/usr/bin/env bash
