@@ -347,19 +347,24 @@ TIER_1_FLAVOR = {
     "pricing_mem_initial": generate_initial_pricing(0),
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
+TIER_CLOUD_FLAVOR = {
+    "is_cloud": True,
+    "core": 1024,
+    "mem": 1024 * 1024,
+    "reserved_core": 2014,
+    "reserved_mem": 1024 * 1024,
+    "pricing_cpu": SLOPE,  # for the function
+    "pricing_mem": SLOPE,  # for the function
+    "pricing_cpu_initial": generate_initial_pricing(0),
+    "pricing_mem_initial": generate_initial_pricing(0),
+    "pricing_geolocation": SLOPE,  # for already used mem and cpu
+}
 
 NETWORK = {
     "name": "market",
-    "flavor": TIER_1_FLAVOR,
+    "flavor": TIER_CLOUD_FLAVOR,
     "children": [
         {"name": "marseille", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille2", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille3", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille4", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille5", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille6", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille7", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
-        {"name": "marseille8", "flavor": TIER_1_FLAVOR, "latency": 6, "children": []},
         {"name": "toulouse", "flavor": TIER_1_FLAVOR, "latency": 4, "children": []},
         {
             "name": "paris",

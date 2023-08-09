@@ -8,7 +8,7 @@ import math
 import os
 import random
 import sys
-from typing import Any, List, Tuple, Dict
+from typing import Any, Callable, List, Tuple, Dict
 from alive_progress import alive_bar
 import numpy
 import simpy
@@ -73,8 +73,8 @@ class Pricing(ABC):
 
 
 class ConstantPricing(Pricing):
-    def __init__(self, price) -> None:
-        self.price = price
+    def __init__(self, price: float | Callable[[], float]) -> None:
+        self.price = price() if callable(price) else price
 
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
         return Bid(self.price, node.name)
@@ -92,53 +92,12 @@ class LinearPricing(Pricing):
     def __init__(
         self,
         slope: float,
-        fog_level: int,
-        max_level: int,
-        max_initial_price: float,
+        initial_price: float | Callable[[], float] = 0.0,
     ) -> None:
         self.slope = slope
-        self.initial_price = self.generate_initial_price(
-            fog_level,
-            max_level,
-            max_initial_price,
+        self.initial_price = (
+            initial_price() if callable(initial_price) else initial_price
         )
-
-    def generate_initial_price(
-        self,
-        location: int,
-        max_location: int,
-        max_initial_price: float,
-    ):
-        # Ensure location is within the valid range (1 to max_location)
-        location = min(max(1, location), max_location - location)
-
-        # Calculate the base price as an inverse function of location
-        # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
-        base_price = (
-            (1 - max_initial_price) * location + max_location * max_initial_price - 1
-        ) / (
-            max_location - 1
-        )  # to guarantee that price for location=1 is max_price and price for max_location is 1
-        # Add random noise to the base price to create variation
-        noise = (max_initial_price - 1) / (max_location - 1) * 2  # half of the slope
-        random_variation = random.uniform(
-            -noise, noise
-        )  # Adjust the range of variation as needed
-
-        # Calculate the final price by adding random variation to the base price
-        price = base_price + random_variation
-
-        # Ensure the price is within the desired range (1 to max_initial_price )
-        price = min(max(1, price), max_initial_price)
-        return price
-
-    # def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
-    #     u1 = node.cores_used / node.cores
-    #     u2 = (node.cores_used + sla.core) / node.cores
-    #     integral = (
-    #         (u2 - u1) * (self.slope * u2 + self.slope * u1 + 2 * self.initial_price) / 2
-    #     )
-    #     return Bid(integral, node.name)
 
     def price(self, utilization):
         # return self.slope * utilization
@@ -158,48 +117,15 @@ class LinearPerPartPricing(Pricing):
         self,
         slopes: List[float],
         breaking_points: List[float],
-        fog_level: int,
-        max_level: int,
-        max_initial_price: float,
+        initial_price: float | Callable[[], float] = 0.0,
     ) -> None:
         assert len(slopes) == len(breaking_points) + 1
         assert len(breaking_points) != 0
         self.slopes = slopes
         self.breaking_points = breaking_points
-        self.initial_price = self.generate_initial_price(
-            fog_level,
-            max_level,
-            max_initial_price,
+        self.initial_price = (
+            initial_price() if callable(initial_price) else initial_price
         )
-
-    def generate_initial_price(
-        self,
-        location: int,
-        max_location: int,
-        max_initial_price: float,
-    ):
-        # Ensure location is within the valid range (1 to max_location)
-        location = min(max(1, location), max_location - location)
-
-        # Calculate the base price as an inverse function of location
-        # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
-        base_price = (
-            (1 - max_initial_price) * location + max_location * max_initial_price - 1
-        ) / (
-            max_location - 1
-        )  # to guarantee that price for location=1 is max_price and price for max_location is 1
-        # Add random noise to the base price to create variation
-        noise = (max_initial_price - 1) / (max_location - 1) * 2  # half of the slope
-        random_variation = random.uniform(
-            -noise, noise
-        )  # Adjust the range of variation as needed
-
-        # Calculate the final price by adding random variation to the base price
-        price = base_price + random_variation
-
-        # Ensure the price is within the desired range (1 to max_initial_price )
-        price = min(max(1, price), max_initial_price)
-        return price
 
     def price(self, utilization):
         slope_ii = 0
@@ -207,7 +133,6 @@ class LinearPerPartPricing(Pricing):
             if utilization <= break_point:
                 break
             slope_ii = ii + 1
-        # return self.slopes[slope_ii] * utilization
         return self.initial_price + self.slopes[slope_ii] * utilization
 
     def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
@@ -531,6 +456,30 @@ class FurthestPlacementRequest(Request):
         return bids
 
 
+class CloudOnlyRequest(Request):
+    def __init__(
+        self, env, sla: SLA, network: Dict[Tuple[str, str], float], *args
+    ) -> None:
+        super().__init__()
+        self.env = env
+        self.sla = sla
+        self.network = network
+
+    def __call__(self, node: FogNode, caller: str):
+        if node.parent is None:
+            if (
+                node.cores_used + self.sla.core <= node.cores
+                and node.mem_used + self.sla.mem <= node.mem
+            ):
+                return [node.pricing_strat(node, self.sla, 0)]
+            return []
+
+        ret = yield env.process(
+            node.send(node.parent, CloudOnlyRequest(self.env, self.sla, self.network))
+        )
+        return ret
+
+
 class ProvisionRequest(Request):
     def __init__(self, env, monitoring: Monitoring, sla: SLA, price: float) -> None:
         super().__init__()
@@ -678,13 +627,42 @@ def generate_latencies(net):
     return ret
 
 
+def generate_initial_price(
+    location: int,
+    max_location: int,
+    max_initial_price: float,
+):
+    # Ensure location is within the valid range (1 to max_location)
+    location = min(max(1, location), max_location - location)
+
+    # Calculate the base price as an inverse function of location
+    # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
+    base_price = (
+        (1 - max_initial_price) * location + max_location * max_initial_price - 1
+    ) / (
+        max_location - 1
+    )  # to guarantee that price for location=1 is max_price and price for max_location is 1
+    # Add random noise to the base price to create variation
+    noise = (max_initial_price - 1) / (max_location - 1) * 2  # half of the slope
+    random_variation = random.uniform(
+        -noise, noise
+    )  # Adjust the range of variation as needed
+
+    # Calculate the final price by adding random variation to the base price
+    price = base_price + random_variation
+
+    # Ensure the price is within the desired range (1 to max_initial_price )
+    price = min(max(1, price), max_initial_price)
+    return price
+
+
 def choose_from(env_var, mapping):
     key = os.getenv(env_var, "")
     ret = mapping.get(key)
     if ret is None:
         print(f"{env_var} not in [{' '.join(list(mapping.keys()))}]")
     else:
-        print(f"Using {env_var} {key} -> {ret}", file=sys.stderr)
+        print(f"Using {env_var} {key}", file=sys.stderr)
     return ret, key
 
 
@@ -703,6 +681,7 @@ placement_strategy, placement_strategy_name = choose_from(
         "edge_first2": EdgeFirstRequestTwo,
         "edge_ward": EdgeWardRequest,
         "furthest": FurthestPlacementRequest,
+        "cloud_only": CloudOnlyRequest,
     },
 )
 
@@ -711,14 +690,30 @@ pricing_strategy, pricing_strategy_name = choose_from(
     {
         "same": functools.partial(lambda _: ConstantPricing(1.0)),
         "constant": ConstantPricing,
+        "constant_rnd": functools.partial(
+            lambda _: ConstantPricing(
+                lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
         "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear": functools.partial(
-            lambda level: LinearPricing(8.0, level, max_level, 10.0)
+            lambda level: LinearPricing(
+                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+            )
         ),
+        "linear_wo_init": functools.partial(lambda _: LinearPricing(8.0)),
         "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear_part": functools.partial(
             lambda level: LinearPerPartPricing(
-                [1.0, 2.0, 8.0], [0.2, 0.5], level, max_level, 10.0
+                [1.0, 2.0, 8.0],
+                [0.2, 0.5],
+                lambda: generate_initial_price(level, max_level, 10.0),
+            )
+        ),
+        "linear_part_wo_init": functools.partial(
+            lambda _: LinearPerPartPricing(
+                [1.0, 2.0, 8.0],
+                [0.2, 0.5],
             )
         ),
         "logistic": functools.partial(lambda _: LogisticPricing(0, 1, 1, 10, 0.9, 5)),
@@ -749,14 +744,19 @@ for function in functions:
     )
 
 # Execute!
-with alive_bar(
-    SIM_TIME, title="Simulating...", ctrl_c=False, dual_line=True, file=sys.stderr
-) as bar:
-    for ii in range(SIM_TIME):
-        if ii % (SECS) == 0:
-            bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
-            bar(SECS)
-        env.run(until=1 + ii)
+JOB_INDEX = int(os.getenv("JOB_INDEX", "0"))  # 0 means not running in gnuparallel
+
+if JOB_INDEX == 0:
+    with alive_bar(
+        SIM_TIME, title="Simulating...", ctrl_c=False, dual_line=True, file=sys.stderr
+    ) as bar:
+        for ii in range(SIM_TIME):
+            if ii % (SECS) == 0:
+                bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
+                bar(SECS)
+            env.run(until=1 + ii)
+else:
+    env.run(SIM_TIME)
 
 
 print(
@@ -780,20 +780,20 @@ def quantile(x, q):
     return numpy.quantile(x, q)
 
 
-for ii in range(max_level + 1):
-    earn = functools.reduce(lambda x, y: x + y, earnings[ii])
-    prov = provisioned[ii]
-    print(
-        f"""Lvl {ii} ({count[ii]} nodes):
-    Earnings: tot: {numpy.sum(earn):.2f} med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] avg: {numpy.mean(earn):.2f}
-    Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}""",
-        file=sys.stderr,
-    )
+if JOB_INDEX == 0:
+    for ii in range(max_level + 1):
+        earn = functools.reduce(lambda x, y: x + y, earnings[ii])
+        prov = provisioned[ii]
+        print(
+            f"""Lvl {ii} ({count[ii]} nodes):
+        Earnings: tot: {numpy.sum(earn):.2f} med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] avg: {numpy.mean(earn):.2f}
+        Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}""",
+            file=sys.stderr,
+        )
 
 seed = RANDOM_SEED or int(-1)
-JOB_INDEX = int(os.getenv("JOB_INDEX", "1"))
 writer = csv.writer(sys.stdout, delimiter="\t")
-if JOB_INDEX == 1:
+if JOB_INDEX <= 1:
     writer.writerow(
         [
             "job_id",
