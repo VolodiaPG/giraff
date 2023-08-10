@@ -44,6 +44,10 @@ class Bid:
 class ProvisionedFunction:
     bid: float
     latency: float
+    timestamp_start: float | int
+    timestamp_end: float | int
+    cpu_reservation_used_sla: float
+    node_cpu: float
 
 
 @dataclass
@@ -108,6 +112,73 @@ class LinearPricing(Pricing):
             self.price,
             (node.cores_used) / node.cores,
             (node.cores_used + sla.core) / node.cores,
+        )
+        return Bid(price, node.name)
+
+
+class LinearUniformRandomPricing(Pricing):
+    def __init__(
+        self,
+        slope: float,
+        initial_price: float | Callable[[], float] = 0.0,
+    ) -> None:
+        self.slope = slope
+        self.initial_price = (
+            initial_price() if callable(initial_price) else initial_price
+        )
+
+    def price(self, utilization):
+        return self.initial_price + self.slope * utilization
+
+    def price_no_init(self, utilization):
+        return self.slope * utilization
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            (node.cores_used) / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price_no_init, _ = integrate.quad(
+            self.price_no_init,
+            (node.cores_used) / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price += random.uniform(price_no_init, price * 2)
+        return Bid(price, node.name)
+
+
+class LinearNormalRandomPricing(Pricing):
+    def __init__(
+        self,
+        slope: float,
+        initial_price: float | Callable[[], float] = 0.0,
+    ) -> None:
+        self.slope = slope
+        self.initial_price = (
+            initial_price() if callable(initial_price) else initial_price
+        )
+
+    def price(self, utilization):
+        return self.initial_price + self.slope * utilization
+
+    def price_no_init(self, utilization):
+        return self.slope * utilization
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            (node.cores_used) / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price_no_init, _ = integrate.quad(
+            self.price_no_init,
+            (node.cores_used) / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price = max(
+            price_no_init,
+            min(price + random.normalvariate(0, self.initial_price), price * 2),
         )
         return Bid(price, node.name)
 
@@ -500,7 +571,14 @@ class ProvisionRequest(Request):
         node.provisioned.append(self.sla)
 
         self.monitoring.earnings[node.name].append(
-            ProvisionedFunction(self.price, self.sla.latency)
+            ProvisionedFunction(
+                self.price,
+                self.sla.latency,
+                self.env.now,
+                self.env.now + self.sla.duration,
+                self.sla.core,
+                node.cores,
+            )
         )
         self.monitoring.currently_provisioned += 1
         self.monitoring.total_provisioned += 1
@@ -661,6 +739,10 @@ def choose_from(env_var, mapping):
     ret = mapping.get(key)
     if ret is None:
         print(f"{env_var} not in [{' '.join(list(mapping.keys()))}]")
+        print(
+            f"{env_var} ({key}) not in [{' '.join(list(mapping.keys()))}]",
+            file=sys.stderr,
+        )
     else:
         print(f"Using {env_var} {key}", file=sys.stderr)
     return ret, key
@@ -696,6 +778,16 @@ pricing_strategy, pricing_strategy_name = choose_from(
             )
         ),
         "random": functools.partial(lambda _: RandomPricing(10.0)),
+        "linear_random_uniform": functools.partial(
+            lambda level: LinearUniformRandomPricing(
+                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
+        "linear_random_normal": functools.partial(
+            lambda level: LinearNormalRandomPricing(
+                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
         "linear": functools.partial(
             lambda level: LinearPricing(
                 8.0, lambda: generate_initial_price(level, max_level, 10.0)
@@ -744,7 +836,13 @@ for function in functions:
     )
 
 # Execute!
-JOB_INDEX = int(os.getenv("JOB_INDEX", "0"))  # 0 means not running in gnuparallel
+JOB_INDEX_STR = os.getenv(
+    "JOB_INDEX", "0"
+)  # 0 means not running in gnuparallel ; if string is composed of 11...11111 then it means that its the first element
+if JOB_INDEX_STR.count("1") == len(JOB_INDEX_STR):
+    JOB_INDEX = 1
+else:
+    JOB_INDEX = int(JOB_INDEX_STR)
 
 if JOB_INDEX == 0:
     with alive_bar(
@@ -804,6 +902,11 @@ if JOB_INDEX <= 1:
             "level",
             "earning",
             "latency",
+            "timestamp_start",
+            "timestamp_end",
+            "node_cpu_reservation_sla",
+            "node_cpu",
+            "sim_time",
         ]
     )
 for node, level in LEVELS.items():
@@ -818,5 +921,10 @@ for node, level in LEVELS.items():
                 level,
                 ee.bid,
                 ee.latency,
+                ee.timestamp_start,
+                min(ee.timestamp_end, SIM_TIME),
+                ee.cpu_reservation_used_sla,
+                ee.node_cpu,
+                SIM_TIME,
             ]
         )
