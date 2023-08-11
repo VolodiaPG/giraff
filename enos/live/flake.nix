@@ -2,7 +2,7 @@
   description = "Application packaged using poetry2nix";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix.url = "github:nix-community/poetry2nix";
@@ -13,7 +13,8 @@
     pre-commit-hooks.inputs.flake-utils.follows = "flake-utils";
     alejandra.url = "github:kamadorueda/alejandra/3.0.0";
     alejandra.inputs.nixpkgs.follows = "nixpkgs";
-    jupyenv.url = "github:tweag/jupyenv";
+    # jupyenv.url = "github:tweag/jupyenv";
+    jupyenv.url = "github:dialohq/jupyenv";
     jupyenv.inputs.nixpkgs.follows = "nixpkgs";
   };
 
@@ -28,6 +29,10 @@
     in
       nixpkgs.lib.recursiveUpdate
       (flake-utils.lib.eachDefaultSystem (system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [overlay];
+        };
         # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
         inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
@@ -63,20 +68,20 @@
                     buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
                   }
                 );
-              beautifulsoup4 =
-                oldattr.beautifulsoup4.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                  }
-                );
-              urllib3 =
-                oldattr.urllib3.overridePythonAttrs
-                (
-                  old: {
-                    buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                  }
-                );
+              # beautifulsoup4 =
+              #   oldattr.beautifulsoup4.overridePythonAttrs
+              #   (
+              #     old: {
+              #       buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+              #     }
+              #   );
+              # urllib3 =
+              #   oldattr.urllib3.overridePythonAttrs
+              #   (
+              #     old: {
+              #       buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+              #     }
+              #   );
               pyzmq =
                 oldattr.pyzmq.overridePythonAttrs
                 (
@@ -98,18 +103,25 @@
                 oldattr.rpds-py.overridePythonAttrs
                 (
                   old: rec {
-                    version = "0.8.10";
+                    version = "0.9.2";
                     src = pkgs.fetchgit {
                       url = "https://github.com/crate-py/rpds";
                       rev = "v${version}";
-                      hash = "sha256-DJPYxJ1gJFmRy+a8KmR1H6tFHKTyd0D5PDD30iH7z1g=";
+                      hash = "sha256-RV4voOdWGSr4jtvU19Sfo/j0/DjO42FS70cZUwyIZrA=";
                     };
 
                     cargoDeps = pkgs.rustPlatform.fetchCargoTarball {
                       inherit src;
                       name = "rpds-py-${version}";
-                      hash = "sha256-NhvajV9s8w233XP//KZosjEzar8YOQmKZR/zV5GVU0k=";
+                      hash = "sha256-jpeRHKFuzJg2Gngt266cD9SmLnRLMhaX0jDAUaWNX2w=";
                     };
+
+                    buildInputs =
+                      (old.buildInputs or [])
+                      ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+                        pkgs.libiconv
+                      ];
+
                     nativeBuildInputs =
                       (old.nativeBuildInputs or [])
                       ++ [
@@ -142,11 +154,6 @@
             });
           };
         };
-
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [overlay];
-        };
       in {
         packages.experiments = pkgs.experiments;
         checks = {
@@ -174,29 +181,33 @@
             };
           };
         };
-        devShells.default = let 
-        venv = outputs.packages.${system}.experiments;
-        in pkgs.mkShell {
-          shellHook = self.checks.${system}.pre-commit-check.shellHook + ''
-            ln -sfT ${venv} ./.venv
-          '';
-          # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
-          PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
-          packages =
-            [poetry2nix.packages.${system}.poetry]
-            ++ (with pkgs; [
-              just
-              jq
-              experiments
-              poetry
-              ruff
-              black
-              mypy
-              mprocs
-              parallel
-              bashInteractive
-            ]);
-        };
+        devShells.default = let
+          venv = outputs.packages.${system}.experiments;
+        in
+          pkgs.mkShell {
+            shellHook =
+              self.checks.${system}.pre-commit-check.shellHook
+              + ''
+                ln -sfT ${venv} ./.venv
+              '';
+            # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
+            PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
+            packages =
+              [poetry2nix.packages.${system}.poetry]
+              ++ (with pkgs; [
+                just
+                jq
+                experiments
+                poetry
+                ruff
+                black
+                isort
+                mypy
+                mprocs
+                parallel
+                bashInteractive
+              ]);
+          };
       }))
       (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -257,14 +268,8 @@
       }))
       // flake-utils.lib.eachDefaultSystem (system: let
         pkgs = nixpkgs.legacyPackages.${system};
-
-        inherit (pkgs) lib;
-
-        inherit (jupyenv.lib.${system}) mkJupyterlabNew;
         jupyterlab = export:
-          mkJupyterlabNew ({...}: {
-            inherit (inputs) nixpkgs;
-
+          jupyenv.lib.${system}.mkJupyterlabNew ({...}: {
             imports = [
               {
                 kernel.r.experiment = {
@@ -273,7 +278,7 @@
                       texlive.combined.scheme-full
                       pgf3
                     ])
-                    ++ [pkgs.busybox]
+                    ++ [pkgs.toybox]
                     ++ outputs.devShells.${system}.default.buildInputs
                     ++ outputs.devShells.${system}.default.nativeBuildInputs
                     ++ outputs.devShells.${system}.default.propagatedBuildInputs;
@@ -320,7 +325,7 @@
                         doParallel
                         foreach
 
-                        gifski
+                        # gifski
                         future_apply
                         (
                           gganimate.overrideAttrs (old: {
@@ -339,7 +344,7 @@
                         network
                         ggnetwork
                       ]
-                      ++ nixpkgs.lib.optional export tikzDevice;
+                      ++ pkgs.lib.optional export tikzDevice;
                 };
               }
             ];

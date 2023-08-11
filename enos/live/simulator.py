@@ -1,20 +1,22 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from collections import defaultdict
+
 import csv
-from dataclasses import dataclass, field
 import functools
 import math
 import os
 import random
 import sys
-from typing import Any, Callable, List, Tuple, Dict
-from alive_progress import alive_bar
-import numpy
-import simpy
-from definitions import LEVELS, NETWORK, gen_net
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Any, Callable, Dict, List, Tuple
+
 import expe
+import numpy
 import scipy.integrate as integrate
+import simpy
+from alive_progress import alive_bar
+from definitions import LEVELS, NETWORK, gen_net
 
 MS = 1
 SECS = 1000
@@ -794,7 +796,6 @@ pricing_strategy, pricing_strategy_name = choose_from(
             )
         ),
         "linear_wo_init": functools.partial(lambda _: LinearPricing(8.0)),
-        "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear_part": functools.partial(
             lambda level: LinearPerPartPricing(
                 [1.0, 2.0, 8.0],
@@ -850,7 +851,12 @@ if JOB_INDEX == 0:
     ) as bar:
         for ii in range(SIM_TIME):
             if ii % (SECS) == 0:
-                bar.text = f"--> Currently provisioned {monitoring.currently_provisioned},failed to provision {monitoring.total_submitted - monitoring.total_provisioned}, total is {monitoring.total_submitted}..."
+                bar.text = (
+                    f"--> Currently provisioned {monitoring.currently_provisioned},"
+                    "failed to provision "
+                    "{monitoring.total_submitted - monitoring.total_provisioned},"
+                    " total is {monitoring.total_submitted}..."
+                )
                 bar(SECS)
             env.run(until=1 + ii)
 else:
@@ -858,7 +864,11 @@ else:
 
 
 print(
-    f"--> Done {monitoring.total_provisioned}, failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; total is {monitoring.total_submitted}.",
+    (
+        f"--> Done {monitoring.total_provisioned},"
+        " failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; "
+        "total is {monitoring.total_submitted}."
+    ),
     file=sys.stderr,
 )
 
@@ -883,9 +893,15 @@ if JOB_INDEX == 0:
         earn = functools.reduce(lambda x, y: x + y, earnings[ii])
         prov = provisioned[ii]
         print(
-            f"""Lvl {ii} ({count[ii]} nodes):
-        Earnings: tot: {numpy.sum(earn):.2f} med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] avg: {numpy.mean(earn):.2f}
-        Provisioned: tot: {numpy.sum(prov)} med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] avg: {numpy.mean(prov):.2f}""",
+            (
+                f"Lvl {ii} ({count[ii]} nodes):\n"
+                "Earnings: tot: {numpy.sum(earn):.2f} "
+                "med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] "
+                "avg: {numpy.mean(earn):.2f}\n"
+                "Provisioned: tot: {numpy.sum(prov)} "
+                "med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] "
+                "avg: {numpy.mean(prov):.2f}"
+            ),
             file=sys.stderr,
         )
 
