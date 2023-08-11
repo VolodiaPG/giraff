@@ -160,6 +160,7 @@
           pre-commit-check = pre-commit-hooks.lib.${system}.run {
             src = ./.;
             settings.statix.ignore = ["Cargo.nix"];
+            settings.mypy.binPath = "${pkgs.mypy}/bin/mypy --no-namespace-packages";
             hooks = {
               # Nix
               alejandra.enable = true;
@@ -172,6 +173,7 @@
               autoflake.enable = true;
               isort.enable = true;
               ruff.enable = true;
+              mypy.enable = true;
               # Shell scripting
               shfmt.enable = true;
               shellcheck.enable = true;

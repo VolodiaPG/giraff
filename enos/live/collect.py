@@ -1,10 +1,10 @@
 import csv
-from io import TextIOWrapper
 import os
 import tarfile
 import tempfile
+from io import TextIOWrapper
 
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient  # type: ignore
 
 
 def worker(queue, addresses, token, bucket, org, measurement_name):
@@ -34,8 +34,8 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
 
                     if len(values) == 0:
                         continue
-                    values = values[1:] 
-                    
+                    values = values[1:]
+
                     remove_next = False
                     for row in values:
                         if row[0].startswith("#"):
@@ -45,7 +45,7 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
                         if remove_next:
                             remove_next = False
                             continue
-                        
+
                         writer.writerow(row)
 
         tmpfile.close()  # Close before sending to threads

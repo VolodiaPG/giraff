@@ -68,7 +68,6 @@ _deploy fog_node_image market_image:
     set -e
     {{RUN}} integration.py network
 
-    # {{RUN}} integration.py monitoring&r
     {{RUN}} integration.py iot-emulation&
     ({{RUN}} integration.py k3s-setup && \
         {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
@@ -212,8 +211,6 @@ docker_enos name tempdir cmd="bash":
         -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
         -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
         -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
-        -v {{justfile_directory()}}/monitoring:/home/enos/monitoring:ro \
-        -v {{justfile_directory()}}/k3s.py:/home/enos/k3s.py:ro \
         -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \

@@ -1,15 +1,14 @@
 import asyncio
-from contextlib import contextmanager
-from dataclasses import dataclass
 import json
 import os
-import random
 import pickle
+import random
 import sys
+from dataclasses import dataclass
 from typing import Any
 
-import aiohttp
-from alive_progress import alive_bar
+import aiohttp  # type: ignore
+from alive_progress import alive_bar  # type: ignore
 
 
 @dataclass
@@ -29,7 +28,7 @@ if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
 
 
-def generate_rand(min, max):
+def generate_rand(min: int, max: int) -> int:
     # Generate a random number of nbytes
     if RANDOM_SEED is None:
         random_number = os.urandom(4)

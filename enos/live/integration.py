@@ -1,24 +1,28 @@
 import base64
 import csv
-import heapq
-from io import TextIOWrapper
 import logging
+import multiprocessing as mp
 import os
-import signal
 import subprocess
-import tarfile
 import tempfile
 import time
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from io import TextIOWrapper
 from pathlib import Path
 from time import sleep
-import multiprocessing as mp
-import click
-import enoslib as en
-from influxdb_client import InfluxDBClient
-from inspect import isfunction
+
+import click  # type: ignore
+import enoslib as en  # type: ignore
+
+# Enable rich logging
+from enoslib import enostask  # type: ignore
+from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
+from grid5000 import Grid5000  # type: ignore
+from grid5000.cli import auth  # type: ignore
+from influxdb_client import InfluxDBClient  # type: ignore
+
 from collect import listener, worker
 from definitions import (
     ADJACENCY,
@@ -32,18 +36,9 @@ from definitions import (
     NB_CPU_PER_MACHINE_PER_CLUSTER,
     NETWORK,
     NODE_CONNECTED_NODE,
-    adjacency_undirected,
     flatten,
     gen_net,
 )
-
-# Enable rich logging
-from enoslib import enostask
-from enoslib.api import STATUS_FAILED, STATUS_OK, actions
-from enoslib.errors import EnosFailedHostsError
-from grid5000 import Grid5000
-from grid5000.cli import auth
-from monitoring import monitoring as mon
 
 log = logging.getLogger("rich")
 
@@ -52,6 +47,7 @@ KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
 TELEGRAF_IMAGE = "ghcr.io/volodiapg/telegraf:latest"
 PROMETHEUS_IMAGE = "ghcr.io/volodiapg/prometheus:latest"
 GRAFANA_IMAGE = "ghcr.io/volodiapg/grafana:latest"
+
 
 def get_aliases(env):
     roles = env["roles"]
@@ -374,10 +370,12 @@ def up(
 def restart(env=None):
     """
     Restarts the VMs, because they are Stateless NixOS instances, rebooting will umount all tmpfs (aka /) and will reset everything, except some stuff
-    
-    Because of some random shit, it looks like once in a while an instance reboots and then refuses to join back the network, the problem seems to be inside the VM itself
+
+    Because of some random shit, it looks like once in a while an instance reboots and then refuses to join back the network,
+    the problem seems to be inside the VM itself
     To mitigate, it is adviced to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
-    However, precautions have been taken in this function to only reboot one VM at a time per host (though only waiting a small amount of time before passing to the next)
+    However, precautions have been taken in this function to only reboot one VM at a time per host
+    (though only waiting a small amount of time before passing to the next)
     """
     roles = env["roles"]["master"]
     inv_map = {}
@@ -389,12 +387,14 @@ def restart(env=None):
             if ii >= len(layers):
                 layers.append([el])
             else:
-                layers[ii] = layers[ii] + [el]   
+                layers[ii] = layers[ii] + [el]
 
     for hosts in layers:
-        with actions(roles=hosts, gather_facts=False, strategy="free", background=True) as p:
-            p.wait_for(retries = 5)
-            p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
+        with actions(
+            roles=hosts, gather_facts=False, strategy="free", background=True
+        ) as p:
+            p.wait_for(retries=5)
+            p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
             p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
             sleep(10)
     # with actions(roles=roles, gather_facts=False, strategy="free", background=True) as p:
@@ -406,7 +406,10 @@ def restart(env=None):
     en.wait_for(roles=roles, retries=15)
 
     with actions(roles=roles, gather_facts=False, strategy="free") as p:
-            p.shell('bash -c "[ ! -f /iwasthere ]"', task_name="Checking if reboot took effect, aka is iwasthere is no more")
+        p.shell(
+            'bash -c "[ ! -f /iwasthere ]"',
+            task_name="Checking if reboot took effect, aka is iwasthere is no more",
+        )
 
 
 @cli.command()
@@ -433,7 +436,7 @@ def iot_emulation(env=None, **kwargs):
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
             # --env INFLUX_ADDRESS="{roles["prom_master"][0].address}:9086" \
-            f"""(docker stop iot_emulation || true) \
+            """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/iot_emulation:latest \
                 && docker run --name iot_emulation \
@@ -451,8 +454,6 @@ def iot_emulation(env=None, **kwargs):
 @cli.command()
 @enostask()
 def network(env=None):
-        
-
     for i in range(15):
         try:
             if "netem" in env:
@@ -462,6 +463,7 @@ def network(env=None):
             netem = en.NetemHTB()
             env["netem"] = netem
             roles = env["roles"]
+
             def add_netem_cb(source, destination, delay):
                 netem.add_constraints(
                     src=roles[source],
@@ -484,44 +486,6 @@ def network(env=None):
             else:
                 print(f"Encountered exception: {e}. Retrying in 30 seconds...")
                 time.sleep(30)
-
-
-@cli.command()
-@enostask()
-def monitoring(env=None, **kwargs):
-    """Remove the constraints on the network links"""
-    roles = env["roles"]
-    # if "monitor" in roles:
-    #     monitor = env["monitor"]
-    #     monitor.destroy()
-
-    # monitor = mon.TPGMonitoring(
-    #     collector=roles["prom_master"][0],
-    #     agent=roles["prom_agent"],
-    #     ui=roles["prom_master"][0],
-    #     telegraf_image=TELEGRAF_IMAGE,
-    #     prometheus_image=PROMETHEUS_IMAGE,
-    #     grafana_image=GRAFANA_IMAGE,
-    # )
-    # monitor.deploy()
-    # env["monitor"] = monitor
-
-    # with actions(roles=roles["prom_master"], gather_facts=False) as p:
-    #     p.shell(
-    #         """(docker stop jaeger || true)
-    #         (docker rm jaeger || true)
-    #         docker run -d --name jaeger \
-    #             -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
-    #             -p 5775:5775/udp \
-    #             -p 6831:6831/udp \
-    #             -p 6832:6832/udp \
-    #             -p 5778:5778 \
-    #             -p 16686:16686 \
-    #             -p 14268:14268 \
-    #             -p 9411:9411 \
-    #             quay.io/jaegertracing/all-in-one:1.41"""
-    #     )
-    pass
 
 
 @cli.command()
@@ -617,10 +581,18 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
 
     for name, conf, tier_flavor in confs:
         pricing_cpu_initial = tier_flavor["pricing_cpu_initial"]
-        pricing_cpu_initial = pricing_cpu_initial() if callable(pricing_cpu_initial) else pricing_cpu_initial
+        pricing_cpu_initial = (
+            pricing_cpu_initial()
+            if callable(pricing_cpu_initial)
+            else pricing_cpu_initial
+        )
         pricing_mem_initial = tier_flavor["pricing_mem_initial"]
-        pricing_mem_initial = pricing_mem_initial() if callable(pricing_mem_initial) else pricing_mem_initial
-        
+        pricing_mem_initial = (
+            pricing_mem_initial()
+            if callable(pricing_mem_initial)
+            else pricing_mem_initial
+        )
+
         deployment = FOG_NODE_DEPLOYMENT.format(
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
             # influx_ip=roles["prom_master"][0].address,
@@ -678,6 +650,7 @@ def health(env=None, all=False, **kwargs):
     res = en.run_command(command, roles=roles["master"])
     log_cmd(env, [res])
 
+
 def names(queue):
     names = aliases()
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
@@ -689,15 +662,20 @@ def names(queue):
         tmpfile.close()  # Close before sending to threads
         queue.put(("names", tmpfile.name))
 
+
 def number_of_functions(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
             low_latency = int(os.getenv("NB_FUNCTIONS_LOW_LATENCY"))
             rest_latency = int(os.getenv("NB_FUNCTIONS_REST"))
-            
-            high_load_low_latency =int(os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY"))
+
+            high_load_low_latency = int(
+                os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY")
+            )
             high_load_high_latency = low_latency - high_load_low_latency
-            low_load_low_latency = int(os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY"))
+            low_load_low_latency = int(
+                os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY")
+            )
             low_load_high_latency = rest_latency - low_load_low_latency
 
             writer = csv.writer(file, delimiter="\t")
@@ -711,6 +689,7 @@ def number_of_functions(queue):
         tmpfile.close()  # Close before sending to threads
         queue.put(("nb_functions", tmpfile.name))
 
+
 def network_shape(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
@@ -721,6 +700,7 @@ def network_shape(queue):
                     writer.writerow([source, destination, latency])
         tmpfile.close()  # Close before sending to threads
         queue.put(("network_shape", tmpfile.name))
+
 
 def network_node_levels(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
@@ -910,6 +890,7 @@ def market_ip(env=None, **kwargs):
     role = env["roles"]["market"][0]
     address = role.address
     print(f"address: {address}")
+
 
 @cli.command()
 def iot_connections(env=None, **kwargs):

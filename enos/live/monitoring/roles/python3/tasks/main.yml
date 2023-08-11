@@ -1,2 +1,0 @@
-- name: Install python3
-  shell: "(python --version | grep --regexp ' 3.*') || (apt update && apt install -y python3 python-is-python3)"

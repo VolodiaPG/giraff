@@ -25,3 +25,6 @@ build-backend = "poetry.core.masonry.api"
 # Fixes <clock offset="localtime"/> to utc, leading to fix of k3s certificate being generated for an jour in the future from the pov of the vm
 [tool.ruff]
 line-length = 150
+
+[tool.isort]
+profile = "black"

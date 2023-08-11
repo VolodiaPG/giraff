@@ -11,11 +11,12 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Tuple
 
+import numpy  # type: ignore
+import scipy.integrate as integrate  # type: ignore
+import simpy  # type: ignore
+from alive_progress import alive_bar  # type: ignore
+
 import expe
-import numpy
-import scipy.integrate as integrate
-import simpy
-from alive_progress import alive_bar
 from definitions import LEVELS, NETWORK, gen_net
 
 MS = 1

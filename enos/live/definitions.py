@@ -1,7 +1,8 @@
-from collections import defaultdict
 import functools
 import heapq
 import random
+from collections import defaultdict
+from typing import Any, Dict, List
 
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
 kind: ServiceAccount
@@ -1455,12 +1456,12 @@ def gen_net(nodes, callback):
     def dijkstra(src: str):
         # Create a priority queue to store vertices that
         # are being preprocessed
-        pq = []
+        pq: List[Any] = []
         heapq.heappush(pq, (0, src))
 
         # Create a vector for distances and initialize all
         # distances as infinite (INF)
-        dist = defaultdict(lambda: float("inf"))
+        dist: Dict[str, float] = defaultdict(lambda: float("inf"))
         dist[src] = 0
 
         while pq:
