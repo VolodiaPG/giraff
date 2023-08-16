@@ -11,8 +11,6 @@
     pre-commit-hooks.inputs.nixpkgs.follows = "nixpkgs";
     pre-commit-hooks.inputs.nixpkgs-stable.follows = "nixpkgs";
     pre-commit-hooks.inputs.flake-utils.follows = "flake-utils";
-    alejandra.url = "github:kamadorueda/alejandra/3.0.0";
-    alejandra.inputs.nixpkgs.follows = "nixpkgs";
     # jupyenv.url = "github:tweag/jupyenv";
     jupyenv.url = "github:dialohq/jupyenv";
     jupyenv.inputs.nixpkgs.follows = "nixpkgs";
@@ -154,6 +152,7 @@
             });
           };
         };
+        venv = outputs.packages.${system}.experiments;
       in {
         packages.experiments = pkgs.experiments;
         checks = {
@@ -183,33 +182,31 @@
             };
           };
         };
-        devShells.default = let
-          venv = outputs.packages.${system}.experiments;
-        in
-          pkgs.mkShell {
-            shellHook =
-              self.checks.${system}.pre-commit-check.shellHook
-              + ''
-                ln -sfT ${venv} ./.venv
-              '';
-            # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
-            PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
-            packages =
-              [poetry2nix.packages.${system}.poetry]
-              ++ (with pkgs; [
-                just
-                jq
-                experiments
-                poetry
-                ruff
-                black
-                isort
-                mypy
-                mprocs
-                parallel
-                bashInteractive
-              ]);
-          };
+        devShells.default = pkgs.mkShell {
+          shellHook =
+            self.checks.${system}.pre-commit-check.shellHook
+            + ''
+              ln -sfT ${venv} ./.venv
+            '';
+          # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
+          PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
+          packages =
+            [poetry2nix.packages.${system}.poetry]
+            ++ (with pkgs; [
+              just
+              jq
+              experiments
+              poetry
+              ruff
+              black
+              isort
+              mypy
+              mprocs
+              parallel
+              bashInteractive
+            ]);
+        };
+        formatter = pkgs.alejandra;
       }))
       (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -360,8 +357,5 @@
           program = "${jupyterlab false}/bin/jupyter-lab";
           type = "app";
         };
-      })
-      // {
-        formatter = alejandra.defaultPackage;
-      };
+      });
 }

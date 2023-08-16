@@ -74,6 +74,7 @@ in {
   # (yet) have swap set up.
   environment.variables.GC_INITIAL_HEAP_SIZE = "1M";
 
+  boot.kernel.sysctl."net.core.default_qdisc" = "fq";
   boot.kernel.sysctl."net.ipv4.tcp_congestion_control" = lib.mkForce "bbr2";
 
   system.stateVersion = "22.05"; # Do not change
