@@ -64,10 +64,11 @@ pub enum RegisterNode {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct GetFogNodes {
     pub id:            NodeId,
+    pub ip:            IpAddr,
     pub tags:          Vec<String>,
     pub accepted_bids: HashMap<BidId, AcceptedBid>,
 }
@@ -76,6 +77,7 @@ impl From<(NodeId, NodeRecord)> for GetFogNodes {
     fn from((id, record): (NodeId, NodeRecord)) -> Self {
         GetFogNodes {
             id,
+            ip: record.ip,
             tags: record.tags,
             accepted_bids: record.accepted_bids,
         }

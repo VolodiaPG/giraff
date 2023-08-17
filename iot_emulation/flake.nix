@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:Nixos/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:Nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -19,10 +19,6 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
-    alejandra = {
-      url = "github:kamadorueda/alejandra/3.0.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs:
@@ -38,7 +34,7 @@
           # Define Rust environment to use
           rustChannel = "nightly";
           rustProfile = "minimal";
-          rustVersion = "2023-06-15";
+          rustVersion = "2023-08-16";
           target = "x86_64-unknown-linux-gnu";
           extraRustComponents = ["clippy" "rustfmt"];
 
@@ -57,11 +53,11 @@
               Cmd = ["${(rustPkgs.workspace.iot_emulation {}).bin}/bin/iot_emulation"];
             };
           };
-        in rec {
+        in {
           packages = {
             iot_emulation = dockerIOTEmulation;
           };
-          formatter = alejandra.defaultPackage.${system};
+          formatter = pkgs.alejandra;
           checks = {
             pre-commit-check = pre-commit-hooks.lib.${system}.run {
               src = ./.;
@@ -74,37 +70,26 @@
                   enable = true;
                   excludes = ["Cargo.nix"];
                 };
-                # Rust
-                rust = {
-                  enable = true;
-                  name = "rust (justfile pre_commit)";
-                  entry = "sh -c 'cd iot_emulation && just pre_commit'";
-                  language = "system";
-                  pass_filenames = false;
-                };
                 # Git (conventional commits)
                 commitizen.enable = true;
               };
             };
           };
-          devShells = nixpkgs.legacyPackages.${system}.mkShell {
-            default = rustPkgs.workspaceShell {
-              inherit (self.checks.${system}.pre-commit-check) shellHook;
-              packages = with pkgs; [
-                docker
-                just
-                pkg-config
-                jq
-                openssl
-                rust-analyzer
-                cargo-outdated
-                cargo-udeps
-                lldb
-                (rustfmt.override {asNightly = true;})
-                cargo2nix.packages.${system}.cargo2nix
-                nix-output-monitor
-              ];
-            };
+          devShells.default = rustPkgs.workspaceShell {
+            inherit (self.checks.${system}.pre-commit-check) shellHook;
+            packages = with pkgs; [
+              docker
+              just
+              pkg-config
+              jq
+              openssl
+              rust-analyzer
+              cargo-outdated
+              cargo-udeps
+              lldb
+              (rustfmt.override {asNightly = true;})
+              cargo2nix.packages.${system}.cargo2nix
+            ];
           };
         }
       );

@@ -6,6 +6,7 @@ import os
 import subprocess
 import tempfile
 import time
+from typing import Dict
 import uuid
 from collections import defaultdict
 from datetime import datetime
@@ -445,6 +446,7 @@ def iot_emulation(env=None, **kwargs):
                     --env INFLUX_ORG="faasfog" \
                     --env INFLUX_BUCKET="faasfog"  \
                     --env INSTANCE_NAME="iot_emulation" \
+                    --env PROXY_PORT="3128" \
                     -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
@@ -464,21 +466,36 @@ def network(env=None):
             env["netem"] = netem
             roles = env["roles"]
 
+            # proxy_ports = {}
+            # iot_connections = set([name for (name, _) in IOT_CONNECTION])
+
             def add_netem_cb(source, destination, delay):
                 netem.add_constraints(
                     src=roles[source],
                     dest=roles[destination],
                     delay=str(delay) + "ms",  # That's a really bad fix there...
-                    # delay="20ms",
                     rate="1gbit",
-                    # rate="100mbit",
                     symmetric=True,
                 )
+                # if destination in iot_connections:
+                #     # Get free port
+                #     res = en.run_commad(
+                #         "python -c 'import socket; s=socket.socket(); s.bind((\""
+                #         "\", 0)); print(s.getsockname()[1])'",
+                #         roles[destination],
+                #     )
+                #     proxy_port = res[0].stdout
+                #     proxy_ports[destination] = proxy_port
+                #     en.run_command(
+                #         f'echo "http_port {proxy_port}\nhttp_port acl port{proxy_port} \ntcp_outgoing_address {roles[source][0].address} port{ii}"',
+                #         roles[destination],
+                #     )
 
             gen_net(NETWORK, add_netem_cb)
 
             netem.deploy()
             netem.validate()
+            # en.run_command("systemctl restart squid.service")
             break
         except Exception as e:
             if i == 5:
@@ -666,17 +683,18 @@ def names(queue):
 def number_of_functions(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
-            low_latency = int(os.getenv("NB_FUNCTIONS_LOW_LATENCY"))
-            rest_latency = int(os.getenv("NB_FUNCTIONS_REST"))
-
             high_load_low_latency = int(
                 os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY")
             )
-            high_load_high_latency = low_latency - high_load_low_latency
             low_load_low_latency = int(
                 os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY")
             )
-            low_load_high_latency = rest_latency - low_load_low_latency
+            high_load_high_latency = int(
+                os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY")
+            )
+            low_load_high_latency = int(
+                os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY")
+            )
 
             writer = csv.writer(file, delimiter="\t")
             writer.writerow(["instance", "load", "latency", "value"])
@@ -827,12 +845,6 @@ def logs(env=None, all=False, **kwargs):
 @enostask()
 def do_open_tunnels(env=None, **kwargs):
     roles = env["roles"]
-    # open_tunnel(roles["market"][0].address, 30008, 8088)  # Market
-    # if "prom_master" in env["roles"]:
-    #     open_tunnel(env["roles"]["prom_master"][0].address, 9086, 9086)
-    # if "iot_emulation" in roles:
-    #     open_tunnel(roles["iot_emulation"][0].address, 3003)
-
     env["agent_tunnels"] = list()
     for prom_agent in roles["prom_agent"]:
         # local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)

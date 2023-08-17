@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:Nixos/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:Nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -19,16 +19,11 @@
       inputs.nixpkgs-stable.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
-    alejandra = {
-      url = "github:kamadorueda/alejandra/3.0.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs = inputs:
     with inputs;
       flake-utils.lib.eachDefaultSystem (
-        # flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
             inherit system;
@@ -39,7 +34,7 @@
           # Define Rust environment to use
           rustChannel = "nightly";
           rustProfile = "minimal";
-          rustVersion = "2023-06-15";
+          rustVersion = "2023-08-16";
           target = "x86_64-unknown-linux-gnu";
           extraRustComponents = ["clippy" "rustfmt"];
 
@@ -110,7 +105,7 @@
                 }
               )
             );
-          formatter = alejandra.defaultPackage.${system};
+          formatter = pkgs.alejandra;
           checks = {
             pre-commit-check = pre-commit-hooks.lib.${system}.run {
               src = ./.;
@@ -143,6 +138,7 @@
               just
               pkg-config
               jq
+              mprocs
               openssl
               rust-analyzer
               cargo-outdated
@@ -153,7 +149,7 @@
               kubectl
               (rustfmt.override {asNightly = true;})
               cargo2nix.packages.${system}.cargo2nix
-              nix-output-monitor
+              parallel
             ];
           };
         }

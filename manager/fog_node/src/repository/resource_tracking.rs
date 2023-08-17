@@ -48,7 +48,7 @@ impl ResourceTracking {
                     if free_cpu < reserved_cpu {
                         warn!(
                             "Configured reserved CPU (that will be used) >
-                    K8S available CPU detected: {:?} > {:?}",
+                    K8S available CPU detected: {:?} -> {:?}",
                             free_cpu.into_format_args(
                                 helper::uom_helper::cpu_ratio::cpu,
                                 uom::fmt::DisplayStyle::Abbreviation
@@ -63,7 +63,7 @@ impl ResourceTracking {
                     if free_ram < reserved_memory {
                         warn!(
                             "Configured reserved RAM (that will be used) >
-                    K8S available RAM detected: {:?} > {:?}",
+                    K8S available RAM detected: {:?} -> {:?}",
                             free_ram.into_format_args(
                                 information::gigabyte,
                                 uom::fmt::DisplayStyle::Abbreviation

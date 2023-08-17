@@ -1,11 +1,10 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     srvos.url = "github:numtide/srvos";
     srvos.inputs.nixpkgs.follows = "nixpkgs";
     flake-compat.url = "github:edolstra/flake-compat";
     flake-compat.flake = false;
-    alejandra.url = "github:kamadorueda/alejandra/3.0.0";
     impermanence.url = "github:nix-community/impermanence";
     flake-utils.url = "github:numtide/flake-utils";
   };
@@ -40,11 +39,10 @@
               sshpass
             ];
           };
+          formatter = pkgs.alejandra;
         }
       )
       // {
         nixosModules = import ./modules;
-
-        formatter = alejandra.defaultPackage;
       };
 }

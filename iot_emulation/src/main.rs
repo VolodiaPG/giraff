@@ -13,6 +13,7 @@ use actix_web_opentelemetry::RequestTracing;
 use anyhow::Context;
 use chrono::serde::ts_microseconds;
 use chrono::{DateTime, Utc};
+use dashmap::DashMap;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
     MetricsExporter,
@@ -23,8 +24,7 @@ use helper_derive::influx_observation;
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
-#[cfg(feature = "jaeger")]
-use reqwest_middleware::ClientBuilder;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
 use serde::{Deserialize, Serialize};
@@ -41,11 +41,6 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
-
-#[cfg(feature = "jaeger")]
-type HttpClient = reqwest_middleware::ClientWithMiddleware;
-#[cfg(not(feature = "jaeger"))]
-type HttpClient = reqwest::Client;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +60,7 @@ pub struct CronConfig {
     pub initial_wait_ms: u64,
     pub interval_ms:     u64,
     pub duration_ms:     u64,
+    pub first_node_ip:   String,
 }
 
 /// Counter of number of failed send
@@ -81,6 +77,7 @@ env_var!(INFLUX_TOKEN);
 env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
+env_var!(PROXY_PORT);
 
 #[instrument(
     level = "trace",
@@ -89,23 +86,31 @@ env_var!(INSTANCE_NAME);
 )]
 async fn put_cron(
     config: Json<CronConfig>,
-    cron_jobs: Data<dashmap::DashMap<String, Arc<CronConfig>>>,
-    client: Data<HttpClient>,
+    cron_jobs: Data<DashMap<String, Arc<CronConfig>>>,
+    clients: Data<DashMap<String, Arc<ClientWithMiddleware>>>,
     metrics: Data<MetricsExporter>,
 ) -> HttpResponse {
-    put_cron_content(config.0, &cron_jobs, &client, &metrics).await;
+    put_cron_content(config.0, &cron_jobs, &clients, &metrics).await;
 
     HttpResponse::Ok().finish()
 }
 
 async fn put_cron_content(
     config: CronConfig,
-    cron_jobs: &Arc<dashmap::DashMap<String, Arc<CronConfig>>>,
-    client: &Arc<HttpClient>,
+    cron_jobs: &Arc<DashMap<String, Arc<CronConfig>>>,
+    clients: &Arc<DashMap<String, Arc<ClientWithMiddleware>>>,
     metrics: &Arc<MetricsExporter>,
 ) -> HttpResponse {
     let config = Arc::new(config);
     let tag = config.tag.clone();
+
+    if !clients.contains_key(&config.first_node_ip) {
+        let Ok(client) = build_http_client(config.first_node_ip.clone()).await else{
+            return HttpResponse::InternalServerError().body(format!("Failed to create the proxy for {}", config.first_node_ip));
+        };
+        clients.insert(config.first_node_ip.clone(), Arc::new(client));
+    }
+
     info!(
         "Created the CRON to send to {:?} on tag {:?}; then directly to {:?}.",
         config.node_url, config.tag, config.iot_url
@@ -116,7 +121,7 @@ async fn put_cron_content(
     tokio::spawn(loop_send_requests(
         tag,
         cron_jobs.clone(),
-        client.clone(),
+        clients.clone(),
         metrics.clone(),
     ));
 
@@ -131,10 +136,14 @@ async fn put_cron_content(
 /// Returns if the function should be removed from cron
 async fn ping(
     config: &CronConfig,
-    client: &HttpClient,
+    clients: &DashMap<String, Arc<ClientWithMiddleware>>,
     metrics: &MetricsExporter,
 ) -> bool {
     let tag = config.tag.clone();
+
+    let Some(client) = clients.get(&config.first_node_ip) else{
+        return true;
+    };
 
     let res = client
         .post(&config.node_url)
@@ -186,7 +195,7 @@ async fn ping(
 async fn loop_send_requests(
     id: String,
     jobs: Arc<dashmap::DashMap<String, Arc<CronConfig>>>,
-    client: Arc<HttpClient>,
+    clients: Arc<DashMap<String, Arc<ClientWithMiddleware>>>,
     metrics: Arc<MetricsExporter>,
 ) {
     let Some(config) = jobs.get(&id).map(|x| x.value().clone()) else {
@@ -208,7 +217,7 @@ async fn loop_send_requests(
             break;
         }
 
-        if ping(&config, &client, &metrics).await {
+        if ping(&config, &clients, &metrics).await {
             info!("Removed cron for function {}", config.tag);
             break;
         };
@@ -269,6 +278,35 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
     set_global_default(subscriber).expect("Failed to set subscriber");
 }
 
+async fn build_http_client(
+    proxy: String,
+) -> anyhow::Result<ClientWithMiddleware> {
+    let mut http_client = reqwest::Client::builder();
+    if let Ok(port) = std::env::var(PROXY_PORT) {
+        info!(
+            "Create new http client w/ proxy for {}, proxy through port {}",
+            &proxy, &port
+        );
+        http_client = http_client
+            .proxy(reqwest::Proxy::all(format!("http://{}:{}", proxy, port))?);
+    } else {
+        info!(
+            "Created new http client w/o proxy for {} (but irrelevant since \
+             not used)",
+            proxy
+        );
+    }
+    let http_client = http_client.build()?;
+
+    #[cfg(feature = "jaeger")]
+    let http_client =
+        ClientBuilder::new(http_client).with(TracingMiddleware::default());
+    #[cfg(not(feature = "jaeger"))]
+    let http_client = ClientBuilder::new(http_client);
+
+    Ok(http_client.build())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     std::env::set_var("RUST_LOG", "warn,iot_emulation=trace");
@@ -285,17 +323,9 @@ async fn main() -> anyhow::Result<()> {
         .expect("Please specfify SERVER_PORT env variable");
     // Id of the request; Histogram that started w/ that request
 
-    let jobs = Arc::new(dashmap::DashMap::<String, Arc<CronConfig>>::new());
-
-    #[cfg(feature = "jaeger")]
-    let http_client = Arc::new(
-        ClientBuilder::new(reqwest::Client::new())
-            .with(TracingMiddleware::default())
-            .build(),
-    );
-
-    #[cfg(not(feature = "jaeger"))]
-    let http_client = Arc::new(reqwest::Client::new());
+    let jobs = Arc::new(DashMap::<String, Arc<CronConfig>>::new());
+    let clients =
+        Arc::new(DashMap::<String, Arc<ClientWithMiddleware>>::new());
 
     let metrics = Arc::new(
         MetricsExporter::new(
@@ -309,7 +339,7 @@ async fn main() -> anyhow::Result<()> {
         .expect("Cannot build the InfluxDB2 database connection"),
     );
 
-    let http_client = web::Data::from(http_client);
+    let http_clients = web::Data::from(clients);
     let metrics = web::Data::from(metrics);
     let jobs = web::Data::from(jobs);
 
@@ -321,7 +351,7 @@ async fn main() -> anyhow::Result<()> {
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
         app.app_data(web::JsonConfig::default().limit(4096))
-            .app_data(web::Data::clone(&http_client))
+            .app_data(web::Data::clone(&http_clients))
             .app_data(web::Data::clone(&jobs))
             .app_data(web::Data::clone(&metrics))
             .service(

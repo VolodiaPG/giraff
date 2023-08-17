@@ -5,7 +5,7 @@ import pickle
 import random
 import sys
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List
 
 import aiohttp  # type: ignore
 from alive_progress import alive_bar  # type: ignore
@@ -21,6 +21,7 @@ class Function:
     docker_fn_name: str
     function_name: str
     request_interval: int
+    first_node_ip: str | None
 
 
 RANDOM_SEED = os.getenv("RANDOM_SEED")
@@ -47,6 +48,7 @@ if __name__ == "__main__":
             "TARGET_NODES",
             "TARGET_NODE_NAMES",
             "IOT_IP",
+            "MARKET_IP",
             "MARKET_LOCAL_PORT",
             "IOT_LOCAL_PORT",
             "EXPE_SAVE_FILE",
@@ -65,6 +67,7 @@ IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
 MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
 IOT_LOCAL_PORT = int(os.getenv("IOT_LOCAL_PORT", 3003))
+NODES_IP = os.getenv("NODES_IP")
 
 FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY = int(
     os.getenv("FUNCTION_MEMORY_REQ_INTERVAL_LOW", 100)
@@ -228,6 +231,7 @@ async def put_request_iot_emulation(
         "initialWaitMs": FUNCTION_LOAD_STARTS_AFTER * 1000,
         "durationMs": duration * 1000,
         "intervalMs": function.request_interval,
+        "firstNodeIp": function.first_node_ip,
     }
 
     async with AsyncSession() as session:
@@ -249,7 +253,6 @@ async def register_new_function(function: Function) -> bool:
             faas_ip = data["chosen"]["ip"]
             faas_port = data["chosen"]["port"]
             function_id = data["chosen"]["bid"]["id"]
-
             response, code = await asyncio.ensure_future(
                 put_request_iot_emulation(
                     faas_ip=faas_ip,
@@ -327,6 +330,7 @@ async def save_file(filename: str):
                     docker_fn_name=docker_fn_name,
                     request_interval=request_interval,
                     sleep_before_start=sleep_before_start,
+                    first_node_ip=None,
                 )
             )
 
@@ -336,7 +340,7 @@ async def save_file(filename: str):
         pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
 
 
-def load_functions(filename):
+def load_functions(filename) -> List[Function]:
     sys.modules["__main__"].Function = Function
     functions = []
     with open(filename, "rb") as inp:
@@ -353,10 +357,24 @@ async def load_file(filename: str):
     functions = load_functions(filename)
     tasks = []
     bar_len = len(functions)
+
+    response = None
+    async with AsyncSession() as session:
+        async with session.get(
+            f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/fog"
+        ) as response:
+            http_code = response.status
+            response = await response.json()
+    fognet = {fog_node_data["id"]: fog_node_data["ip"] for fog_node_data in response}
+    print(fognet)
+
     with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
         for function in functions:
             # Use the id of the node instead of its name
             function.target_node = nodes[function.target_node.replace("'", "")]
+            function.first_node_ip = (
+                NODES_IP if NODES_IP else fognet[function.target_node]
+            )
             tasks.append(
                 asyncio.create_task(do_request_progress(bar=bar, function=function))
             )

@@ -2143,7 +2143,6 @@ in {
       (lib.optional (rootFeatures' ? "iot_emulation/default" || rootFeatures' ? "iot_emulation/mimalloc") "mimalloc")
       (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/opentelemetry") "opentelemetry")
       (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/opentelemetry-jaeger") "opentelemetry-jaeger")
-      (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/reqwest-middleware") "reqwest-middleware")
       (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/reqwest-tracing") "reqwest-tracing")
       (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/tracing-actix-web") "tracing-actix-web")
       (lib.optional (rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/tracing-opentelemetry") "tracing-opentelemetry")
@@ -2182,12 +2181,7 @@ in {
         rustPackages."registry+https://github.com/rust-lang/crates.io-index".opentelemetry-jaeger."0.17.0" {inherit profileName;};
       prometheus = rustPackages."registry+https://github.com/rust-lang/crates.io-index".prometheus."0.13.3" {inherit profileName;};
       reqwest = rustPackages."registry+https://github.com/rust-lang/crates.io-index".reqwest."0.11.18" {inherit profileName;};
-      ${
-        if rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/reqwest-middleware"
-        then "reqwest_middleware"
-        else null
-      } =
-        rustPackages."registry+https://github.com/rust-lang/crates.io-index".reqwest-middleware."0.2.0" {inherit profileName;};
+      reqwest_middleware = rustPackages."registry+https://github.com/rust-lang/crates.io-index".reqwest-middleware."0.2.0" {inherit profileName;};
       ${
         if rootFeatures' ? "iot_emulation/jaeger" || rootFeatures' ? "iot_emulation/reqwest-tracing"
         then "reqwest_tracing"

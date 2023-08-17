@@ -15,6 +15,7 @@
       outputs.nixosModules.filesystem
       outputs.nixosModules.init
       outputs.nixosModules.monitoring
+      outputs.nixosModules.squid
     ];
     specialArgs = {inherit inputs outputs;};
   };

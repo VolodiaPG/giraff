@@ -38,6 +38,7 @@
       "/etc/influxdb/influxdb.conf"
       "/var/lib/influxdb2/influxd.bolt"
       "/var/lib/influxdb2/influxd.sqlite"
+      "/root/.local/share/fish/fish_history"
       # Preserve ssh info
       # "/etc/ssh/ssh_host_rsa_key"
       # "/etc/ssh/ssh_host_rsa_key.pub"

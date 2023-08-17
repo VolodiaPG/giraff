@@ -96,8 +96,9 @@ scenario archive_name +city_name_node_targets:
     sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{archive_name}}"
-    {{RUN}} integration.py collect || true
-    # just logs --all
+    {{RUN}} integration.py collect
+
+    if [ $DEV ]; then sleep 9999999999; fi
 
 scenarii +city_name_node_targets:
     #!/usr/bin/env bash
@@ -143,8 +144,6 @@ scenarii +city_name_node_targets:
             just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
             || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$TAG" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
-
-        sleep 60
 
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$TAG\" {{city_name_node_targets}}'"
     done
@@ -264,6 +263,10 @@ docker_campain_in_nix suffix dotenvfile:
 
     mkdir -p campaing_logs
     args=()
+
+    if [ $DEV ] && [ $NB_REPETITIONS ]; then echo "Use either DEV or NB_REPETITIONS env var, not both"; exit 1; fi
+    if [ $DEV ]; then NB_REPETITIONS=1; fi
+
     for i in $(seq 1 $NB_REPETITIONS); do
         args+=("just _docker_campain {{suffix}}_$i $tempdir 2>&1 | tee campaing_logs/$fname")
     done
@@ -273,17 +276,18 @@ docker_campain_in_nix suffix dotenvfile:
 build_required_images user:
     #!/usr/bin/env bash
     set -e
-    
-    # TAGS=(${FOG_NODE_IMAGE_TAGS// / })
-    echo $FOG_NODE_IMAGE_TAGS
-    cd $MANAGER_PATH
-    nix develop -c just ghcr {{user}} $FOG_NODE_IMAGE_TAGS
-    cd {{justfile_directory()}}
-    cd $IOT_EMULATION_PATH
-    nix develop -c  just ghcr {{user}}
-    cd {{justfile_directory()}}
-    cd $FUNCTIONS_PATH
-    nix develop -c just faas
+
+    for (( i=0; i<${#FOG_NODE_IMAGE_TAGS[@]}; i++ )); do
+        FOG_NODE_IMAGE_TAGS[$i]="fog_node_${FOG_NODE_IMAGE_TAGS[$i]}"
+    done
+
+    commands=(
+        "cd $MANAGER_PATH && nix develop -c just ghcr {{user}} ${FOG_NODE_IMAGE_TAGS[@]}"
+        "cd $IOT_EMULATION_PATH && nix develop -c just ghcr {{user}}"
+        "cd $FUNCTIONS_PATH && nix develop -c just faas"
+    )
+
+    parallel --lb  ::: "${commands[@]}"
 
 docker_campain user variation="valuation_rates" dotenvfile=".env": (build_required_images user)
     nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix "{{variation}}{{dotenvfile}}" {{dotenvfile}}
