@@ -183,21 +183,6 @@ sshconfig:
     #!/usr/bin/env bash
     set -e
     login=$(cat /root/.python-grid5000.yaml | grep 'username: ' | sed 's/username: //')
-# cat <<EOF > /root/.ssh/config
-# Host access.grid5000.fr
-#     User $login
-#     ControlMaster auto
-#     ControlPath /dev/shm/ssh-%h
-#     ControlPersist 2h
-
-# Host !access.grid5000.fr *.grid5000.fr
-#     User $login
-#     ProxyJump access.grid5000.fr
-#     StrictHostKeyChecking no
-#     UserKnownHostsFile /dev/null
-#     ForwardAgent yes
-# EOF
-# ssh "$login@$CLUSTER.grid5000.fr" -c "sleep 999999"&
 
 docker_enos name tempdir cmd="bash":
     #!/usr/bin/env bash
