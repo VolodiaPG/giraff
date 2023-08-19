@@ -11,7 +11,6 @@ experiment.html
 experiment.md
 .ipython
 .pre-commit-config.yaml
-.env
 .direnv/
 *.tar*
 Untitled*.ipynb
@@ -20,3 +19,4 @@ vroom/
 *.bak
 *.csv
 requests
+joblog

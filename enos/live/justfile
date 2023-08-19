@@ -209,6 +209,10 @@ docker_enos name tempdir cmd="bash":
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME="{{name}}" \
         -e EXPE_LOAD_FILE=/home/enos/requests \
+        -e NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
+        -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
+        -e NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
+        -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
         --name "{{name}}" \
         --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
@@ -218,7 +222,7 @@ docker_enos name tempdir cmd="bash":
 docker_scenarii name tempdir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) || just clean"
+    just docker_enos {{name}} {{tempdir}} "(just vpn && just scenarii {{city_name_node_targets}}) ; just clean"
 
 _docker_campain name tempdir:
     #!/usr/bin/env bash
@@ -227,7 +231,7 @@ _docker_campain name tempdir:
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
 
-docker_campain_in_nix suffix dotenvfile:
+single_campain suffix dotenvfile:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
@@ -236,9 +240,6 @@ docker_campain_in_nix suffix dotenvfile:
     mkdir -p metrics-arks logs
     # Build image before calling it in parrallel as it confuses podman
 
-    image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
-    {{DOCKER}} load < $image_path
-
     today=$( date +%Y%m%d )
     number=0
     fname={{suffix}}-$today.log
@@ -246,17 +247,15 @@ docker_campain_in_nix suffix dotenvfile:
         printf -v fname '%s-%02d.log' "{{suffix}}-$today" "$(( ++number ))"
     done
 
-    mkdir -p campaing_logs
-    args=()
+    mkdir -p logs_campaign
 
-    if [ $DEV ] && [ $NB_REPETITIONS ]; then echo "Use either DEV or NB_REPETITIONS env var, not both"; exit 1; fi
-    if [ $DEV ]; then NB_REPETITIONS=1; fi
-
-    for i in $(seq 1 $NB_REPETITIONS); do
-        args+=("just _docker_campain {{suffix}}_$i $tempdir 2>&1 | tee campaing_logs/$fname")
-    done
-    
-    mprocs "${args[@]}"
+    # command receives its input from stdin.
+    # command sends its output to stdout.
+    exec 3>&1
+    stderr="$(just _docker_campain {{suffix}} $tempdir </dev/stdin 2>&1 1>&3)"
+    exitcode="${?}"
+    echo "$stderr" | tee logs_campaign/$fname
+    exit ${exitcode}
 
 build_required_images user:
     #!/usr/bin/env bash
@@ -274,9 +273,115 @@ build_required_images user:
 
     parallel --lb  ::: "${commands[@]}"
 
-docker_campain user variation="valuation_rates" dotenvfile=".env": (build_required_images user)
-    nix develop --extra-experimental-features "nix-command flakes" -c just docker_campain_in_nix "{{variation}}{{dotenvfile}}" {{dotenvfile}}
+docker_campain user variation="valuation_rates" experiments_dotfile=".env.experiments"  single_experiment_dotenvfile=".env": (build_required_images user)
+    nix develop --extra-experimental-features "nix-command flakes" -c just _docker_campain_in_env {{user}} {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
 
+_docker_campain_in_env user variation experiments_dotfile single_experiment_dotenvfile:
+    #!/usr/bin/env bash
+    set -e
+    # image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
+    # {{DOCKER}} load < $image_path
+    
+    function expe_command() {
+        set -e
+        export ii=$1
+
+        # Calculate current time in seconds
+        current_time=$(date +%s)
+
+        # Convert job duration to seconds
+        IFS=":" read hours minutes seconds <<< "${DEPLOYMENT_WALLTIME}"
+        job_duration_seconds=$(bc <<< "${hours}*3600 + ${minutes}*60 + ${seconds}")
+
+        # Calculate threshold in seconds
+        next_day=$(date -d ${DO_NOT_EXECUTE_IF_ENDING_AFTER} +"%Y%m%d")
+        threshold_time=$(date -d "${next_day} ${DO_NOT_EXECUTE_IF_ENDING_AFTER_HOUR}" +%s)
+
+        # Compare times and decide whether to execute the command
+        if (( current_time + job_duration_seconds > threshold_time )); then
+            echo "Job will finish after $DO_NOT_EXECUTE_IF_ENDING_AFTER_HOUR the '$DO_NOT_EXECUTE_IF_ENDING_AFTER' day. Command will not be executed."
+            exit 127
+        fi
+
+        just single_campain "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
+    }
+
+    if [ $DEV ]; then 
+        expe_command "dev" 
+        exit 0
+    fi
+
+
+    # Import all the settings for multiple experiments and load the var as env vars
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+
+    for i in $(seq 1 $NB_REPETITIONS); do
+        args+=("")
+    done
+
+    export free_port=$(comm -23 <(seq 49152 65535 | sort) <(ss -Htan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
+
+    function encapsulated_expe_command_mprocs() {
+        set -e
+        JOB_TERMINATION=$(mktemp)
+        ctl=$(cat <<EOF
+    export NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$1
+    ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$2
+    ; export NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$3
+    ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$4
+    ; bash -c "set -e; expe_command $5"
+    ; exit_status=\$?
+    ; exit \$(echo \$exit_status | tee $JOB_TERMINATION)
+    EOF
+        )
+        mprocs --server 0:$free_port --ctl "{c: add-proc, cmd: '$ctl'}"
+        until [ $(wc -l < "${JOB_TERMINATION}") -ne 0 ]; do sleep 5; done
+        job_status=$(cat $JOB_TERMINATION)
+        rm $JOB_TERMINATION
+        exit $job_status
+    }
+
+    # Enable job control
+    set -m
+    export -f expe_command
+    export -f encapsulated_expe_command_mprocs
+    mprocs --server 0:$free_port&
+    
+    set +e
+    if [ ! -f $JOB_LOG ] && [ $TYPE != "first_run" ]; then
+        echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
+        exit 1
+    fi
+    if [ $TYPE == "retry" ]; then
+        (parallel --retry-failed --joblog $JOB_LOG)&
+    else
+        cmd=$(cat <<EOF
+        --joblog $JOB_LOG \
+        -j $NB_IN_PARALLEL \
+        encapsulated_expe_command_mprocs {1} {2} {3} {4} {#} \
+        ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
+        :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
+        ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
+        :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
+        ::: $(seq 1 $NB_REPETITIONS)
+    EOF
+    )
+        if [ $TYPE == "resume" ]; then
+            parallel --resume $cmd&
+        else
+            rm $JOB_LOG || .
+            parallel $cmd&
+        fi
+    fi
+
+    fg %1
+    fg %2
+    
+    echo "Here is the JOB_LOG:"
+    cat $JOB_LOG
+   
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 

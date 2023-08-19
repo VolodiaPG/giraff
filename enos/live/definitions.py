@@ -262,23 +262,61 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
-MAX_LOCATION = 4
-MAX_INITIAL_PRICE = 2
-SLOPE = 1
+# TIER_3_FLAVOR = {
+#     "core": 2,
+#     "mem": 1024 * 4,
+#     "reserved_core": 1.75,
+#     "reserved_mem": 1024 * 3,
+#     "pricing_cpu": 1.0,  # for the function
+#     "pricing_mem": 0.8,  # for the function
+#     "pricing_geolocation": 1.0,  # for already used mem and cpu
+# }
+# TIER_2_FLAVOR = {
+#     "core": 6,
+#     "mem": 1024 * 16,
+#     "reserved_core": 5,
+#     "reserved_mem": 1024 * 14,
+#     "pricing_cpu": 0.9,  # for the function
+#     "pricing_mem": 0.9 * 0.8,  # for the function
+#     "pricing_geolocation": 0.90,  # for already used mem and cpu
+# }
+# TIER_1_FLAVOR = {
+#     "is_cloud": True,
+#     "core": 15,
+#     "mem": 1024 * 46,
+#     "reserved_core": 16,
+#     "reserved_mem": 1024 * 60,
+#     "pricing_cpu": 0.7,  # for the function
+#     "pricing_mem": 1.0 * 0.7,  # for the function
+#     "pricing_geolocation": 0.70,  # for already used mem and cpu
+# }
+MAX_LOCATION = 3
+MAX_INITIAL_PRICE = 10
+SLOPE = 8
 
 
-def pricing(location):
-    location = min(max(1, location), MAX_LOCATION)
-    base_price = MAX_INITIAL_PRICE - (
-        MAX_INITIAL_PRICE * (location - 1) / (MAX_LOCATION - 1)
-    )
+def pricing(
+    location: int,
+):
+    # Ensure location is within the valid range (1 to max_location)
+    location = min(max(0, location), MAX_LOCATION - location)
 
-    random_variation = random.uniform(-5, 5)  # Adjust the range of variation as needed
+    # Calculate the base price as an inverse function of location
+    # base_price = max_initial_price - (max_initial_price * (location - 1) / (MAX_LOCATION - 1))
+    base_price = (MAX_INITIAL_PRICE * location + MAX_LOCATION * MAX_INITIAL_PRICE) / (
+        MAX_LOCATION
+    )  # to guarantee that price for location=1 is max_price and price for MAX_LOCATION is 1
+    # Add random noise to the base price to create variation
+    noise = MAX_INITIAL_PRICE / MAX_LOCATION * 2  # half of the slope
+    random_variation = random.uniform(
+        -noise, noise
+    )  # Adjust the range of variation as needed
 
+    # Calculate the final price by adding random variation to the base price
     price = base_price + random_variation
 
-    price = min(max(1, price), MAX_INITIAL_PRICE)
-
+    # Ensure the price is within the desired range (1 to MAX_INITIAL_PRICE )
+    price = min(max(0, price), MAX_INITIAL_PRICE)
     return price
 
 
