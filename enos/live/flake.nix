@@ -323,6 +323,7 @@
 
                         doParallel
                         foreach
+                        multidplyr
 
                         # gifski
                         future_apply
