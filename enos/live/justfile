@@ -295,41 +295,75 @@ docker_campain user variation="valuation_rates" dotenvfile=".env": (build_requir
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
-sim filename="sim.csv" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY="100" NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY="100":
+sim filename="sim" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY="100" NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY="100" SIZE_MULTIPLIERS="1":
     #!/usr/bin/env bash
     export cities=()
-    for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
-    export TARGET_NODE_NAMES="${cities[@]}"
     export pricing=${pricing:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PRICING_STRATEGY not in \[\(.*\)\].*/\1/p')}
     export methods=${methods:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
-    parallel --keep-order \
+    export CSV_OUT_DIR=$(mktemp -d)
+
+    parallel SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}.net {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}}
+
+    time parallel --keep-order  \
+        --memfree 7G \
         JOB_INDEX={#} \
-        RANDOM_SEED={1} \
-        NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY={2} \
-        NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY={3} \
-        NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY={4} \
-        NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY={5} \
-        just _sim \
-        ::: ${RANDOM_SEED_INIT:=$(shuf -i 0-2560000 -n {{nb_iter}})} \
+        NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY={1} \
+        NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY={2} \
+        NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY={3} \
+        NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY={4} \
+        RANDOM_SEED='$(shuf -i 0-2560000 -n 1)' \
+        just _sim $CSV_OUT_DIR/{5}.net \
         ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}} \
         :::+ {{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}} \
         ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY}} \
         :::+ {{NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY}} \
-        1> {{filename}}
+        ::: {{SIZE_MULTIPLIERS}} \
+        ::: $(seq 1 {{nb_iter}})
 
-_sim:
+    rm ./{{filename}}.data.csv || .
+    touch ./{{filename}}.data.csv
+    readarray -d '' entries < <(printf '%s\0' $CSV_OUT_DIR/*.data.csv | sort -zV)
+    for file in "${entries[@]}"; do
+        cat $file >> ./{{filename}}.data.csv
+    done
+    rm ./{{filename}}.levels.csv || .
+    touch ./{{filename}}.levels.csv
+    readarray -d '' entries < <(printf '%s\0' $CSV_OUT_DIR/*.levels.csv | sort -zV)
+    for file in "${entries[@]}"; do
+        cat $file >> ./{{filename}}.levels.csv
+    done
+
+    rm -r $CSV_OUT_DIR
+
+_sim $LOAD_NETWORK_FILE:
     #!/usr/bin/env bash
     export EXPE_SAVE_FILE=$(mktemp)
+
+    inputs=$({{RUN}} integration.py iot-connections)
+    for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
+    export TARGET_NODE_NAMES="${cities[@]}"
     {{RUN}} expe.py >&2
-    parallel --keep-order PLACEMENT_STRATEGY={1} PRICING_STRATEGY={2} JOB_INDEX=$JOB_INDEX{#} {{RUN}} simulator.py ::: $methods ::: $pricing 
+    parallel --memfree 7G \
+        PLACEMENT_STRATEGY={1} \
+        PRICING_STRATEGY={2} \
+        JOB_INDEX=$JOB_INDEX{#} \
+        JOB_ID=$JOB_INDEX-{#} \
+        {{RUN}} simulator.py \
+        ::: $methods \
+        ::: $pricing 
+    
     rm $EXPE_SAVE_FILE >&2
 
 simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     #!/usr/bin/env bash
+    set -e
+    export SIZE_MULTIPLIER=1
     export cities=()
-    for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
+    inputs=$(SAVE_NETWORK_FILE=./network {{RUN}} integration.py iot-connections)
+    for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
     export EXPE_SAVE_FILE=./requests 
     export TARGET_NODE_NAMES="${cities[@]}"
     export RANDOM_SEED=42
+    export LOAD_NETWORK_FILE=./network
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
     {{RUN}} simulator.py > sim.simple.dump.csv

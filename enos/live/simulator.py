@@ -9,6 +9,7 @@ import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
+from math import expm1
 from typing import Any, Callable, Dict, List, Tuple
 
 import numpy  # type: ignore
@@ -17,7 +18,7 @@ import simpy  # type: ignore
 from alive_progress import alive_bar  # type: ignore
 
 import expe
-from definitions import LEVELS, NETWORK, gen_net
+from definitions import FOG_NODES, LEVELS, NETWORK, gen_net
 
 MS = 1
 SECS = 1000
@@ -41,11 +42,13 @@ class SLA:
 class Bid:
     bid: float
     bidder: str
+    acc_latency: float
 
 
 @dataclass
 class ProvisionedFunction:
     bid: float
+    acc_latency: float
     latency: float
     timestamp_start: float | int
     timestamp_end: float | int
@@ -75,7 +78,9 @@ class Pricing(ABC):
     """A visitor pattern driven cost estimator, from a given SLA"""
 
     @abstractmethod
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(
+        self, node: FogNode, *, sla: SLA, accumulated_latency: float, caller: str
+    ) -> Bid:
         pass
 
 
@@ -83,16 +88,16 @@ class ConstantPricing(Pricing):
     def __init__(self, price: float | Callable[[], float]) -> None:
         self.price = price() if callable(price) else price
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
-        return Bid(self.price, node.name)
+    def __call__(self, node: FogNode, accumulated_latency: float, **_) -> Bid:
+        return Bid(self.price, node.name, accumulated_latency)
 
 
 class RandomPricing(Pricing):
     def __init__(self, max_price: float) -> None:
         self.max_price = max_price
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
-        return Bid(random.uniform(0, self.max_price), node.name)
+    def __call__(self, node: FogNode, accumulated_latency: float, **_) -> Bid:
+        return Bid(random.uniform(0, self.max_price), node.name, accumulated_latency)
 
 
 class LinearPricing(Pricing):
@@ -110,13 +115,13 @@ class LinearPricing(Pricing):
         # return self.slope * utilization
         return self.initial_price + self.slope * utilization
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
         price, _ = integrate.quad(
             self.price,
             (node.cores_used) / node.cores,
             (node.cores_used + sla.core) / node.cores,
         )
-        return Bid(price, node.name)
+        return Bid(price, node.name, accumulated_latency)
 
 
 class LinearUniformRandomPricing(Pricing):
@@ -136,7 +141,7 @@ class LinearUniformRandomPricing(Pricing):
     def price_no_init(self, utilization):
         return self.slope * utilization
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
         price, _ = integrate.quad(
             self.price,
             (node.cores_used) / node.cores,
@@ -147,8 +152,8 @@ class LinearUniformRandomPricing(Pricing):
             (node.cores_used) / node.cores,
             (node.cores_used + sla.core) / node.cores,
         )
-        price += random.uniform(price_no_init, price * 2)
-        return Bid(price, node.name)
+        price += random.uniform(price_no_init, price * 10)
+        return Bid(price, node.name, accumulated_latency)
 
 
 class LinearNormalRandomPricing(Pricing):
@@ -168,7 +173,7 @@ class LinearNormalRandomPricing(Pricing):
     def price_no_init(self, utilization):
         return self.slope * utilization
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
         price, _ = integrate.quad(
             self.price,
             (node.cores_used) / node.cores,
@@ -181,9 +186,55 @@ class LinearNormalRandomPricing(Pricing):
         )
         price = max(
             price_no_init,
-            min(price + random.normalvariate(0, self.initial_price), price * 2),
+            min(
+                price + random.normalvariate(0, self.initial_price),
+                price * 2,
+                accumulated_latency,
+            ),
         )
-        return Bid(price, node.name)
+        return Bid(price, node.name, accumulated_latency)
+
+
+class ExpPricing(Pricing):
+    def __init__(self, multiplier: float) -> None:
+        self.multiplier = multiplier
+
+    def price(self, utilization):
+        return expm1(utilization * self.multiplier)
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        return Bid(price, node.name, accumulated_latency)
+
+
+class ExpPricingLatency(Pricing):
+    def __init__(self, multiplier: float, multiplier_latency: float) -> None:
+        self.multiplier = multiplier
+        self.multiplier_latency = multiplier_latency
+
+    def price(self, utilization):
+        return expm1(utilization * self.multiplier)
+
+    def price_lat(self, utilization):
+        return expm1(utilization * self.multiplier)
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price2, _ = integrate.quad(
+            self.price_lat,
+            0,
+            accumulated_latency / sla.latency,
+        )
+        price = price + price2
+        return Bid(price, node.name, accumulated_latency)
 
 
 class LinearPerPartPricing(Pricing):
@@ -209,13 +260,63 @@ class LinearPerPartPricing(Pricing):
             slope_ii = ii + 1
         return self.initial_price + self.slopes[slope_ii] * utilization
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
         price, _ = integrate.quad(
             self.price,
             node.cores_used / node.cores,
             (node.cores_used + sla.core) / node.cores,
         )
-        return Bid(price, node.name)
+        return Bid(price, node.name, accumulated_latency)
+
+
+class LinearLatencySafePricing(Pricing):
+    def __init__(
+        self,
+        network: Dict[Tuple[str, str], float],
+        slopes: List[float],
+        breaking_points: List[float],
+        latency_slopes: List[float],
+        latency_breaking_points: List[float],
+        initial_price: float | Callable[[], float] = 0.0,
+    ) -> None:
+        assert len(latency_slopes) == len(latency_breaking_points) + 1
+        assert len(latency_breaking_points) != 0
+        self.network = network
+        self.usage_pricing = LinearPerPartPricing(
+            slopes, breaking_points, initial_price
+        )
+        self.latency_slopes = latency_slopes
+        self.latency_breaking_points = latency_breaking_points
+
+    def price(self, latency):
+        slope_ii = 0
+        for ii, break_point in enumerate(self.latency_breaking_points):
+            if latency <= break_point:
+                break
+            slope_ii = ii + 1
+        return self.latency_slopes[slope_ii] * latency + 1
+
+    def __call__(
+        self, node: FogNode, sla: SLA, accumulated_latency: float, caller: str, **_
+    ) -> Bid:
+        usage_price = self.usage_pricing(
+            node, sla=sla, accumulated_latency=accumulated_latency, caller=caller
+        )
+        price = 0
+        if caller != "":
+            self.network[(caller, node.name)]
+            price, _ = integrate.quad(
+                self.price,
+                # (accumulated_latency - latency_from_coming_node) / sla.latency,
+                0,
+                accumulated_latency / sla.latency,
+                limit=150,
+            )
+
+        # if price < 1:
+        #     price = 1
+        usage_price.bid = usage_price.bid * price
+        return usage_price
 
 
 class LogisticPricing(Pricing):
@@ -236,13 +337,141 @@ class LogisticPricing(Pricing):
             )
         )
 
-    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float) -> Bid:
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
         price, _ = integrate.quad(
             self.price,
             node.cores_used / node.cores,
             (node.cores_used + sla.core) / node.cores,
         )
-        return Bid(price, node.name)
+        return Bid(price, node.name, accumulated_latency)
+
+
+class LogisticAccPricing(Pricing):
+    def __init__(
+        self, A: float, K: float, C: float, Q: float, V: float, B: float
+    ) -> None:
+        self.A = A
+        self.K = K
+        self.C = C
+        self.Q = Q
+        self.V = V
+        self.B = B
+
+    def price(self, utilization):
+        return self.A + (self.K - self.A) / (
+            math.pow(
+                self.C + self.Q * math.exp(-1.0 * self.B * utilization), 1 / self.V
+            )
+        )
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price2, _ = integrate.quad(
+            self.price,
+            0,
+            accumulated_latency / sla.latency,
+        )
+        return Bid(price + price2, node.name, accumulated_latency)
+
+
+class LogisticAccMinPricing(Pricing):
+    def __init__(
+        self, A: float, K: float, C: float, Q: float, V: float, B: float
+    ) -> None:
+        self.A = A
+        self.K = K
+        self.C = C
+        self.Q = Q
+        self.V = V
+        self.B = B
+
+    def price(self, utilization):
+        return self.A + (self.K - self.A) / (
+            math.pow(
+                self.C + self.Q * math.exp(-1.0 * self.B * utilization), 1 / self.V
+            )
+        )
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price2, _ = integrate.quad(
+            self.price,
+            0,
+            accumulated_latency / sla.latency,
+        )
+        return Bid(max(price, min(price, price2)), node.name, accumulated_latency)
+
+
+class LogisticAccMaxPricing(Pricing):
+    def __init__(
+        self, A: float, K: float, C: float, Q: float, V: float, B: float
+    ) -> None:
+        self.A = A
+        self.K = K
+        self.C = C
+        self.Q = Q
+        self.V = V
+        self.B = B
+
+    def price(self, utilization):
+        return self.A + (self.K - self.A) / (
+            math.pow(
+                self.C + self.Q * math.exp(-1.0 * self.B * utilization), 1 / self.V
+            )
+        )
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price2, _ = integrate.quad(
+            self.price,
+            0,
+            accumulated_latency / sla.latency,
+        )
+        return Bid(max(price, price2), node.name, accumulated_latency)
+
+
+class LogisticAccSumPricing(Pricing):
+    def __init__(
+        self, A: float, K: float, C: float, Q: float, V: float, B: float
+    ) -> None:
+        self.A = A
+        self.K = K
+        self.C = C
+        self.Q = Q
+        self.V = V
+        self.B = B
+
+    def price(self, utilization):
+        return self.A + (self.K - self.A) / (
+            math.pow(
+                self.C + self.Q * math.exp(-1.0 * self.B * utilization), 1 / self.V
+            )
+        )
+
+    def __call__(self, node: FogNode, sla: SLA, accumulated_latency: float, **_) -> Bid:
+        price, _ = integrate.quad(
+            self.price,
+            node.cores_used / node.cores,
+            (node.cores_used + sla.core) / node.cores,
+        )
+        price2, _ = integrate.quad(
+            self.price,
+            0,
+            accumulated_latency / sla.latency,
+        )
+        return Bid(price + price2, node.name, accumulated_latency)
 
 
 class AuctionBidRequest(Request):
@@ -288,7 +517,14 @@ class AuctionBidRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            bids.append(node.pricing_strat(node, self.sla, self.acc_latency))
+            bids.append(
+                node.pricing_strat(
+                    node,
+                    sla=self.sla,
+                    accumulated_latency=self.acc_latency,
+                    caller=caller,
+                )
+            )
 
         return bids
 
@@ -316,7 +552,14 @@ class EdgeWardRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            bids.append(node.pricing_strat(node, self.sla, self.acc_latency))
+            bids.append(
+                node.pricing_strat(
+                    node,
+                    sla=self.sla,
+                    accumulated_latency=self.acc_latency,
+                    caller=caller,
+                )
+            )
 
         if len(bids) > 0:
             return bids
@@ -363,7 +606,14 @@ class EdgeFirstRequest(Request):
             node.cores_used + self.sla.core <= node.cores
             and node.mem_used + self.sla.mem <= node.mem
         ):
-            return [node.pricing_strat(node, self.sla, self.acc_latency)]
+            return [
+                node.pricing_strat(
+                    node,
+                    sla=self.sla,
+                    accumulated_latency=self.acc_latency,
+                    caller=caller,
+                )
+            ]
 
         nodes: Any = []
         for child in node.children + [node.parent] if node.parent is not None else []:
@@ -429,7 +679,13 @@ class EdgeFirstRequestTwo(Request):
             and node.mem_used + self.sla.mem <= node.mem
         ):
             return EdgeFirstRequestData(
-                self.acc_latency, node.pricing_strat(node, self.sla, self.acc_latency)
+                self.acc_latency,
+                node.pricing_strat(
+                    node,
+                    sla=self.sla,
+                    accumulated_latency=self.acc_latency,
+                    caller=caller,
+                ),
             )
 
         nodes: Any = []
@@ -519,7 +775,12 @@ class FurthestPlacementRequest(Request):
             bids.append(
                 FurthestPlacementRequestData(
                     LEVELS.get(node.name),
-                    node.pricing_strat(node, self.sla, self.acc_latency),
+                    node.pricing_strat(
+                        node,
+                        sla=self.sla,
+                        accumulated_latency=self.acc_latency,
+                        caller=caller,
+                    ),
                 )
             )
 
@@ -545,7 +806,11 @@ class CloudOnlyRequest(Request):
                 node.cores_used + self.sla.core <= node.cores
                 and node.mem_used + self.sla.mem <= node.mem
             ):
-                return [node.pricing_strat(node, self.sla, 0)]
+                return [
+                    node.pricing_strat(
+                        node, sla=self.sla, accumulated_latency=0, caller=caller
+                    )
+                ]
             return []
 
         ret = yield env.process(
@@ -555,12 +820,15 @@ class CloudOnlyRequest(Request):
 
 
 class ProvisionRequest(Request):
-    def __init__(self, env, monitoring: Monitoring, sla: SLA, price: float) -> None:
+    def __init__(
+        self, env, monitoring: Monitoring, sla: SLA, price: float, acc_latency: float
+    ) -> None:
         super().__init__()
         self.env = env
         self.price = price
         self.sla = sla
         self.monitoring = monitoring
+        self.acc_latency = acc_latency
 
     def __call__(self, node: FogNode, _caller: str) -> Any:
         # yield self.env.timeout(0)
@@ -576,6 +844,7 @@ class ProvisionRequest(Request):
         self.monitoring.earnings[node.name].append(
             ProvisionedFunction(
                 self.price,
+                self.acc_latency,
                 self.sla.latency,
                 self.env.now,
                 self.env.now + self.sla.duration,
@@ -654,7 +923,7 @@ class MarketPlace:
         ret = yield self.env.process(
             self.send(
                 winner.bidder,
-                ProvisionRequest(env, self.monitoring, sla, price),
+                ProvisionRequest(env, self.monitoring, sla, price, winner.acc_latency),
             )
         )
         return ret
@@ -708,7 +977,7 @@ def generate_latencies(net):
     return ret
 
 
-def generate_initial_price(
+def generate_initial_price_nikos(
     location: int,
     max_location: int,
     max_initial_price: float,
@@ -737,6 +1006,33 @@ def generate_initial_price(
     return price
 
 
+def generate_initial_price(
+    location: int,
+    max_location: int,
+    max_initial_price: float,
+):
+    # Ensure location is within the valid range (1 to max_location)
+    location = min(max(0, location), max_location - location)
+
+    # Calculate the base price as an inverse function of location
+    # base_price = max_initial_price - (max_initial_price * (location - 1) / (max_location - 1))
+    base_price = (max_initial_price * location + max_location * max_initial_price) / (
+        max_location
+    )  # to guarantee that price for location=1 is max_price and price for max_location is 1
+    # Add random noise to the base price to create variation
+    noise = max_initial_price / max_location * 2  # half of the slope
+    random_variation = random.uniform(
+        -noise, noise
+    )  # Adjust the range of variation as needed
+
+    # Calculate the final price by adding random variation to the base price
+    price = base_price + random_variation
+
+    # Ensure the price is within the desired range (1 to max_initial_price )
+    price = min(max(0, price), max_initial_price)
+    return price
+
+
 def choose_from(env_var, mapping):
     key = os.getenv(env_var, "")
     ret = mapping.get(key)
@@ -757,6 +1053,8 @@ monitoring = Monitoring()
 max_level = 0
 for level in LEVELS.values():
     max_level = max(max_level, level)
+
+latencies = generate_latencies(NETWORK)
 
 placement_strategy, placement_strategy_name = choose_from(
     "PLACEMENT_STRATEGY",
@@ -783,7 +1081,8 @@ pricing_strategy, pricing_strategy_name = choose_from(
         "random": functools.partial(lambda _: RandomPricing(10.0)),
         "linear_random_uniform": functools.partial(
             lambda level: LinearUniformRandomPricing(
-                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+                8.0,
+                #   lambda: generate_initial_price(level, max_level, 10.0)
             )
         ),
         "linear_random_normal": functools.partial(
@@ -793,7 +1092,26 @@ pricing_strategy, pricing_strategy_name = choose_from(
         ),
         "linear": functools.partial(
             lambda level: LinearPricing(
-                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+                8.0,
+                # lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
+        "linear_low": functools.partial(
+            lambda level: LinearPricing(
+                1.0,
+                # lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
+        "linear_mid": functools.partial(
+            lambda level: LinearPricing(
+                2.0,
+                # lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
+        "linear_high": functools.partial(
+            lambda level: LinearPricing(
+                4.0,
+                # lambda: generate_initial_price(level, max_level, 10.0)
             )
         ),
         "linear_wo_init": functools.partial(lambda _: LinearPricing(8.0)),
@@ -804,15 +1122,40 @@ pricing_strategy, pricing_strategy_name = choose_from(
                 lambda: generate_initial_price(level, max_level, 10.0),
             )
         ),
+        "linear_latency": functools.partial(
+            lambda level: LinearLatencySafePricing(
+                latencies,
+                slopes=[2.0, 8.0, 4.0, 2.0],
+                breaking_points=[0.33, 0.5, 0.8],
+                latency_slopes=[1, 8, 16.0],
+                latency_breaking_points=[0.7, 0.9],
+                # initial_price=lambda: generate_initial_price(level, max_level, 10.0),
+                initial_price=0,
+            )
+        ),
         "linear_part_wo_init": functools.partial(
             lambda _: LinearPerPartPricing(
                 [1.0, 2.0, 8.0],
                 [0.2, 0.5],
             )
         ),
+        "exp": functools.partial(lambda _: ExpPricing(2.2)),
+        "exp_lat": functools.partial(lambda _: ExpPricingLatency(2.2, 2.2)),
         "logistic": functools.partial(lambda _: LogisticPricing(0, 1, 1, 10, 0.9, 5)),
         "logistic_inv": functools.partial(
             lambda _: LogisticPricing(1, 0, 1, 10, 0.9, 5)
+        ),
+        "logistic_acc": functools.partial(
+            lambda _: LogisticAccPricing(0, 1, 1, 10, 0.9, 5)
+        ),
+        "logistic_acc_min": functools.partial(
+            lambda _: LogisticAccMinPricing(0, 1, 1, 10, 0.9, 5)
+        ),
+        "logistic_acc_max": functools.partial(
+            lambda _: LogisticAccMaxPricing(0, 1, 1, 10, 0.9, 5)
+        ),
+        "logistic_acc_sum": functools.partial(
+            lambda _: LogisticAccSumPricing(0, 1, 1, 10, 0.9, 5)
         ),
     },
 )
@@ -822,15 +1165,20 @@ if not pricing_strategy or not placement_strategy:
 
 env = simpy.Environment()
 
-latencies = generate_latencies(NETWORK)
 _first_node, network = init_network(env, latencies, NETWORK, pricing_strategy)
 
 marketplace = MarketPlace(env, network, monitoring)
 
+nb_submitted_functions_low_latency = 0
+nb_submitted_functions_high_latency = 0
 functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:
     # Use the id of the node instead of its name
     function.target_node = function.target_node.replace("'", "")
+    if function.latency_type == "low":
+        nb_submitted_functions_low_latency += 1
+    else:
+        nb_submitted_functions_high_latency += 1
     env.process(
         submit_function(
             env, latencies, marketplace, function, monitoring, placement_strategy
@@ -841,10 +1189,9 @@ for function in functions:
 JOB_INDEX_STR = os.getenv(
     "JOB_INDEX", "0"
 )  # 0 means not running in gnuparallel ; if string is composed of 11...11111 then it means that its the first element
-if JOB_INDEX_STR.count("1") == len(JOB_INDEX_STR):
+JOB_INDEX = int(JOB_INDEX_STR)
+if JOB_INDEX == 11:
     JOB_INDEX = 1
-else:
-    JOB_INDEX = int(JOB_INDEX_STR)
 
 if JOB_INDEX == 0:
     with alive_bar(
@@ -855,8 +1202,8 @@ if JOB_INDEX == 0:
                 bar.text = (
                     f"--> Currently provisioned {monitoring.currently_provisioned},"
                     "failed to provision "
-                    "{monitoring.total_submitted - monitoring.total_provisioned},"
-                    " total is {monitoring.total_submitted}..."
+                    f"{monitoring.total_submitted - monitoring.total_provisioned},"
+                    f" total is {monitoring.total_submitted}..."
                 )
                 bar(SECS)
             env.run(until=1 + ii)
@@ -867,8 +1214,8 @@ else:
 print(
     (
         f"--> Done {monitoring.total_provisioned},"
-        " failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; "
-        "total is {monitoring.total_submitted}."
+        f" failed to provision {monitoring.total_submitted - monitoring.total_provisioned} functions; "
+        f"total is {monitoring.total_submitted}."
     ),
     file=sys.stderr,
 )
@@ -896,52 +1243,77 @@ if JOB_INDEX == 0:
         print(
             (
                 f"Lvl {ii} ({count[ii]} nodes):\n"
-                "Earnings: tot: {numpy.sum(earn):.2f} "
-                "med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] "
-                "avg: {numpy.mean(earn):.2f}\n"
-                "Provisioned: tot: {numpy.sum(prov)} "
-                "med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] "
-                "avg: {numpy.mean(prov):.2f}"
+                f"Earnings: tot: {numpy.sum(earn):.2f} "
+                f"med: {numpy.median(earn):.2f} [{quantile(earn, .025):.2f},{quantile(earn, .975):.2f}] "
+                f"avg: {numpy.mean(earn):.2f}\n"
+                f"Provisioned: tot: {numpy.sum(prov)} "
+                f"med: {numpy.median(prov):.2f} [{quantile(prov, .025):.2f},{quantile(prov, .975):.2f}] "
+                f"avg: {numpy.mean(prov):.2f}"
             ),
             file=sys.stderr,
         )
 
+out_dir = os.getenv("CSV_OUT_DIR", "./")
 seed = RANDOM_SEED or int(-1)
-writer = csv.writer(sys.stdout, delimiter="\t")
-if JOB_INDEX <= 1:
-    writer.writerow(
-        [
-            "job_id",
-            "node",
-            "placement",
-            "pricing",
-            "seed",
-            "level",
-            "earning",
-            "latency",
-            "timestamp_start",
-            "timestamp_end",
-            "node_cpu_reservation_sla",
-            "node_cpu",
-            "sim_time",
-        ]
-    )
-for node, level in LEVELS.items():
-    for ee in monitoring.earnings[node]:
+JOB_ID = os.getenv("JOB_ID", "0-0")
+with open(f"{out_dir}/{JOB_INDEX}.data.csv", "w") as file:
+    writer = csv.writer(file, delimiter="\t")
+    if JOB_INDEX <= 1:
         writer.writerow(
             [
-                JOB_INDEX,
-                node,
-                placement_strategy_name,
-                pricing_strategy_name,
-                seed,
+                "job_id",
+                "node",
+                "placement",
+                "pricing",
+                "seed",
+                "level",
+                "earning",
+                "acc_latency",
+                "latency",
+                "timestamp_start",
+                "timestamp_end",
+                "node_cpu_reservation_sla",
+                "node_cpu",
+                "sim_time",
+                "nb_submitted_functions_low_latency",
+                "nb_submitted_functions_high_latency",
+                "nb_nodes",
+            ]
+        )
+    nb_nodes = len(FOG_NODES)
+    for node, level in LEVELS.items():
+        for ee in monitoring.earnings[node]:
+            writer.writerow(
+                [
+                    JOB_ID,
+                    node,
+                    placement_strategy_name,
+                    pricing_strategy_name,
+                    seed,
+                    level,
+                    ee.bid,
+                    ee.acc_latency,
+                    ee.latency,
+                    ee.timestamp_start,
+                    min(ee.timestamp_end, SIM_TIME),
+                    ee.cpu_reservation_used_sla,
+                    ee.node_cpu,
+                    SIM_TIME,
+                    nb_submitted_functions_low_latency,
+                    nb_submitted_functions_high_latency,
+                    nb_nodes,
+                ]
+            )
+
+with open(f"{out_dir}/{JOB_INDEX}.levels.csv", "w") as file:
+    writer = csv.writer(file, delimiter="\t")
+    if JOB_INDEX <= 1:
+        writer.writerow(["job_id", "level", "node"])
+    for node, level in LEVELS.items():
+        writer.writerow(
+            [
+                JOB_ID,
                 level,
-                ee.bid,
-                ee.latency,
-                ee.timestamp_start,
-                min(ee.timestamp_end, SIM_TIME),
-                ee.cpu_reservation_used_sla,
-                ee.node_cpu,
-                SIM_TIME,
+                node,
             ]
         )

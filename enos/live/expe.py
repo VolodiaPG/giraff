@@ -22,6 +22,8 @@ class Function:
     function_name: str
     request_interval: int
     first_node_ip: str | None
+    request_interval_type: str
+    latency_type: str
 
 
 RANDOM_SEED = os.getenv("RANDOM_SEED")
@@ -331,6 +333,8 @@ async def save_file(filename: str):
                     request_interval=request_interval,
                     sleep_before_start=sleep_before_start,
                     first_node_ip=None,
+                    request_interval_type=request_interval_type,
+                    latency_type=latency_type,
                 )
             )
 
@@ -363,10 +367,9 @@ async def load_file(filename: str):
         async with session.get(
             f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/fog"
         ) as response:
-            http_code = response.status
+            response.status
             response = await response.json()
     fognet = {fog_node_data["id"]: fog_node_data["ip"] for fog_node_data in response}
-    print(fognet)
 
     with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
         for function in functions:

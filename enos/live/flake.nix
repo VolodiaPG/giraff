@@ -66,6 +66,13 @@
                     buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
                   }
                 );
+              randomname =
+                oldattr.randomname.overridePythonAttrs
+                (
+                  old: {
+                    buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
+                  }
+                );
               # beautifulsoup4 =
               #   oldattr.beautifulsoup4.overridePythonAttrs
               #   (
@@ -320,6 +327,9 @@
                         reshape2
                         ggside
                         ggbeeswarm
+                        ggpubr
+                        Hmisc
+                        rstatix
 
                         doParallel
                         foreach
