@@ -233,6 +233,7 @@
                 busybox
                 gnused
                 bashInteractive
+                parallel
 
                 # My toolset
                 just

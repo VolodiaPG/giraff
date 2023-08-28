@@ -529,40 +529,40 @@ def pprint_network(node):
 NETWORK = None
 
 
-# NETWORK = {
-#     "name": "market",
-#     "flavor": TIER_1_FLAVOR,
-#     "children": [
-#         {
-#             "name": "node_1",
-#             "flavor": TIER_3_FLAVOR,
-#             "latency": 3,
-#             "children": [
-#                 {
-#                     "name": "node_2",
-#                     "flavor": TIER_3_FLAVOR,
-#                     "latency": 6,
-#                     "children": [
-#                         {
-#                             "name": "node_3",
-#                             "flavor": TIER_4_FLAVOR,
-#                             "latency": 10,
-#                             "children": [],
-#                             "iot_connected": 0,
-#                         },
-#                         {
-#                             "name": "node_34",
-#                             "flavor": TIER_4_FLAVOR,
-#                             "latency": 5,
-#                             "children": [],
-#                             "iot_connected": 0,
-#                         },
-#                     ],
-#                 }
-#             ],
-#         },
-#     ],
-# }
+NETWORK = {
+    "name": "market",
+    "flavor": TIER_1_FLAVOR,
+    "children": [
+        {
+            "name": "node_1",
+            "flavor": TIER_3_FLAVOR,
+            "latency": 3,
+            "children": [
+                {
+                    "name": "node_2",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 6,
+                    "children": [
+                        {
+                            "name": "node_3",
+                            "flavor": TIER_4_FLAVOR,
+                            "latency": 10,
+                            "children": [],
+                            "iot_connected": 0,
+                        },
+                        {
+                            "name": "node_34",
+                            "flavor": TIER_4_FLAVOR,
+                            "latency": 5,
+                            "children": [],
+                            "iot_connected": 0,
+                        },
+                    ],
+                }
+            ],
+        },
+    ],
+}
 
 
 def flatten(container):
