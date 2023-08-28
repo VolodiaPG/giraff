@@ -302,17 +302,17 @@ sim filename="sim" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_F
     export methods=${methods:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
     export CSV_OUT_DIR=$(mktemp -d)
 
-    parallel SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}.net {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}}
+    parallel SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}} ::: $(seq 1 {{nb_iter}})
 
     time parallel --keep-order  \
-        --memfree 7G \
+        --memsuspend 3G \
         JOB_INDEX={#} \
         NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY={1} \
         NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY={2} \
         NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY={3} \
         NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY={4} \
         RANDOM_SEED='$(shuf -i 0-2560000 -n 1)' \
-        just _sim $CSV_OUT_DIR/{5}.net \
+        just _sim $CSV_OUT_DIR/{5}-{6}.net \
         ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}} \
         :::+ {{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}} \
         ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY}} \
@@ -343,7 +343,7 @@ _sim $LOAD_NETWORK_FILE:
     for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
     export TARGET_NODE_NAMES="${cities[@]}"
     {{RUN}} expe.py >&2
-    parallel --memfree 7G \
+    parallel --memsuspend 3G \
         PLACEMENT_STRATEGY={1} \
         PRICING_STRATEGY={2} \
         JOB_INDEX=$JOB_INDEX{#} \

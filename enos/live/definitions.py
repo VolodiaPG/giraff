@@ -651,5 +651,5 @@ ADJACENCY = adjacency(NETWORK)
 LEVELS = levels(NETWORK)
 
 if __name__ == "__main__":
-    print("Number of nodes:", len(FOG_NODES))
     pprint.pprint(pprint_network(NETWORK), sort_dicts=False)
+    print("Number of nodes:", len(FOG_NODES))
