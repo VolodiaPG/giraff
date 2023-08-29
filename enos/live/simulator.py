@@ -1090,6 +1090,11 @@ pricing_strategy, pricing_strategy_name = choose_from(
                 8.0, lambda: generate_initial_price(level, max_level, 10.0)
             )
         ),
+        "linear_initial": functools.partial(
+            lambda level: LinearPricing(
+                8.0, lambda: generate_initial_price(level, max_level, 10.0)
+            )
+        ),
         "linear": functools.partial(
             lambda level: LinearPricing(
                 8.0,
