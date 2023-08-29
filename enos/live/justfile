@@ -130,7 +130,7 @@ scenarii +city_name_node_targets:
         parallel --tty --joblog ./joblog --retry-failed
     done
 
-    just clean
+    just clean || .
 
 collect:
     mkdir -p metrics
@@ -166,7 +166,7 @@ sshconfig:
     set -e
     login=$(cat /root/.python-grid5000.yaml | grep 'username: ' | sed 's/username: //')
 
-docker_enos name tempdir cmd="bash":
+docker_enos name expe_dir cmd="bash":
     #!/usr/bin/env bash
     set -e
     {{DOCKER}} run -it --rm \
@@ -176,13 +176,14 @@ docker_enos name tempdir cmd="bash":
         -v /lib/modules:/lib/modules \
         -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
         -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
-        -v {{tempdir}}/definitions.py:/home/enos/definitions.py:ro \
+        -v {{expe_dir}}/definitions.py:/home/enos/definitions.py:ro \
         -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
         -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
         -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
         -v {{justfile_directory()}}/logs:/home/enos/logs \
-        -v {{tempdir}}/.env:/home/enos/.env:ro \
-        -v {{tempdir}}/requests:/home/enos/requests:ro \
+        -v {{expe_dir}}/.env:/home/enos/.env:ro \
+        -v {{expe_dir}}/requests:/home/enos/requests:ro \
+        -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
         -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
@@ -195,6 +196,7 @@ docker_enos name tempdir cmd="bash":
         -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
         -e NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
         -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
+        -e LOAD_NETWORK_FILE=/home/enos/net \
         --name "{{name}}" \
         --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
@@ -204,7 +206,7 @@ docker_enos name tempdir cmd="bash":
 docker_scenarii name tempdir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{tempdir}} "just vpn && echo vnp is ok && just scenarii {{city_name_node_targets}} ; just clean"
+    just docker_enos {{name}} {{tempdir}} "just vpn && echo vnp is ok && just scenarii {{city_name_node_targets}} ; just clean || ."
 
 _docker_campain name tempdir:
     #!/usr/bin/env bash
@@ -213,7 +215,7 @@ _docker_campain name tempdir:
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
 
-single_campain suffix dotenvfile:
+single_campain name dotenvfile:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
@@ -223,20 +225,14 @@ single_campain suffix dotenvfile:
 
     today=$( date +%Y%m%d )
     number=0
-    fname={{suffix}}-$today.log
+    fname={{name}}-$today.log
     while [ -e "$fname" ]; do
-        printf -v fname '%s-%02d.log' "{{suffix}}-$today" "$(( ++number ))"
+        printf -v fname '%s-%02d.log' "{{name}}-$today" "$(( ++number ))"
     done
 
     mkdir -p logs_campaign
+    just _docker_campain {{name}} $tempdir |& tee -a logs_campaign/$fname
 
-    # command receives its input from stdin.
-    # command sends its output to stdout.
-    exec 3>&1
-    stderr="$(just _docker_campain {{suffix}} $tempdir </dev/stdin 2>&1 1>&3)"
-    exitcode="${?}"
-    echo "$stderr" | tee logs_campaign/$fname
-    exit ${exitcode}
 
 build_required_images user:
     #!/usr/bin/env bash
@@ -293,6 +289,7 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
     }
 
     if [ $DEV ]; then 
+        export LOAD_NETWORK_FILE=$(mktemp)
         just single_campain "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
         exit 0
     fi
@@ -302,6 +299,12 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
     set -o allexport
     source {{experiments_dotfile}}
     set +o allexport
+
+    mkdir -p $JOB_DIR
+    if [ $TYPE == "first_run" ]; then
+        rm -rf $JOB_DIR/*
+        parallel SAVE_NETWORK_FILE=$JOB_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: $SIZE_MULTIPLIERS ::: $(seq 1 $NB_REPETITIONS)
+    fi
 
     for i in $(seq 1 $NB_REPETITIONS); do
         args+=("")
@@ -317,6 +320,7 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
     ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$2
     ; export NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$3
     ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$4
+    ; export LOAD_NETWORK_FILE=$6
     ; bash -c "set -e; expe_command $5"
     ; exit_status=\$?
     ; exit \$(echo \$exit_status | tee $JOB_TERMINATION)
@@ -346,11 +350,12 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
         cmd=$(cat <<EOF
         --joblog $JOB_LOG \
         -j $NB_IN_PARALLEL \
-        encapsulated_expe_command_mprocs {1} {2} {3} {4} {#} \
+        encapsulated_expe_command_mprocs {1} {2} {3} {4} {#} '$JOB_DIR/'{5}-{6}.net \
         ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
         :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
         ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
         :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
+        ::: $SIZE_MULTIPLIERS \
         ::: $(seq 1 $NB_REPETITIONS)
     EOF
     )

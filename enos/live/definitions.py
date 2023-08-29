@@ -1,6 +1,7 @@
 import copy
 import functools
 import heapq
+import math
 import os
 import pprint
 import random
@@ -399,7 +400,7 @@ def generate_level(
     ret: List[Dict] = []
     global uuid
     first = True
-    for _ in range(0, random.randint(nb_nodes[0], nb_nodes[1])):
+    for _ in range(0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))):
         uuid += 1
         city = {
             "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
@@ -460,7 +461,7 @@ def flavor_randomizer_cpu(reduce_by_min: int, reduce_by_max: int):
     return drop
 
 
-(SIZE_MULTIPLIER) = int(os.getenv("SIZE_MULTIPLIER", "1"))
+SIZE_MULTIPLIER = float(os.getenv("SIZE_MULTIPLIER", "1"))
 
 
 def network_generation():
@@ -528,41 +529,41 @@ def pprint_network(node):
 
 NETWORK = None
 
-
-NETWORK = {
-    "name": "market",
-    "flavor": TIER_1_FLAVOR,
-    "children": [
-        {
-            "name": "node_1",
-            "flavor": TIER_3_FLAVOR,
-            "latency": 3,
-            "children": [
-                {
-                    "name": "node_2",
-                    "flavor": TIER_3_FLAVOR,
-                    "latency": 6,
-                    "children": [
-                        {
-                            "name": "node_3",
-                            "flavor": TIER_4_FLAVOR,
-                            "latency": 10,
-                            "children": [],
-                            "iot_connected": 0,
-                        },
-                        {
-                            "name": "node_34",
-                            "flavor": TIER_4_FLAVOR,
-                            "latency": 5,
-                            "children": [],
-                            "iot_connected": 0,
-                        },
-                    ],
-                }
-            ],
-        },
-    ],
-}
+if os.getenv("DEV"):
+    NETWORK = {
+        "name": "market",
+        "flavor": TIER_1_FLAVOR,
+        "children": [
+            {
+                "name": "node_1",
+                "flavor": TIER_3_FLAVOR,
+                "latency": 3,
+                "children": [
+                    {
+                        "name": "node_2",
+                        "flavor": TIER_3_FLAVOR,
+                        "latency": 6,
+                        "children": [
+                            {
+                                "name": "node_3",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 10,
+                                "children": [],
+                                "iot_connected": 0,
+                            },
+                            {
+                                "name": "node_34",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 5,
+                                "children": [],
+                                "iot_connected": 0,
+                            },
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
 
 
 def flatten(container):
@@ -702,6 +703,7 @@ if NETWORK is None:
         )
     elif save_network_file and not load_network_file:
         NETWORK = network_generation()
+        dill.settings["recurse"] = True
         with open(save_network_file, "wb") as outp:  # Overwrites any existing file.
             dill.dump(NETWORK, outp, dill.HIGHEST_PROTOCOL)
     elif not save_network_file and load_network_file:

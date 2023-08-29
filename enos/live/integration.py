@@ -139,7 +139,7 @@ def log_cmd(env, results_list):
 
 def open_tunnel(address, port, local_port=None, rest_of_url=""):
     print(
-        f"doing tunnels for {address}:{port} -> http://localhost:{local_port}{rest_of_url}"
+        f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}"
     )
     if local_port is None:
         local_port = port
@@ -148,7 +148,7 @@ def open_tunnel(address, port, local_port=None, rest_of_url=""):
             tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
             local_address, local_port, _ = tunnel.start()
             print(
-                f"tunnel opened: {port} -> http://localhost:{local_port}{rest_of_url}"
+                f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}"
             )
             return local_address, local_port
         except Exception as e:
