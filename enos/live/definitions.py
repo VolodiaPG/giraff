@@ -1,3 +1,4 @@
+import copy
 import functools
 import heapq
 import os
@@ -308,7 +309,7 @@ TIER_3_FLAVOR = {
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
 TIER_2_FLAVOR = {
-    "core": 6,
+    "core": 8,
     "mem": 1024 * 16,
     "reserved_core": 5,
     "reserved_mem": 1024 * 14,
@@ -364,7 +365,7 @@ def generate_level(
         uuid += 1
         city = {
             "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
-            "flavor": flavor,
+            "flavor": copy.copy(flavor),
             "latency": random.randint(latencies[0], latencies[1]),
             "children": next_lvl(depth=depth + 1) if next_lvl else [],
         }
@@ -399,7 +400,29 @@ def drop_children(drop_one_in: int):
     return drop
 
 
-SIZE_MULTIPLIER = int(os.getenv("SIZE_MULTIPLIER", "1"))
+def flavor_randomizer_mem(reduce_by_min: int, reduce_by_max: int):
+    def drop(dd: Dict, *_):
+        diff = 1024 * random.randint(reduce_by_min, reduce_by_max)
+        dd["flavor"]["mem"] -= diff
+        dd["flavor"]["reserved_mem"] -= diff
+        assert dd["flavor"]["mem"] != 0
+        assert dd["flavor"]["reserved_mem"] != 0
+
+    return drop
+
+
+def flavor_randomizer_cpu(reduce_by_min: int, reduce_by_max: int):
+    def drop(dd: Dict, *_):
+        diff = random.randint(reduce_by_min, reduce_by_max)
+        dd["flavor"]["core"] -= diff
+        dd["flavor"]["reserved_core"] -= diff
+        assert dd["flavor"]["core"] != 0
+        assert dd["flavor"]["reserved_core"] != 0
+
+    return drop
+
+
+(SIZE_MULTIPLIER) = int(os.getenv("SIZE_MULTIPLIER", "1"))
 
 
 def network_generation():
@@ -415,19 +438,31 @@ def network_generation():
                 generate_level,
                 TIER_2_FLAVOR,
                 nb_nodes=(SIZE_MULTIPLIER, 2 * SIZE_MULTIPLIER),
-                latencies=(1, 4),
-                modifiers=[drop_children(drop_one_in=4)],
+                latencies=(4, 60),
+                modifiers=[
+                    drop_children(drop_one_in=4),
+                    flavor_randomizer_cpu(0, 4),
+                    flavor_randomizer_mem(0, 6),
+                ],
                 next_lvl=functools.partial(
                     generate_level,
                     TIER_3_FLAVOR,
                     nb_nodes=(1, 2 * SIZE_MULTIPLIER),
-                    latencies=(5, 60),
+                    latencies=(3, 20),
+                    modifiers=[
+                        flavor_randomizer_cpu(0, 2),
+                        flavor_randomizer_mem(0, 4),
+                    ],
                     next_lvl=functools.partial(
                         generate_level,
                         TIER_4_FLAVOR,
                         nb_nodes=(1, 4 * SIZE_MULTIPLIER),
-                        latencies=(1, 20),
-                        modifiers=[set_iot_connected(drop_one_in=3)],
+                        latencies=(1, 10),
+                        modifiers=[
+                            set_iot_connected(drop_one_in=2),
+                            flavor_randomizer_cpu(0, 1),
+                            flavor_randomizer_mem(0, 2),
+                        ],
                     ),
                 ),
             ),
@@ -437,10 +472,16 @@ def network_generation():
 
 def pprint_network(node):
     ret = {}
-    for key in ["name", "is_cloud", "iot_connected"]:
+    for key in ["name", "is_cloud", "latency", "iot_connected", "flavor"]:
         if key not in node:
             continue
-        ret[key] = node[key]
+        if key == "flavor":
+            ret[key] = {
+                "reserved_core": node[key]["reserved_core"],
+                "reserved_mem": node[key]["reserved_mem"],
+            }
+        else:
+            ret[key] = node[key]
     ret["children"] = []
     for child in node["children"]:
         ret["children"].append(pprint_network(child))
