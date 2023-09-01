@@ -376,6 +376,15 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
+dry-experiment $CLUSTER SIZE_MULTIPLIERS:
+    #!/usr/bin/env bash
+    parallel -k \
+        export SIZE_MULTIPLIER={1} FILE='$(mktemp)' \
+        ";" SAVE_NETWORK_FILE='$FILE' {{RUN}} definitions.py ">" /dev/null \
+        "&&" LOAD_NETWORK_FILE='$FILE' {{RUN}} integration.py up --dry-run \
+        ";" rm '$FILE' \
+        ::: {{SIZE_MULTIPLIERS}}
+
 sim filename="sim" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY="100" NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY="100" SIZE_MULTIPLIERS="1":
     #!/usr/bin/env bash
     export cities=()
