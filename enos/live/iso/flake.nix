@@ -21,12 +21,13 @@
       flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (
         system: let
           pkgs = nixpkgs.legacyPackages.${system};
-          modules = outputs.nixosModules [
-              outputs.nixosModules.configuration
-              outputs.nixosModules.filesystem
-              outputs.nixosModules.init
-              outputs.nixosModules.monitoring
-              outputs.nixosModules.squid
+          modules = with outputs.nixosModules; [
+              base
+              configuration
+              filesystem
+              init
+              monitoring
+              squid
           ];
         in {
           packages = import ./pkgs {inherit pkgs inputs outputs modules;};
@@ -42,7 +43,6 @@
               nixos-rebuild
               qemu
               mprocs
-              nix-output-monitor
               sshpass
             ];
           };

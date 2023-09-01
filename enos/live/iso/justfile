@@ -9,7 +9,7 @@ fmt:
     nix --experimental-features "nix-command flakes" fmt .
 
 build target:
-    nom build {{target}}
+    nix build {{target}}
 
 build-vm: (build ".#vm")
 

@@ -1,4 +1,5 @@
 {
+  base = import ./base.nix;
   configuration = import ./configuration.nix;
   filesystem = import ./filesystem.nix;
   init = import ./init.nix;
