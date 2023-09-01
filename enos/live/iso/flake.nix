@@ -22,15 +22,15 @@
         system: let
           pkgs = nixpkgs.legacyPackages.${system};
           modules = with outputs.nixosModules; [
-              base
-              configuration
-              filesystem
-              init
-              monitoring
-              squid
+            base
+            configuration
+            filesystem
+            init
+            monitoring
+            squid
           ];
         in {
-          packages = import ./pkgs {inherit pkgs inputs outputs modules;};
+          packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
         }
       )
       // flake-utils.lib.eachDefaultSystem (

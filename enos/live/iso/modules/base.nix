@@ -2,7 +2,7 @@
   pkgs,
   lib,
   ...
-}: let 
+}: let
   readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
 in {
   programs.fish.enable = true;
