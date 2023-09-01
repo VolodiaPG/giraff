@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   outputs,
+  modules,
   ...
 }: let
   inherit (inputs) nixpkgs;
@@ -10,13 +11,8 @@
     modules = [
       # inputs.srvos.nixosModules.server
       "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
-      "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
-      outputs.nixosModules.configuration
-      outputs.nixosModules.filesystem
-      outputs.nixosModules.init
-      outputs.nixosModules.monitoring
-      outputs.nixosModules.squid
-    ];
+      "${nixpkgs}/nixos/modules/profiles/all-hardware.nix" 
+      ] ++ modules;
     specialArgs = {inherit inputs outputs;};
   };
 in {
