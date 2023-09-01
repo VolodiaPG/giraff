@@ -339,7 +339,7 @@ TIER_4_FLAVOR = {
 TIER_3_FLAVOR = {
     "core": 4,
     "mem": 1024 * 8,
-    "reserved_core": 3,
+    "reserved_core": 3.5,
     "reserved_mem": 1024 * 7,
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
@@ -350,8 +350,8 @@ TIER_3_FLAVOR = {
 TIER_2_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
-    "reserved_core": 5,
-    "reserved_mem": 1024 * 14,
+    "reserved_core": 7,
+    "reserved_mem": 1024 * 15,
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(1),
@@ -360,10 +360,10 @@ TIER_2_FLAVOR = {
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
-    "core": 15,
+    "core": 16,
     "mem": 1024 * 46,
-    "reserved_core": 16,
-    "reserved_mem": 1024 * 60,
+    "reserved_core": 15,
+    "reserved_mem": 1024 * 44,
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(0),
@@ -439,9 +439,10 @@ def drop_children(drop_one_in: int):
     return drop
 
 
-def flavor_randomizer_mem(reduce_by_min: int, reduce_by_max: int):
+def flavor_randomizer_mem(*reductions: List[int]):
     def drop(dd: Dict, *_):
-        diff = 1024 * random.randint(reduce_by_min, reduce_by_max)
+        diff_index = random.randint(0, len(reductions) - 1)
+        diff = 1024 * reductions[diff_index]
         dd["flavor"]["mem"] -= diff
         dd["flavor"]["reserved_mem"] -= diff
         assert dd["flavor"]["mem"] != 0
@@ -450,9 +451,10 @@ def flavor_randomizer_mem(reduce_by_min: int, reduce_by_max: int):
     return drop
 
 
-def flavor_randomizer_cpu(reduce_by_min: int, reduce_by_max: int):
+def flavor_randomizer_cpu(*reductions: List[int]):
     def drop(dd: Dict, *_):
-        diff = random.randint(reduce_by_min, reduce_by_max)
+        diff_index = random.randint(0, len(reductions) - 1)
+        diff = reductions[diff_index]
         dd["flavor"]["core"] -= diff
         dd["flavor"]["reserved_core"] -= diff
         assert dd["flavor"]["core"] != 0
@@ -476,21 +478,21 @@ def network_generation():
             next_lvl=functools.partial(
                 generate_level,
                 TIER_2_FLAVOR,
-                nb_nodes=(SIZE_MULTIPLIER, 2 * SIZE_MULTIPLIER),
+                nb_nodes=(2, 4 * SIZE_MULTIPLIER),
                 latencies=(4, 60),
                 modifiers=[
                     drop_children(drop_one_in=4),
-                    flavor_randomizer_cpu(0, 4),
-                    flavor_randomizer_mem(0, 6),
+                    flavor_randomizer_cpu(0, 2, 4),
+                    flavor_randomizer_mem(0, 2, 4),
                 ],
                 next_lvl=functools.partial(
                     generate_level,
                     TIER_3_FLAVOR,
-                    nb_nodes=(1, 2 * SIZE_MULTIPLIER),
+                    nb_nodes=(2, 4 * SIZE_MULTIPLIER),
                     latencies=(3, 20),
                     modifiers=[
                         flavor_randomizer_cpu(0, 2),
-                        flavor_randomizer_mem(0, 4),
+                        flavor_randomizer_mem(0, 2, 4),
                     ],
                     next_lvl=functools.partial(
                         generate_level,
