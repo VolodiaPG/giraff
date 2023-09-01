@@ -8,8 +8,8 @@ import random
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Tuple
 
-import dill
-import randomname
+import dill  # type: ignore
+import randomname  # type: ignore
 
 RANDOM_SEED = os.getenv("RANDOM_SEED")
 if RANDOM_SEED is not None and RANDOM_SEED != "":
@@ -406,7 +406,7 @@ def generate_level(
             "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
             "flavor": copy.copy(flavor),
             "latency": random.randint(latencies[0], latencies[1]),
-            "children": next_lvl(depth=depth + 1) if next_lvl else [],
+            "children": next_lvl(depth=depth + 1) if next_lvl else [],  # type: ignore
         }
         if modifiers:
             for mod in modifiers:

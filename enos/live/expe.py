@@ -1,13 +1,12 @@
 import asyncio
 import json
 import os
-import pickle
 import random
-import sys
 from dataclasses import dataclass
 from typing import Any, List
 
 import aiohttp  # type: ignore
+import dill  # type: ignore
 from alive_progress import alive_bar  # type: ignore
 
 
@@ -341,14 +340,13 @@ async def save_file(filename: str):
             index += 1
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
-        pickle.dump(functions, outp, pickle.HIGHEST_PROTOCOL)
+        dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)
 
 
 def load_functions(filename) -> List[Function]:
-    sys.modules["__main__"].Function = Function
     functions = []
     with open(filename, "rb") as inp:
-        functions = pickle.load(inp)
+        functions = dill.load(inp)
     return functions
 
 
