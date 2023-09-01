@@ -18,38 +18,41 @@
     with inputs; let
       inherit (self) outputs;
     in
-      flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (
-        system: let
-          pkgs = nixpkgs.legacyPackages.${system};
-          modules = with outputs.nixosModules; [
-            base
-            configuration
-            filesystem
-            init
-            monitoring
-            squid
-          ];
-        in {
-          packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
-        }
-      )
-      // flake-utils.lib.eachDefaultSystem (
-        system: let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in {
-          devShells.default = pkgs.mkShell {
-            nativeBuildInputs = with pkgs; [
-              just
-              nixos-rebuild
-              qemu
-              mprocs
-              sshpass
+      nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
+      [
+        (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (
+          system: let
+            pkgs = nixpkgs.legacyPackages.${system};
+            modules = with outputs.nixosModules; [
+              base
+              configuration
+              filesystem
+              init
+              monitoring
+              squid
             ];
-          };
-          formatter = pkgs.alejandra;
+          in {
+            packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
+          }
+        ))
+        (flake-utils.lib.eachDefaultSystem (
+          system: let
+            pkgs = nixpkgs.legacyPackages.${system};
+          in {
+            devShells.default = pkgs.mkShell {
+              nativeBuildInputs = with pkgs; [
+                just
+                nixos-rebuild
+                qemu
+                mprocs
+                sshpass
+              ];
+            };
+            formatter = pkgs.alejandra;
+          }
+        ))
+        {
+          nixosModules = import ./modules;
         }
-      )
-      // {
-        nixosModules = import ./modules;
-      };
+      ];
 }

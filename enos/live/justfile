@@ -457,3 +457,26 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     export LOAD_NETWORK_FILE=./network
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
     {{RUN}} simulator.py > sim.simple.dump.csv
+
+vm disk="result/nixos.qcow2":
+    nix build .#enosvm
+    nix develop .#enosvm -c just _vm {{disk}}
+
+_vm disk:    
+    #!/usr/bin/env bash
+    set -e
+    cp {{disk}} nixos.qcow2
+    temp=nixos.qcow2
+    chmod u+rwx $temp
+
+    qemu-kvm \
+        -cpu max \
+        -name nixos \
+        -m 4096 \
+        -smp 4 \
+        -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
+        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
+        -enable-kvm \
+        -nographic&
+    
+    wait

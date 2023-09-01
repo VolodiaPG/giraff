@@ -25,8 +25,6 @@ in {
   };
   services.fwupd.enable = true;
 
-  virtualisation.docker.enable = true;
-
   # useful packages
   environment.systemPackages = with pkgs; [
     # enoslib necessities

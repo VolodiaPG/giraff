@@ -3,6 +3,8 @@
   inputs,
   outputs,
   modules,
+  VMMounts ? "",
+  inVMScript ? "",
   ...
 }: let
   inherit (inputs) nixpkgs;
@@ -49,8 +51,8 @@ in
     inherit (pkgs) lib;
     inherit (vm-persistence) config;
     diskSize = "auto";
-    memSize = 4096; # During build-phase, here, locally
-    additionalSpace = "4096M"; # Space added after all the necessary
+    memSize = 16384; # During build-phase, here, locally
+    additionalSpace = "8G"; # Space added after all the necessary
     format = "qcow2-compressed";
     installBootLoader = false;
     VMMounts = ''
@@ -73,6 +75,10 @@ in
       mount -o bind $mountPoint/nix/boot $mountPoint/boot
       ${builtins.concatStringsSep "; " (builtins.map (dir: "mount -o bind $mountPoint/nix/persist" + dir + " $mountPoint" + dir) directoriesToBind)}
       ${builtins.concatStringsSep "; " (builtins.map (dir: "touch $mountPoint" + dir) filesList)}
+
+      sh <<EOFSHVM
+      ${VMMounts}
+      EOFSHVM
     '';
     inVMScript = ''
       #!${pkgs.bash}/bin/bash
@@ -85,6 +91,9 @@ in
 
       NIXOS_INSTALL_BOOTLOADER=1 nixos-enter --root $mountPoint -- /nix/var/nix/profiles/system/bin/switch-to-configuration boot
 
-      # echo "network: {config: disabled}" > $mountPoint/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+      nixos-enter --root $mountPoint -- /run/current-system/sw/bin/sh <<EOFSHVM
+      source /nix/var/nix/profiles/system/etc/set-environment
+      ${inVMScript}
+      EOFSHVM
     '';
   }

@@ -11,6 +11,8 @@ in {
 
   programs.fish.shellAliases = {kubectl = "k3s kubectl";};
 
+  virtualisation.docker.enable = true;
+
   services.k3s = {
     enable = true;
   };
