@@ -184,11 +184,11 @@ docker_enos name expe_dir cmd="bash":
         -v {{expe_dir}}/.env:/home/enos/.env:ro \
         -v {{expe_dir}}/requests:/home/enos/requests:ro \
         -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
-        -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
         -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
         -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
         -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
         -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
+        -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
         -e SSH_AUTH_SOCK=/ssh-agent \
         -e DEPLOYMENT_NAME="{{name}}" \
         -e EXPE_LOAD_FILE=/home/enos/requests \
@@ -201,21 +201,23 @@ docker_enos name expe_dir cmd="bash":
         --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
 
+# -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
 # --cgroup-manager=cgroupfs fix needs to be investigated because ... Linux ?!?
 
 docker_scenarii name tempdir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{tempdir}} "just vpn && echo vnp is ok && just scenarii {{city_name_node_targets}} ; just clean || ."
+    just docker_enos {{name}} {{tempdir}} "just scenarii {{city_name_node_targets}} ; just clean || ."
+# just docker_enos {{name}} {{tempdir}} "just vpn && echo vnp is ok && just scenarii {{city_name_node_targets}} ; just clean || ."
 
-_docker_campain name tempdir:
+_docker_campaign name tempdir:
     #!/usr/bin/env bash
     set -e
     cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
 
-single_campain name dotenvfile:
+single_campaign name dotenvfile:
     #!/usr/bin/env bash
     set -e
     tempdir=$(mktemp -d)
@@ -231,7 +233,7 @@ single_campain name dotenvfile:
     done
 
     mkdir -p logs_campaign
-    just _docker_campain {{name}} $tempdir |& tee -a logs_campaign/$fname
+    just _docker_campaign {{name}} $tempdir |& tee -a logs_campaign/$fname
 
 
 build_required_images user:
@@ -250,17 +252,17 @@ build_required_images user:
         "cd $FUNCTIONS_PATH && nix develop -c just faas"
     )
 
-    parallel --lb ::: "${commands[@]}"
+    parallel --will-cite --lb ::: "${commands[@]}"
 
-docker_campain user variation="valuation_rates" experiments_dotfile=".env.experiments"  single_experiment_dotenvfile=".env": (build_required_images user)
-    nix develop --extra-experimental-features "nix-command flakes" -c just _docker_campain_in_env {{user}} {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
-
-_docker_campain_in_env user variation experiments_dotfile single_experiment_dotenvfile:
+docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)
     #!/usr/bin/env bash
-    set -e
-    
     image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
+    nix develop --extra-experimental-features "nix-command flakes" -c just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
+
+_docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
+    #!/usr/bin/env bash
+    set -e
     
     function expe_command() {
         set -e
@@ -285,12 +287,12 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
             exit 127
         fi
 
-        timeout --foreground ${job_duration_seconds} just single_campain "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
+        timeout --foreground ${job_duration_seconds} just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
     }
 
     if [ $DEV ]; then 
         export LOAD_NETWORK_FILE=$(mktemp)
-        just single_campain "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
+        just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
         exit 0
     fi
 
@@ -303,7 +305,7 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
     mkdir -p $JOB_DIR
     if [ $TYPE == "first_run" ]; then
         rm -rf $JOB_DIR/*
-        parallel SAVE_NETWORK_FILE=$JOB_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: $SIZE_MULTIPLIERS ::: $(seq 1 $NB_REPETITIONS)
+        parallel --will-cite SAVE_NETWORK_FILE=$JOB_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: $SIZE_MULTIPLIERS ::: $(seq 1 $NB_REPETITIONS)
     fi
 
     for i in $(seq 1 $NB_REPETITIONS); do
@@ -345,7 +347,7 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
         exit 1
     fi
     if [ $TYPE == "retry" ]; then
-        (parallel --retry-failed --joblog $JOB_LOG)&
+        (parallel --will-cite --retry-failed --joblog $JOB_LOG)&
     else
         cmd=$(cat <<EOF
         --joblog $JOB_LOG \
@@ -360,10 +362,10 @@ _docker_campain_in_env user variation experiments_dotfile single_experiment_dote
     EOF
     )
         if [ $TYPE == "resume" ]; then
-            parallel --resume $cmd&
+            parallel --will-cite --resume $cmd&
         else
             rm $JOB_LOG || .
-            parallel $cmd&
+            parallel --will-cite $cmd&
         fi
     fi
 
@@ -378,7 +380,7 @@ dev:
 
 dry-experiment $CLUSTER SIZE_MULTIPLIERS:
     #!/usr/bin/env bash
-    parallel -k \
+    parallel --will-cite -k \
         export SIZE_MULTIPLIER={1} FILE='$(mktemp)' \
         ";" SAVE_NETWORK_FILE='$FILE' {{RUN}} definitions.py ">" /dev/null \
         "&&" LOAD_NETWORK_FILE='$FILE' {{RUN}} integration.py up --dry-run \
@@ -392,9 +394,9 @@ sim filename="sim" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_F
     export methods=${methods:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
     export CSV_OUT_DIR=$(mktemp -d)
 
-    parallel SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}} ::: $(seq 1 {{nb_iter}})
+    parallel --will-cite SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}} ::: $(seq 1 {{nb_iter}})
 
-    time parallel --keep-order  \
+    time parallel --will-cite --keep-order  \
         --memsuspend 3G \
         JOB_INDEX={#} \
         NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY={1} \
@@ -433,7 +435,7 @@ _sim $LOAD_NETWORK_FILE:
     for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
     export TARGET_NODE_NAMES="${cities[@]}"
     {{RUN}} expe.py >&2
-    parallel --memsuspend 3G \
+    parallel --will-cite --memsuspend 3G \
         PLACEMENT_STRATEGY={1} \
         PRICING_STRATEGY={2} \
         JOB_INDEX=$JOB_INDEX{#} \
@@ -458,15 +460,42 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
     {{RUN}} simulator.py > sim.simple.dump.csv
 
-vm disk="result/nixos.qcow2":
-    nix build .#enosvm
-    nix develop .#enosvm -c just _vm {{disk}}
+master_upload city:
+    #!/usr/bin/env bash
+    vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
+    rsync -chavzP --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path {{city}}.grid5000.fr:~/nixos.env.qcow2
 
-_vm disk:    
+master_exec user name experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -e
-    cp {{disk}} nixos.qcow2
-    temp=nixos.qcow2
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+
+    city=$({{RUN}} master.py get-city)
+
+    parallel --will-cite --lb ::: "just master_upload $city" 
+    # just master_upload $city
+    # # just build_required_images {{user}}
+    # EOF 
+
+    set +e
+
+    {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
+    {{RUN}} master.py run-command
+
+master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
+    just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
+
+master_run:    
+    nix develop .#enosvm -c just _master_run
+
+_master_run:    
+    #!/usr/bin/env bash
+    set -e
+    vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
+    temp=nixos.env.qcow2
+    cp $vm_path $temp
     chmod u+rwx $temp
 
     qemu-kvm \

@@ -16,11 +16,6 @@
     jupyenv.inputs.nixpkgs.follows = "nixpkgs";
 
     impermanence.url = "github:nix-community/impermanence";
-
-    # Local flakes
-    iso.url = "path:./iso";
-    iso.inputs.nixpkgs.follows = "nixpkgs";
-    iso.inputs.flake-utils.follows = "flake-utils";
   };
 
   nixConfig = {
@@ -31,6 +26,12 @@
   outputs = inputs:
     with inputs; let
       inherit (self) outputs;
+      # Load the iso flake
+      isoFlake = import ./iso/flake.nix;
+      isoOutputs = isoFlake.outputs {
+        inherit nixpkgs;
+        inherit flake-utils;
+      };
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
@@ -202,6 +203,8 @@
                 mprocs
                 parallel
                 bashInteractive
+                bc
+                tmux
               ];
             };
             formatter = pkgs.alejandra;
@@ -226,6 +229,7 @@
                   gnused
                   bashInteractive
                   parallel
+                  cacert
 
                   # My toolset
                   just
@@ -233,9 +237,9 @@
                   openssh
                   curl
 
-                  openvpn # to connect to the inside of g5k
-                  openresolv
-                  update-resolv-conf
+                  # openvpn # to connect to the inside of g5k
+                  # openresolv
+                  # update-resolv-conf
                 ])
                 ++ (with outputs.packages.${system}; [
                   # Environment to run enos and stuff
@@ -268,22 +272,53 @@
         {
           nixosModules.enosvm = {
             pkgs,
+            lib,
             outputs,
             ...
-          }: {
+          }: let
+            binPath = with pkgs;
+              lib.strings.makeBinPath (
+                outputs.packages.${pkgs.system}.enosDeployment.buildInputs
+                ++ stdenv.initialPath
+              );
+          in {
             virtualisation.podman.enable = true;
 
-            environment.systemPackages =
-              [pkgs.podman]
-              ++ outputs.devShells.${pkgs.system}.default.buildInputs
-              ++ outputs.devShells.${pkgs.system}.default.nativeBuildInputs
-              ++ outputs.devShells.${pkgs.system}.default.propagatedBuildInputs;
+            environment.systemPackages = [pkgs.nfs-utils];
+
+            # However useless this mount is, it still loads all necesary modules for the mounting to manually be invoked inside a script afterwardss
+            fileSystems."/mnt" = {
+              device = "nfs:/export";
+              fsType = "nfs";
+              options = ["x-systemd.automount" "noauto"];
+            };
+
+            systemd.services.experiment = {
+              description = "Start the experiment";
+              after = ["network-online.target"];
+              wantedBy = ["multi-user.target"];
+              script = ''
+                #!${pkgs.bash}/bin/bash
+                set -ex
+                export PATH=${binPath}:$PATH
+                mkdir -p /home/enos
+                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/* /home/enos
+                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/.env /home/enos
+                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/.experiments.env /home/enos
+                touch /home/enos/env.source
+                echo 'export PATH=${binPath}:$PATH' | tee /home/enos/env.source
+              '';
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = "yes";
+              };
+            };
           };
-          nixosModules.make-disk-image-stateless = iso.nixosModules.make-disk-image-stateless;
+          nixosModules.make-disk-image-stateless = isoOutputs.nixosModules.make-disk-image-stateless;
         }
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
           pkgs = nixpkgs.legacyPackages.${system};
-          modules = with inputs.iso.nixosModules;
+          modules = with isoOutputs.nixosModules;
             [
               base
               filesystem
@@ -303,7 +338,26 @@
           '';
         in {
           packages.enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
-          devShells.enosvm = inputs.iso.devShells.${system}.default;
+          devShells.enosvm = isoOutputs.devShells.${system}.default;
+          packages.enosDeployment = pkgs.stdenv.mkDerivation {
+            src = ./.;
+            name = "enosDeployment";
+            inherit (outputs.devShells.${pkgs.system}.default) nativeBuildInputs propagatedBuildInputs;
+            buildInputs =
+              [
+                outputs.packages.${pkgs.system}.experiments
+              ]
+              ++ outputs.devShells.${pkgs.system}.default.buildInputs
+              ++ outputs.devShells.${pkgs.system}.default.nativeBuildInputs
+              ++ outputs.devShells.${pkgs.system}.default.propagatedBuildInputs;
+            unpackPhase = ''
+              mkdir -p $out
+              cp $src/*.py $out
+              cp $src/.env $out
+              cp $src/.experiments.env $out
+              cp $src/justfile $out
+            '';
+          };
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
           pkgs = nixpkgs.legacyPackages.${system};

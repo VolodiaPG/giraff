@@ -1,4 +1,7 @@
-{inputs, ...}: {
+{
+  inputs,
+  ...
+}: {
   imports = [
     inputs.impermanence.nixosModules.impermanence
   ];
@@ -39,11 +42,11 @@
       "/var/lib/influxdb2/influxd.bolt"
       "/var/lib/influxdb2/influxd.sqlite"
       "/root/.local/share/fish/fish_history"
-      # Preserve ssh info
-      # "/etc/ssh/ssh_host_rsa_key"
-      # "/etc/ssh/ssh_host_rsa_key.pub"
-      # "/etc/ssh/ssh_host_ed25519_key"
-      # "/etc/ssh/ssh_host_ed25519_key.pub"
     ];
+  };
+
+  fileSystems."/lib/modules" = {
+    device = "/run/current-system/kernel-modules/lib/modules";
+    options = ["bind" "x-systemd.automount"];
   };
 }

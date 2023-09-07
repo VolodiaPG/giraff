@@ -168,7 +168,7 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
-    en.set_config(g5k_auto_jump=False, ansible_forks=100)
+    en.set_config(g5k_auto_jump=False, ansible_forks=200)
 
 
 def gen_vm_conf(node):
@@ -296,6 +296,7 @@ def up(
             reservation=os.environ["RESERVATION"]
             if "RESERVATION" in os.environ
             else None,
+            gateway=True,
         )
         # .add_machine(
         #     roles=["prom_master"],
