@@ -19,23 +19,23 @@ update:
 ssh-in:
     @$SSH_CMD
 
-upload city="rennes": build-vm
+upload city="rennes":
     #!/usr/bin/env bash
     set -ex
-    temp=/tmp/uploadg5k
-    mkdir -p $temp
-    cp result/nixos.qcow2 $temp/nixos.qcow2
-    chmod u+rwx $temp/nixos.qcow2
+    temp=./nixos.qcow2
+    vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#vm --print-out-paths --no-link --quiet)/nixos.qcow2
+    cp $vm_path $temp
+    chmod u+rwx $temp
 
     qemu-kvm \
         -cpu max \
         -name nixos \
         -m 4096 \
         -smp 4 \
-        -drive cache=writeback,file="$temp/nixos.qcow2",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
+        -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
         -enable-kvm \
-        -nographic&
+        -nographic > /dev/null&
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
@@ -52,13 +52,11 @@ upload city="rennes": build-vm
         sleep 10
     done
 
-    $SSH_CMD "shutdown 0"
+    $SSH_CMD "nohup bash -c 'sleep 10 && shutdown 0'"
 
-    wait
+    wait 
 
-    rsync -chavzP --stats --perms --chmod=u+rwx,g+rwx,o+rwx $temp/nixos.qcow2 {{city}}.grid5000.fr:~/nixos.qcow2
-    
-    rm -rf $temp
+    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$temp" {{city}}.grid5000.fr:~/nixos.qcow2
 
 _run_vm disk="result/nixos.qcow2":
     #!/usr/bin/env bash

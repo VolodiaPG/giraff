@@ -38,6 +38,7 @@ from definitions import (
     NODE_CONNECTED_NODE,
     flatten,
     gen_net,
+    gen_vm_conf,
 )
 
 log = logging.getLogger("rich")
@@ -171,18 +172,6 @@ def cli(**kwargs):
     en.set_config(g5k_auto_jump=False, ansible_forks=200)
 
 
-def gen_vm_conf(node):
-    ret = defaultdict(lambda: [])
-    children = node["children"] if "children" in node else []
-    for child in children:
-        ret[frozenset(child["flavor"].items())].append(child["name"])
-        for key, value in gen_vm_conf(child).items():
-            for val in value:
-                ret[key].append(val)
-
-    return ret
-
-
 def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
     attributions = {}
     vms = gen_vm_conf(node)
@@ -208,7 +197,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
                     )
 
                 conf.add_machine(
-                    roles=["master", "prom_agent", vm_id],  # "fog_node"
+                    roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
                     cluster=cluster,
                     number=nb_vms,
                     flavour_desc={"mem": mem, "core": core},
@@ -224,7 +213,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
         # Still an assignation left?
         if nb_vms > 0:
             conf.add_machine(
-                roles=["master", "prom_agent", vm_id],  # "fog_node",
+                roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node",
                 cluster=cluster,
                 number=nb_vms,
                 flavour_desc={"mem": mem, "core": core},
@@ -288,28 +277,17 @@ def up(
 
     print(f"Deploying on {cluster}, force: {force}")
 
-    conf = (
-        en.VMonG5kConf.from_settings(
-            job_name=name,
-            walltime=walltime,
-            image="/home/volparolguarino/nixos.qcow2",
-            reservation=os.environ["RESERVATION"]
-            if "RESERVATION" in os.environ
-            else None,
-            gateway=True,
-        )
-        # .add_machine(
-        #     roles=["prom_master"],
-        #     cluster=cluster,
-        #     number=1,
-        #     flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
-        # )
-        .add_machine(
-            roles=["prom_agent", "iot_emulation"],
-            cluster=cluster,
-            number=1,
-            flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
-        )
+    conf = en.VMonG5kConf.from_settings(
+        job_name=name,
+        walltime=walltime,
+        image="/home/volparolguarino/nixos.qcow2",
+        reservation=os.environ["RESERVATION"] if "RESERVATION" in os.environ else None,
+        gateway=True,
+    ).add_machine(
+        roles=["prom_agent", "iot_emulation", "ssh"],
+        cluster=cluster,
+        number=1,
+        flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
     )
 
     assignations = assign_vm_to_hosts(
@@ -330,40 +308,27 @@ def up(
     provider = en.VMonG5k(conf)
     env["provider"] = provider
 
-    time.sleep(10)
+    roles, networks = provider.init(force_deploy=force)
 
-    # Encapsulate the code block in a try-except block and a for loop to retry 5 times
-    for i in range(5):
-        try:
-            roles, networks = provider.init(force_deploy=force)
-            break
-        except Exception as e:
-            if i == 4:
-                raise e
-            else:
-                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
-                time.sleep(30)
+    job = provider.g5k_provider.jobs[0]
 
-    # Encapsulate the code block in a try-except block and a for loop to retry 5 times
-    for i in range(5):
-        try:
-            en.wait_for(roles)
+    ips = [vm.address for vm in roles["ssh"]]
 
-            roles = en.sync_info(roles, networks)
+    en.g5k_api_utils.enable_home_for_job(job, ips)
 
-            attributes_roles(assignations, roles)
+    username = en.g5k_api_utils.get_api_username()
+    print(f"Mounting home of {username} on ips {ips}")
 
-            roles = en.sync_info(roles, networks)
+    roles = en.sync_info(roles, networks)
 
-            env["roles"] = roles
-            env["networks"] = networks
-            break
-        except Exception as e:
-            if i == 4:
-                raise e
-            else:
-                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
-                time.sleep(30)
+    en.wait_for(roles)
+
+    attributes_roles(assignations, roles)
+
+    roles = en.sync_info(roles, networks)
+
+    env["roles"] = roles
+    env["networks"] = networks
 
 
 @cli.command()
@@ -456,53 +421,27 @@ def iot_emulation(env=None, **kwargs):
 @cli.command()
 @enostask()
 def network(env=None):
-    for i in range(15):
-        try:
-            if "netem" in env:
-                netem = env["netem"]
-                netem.destroy()
+    if "netem" in env:
+        netem = env["netem"]
+        netem.destroy()
 
-            netem = en.NetemHTB()
-            env["netem"] = netem
-            roles = env["roles"]
+    netem = en.NetemHTB()
+    env["netem"] = netem
+    roles = env["roles"]
 
-            # proxy_ports = {}
-            # iot_connections = set([name for (name, _) in IOT_CONNECTION])
+    def add_netem_cb(source, destination, delay):
+        netem.add_constraints(
+            src=roles[source],
+            dest=roles[destination],
+            delay=str(delay) + "ms",  # That's a really bad fix there...
+            rate="1gbit",
+            symmetric=True,
+        )
 
-            def add_netem_cb(source, destination, delay):
-                netem.add_constraints(
-                    src=roles[source],
-                    dest=roles[destination],
-                    delay=str(delay) + "ms",  # That's a really bad fix there...
-                    rate="1gbit",
-                    symmetric=True,
-                )
-                # if destination in iot_connections:
-                #     # Get free port
-                #     res = en.run_commad(
-                #         "python -c 'import socket; s=socket.socket(); s.bind((\""
-                #         "\", 0)); print(s.getsockname()[1])'",
-                #         roles[destination],
-                #     )
-                #     proxy_port = res[0].stdout
-                #     proxy_ports[destination] = proxy_port
-                #     en.run_command(
-                #         f'echo "http_port {proxy_port}\nhttp_port acl port{proxy_port} \ntcp_outgoing_address {roles[source][0].address} port{ii}"',
-                #         roles[destination],
-                #     )
+    gen_net(NETWORK, add_netem_cb)
 
-            gen_net(NETWORK, add_netem_cb)
-
-            netem.deploy()
-            netem.validate()
-            # en.run_command("systemctl restart squid.service")
-            break
-        except Exception as e:
-            if i == 5:
-                raise e
-            else:
-                print(f"Encountered exception: {e}. Retrying in 30 seconds...")
-                time.sleep(30)
+    netem.deploy()
+    netem.validate()
 
 
 @cli.command()

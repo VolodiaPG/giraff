@@ -6,6 +6,7 @@ import os
 import pprint
 import random
 from collections import defaultdict
+import sys
 from typing import Any, Callable, Dict, List, Tuple
 
 import dill  # type: ignore
@@ -297,27 +298,14 @@ SLOPE = 8
 
 
 def pricing(
-    location: int,
+    location_raw: int,
 ):
-    # Ensure location is within the valid range (1 to max_location)
-    location = min(max(0, location), MAX_LOCATION - location)
+    location = MAX_LOCATION - location_raw
+    assert location >= 0
 
-    # Calculate the base price as an inverse function of location
-    # base_price = max_initial_price - (max_initial_price * (location - 1) / (MAX_LOCATION - 1))
-    base_price = (MAX_INITIAL_PRICE * location + MAX_LOCATION * MAX_INITIAL_PRICE) / (
-        MAX_LOCATION
-    )  # to guarantee that price for location=1 is max_price and price for MAX_LOCATION is 1
-    # Add random noise to the base price to create variation
-    noise = MAX_INITIAL_PRICE / MAX_LOCATION * 2  # half of the slope
-    random_variation = random.uniform(
-        -noise, noise
-    )  # Adjust the range of variation as needed
-
-    # Calculate the final price by adding random variation to the base price
-    price = base_price + random_variation
-
-    # Ensure the price is within the desired range (1 to MAX_INITIAL_PRICE )
-    price = min(max(0, price), MAX_INITIAL_PRICE)
+    base_price = MAX_INITIAL_PRICE / (location + 1)
+    random_variation = random.uniform(-base_price, base_price)
+    price = base_price + random_variation / 2
     return price
 
 
@@ -327,13 +315,13 @@ def generate_initial_pricing(location):
 
 TIER_4_FLAVOR = {
     "core": 2,
-    "mem": 1024 * 4,
+    "mem": 1024 * 6,
     "reserved_core": 1.75,
-    "reserved_mem": 1024 * 3,
+    "reserved_mem": 1024 * 5,
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(3),
-    "pricing_mem_initial": generate_initial_pricing(3),
+    "pricing_mem_initial": lambda: generate_initial_pricing(3)() / 2,
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
 TIER_3_FLAVOR = {
@@ -344,7 +332,7 @@ TIER_3_FLAVOR = {
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(2),
-    "pricing_mem_initial": generate_initial_pricing(2),
+    "pricing_mem_initial": lambda: generate_initial_pricing(2)() / 2,
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
 TIER_2_FLAVOR = {
@@ -355,7 +343,7 @@ TIER_2_FLAVOR = {
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(1),
-    "pricing_mem_initial": generate_initial_pricing(1),
+    "pricing_mem_initial": lambda: generate_initial_pricing(1)() / 2,
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
 TIER_1_FLAVOR = {
@@ -367,24 +355,36 @@ TIER_1_FLAVOR = {
     "pricing_cpu": SLOPE,  # for the function
     "pricing_mem": SLOPE,  # for the function
     "pricing_cpu_initial": generate_initial_pricing(0),
-    "pricing_mem_initial": generate_initial_pricing(0),
+    "pricing_mem_initial": lambda: generate_initial_pricing(0)() / 2,
     "pricing_geolocation": SLOPE,  # for already used mem and cpu
 }
-TIER_CLOUD_FLAVOR = {
-    "is_cloud": True,
-    "core": 1024,
-    "mem": 1024 * 1024,
-    "reserved_core": 2014,
-    "reserved_mem": 1024 * 1024,
-    "pricing_cpu": SLOPE,  # for the function
-    "pricing_mem": SLOPE,  # for the function
-    "pricing_cpu_initial": generate_initial_pricing(0),
-    "pricing_mem_initial": generate_initial_pricing(0),
-    "pricing_geolocation": SLOPE,  # for already used mem and cpu
-}
+# TIER_CLOUD_FLAVOR = {
+#     "is_cloud": True,
+#     "core": 1024,
+#     "mem": 1024 * 1024,
+#     "reserved_core": 2014,
+#     "reserved_mem": 1024 * 1024,
+#     "pricing_cpu": SLOPE,  # for the function
+#     "pricing_mem": SLOPE,  # for the function
+#     "pricing_cpu_initial": generate_initial_pricing(0),
+#     "pricing_mem_initial": generate_initial_pricing(0),
+#     "pricing_geolocation": SLOPE,  # for already used mem and cpu
+# }
 
 
 uuid = 0
+
+
+def gen_vm_conf(node):
+    ret = defaultdict(lambda: [])
+    children = node["children"] if "children" in node else []
+    for child in children:
+        ret[frozenset(child["flavor"].items())].append(child["name"])
+        for key, value in gen_vm_conf(child).items():
+            for val in value:
+                ret[key].append(val)
+
+    return ret
 
 
 def generate_level(
@@ -463,7 +463,7 @@ def flavor_randomizer_cpu(*reductions: List[int]):
     return drop
 
 
-SIZE_MULTIPLIER = float(os.getenv("SIZE_MULTIPLIER", "1"))
+SIZE_MULTIPLIER = float(os.getenv("SIZE_MULTIPLIER", "1")) * 0.5
 
 
 def network_generation():
@@ -497,7 +497,7 @@ def network_generation():
                     next_lvl=functools.partial(
                         generate_level,
                         TIER_4_FLAVOR,
-                        nb_nodes=(1, 4 * SIZE_MULTIPLIER),
+                        nb_nodes=(1, 6 * SIZE_MULTIPLIER),
                         latencies=(1, 10),
                         modifiers=[
                             set_iot_connected(drop_one_in=2),
@@ -693,6 +693,43 @@ def gen_net(nodes, callback):
             callback(node_name, destination, latency)
 
 
+def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
+    total_vm_required = 1  # the market is the first
+    attributions = {}
+    vms = gen_vm_conf(node)
+    # add the market
+    vms[frozenset(NETWORK["flavor"].items())].append("market")
+    for key, value in vms.items():
+        flavor = {x: y for (x, y) in key}
+        core = flavor["core"]
+        mem = flavor["mem"]
+
+        core_used = 0
+        mem_used = 0
+        nb_vms = 0
+        for vm_name in value:
+            core_used += core
+            mem_used += mem
+
+            if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
+                if nb_vms == 0:
+                    raise Exception(
+                        "The VM requires more resources than the node can provide"
+                    )
+
+                total_vm_required += 1
+                core_used = 0
+                mem_used = 0
+                nb_vms = 0
+
+            nb_vms += 1
+
+        # Still an assignation left?
+        if nb_vms > 0:
+            total_vm_required += 1
+    return total_vm_required
+
+
 LOAD_NETWORK_FILE = "LOAD_NETWORK_FILE"
 SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 
@@ -733,6 +770,31 @@ IOT_CONNECTION = list(
 ADJACENCY = adjacency(NETWORK)
 LEVELS = levels(NETWORK)
 
+MIN_NUMBER_VMS = os.getenv("MIN_NB_VMS")
+if os.getenv(SAVE_NETWORK_FILE) and MIN_NUMBER_VMS:
+    min_number_vms = int(MIN_NUMBER_VMS)
+    nb_vms = len(FOG_NODES)
+    if nb_vms < min_number_vms:
+        print(f"Got nb_vms {nb_vms} > {min_number_vms}", file=sys.stderr)
+        exit(122)
+
+MAX_NUMBER_NODES = os.getenv("MAX_NB_NODES")
+if os.getenv(SAVE_NETWORK_FILE) and MAX_NUMBER_NODES:
+    max_number_nodes = int(MAX_NUMBER_NODES)
+    failed = True
+    cluster = os.getenv("CLUSTER") or ""
+    nb_cpu_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["core"]
+    mem_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["mem"]
+    nb_nodes = get_number_vms(NETWORK, nb_cpu_per_machine, mem_per_machine)
+    if nb_nodes > max_number_nodes:
+        print(f"Got nb_nodes {nb_nodes} > {max_number_nodes}", file=sys.stderr)
+        exit(123)
+    print(
+        f"Number of nodes on {cluster}: {nb_nodes} (this does not include vm such as iot_emulation)",
+        file=sys.stderr,
+    )
+
+
 if __name__ == "__main__":
-    pprint.pprint(pprint_network(NETWORK), sort_dicts=False)
-    print("Number of nodes:", len(FOG_NODES))
+    # pprint.pprint(pprint_network(NETWORK), sort_dicts=False)
+    print("Number of vms:", len(FOG_NODES), file=sys.stderr)

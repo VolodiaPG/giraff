@@ -284,15 +284,6 @@
           in {
             virtualisation.podman.enable = true;
 
-            environment.systemPackages = [pkgs.nfs-utils];
-
-            # However useless this mount is, it still loads all necesary modules for the mounting to manually be invoked inside a script afterwardss
-            fileSystems."/mnt" = {
-              device = "nfs:/export";
-              fsType = "nfs";
-              options = ["x-systemd.automount" "noauto"];
-            };
-
             systemd.services.experiment = {
               description = "Start the experiment";
               after = ["network-online.target"];

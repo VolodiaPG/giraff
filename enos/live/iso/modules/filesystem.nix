@@ -1,7 +1,11 @@
 {
   inputs,
+  pkgs,
+  lib,
   ...
-}: {
+}: let
+  readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
+in {
   imports = [
     inputs.impermanence.nixosModules.impermanence
   ];
@@ -48,5 +52,37 @@
   fileSystems."/lib/modules" = {
     device = "/run/current-system/kernel-modules/lib/modules";
     options = ["bind" "x-systemd.automount"];
+  };
+
+  environment.systemPackages = [pkgs.nfs-utils];
+
+  # Bogus mount to import all tools and kernel extensions
+  # However useless this mount is,
+  # it still loads all necesary modules for the mounting to manually be invoked inside a script afterwardss
+  fileSystems."/mnt" = {
+    device = "nfs:/export";
+    fsType = "nfs";
+    options = ["x-systemd.automount" "noauto"];
+  };
+
+  systemd.services.mountNfs = {
+    description = "Mount ssh";
+    after = ["network.target"];
+    wantedBy = ["multi-user.target"];
+    script = ''
+      mkdir -p /nfs
+      ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} /nfs
+      mkdir -p /root/.ssh
+      cp /nfs/.ssh/{authorized_keys,config,id_rsa,id_rsa.pub} /root/.ssh
+      chmod 700 -R /root/.ssh
+      chmod 600 /root/.ssh/*
+      chmod 644 /root/.ssh/*.pub
+    '';
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = "yes";
+      Restart = "on-failure";
+      RestartSec = "3";
+    };
   };
 }

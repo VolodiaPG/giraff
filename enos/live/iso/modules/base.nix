@@ -2,9 +2,7 @@
   pkgs,
   lib,
   ...
-}: let
-  readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
-in {
+}: {
   programs.fish.enable = true;
 
   # declare the gaming user and its fixed password
@@ -15,7 +13,7 @@ in {
     extraGroups = ["networkmanager" "wheel"];
     password = "faas";
     # hashedPassword = "$6$qi8XAsi7E.eVCsQK$7xIDTcn0g3h9iRGU3IMBBq7e53oTC5dDSa3qn/2EmIjO.nvNvfDq2OiEBiw8aDWLxkAiuuo.BcBdCtAK6p6Y71"; # faas
-    openssh.authorizedKeys.keys = readLines ../config/id_rsa.pub;
+    # openssh.authorizedKeys.keys = readLines ../config/id_rsa.pub;# Acutally mounted by enos
   };
 
   services.openssh = {

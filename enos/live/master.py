@@ -69,12 +69,6 @@ def up(
 
     roles, networks = provider.init(force_deploy=force)
 
-    roles = en.sync_info(roles, networks)
-
-    env["roles"] = roles
-    env["networks"] = networks
-
-    # get the job
     job = provider.g5k_provider.jobs[0]
 
     # get the ips to white list
@@ -87,9 +81,13 @@ def up(
     # add ips to the white list for the job duration
     en.g5k_api_utils.enable_home_for_job(job, ips)
 
-    # mount the home dir
     username = en.g5k_api_utils.get_api_username()
     print(f"Mounting home of {username} on ips {ips}")
+
+    roles = en.sync_info(roles, networks)
+
+    env["roles"] = roles
+    env["networks"] = networks
 
     subprocess.run(
         [
@@ -100,21 +98,13 @@ def up(
     )
 
     with en.actions(roles=roles["master"]) as a:
-        a.shell(f"mount nfs:/export/home/{username} /mnt")
-        a.shell("mkdir -p /mnt/{metrics-arks,logs,logs_campaign,experiment}")
-        a.shell("touch /mnt/joblog")
+        a.shell("mkdir -p /nfs/{metrics-arks,logs,logs_campaign,experiment}")
+        a.shell("touch /nfs/joblog")
         a.shell(
-            "ln -s /mnt/{metrics-arks,logs,logs_campaign,joblog,experiment} /home/enos"
+            "ln -s /nfs/{metrics-arks,logs,logs_campaign,joblog,experiment} /home/enos"
         )
         a.shell(
-            "rm /etc/ssl/certs/ca-certificates.crt; cp /mnt/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt"
-        )
-        a.shell(
-            "mkdir -p /root/.ssh"
-            ";cp /mnt/.ssh/{authorized_keys,config,id_rsa,id_rsa.pub} /root/.ssh"
-            ";chmod 700 -R /root/.ssh"
-            ";chmod 600 /root/.ssh/*"
-            ";chmod 644 /root/.ssh/*.pub"
+            "rm /etc/ssl/certs/ca-certificates.crt; cp /nfs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt"
         )
         a.shell(
             f"""cat <<EOF >> /root/.ssh/config
@@ -139,6 +129,12 @@ def get_city():
         os.environ["MASTER_CLUSTER"]
     )
     print(city)
+
+
+@cli.command()
+def get_username():
+    username = en.g5k_api_utils.get_api_username()
+    print(username)
 
 
 @cli.command()

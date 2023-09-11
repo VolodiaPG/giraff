@@ -85,7 +85,7 @@ scenario archive_name +city_name_node_targets:
     MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
     for city in {{city_name_node_targets}}; do
         echo "Checking connection to $city"
-        timeout 120 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"
+        timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"
         NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
@@ -305,7 +305,17 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     mkdir -p $JOB_DIR
     if [ $TYPE == "first_run" ]; then
         rm -rf $JOB_DIR/*
-        parallel --will-cite SAVE_NETWORK_FILE=$JOB_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: $SIZE_MULTIPLIERS ::: $(seq 1 $NB_REPETITIONS)
+        timeout --preserve-status --foreground 5m \
+            parallel --will-cite \
+            SAVE_NETWORK_FILE=$JOB_DIR/{1}-{4}.net \
+            SIZE_MULTIPLIER={1} \
+            MIN_NB_VMS={2} \
+            MAX_NB_NODES={3} \
+            bash -c '"until timeout 15s {{RUN}} definitions.py; do : ; done"' \
+            ::: $SIZE_MULTIPLIERS \
+            :::+ $MIN_NUMBER_VMS \
+            :::+ $MAX_NUMBER_NODES \
+            ::: $(seq 1 $NB_REPETITIONS)
     fi
 
     for i in $(seq 1 $NB_REPETITIONS); do
@@ -462,8 +472,9 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
 
 master_upload city:
     #!/usr/bin/env bash
+    set -e
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    rsync -chavzP --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path {{city}}.grid5000.fr:~/nixos.env.qcow2
+    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path {{city}}.grid5000.fr:~/nixos.env.qcow2
 
 master_exec user name experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
@@ -473,11 +484,15 @@ master_exec user name experiments_dotfile=".experiments.env":
     set +o allexport
 
     city=$({{RUN}} master.py get-city)
+    username=$({{RUN}} master.py get-username)
 
-    parallel --will-cite --lb ::: "just master_upload $city" 
+    echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
+    echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
+
     # just master_upload $city
-    # # just build_required_images {{user}}
-    # EOF 
+    # bash -c "cd iso; nix develop -c just upload $city"
+    # parallel --will-cite --lb ::: "just master_upload $city" "cd iso; nix develop -c just upload $city" "just build_required_images {{user}}"
+    just build_required_images {{user}}
 
     set +e
 
@@ -509,3 +524,11 @@ _master_run:
         -nographic&
     
     wait
+
+get_metrics_back experiments_dotfile=".experiments.env":
+    #!/usr/bin/env bash
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+    city=$({{RUN}} master.py get-city)
+    ssh $city.grid5000.fr ls metrics-arks | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/metrics-arks/{} ./metrics-arks/{}
