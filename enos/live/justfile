@@ -531,4 +531,6 @@ get_metrics_back experiments_dotfile=".experiments.env":
     source {{experiments_dotfile}}
     set +o allexport
     city=$({{RUN}} master.py get-city)
+    echo $city
+    mkdir -p metrics-arks
     ssh $city.grid5000.fr ls metrics-arks | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/metrics-arks/{} ./metrics-arks/{}

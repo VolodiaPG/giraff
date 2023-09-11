@@ -1,7 +1,7 @@
 import logging
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import click  # type: ignore
 import enoslib as en  # type: ignore
@@ -116,11 +116,11 @@ Host *.grid5000.fr
 EOF
             """
         )
-        a.shell(f"touch /root/.python-grid5000.yaml")
+        a.shell("touch /root/.python-grid5000.yaml")
         with open(Path.home() / ".python-grid5000.yaml") as file:
             for line in file:
                 a.shell(f"echo '{line}' >> /root/.python-grid5000.yaml")
-        a.shell(f"chmod 600 /root/.python-grid5000.yaml")
+        a.shell("chmod 600 /root/.python-grid5000.yaml")
 
 
 @cli.command()
@@ -143,7 +143,16 @@ def get_username():
 def run_command(env=None, variations: str | None = None, **kwargs):
     roles = env["roles"]
     en.run_command(
-        "cd /home/enos; . /home/enos/env.source; tmux new -d bash -c 'cd /home/enos; . /home/enos/env.source; eval $(ssh-agent -s); ssh-add; just master_docker_campaign 2> ./logs_campaign/out.logs'",
+        "cd /home/enos;"
+        ". /home/enos/env.source;"
+        "tmux new -d bash -c "
+        "'"
+        "cd /home/enos;"
+        ". /home/enos/env.source;"
+        "eval $(ssh-agent -s);"
+        "ssh-add;"
+        "just master_docker_campaign 2> ./logs_campaign/out.logs"
+        "'",
         task_name="Run command experiment",
         roles=roles["master"],
     )

@@ -3,10 +3,9 @@ import functools
 import heapq
 import math
 import os
-import pprint
 import random
-from collections import defaultdict
 import sys
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Tuple
 
 import dill  # type: ignore
@@ -501,7 +500,6 @@ def network_generation():
                         latencies=(1, 10),
                         modifiers=[
                             set_iot_connected(drop_one_in=2),
-                            flavor_randomizer_cpu(0, 1),
                             flavor_randomizer_mem(0, 2),
                         ],
                     ),
@@ -695,7 +693,6 @@ def gen_net(nodes, callback):
 
 def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
     total_vm_required = 1  # the market is the first
-    attributions = {}
     vms = gen_vm_conf(node)
     # add the market
     vms[frozenset(NETWORK["flavor"].items())].append("market")

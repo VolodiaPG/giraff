@@ -414,6 +414,7 @@
                           multidplyr
 
                           # gifski
+                          magick
                           future_apply
                           (
                             gganimate.overrideAttrs (old: {
