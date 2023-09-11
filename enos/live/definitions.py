@@ -292,7 +292,7 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
 #     "pricing_geolocation": 0.70,  # for already used mem and cpu
 # }
 MAX_LOCATION = 3
-MAX_INITIAL_PRICE = 10
+MAX_INITIAL_PRICE = 4
 SLOPE = 8
 
 

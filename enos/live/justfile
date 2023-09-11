@@ -110,8 +110,9 @@ scenarii +city_name_node_targets:
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
-            || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            # just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
+            # || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2\" {{city_name_node_targets}}'"
     }
