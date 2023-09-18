@@ -81,7 +81,9 @@ scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
     NODE_TARGETS=()
+    
     sleep 60
+
     MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
     for city in {{city_name_node_targets}}; do
         echo "Checking connection to $city"
@@ -91,6 +93,8 @@ scenario archive_name +city_name_node_targets:
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     export TARGET_NODE_NAMES="{{city_name_node_targets}}"
+
+    sleep 60
     
     just expe $IOT_IP $MARKET_IP "$joined"
     
@@ -98,6 +102,8 @@ scenario archive_name +city_name_node_targets:
 
     export COLLECT_ARCHIVE_NAME="{{archive_name}}"
     {{RUN}} integration.py collect
+
+    sleep 60
 
     if [ $DEV ]; then sleep 9999999999; fi
 
@@ -471,11 +477,15 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
     {{RUN}} simulator.py > sim.simple.dump.csv
 
-master_upload city:
+upload experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -e
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+    city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path {{city}}.grid5000.fr:~/nixos.env.qcow2
+    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2
 
 master_exec user name experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
@@ -493,7 +503,7 @@ master_exec user name experiments_dotfile=".experiments.env":
     # just master_upload $city
     # bash -c "cd iso; nix develop -c just upload $city"
     # parallel --will-cite --lb ::: "just master_upload $city" "cd iso; nix develop -c just upload $city" "just build_required_images {{user}}"
-    just build_required_images {{user}}
+    # just build_required_images {{user}}
 
     set +e
 
@@ -526,7 +536,7 @@ _master_run:
     
     wait
 
-get_metrics_back experiments_dotfile=".experiments.env":
+get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport
     source {{experiments_dotfile}}
@@ -534,4 +544,4 @@ get_metrics_back experiments_dotfile=".experiments.env":
     city=$({{RUN}} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    ssh $city.grid5000.fr ls metrics-arks | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/metrics-arks/{} ./metrics-arks/{}
+    ssh $city.grid5000.fr ls {{folder}} | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
