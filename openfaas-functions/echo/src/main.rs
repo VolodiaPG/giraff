@@ -54,6 +54,16 @@ struct Latency {
     #[influxdb(tag)]
     tag:    String,
 }
+/// SLA that passed here
+#[influx_observation]
+struct LatencyHeader {
+    #[influxdb(field)]
+    value:  f64,
+    #[influxdb(tag)]
+    sla_id: String,
+    #[influxdb(tag)]
+    tag:    String,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,6 +100,31 @@ async fn handle(
             .body(format!("Failed to save metrics: {:?}", err));
     }
 
+    let proxy_timestamp = req.headers().get("Proxy-Timestamp");
+
+    if let Some(timestamp) = proxy_timestamp {
+        let timestamp = timestamp.to_str();
+        if let Ok(timestamp) = timestamp {
+            if let Ok(timestamp) = timestamp.parse::<i64>() {
+                let elapsed =
+                    first_byte_received.timestamp_millis() - timestamp;
+
+                if let Err(err) = metrics
+                    .observe(LatencyHeader {
+                        value:     elapsed as f64 / 1000.0,
+                        sla_id:    sla_id.to_string(),
+                        tag:       payload.tag.clone(),
+                        timestamp: first_byte_received,
+                    })
+                    .await
+                {
+                    warn!("Failed to save metrics: {:?}", err);
+                    return HttpResponse::InternalServerError()
+                        .body(format!("Failed to save metrics: {:?}", err));
+                }
+            }
+        }
+    }
     HttpResponse::Ok().finish()
 }
 

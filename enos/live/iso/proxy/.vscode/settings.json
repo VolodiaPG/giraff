@@ -1,4 +1,3 @@
 {
-    "peacock.color": "#832561",
     "nixEnvSelector.nixFile": "${workspaceRoot}/shell.nix"
 }

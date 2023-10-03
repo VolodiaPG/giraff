@@ -143,6 +143,7 @@ def get_username():
 def run_command(env=None, variations: str | None = None, **kwargs):
     roles = env["roles"]
     en.run_command(
+        "until [ -f /home/enos/env.source ]; do sleep 3; done; "
         "cd /home/enos;"
         ". /home/enos/env.source;"
         "tmux new -d bash -c "

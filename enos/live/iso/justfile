@@ -1,5 +1,6 @@
 export SSHPASS:="faas"
 export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2221"
+export SCP_CMD:="sshpass -e scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -P 2221"
 
 # Entrypoint, run deploy and then tunnels
 _default:
@@ -18,6 +19,9 @@ update:
 
 ssh-in:
     @$SSH_CMD
+
+scp-in srcfiles destfiles:
+    @$SCP_CMD root@127.0.0.1:{{srcfiles}} {{destfiles}}
 
 upload city="rennes":
     #!/usr/bin/env bash

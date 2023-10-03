@@ -260,6 +260,7 @@ NODE_CONNECTED_NODE = """(
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
     "gros": {"core": (2 * 18) - 1, "mem": 1024 * (96 - 4)},
     "paravance": {"core": (2 * 8 * 2) - 1, "mem": 1024 * (128 - 4)},
+    "parasilo": {"core": (2 * 8 * 2) - 1, "mem": 1024 * (128 - 4)},
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
@@ -419,11 +420,10 @@ def set_cloud(dd: Dict, *_):
     dd["is_cloud"] = True
 
 
-def set_iot_connected(drop_one_in: int):
+def set_iot_connected(keep_one_in: int):
     def set_connected(dd: Dict, first: bool):
-        if not first and random.randint(1, drop_one_in) == 1:
-            return
-        dd["iot_connected"] = 0
+        if first or random.randint(1, keep_one_in) == 1:
+          dd["iot_connected"] = 0
 
     return set_connected
 
@@ -472,17 +472,17 @@ def network_generation():
         "children": generate_level(
             TIER_1_FLAVOR,
             nb_nodes=(1, 4 * SIZE_MULTIPLIER),
-            latencies=(1, 3),
+            latencies=(2, 3),
             modifiers=[set_cloud, drop_children(drop_one_in=2)],
             next_lvl=functools.partial(
                 generate_level,
                 TIER_2_FLAVOR,
                 nb_nodes=(2, 4 * SIZE_MULTIPLIER),
-                latencies=(4, 60),
+                latencies=(10, 32),
                 modifiers=[
                     drop_children(drop_one_in=4),
-                    flavor_randomizer_cpu(0, 2, 4),
-                    flavor_randomizer_mem(0, 2, 4),
+                    flavor_randomizer_cpu(0, 2),
+                    flavor_randomizer_mem(0, 2),
                 ],
                 next_lvl=functools.partial(
                     generate_level,
@@ -497,9 +497,9 @@ def network_generation():
                         generate_level,
                         TIER_4_FLAVOR,
                         nb_nodes=(1, 6 * SIZE_MULTIPLIER),
-                        latencies=(1, 10),
+                        latencies=(1, 5),
                         modifiers=[
-                            set_iot_connected(drop_one_in=2),
+                            set_iot_connected(keep_one_in=3),
                             flavor_randomizer_mem(0, 2),
                         ],
                     ),
@@ -687,7 +687,7 @@ def gen_net(nodes, callback):
         latencies = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            # print(f"{node_name} -> {destination} = {latency}")
+            print(f"{node_name} -> {destination} = {latency}")
             callback(node_name, destination, latency)
 
 
@@ -793,5 +793,6 @@ if os.getenv(SAVE_NETWORK_FILE) and MAX_NUMBER_NODES:
 
 
 if __name__ == "__main__":
+    # import pprint
     # pprint.pprint(pprint_network(NETWORK), sort_dicts=False)
     print("Number of vms:", len(FOG_NODES), file=sys.stderr)

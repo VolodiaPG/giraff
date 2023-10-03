@@ -342,33 +342,36 @@ def restart(env=None):
     To mitigate, it is adviced to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
     However, precautions have been taken in this function to only reboot one VM at a time per host
     (though only waiting a small amount of time before passing to the next)
-    """
-    roles = env["roles"]["master"]
-    inv_map = {}
-    layers = []
-    for k, v in env["assignations"].items():
-        inv_map[v] = inv_map.get(v, []) + [k]
-    for k, v in inv_map.items():
-        for ii, el in enumerate(env["roles"][k]):
-            if ii >= len(layers):
-                layers.append([el])
-            else:
-                layers[ii] = layers[ii] + [el]
+    """ 
+    netem = env["netem"]
+    netem.destroy()
 
-    for hosts in layers:
-        with actions(
-            roles=hosts, gather_facts=False, strategy="free", background=True
-        ) as p:
-            p.wait_for(retries=5)
-            p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
-            p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
-            sleep(10)
-    # with actions(roles=roles, gather_facts=False, strategy="free", background=True) as p:
-    #     p.wait_for(retries = 5)
-    #     p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
-    #     p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
-    #     sleep(20)
-    sleep(20)
+    roles = env["roles"]["master"]
+    # inv_map = {}
+    # layers = []
+    # for k, v in env["assignations"].items():
+    #     inv_map[v] = inv_map.get(v, []) + [k]
+    # for k, v in inv_map.items():
+    #     for ii, el in enumerate(env["roles"][k]):
+    #         if ii >= len(layers):
+    #             layers.append([el])
+    #         else:
+    #             layers[ii] = layers[ii] + [el]
+
+    # for hosts in layers:
+    #     with actions(
+    #         roles=hosts, gather_facts=False, strategy="free", background=True
+    #     ) as p:
+    #         p.wait_for(retries=5)
+    #         p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
+    #         p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
+    #         sleep(10)
+    with actions(roles=roles, gather_facts=False, strategy="free", background=True) as p:
+        p.wait_for(retries = 5)
+        p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
+        p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
+    
+    sleep(10)
     en.wait_for(roles=roles, retries=15)
 
     with actions(roles=roles, gather_facts=False, strategy="free") as p:
@@ -421,10 +424,6 @@ def iot_emulation(env=None, **kwargs):
 @cli.command()
 @enostask()
 def network(env=None):
-    if "netem" in env:
-        netem = env["netem"]
-        netem.destroy()
-
     netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]

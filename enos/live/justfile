@@ -2,6 +2,7 @@ set dotenv-load
 
 RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
+export SSHPASS:="faas"
 export MANAGER_PATH := "../../manager"
 export IOT_EMULATION_PATH := "../../iot_emulation"
 export FUNCTIONS_PATH := "../../openfaas-functions"
@@ -23,11 +24,11 @@ init user *FLAGS:
 
     {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
 
-lab:
-    nix run .#jupyterlab
+lab max_memory_gb="20":
+    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlab
 
-labExport:
-    nix run .#jupyterlabExport
+labExport max_memory_gb="20":
+    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlabExport
 
 # Open SSH tunnels
 tunnels +FLAGS='':
@@ -485,9 +486,19 @@ upload experiments_dotfile=".experiments.env":
     set +o allexport
     city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2
+    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2&
+    
+    bash -c "cd iso ; nix develop -c just upload $city"&
 
-master_exec user name experiments_dotfile=".experiments.env":
+    ssh $city.grid5000.fr mkdir -p enosvm
+
+    parallel rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
+        ::: *.py .env {{experiments_dotfile}} justfile
+
+    wait
+    
+
+master_exec user name experiments_dotfile=".experiments.env": (upload experiments_dotfile)
     #!/usr/bin/env bash
     set -e
     set -o allexport
@@ -535,6 +546,9 @@ _master_run:
         -nographic&
     
     wait
+
+master_ssh_in:
+    nix develop .#enosvm -c sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2221
 
 get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash

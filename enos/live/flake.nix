@@ -278,7 +278,12 @@
           }: let
             binPath = with pkgs;
               lib.strings.makeBinPath (
-                outputs.packages.${pkgs.system}.enosDeployment.buildInputs
+                [
+                  outputs.packages.${pkgs.system}.experiments
+                ]
+                ++ outputs.devShells.${pkgs.system}.default.buildInputs
+                ++ outputs.devShells.${pkgs.system}.default.nativeBuildInputs
+                ++ outputs.devShells.${pkgs.system}.default.propagatedBuildInputs
                 ++ stdenv.initialPath
               );
           in {
@@ -286,22 +291,24 @@
 
             systemd.services.experiment = {
               description = "Start the experiment";
-              after = ["network-online.target"];
+              after = ["mountNfs.service"];
               wantedBy = ["multi-user.target"];
               script = ''
-                #!${pkgs.bash}/bin/bash
                 set -ex
+                # Fails if not active
+                systemctl is-active mountNfs
+
                 export PATH=${binPath}:$PATH
                 mkdir -p /home/enos
-                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/* /home/enos
-                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/.env /home/enos
-                ln -s ${outputs.packages.${pkgs.system}.enosDeployment}/.experiments.env /home/enos
+                find /nfs/enosvm -exec ln -s "{}" /home/enos/ ';'
                 touch /home/enos/env.source
                 echo 'export PATH=${binPath}:$PATH' | tee /home/enos/env.source
               '';
               serviceConfig = {
                 Type = "oneshot";
                 RemainAfterExit = "yes";
+                Restart = "on-failure";
+                RestartSec = "3";
               };
             };
           };
@@ -330,25 +337,20 @@
         in {
           packages.enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
           devShells.enosvm = isoOutputs.devShells.${system}.default;
-          packages.enosDeployment = pkgs.stdenv.mkDerivation {
-            src = ./.;
-            name = "enosDeployment";
-            inherit (outputs.devShells.${pkgs.system}.default) nativeBuildInputs propagatedBuildInputs;
-            buildInputs =
-              [
-                outputs.packages.${pkgs.system}.experiments
-              ]
-              ++ outputs.devShells.${pkgs.system}.default.buildInputs
-              ++ outputs.devShells.${pkgs.system}.default.nativeBuildInputs
-              ++ outputs.devShells.${pkgs.system}.default.propagatedBuildInputs;
-            unpackPhase = ''
-              mkdir -p $out
-              cp $src/*.py $out
-              cp $src/.env $out
-              cp $src/.experiments.env $out
-              cp $src/justfile $out
-            '';
-          };
+          # packages.enosDeployment = pkgs.stdenv.mkDerivation {
+          #   src = ./.;
+          #   name = "enosDeployment";
+          #   inherit (outputs.devShells.${pkgs.system}.default) nativeBuildInputs propagatedBuildInputs;
+          #   buildInputs =
+
+          #   unpackPhase = ''
+          #     mkdir -p $out
+          #     cp $src/*.py $out
+          #     cp $src/.env $out
+          #     cp $src/.experiments.env $out
+          #     cp $src/justfile $out
+          #   '';
+          # };
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
           pkgs = nixpkgs.legacyPackages.${system};
@@ -408,6 +410,7 @@
                           ggpubr
                           Hmisc
                           rstatix
+                          multcompView
 
                           doParallel
                           foreach
