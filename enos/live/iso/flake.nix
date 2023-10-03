@@ -43,7 +43,7 @@
               filesystem
               init
               monitoring
-              squid
+              proxy
             ];
           in {
             packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
