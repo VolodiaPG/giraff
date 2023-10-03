@@ -7,10 +7,10 @@
 
 <div align="center">
   <h1>
-    FaaS Fog — Using functions and auctions for a sustainable Fog model
+    GIRAFF: Reverse auction-based placement for fog functions 
   </h1>
   <h2>
-  Function placement for FaaS applications in the Fog​
+  Using FaaS functions and auctions for a sustainable fog model
   </h2>
   <!-- <br />
   <br />
@@ -44,50 +44,40 @@
 
 </details>
 
----
-
 ## About
 
-<table>
-<tr>
-<td>
+Function-as-a-Service (FaaS) applications could harness the disseminated nature of the fog and take advantage of fog’s benefits, such as real-time processing and reduced bandwidth. The FaaS programming paradigm allows applications to be divided in independent units called “functions.” However, deciding how to place those units in the fog is challenging. Fog contains diverse, potentially resource-constrained nodes, geographically spanning from the Cloud to the IP network edges. These nodes must be efficiently shared between the multiple applications that will require to use the fog.
 
-Function-as-a-Service (FaaS) applications could harness the disseminated nature of the Fog and take advantage of Fog’s benefits, such as real-time processing and reduced bandwidth. The FaaS programming paradigm allows applications to be divided in independent units called “functions.” However, deciding how to place those units in the Fog is challenging. Fog contains diverse, potentially resource-constrained nodes, geographically spanning from Cloud to the network edges. These nodes must be efficiently shared between the multiple applications that will require to use the Fog.
-
-We introduce “Fog node ownership,” a concept where Fog nodes are owned by different actors that chose to give computing resources in exchange for remuneration. This concept allows for the reach of the Fog to be dynamically extended without central supervision from a unique decision taker, as currently considered in the literature. For the final user, the Fog appears as a single unified FaaS platform. We use auctions to incentivize Fog nodes to join and compete for executing functions.
-
+We introduce “fog node ownership,” a concept where fog nodes are owned by different actors that chose to give computing resources in exchange for remuneration. This concept allows for the reach of the fog to be dynamically extended without central supervision from a unique decision taker, as currently considered in the literature. For the final user, the fog appears as a single unified FaaS platform. We use auctions to incentivize fog nodes to join and compete for executing functions.
 
 Our auctions let Fog nodes independently put a price on candidate functions to run. It introduces the need of a “Marketplace,” a trusted third party to manage the auctions. Clients wanting to run functions communicate their requirements using Service Level Agreements (SLA) that provide guarantees over allocated resources or the network latency. Those contracts are propagated from the Marketplace to a node and relayed to neighbors.
 
-Key features of **our work**:
+Key features of Global Integration of Reverse Auctions and Fog Functions (**GIRAFF**):
 
 - Standard stack (Kubernetes, OpenFaaS)
-- Efficient programming in Rust for less bugs and to enable effective collaboration (also cross-compiling in the future?)
-- Nix to reproduce both scientifically the experiments and maintain the same development environment for everyone
+- Efficient programming in Rust to enable effective collaboration (also cross-compiling in the future?)
+- Nix to reproduce scientifically the experiments and maintain the same development environment for everyone
 - Functions to deploy
-- [Grid'5000](https://www.grid5000.fr/w/Grid5000:Home) support thanks to [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/)
+- [Grid’5000](https://www.grid5000.fr/w/Grid5000:Home) support thanks to [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/)
 
-<details open>
+<details>
 <summary>Additional info</summary>
 <br>
 
 This project has been started as an internship sponsored as I was a student from National Institute of Applied Sciences Rennes (INSA Rennes) and a second master (SIF) under University of Rennes 1, University of Southern Brittany (UBS), ENS Rennes, INSA Rennes and CentraleSupélec.
 
-A thesis is being financed by the « Centre INRIA de l'Université de Rennes » to pursue the work.
+A thesis is being financed by the «Centre INRIA de l’Université de Rennes» to pursue the work.
 
 </details>
 
-</td>
-</tr>
-</table>
-
 ### Built With
 
+- Nix
 - Rust
+- Go
 - Kubernetes (K3S)
 - OpenFaaS
 - EnosLib
-- Nix
 
 ## Getting Started
 
@@ -99,23 +89,69 @@ Here is an overview of the content of this repo:
 
 ```shell
 .
-├── enos # Contain EnosLib code to interact with Grid'5000 (build + deployment of live environment at true scale)
-├── manager # contain the code of the marketplace and the fog_node
+├── enos # Contains EnosLib code to interact with Grid'5000 (build + deployment of live environment at true scale)
+├── manager # contains the code of the marketplace and the fog_node
 ├── iot_emulation # Sends request to fog nodes in the experiments to measure their response time, etc.
-└── openfaas-functions # contain code of Fog FaaS functions
+└── openfaas-functions # contains code of Fog FaaS functions
 ```
 
 ### Prerequisites
 
-1. Install Nix
-2. `nix develop` (or configure direnv)
-3. All usual commands can be found in the justfiles, just type `just --list`
+1. Install [Nix](https://nixos.org/download#download-nix)
+    > [Nix portable](https://github.com/DavHau/nix-portable) is not officially supported, however it may be enough to explore the project without installing Nix
+2. Append to /etc/nix/nix.conf:
+    ```nix
+    extra-experimental-features = nix-command flakes
+    max-jobs = auto
+    cores = 0
+    log-lines = 50
+    ```
+    > This enables commands such as `nix develop`, multithreading, and bigger logs
+3. `nix develop` (or configure direnv)
+4. All usual commands can be found in the justfiles, just type `just --list`
 
 > These commands work when `flake.nix` and `justfile` are present in the current directory you are in.
 
-## Contributing
+### Software
 
-Please contact me from the info in my [GitHub profile](https://github.com/volodiapg).
+This section concerns OpenFaaS functions, the code for the fog nodes under `manager/`, the code for `iot_emulation`, the code for the proxy.
+
+Usually, `nix develop` gets you started. I code using VS Code, thus the extension [Nix Environment Selector](https://marketplace.visualstudio.com/items?itemName=arrterian.nix-env-selector) will make VS Code use all the applications/env loaded in the `nix develop`, e.g. you can use Rust/Golang LSPs server/toolchains inside VS Code without ever “installing” them on the computer.
+
+### VMs
+
+VMs detail are located in `enos/live/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `enos/live/flake.nix` you can also see the VM used to deploy the code in grid’5000. 
+
+To start the same vm as in the experiments, one should go to `enos/live/iso` and enter a `nix develop`. Then starting the VM is a matter of `just vm`. Once the VM is started, connection can be made with `just ssh-in`.
+> This process is used to start the VM used to develop the fog node software programs
+
+### Experiments
+
+This uses the exact same VMs as the previous section. To generate the VM disk and send it to grid’5000, enter `just upload <rennes|nancy|...>`. The disk will be uploaded.
+
+Then go to `enos/live`, once this is done, you can configure the experiments in `.env`; `.experiments.env` handles the variations of multiple runs. These values are used in `integration.py` that handles the deployment and `definitions.py` that defines the fog network and some Kubernetes configurations.
+
+Then, `just upload` will rsync both the master’s VM and the previously described files to the configured grid’5000 cluster.
+
+Finally, `just master_exec <ghcr.io username> <experiment name>` will start the experiment as configured.
+
+> Note that in `.experiments.env` there are some options to gracefully handle failures, as I use GNU parallel, one can “resume” a job that had some failures before.
+
+In the end, experimental results will be available on the cluster in `metric-arks`. One is able to get them back using the command `just get_metrics_back`. This will download them in the local `metrics-arks` folder.
+
+### Processing the results
+
+This flake has two modes: `just labExport` will start a JupyterLab with Latex support and Tikz export for the graphs, `just lab` starts a lighter version without Latex and Tikz.
+
+Then, data exploitation is done using R inside the JupyterLab server.
+
+### Notes about the system architectures
+
+Most of the flakes are compatible with both Linux and macOS. However, when generating packages for Linux (like the VM), only Linux can. Extension could be done to enable full cross-platform support.
+
+## Contribution or utilization
+
+Please open an issue or contact me from the info in my [GitHub profile](https://github.com/volodiapg) so that I may be of assistance.
 
 ## License
 
@@ -127,4 +163,6 @@ See [LICENSE](LICENSE) for more information.
 
 Thanks for these awesome resources that were used during the development of this project
 
-- for the functions taken from [BeFaaS](https://github.com/Be-FaaS/BeFaaS-framework)
+- [GNU Parallel](https://www.gnu.org/software/parallel/)
+- [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/index.html)
+- [Grid’5000](https://www.grid5000.fr/w/Grid5000:Home)

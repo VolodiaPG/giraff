@@ -26,5 +26,14 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "python.linting.mypyEnabled": true,
-    "python.linting.enabled": true
+    "python.linting.enabled": true,
+    "languageToolLinter.languageTool.ignoredWordsInWorkspace": [
+        "centralesupélec",
+        "conf",
+        "direnv",
+        "giraff",
+        "justfiles",
+        "sif",
+        "tikz"
+    ]
 }
