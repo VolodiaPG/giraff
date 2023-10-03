@@ -38,7 +38,12 @@
 - [Getting Started](#getting-started)
   - [Overview](#overview)
   - [Prerequisites](#prerequisites)
-- [Contributing](#contributing)
+  - [Software](#software)
+  - [VMs](#vms)
+  - [Experiments](#experiments)
+  - [Processing the results](#processing-the-results)
+  - [Notes about the system architectures](#notes-about-the-system-architectures)
+- [Contribution or utilization](#contribution-or-utilization)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
 
