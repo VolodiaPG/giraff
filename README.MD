@@ -9,9 +9,9 @@
   <h1>
     GIRAFF: Reverse auction-based placement for fog functions 
   </h1>
-  <h2>
+  <h3>
   Using FaaS functions and auctions for a sustainable fog model
-  </h2>
+  </h3>
   <!-- <br />
   <br />
   <a href="">Report a Bug</a>
