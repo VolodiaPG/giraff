@@ -1,9 +1,9 @@
 
-<!-- <h1 align="center">
+<h1 align="center">
   <a href="https://github.com/volodiapg/faas_fog">
-    <img src="{{cookiecutter.repo_slug}}/docs/images/logo.svg" alt="Logo" width="125" height="125">
+    <img src="giraffe.jpg" alt="GIRAFFe mascot" width="320" height="320" style="border-radius: 50%;box-shadow: rgba(50, 50, 93, 0.25) 0px 30px 60px -12px, rgba(0, 0, 0, 0.3) 0px 18px 36px -18px;">
   </a>
-</h1> -->
+</h1>
 
 <div align="center">
   <h1>
