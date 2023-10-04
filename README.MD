@@ -150,6 +150,8 @@ This flake has two modes: `just labExport` will start a JupyterLab with Latex su
 
 Then, data exploitation is done using R inside the JupyterLab server.
 
+> With article submissions, one can find the raw data in the [Release page](https://github.com/volodiapg/faas_fog/releases/latest). Take the latest, extract it to `enos/live` under a directory named `metrics-arks`.  Then run `just lab` and you will be able to explore the data. Please notice that this process is heavy on the CPU and especially the RAM. I used some Systemd magic to prevent my computer from using too much RAM and cut the program if so.
+
 ### Notes about the system architectures
 
 Most of the flakes are compatible with both Linux and macOS. However, when generating packages for Linux (like the VM), only Linux can. Extension could be done to enable full cross-platform support.
