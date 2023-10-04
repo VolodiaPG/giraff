@@ -2,6 +2,7 @@
 result
 result-*
 .pre-commit-config.yaml
+.direnv/
 # EnosLib
 current
 enos_*/

@@ -1,7 +1,7 @@
 {
   description = "A basic gomod2nix flake";
 
-  outputs = inputs:
+  outputs = inputs: _extra:
     with inputs; let
       inherit (self) outputs;
     in
@@ -19,19 +19,8 @@
           modules = ./gomod2nix.toml;
         };
         packages.goEnv = pkgs.mkGoEnv {pwd = ./.;};
-        checks = {
-          pre-commit-check = pre-commit-hooks.lib.${system}.run {
-            src = ./.;
-            hooks = {
-              alejandra.enable = true;
-              govet.enable = true;
-              revive.enable = true;
-              # staticcheck.enable = true;
-            };
-          };
-        };
         devShells.proxy = pkgs.mkShell {
-          inherit (self.checks.${system}.pre-commit-check) shellHook;
+          inherit (outputs.checks.${system}.pre-commit-check) shellHook;
           packages = with pkgs; [
             git
             gnumake
@@ -43,6 +32,5 @@
             outputs.packages.${system}.goEnv
           ];
         };
-        formatter = pkgs.alejandra;
       });
 }

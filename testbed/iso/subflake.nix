@@ -1,8 +1,8 @@
 {
-  outputs = inputs:
+  outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
-      proxyFlakeOutputs = (import ./proxy/subflake.nix).outputs inputs;
+      proxyFlakeOutputs = (import ./proxy/subflake.nix).outputs inputs extra;
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
@@ -40,7 +40,6 @@
                 sshpass
               ];
             };
-            formatter = pkgs.alejandra;
           }
         ))
         {

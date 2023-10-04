@@ -6,8 +6,10 @@
   # readLines = file: builtins.filter (x: x != "") (lib.strings.splitString "\n" (builtins.readFile file));
   readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
 in {
-  services.chrony.enable = true;
-  services.chrony.servers = readLines ../config/ntp-servers.txt;
+  services = {
+    chrony.enable = true;
+    chrony.servers = readLines ../config/ntp-servers.txt;
+  };
 
   programs.fish.shellAliases = {kubectl = "k3s kubectl";};
 

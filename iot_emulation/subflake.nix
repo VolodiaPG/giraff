@@ -1,6 +1,8 @@
 {
-  outputs = inputs:
-    with inputs;
+  outputs = inputs: extra:
+    with inputs; let
+      inherit (self) outputs;
+    in
       flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
@@ -9,16 +11,9 @@
             overlays = [cargo2nix.overlays.default];
           };
 
-          # Define Rust environment to use
-          rustChannel = "nightly";
-          rustProfile = "minimal";
-          rustVersion = "2023-08-16";
-          target = "x86_64-unknown-linux-gnu";
-          extraRustComponents = ["clippy" "rustfmt"];
-
           #Packages
           rustPkgs = pkgs.rustBuilder.makePackageSet {
-            inherit rustChannel rustProfile target rustVersion extraRustComponents;
+            inherit (extra.rustToolchain) rustChannel rustProfile rustVersion extraRustComponents;
             packageFun = import ./Cargo.nix;
             rootFeatures = [];
           };
@@ -35,26 +30,8 @@
           packages = {
             iot_emulation = dockerIOTEmulation;
           };
-          formatter = pkgs.alejandra;
-          checks = {
-            pre-commit-check = pre-commit-hooks.lib.${system}.run {
-              src = ./.;
-              settings.statix.ignore = ["Cargo.nix"];
-              hooks = {
-                # Nix
-                alejandra.enable = false;
-                statix.enable = true;
-                deadnix = {
-                  enable = true;
-                  excludes = ["Cargo.nix"];
-                };
-                # Git (conventional commits)
-                commitizen.enable = true;
-              };
-            };
-          };
           devShells.iot_emulation = rustPkgs.workspaceShell {
-            inherit (self.checks.${system}.pre-commit-check) shellHook;
+            inherit (outputs.checks.${system}.pre-commit-check) shellHook;
             packages = with pkgs; [
               docker
               just

@@ -1,9 +1,9 @@
 {
-  outputs = inputs:
+  outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
       # Load the iso flake
-      isoOutputs = (import ./iso/subflake.nix).outputs inputs;
+      isoOutputs = (import ./iso/subflake.nix).outputs inputs extra;
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
@@ -130,36 +130,9 @@
             };
           in {
             packages.experiments = pkgs.experiments;
-            checks = {
-              pre-commit-check = pre-commit-hooks.lib.${system}.run {
-                src = ./.;
-                settings.statix.ignore = ["Cargo.nix"];
-                settings.mypy.binPath = "${pkgs.mypy}/bin/mypy --no-namespace-packages";
-                hooks = {
-                  # Nix
-                  alejandra.enable = true;
-                  statix.enable = true;
-                  deadnix = {
-                    enable = true;
-                    excludes = ["Cargo.nix"];
-                  };
-                  # Python
-                  autoflake.enable = true;
-                  isort.enable = true;
-                  ruff.enable = true;
-                  mypy.enable = true;
-                  # Shell scripting
-                  shfmt.enable = true;
-                  shellcheck.enable = true;
-                  bats.enable = true;
-                  # Git (conventional commits)
-                  commitizen.enable = true;
-                };
-              };
-            };
             devShells.testbed = pkgs.mkShell {
               shellHook =
-                self.checks.${system}.pre-commit-check.shellHook
+                outputs.checks.${system}.pre-commit-check.shellHook
                 + ''
                   ln -sfT ${pkgs.experiments} ./.venv
                 '';
@@ -180,7 +153,6 @@
                 tmux
               ];
             };
-            formatter = pkgs.alejandra;
           }
         ))
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
@@ -254,9 +226,9 @@
                 [
                   outputs.packages.${pkgs.system}.experiments
                 ]
-                ++ outputs.devShells.${pkgs.system}.default.buildInputs
-                ++ outputs.devShells.${pkgs.system}.default.nativeBuildInputs
-                ++ outputs.devShells.${pkgs.system}.default.propagatedBuildInputs
+                ++ outputs.devShells.${pkgs.system}.testbed.buildInputs
+                ++ outputs.devShells.${pkgs.system}.testbed.nativeBuildInputs
+                ++ outputs.devShells.${pkgs.system}.testbed.propagatedBuildInputs
                 ++ stdenv.initialPath
               );
           in {
@@ -310,20 +282,6 @@
         in {
           packages.enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
-          # packages.enosDeployment = pkgs.stdenv.mkDerivation {
-          #   src = ./.;
-          #   name = "enosDeployment";
-          #   inherit (outputs.devShells.${pkgs.system}.default) nativeBuildInputs propagatedBuildInputs;
-          #   buildInputs =
-
-          #   unpackPhase = ''
-          #     mkdir -p $out
-          #     cp $src/*.py $out
-          #     cp $src/.env $out
-          #     cp $src/.experiments.env $out
-          #     cp $src/justfile $out
-          #   '';
-          # };
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
           pkgs = nixpkgs.legacyPackages.${system};
@@ -338,9 +296,9 @@
                         pgf3
                       ])
                       ++ [pkgs.toybox]
-                      ++ outputs.devShells.${system}.default.buildInputs
-                      ++ outputs.devShells.${system}.default.nativeBuildInputs
-                      ++ outputs.devShells.${system}.default.propagatedBuildInputs;
+                      ++ outputs.devShells.${system}.testbed.buildInputs
+                      ++ outputs.devShells.${system}.testbed.nativeBuildInputs
+                      ++ outputs.devShells.${system}.testbed.propagatedBuildInputs;
                     enable = true;
                     name = "faas_fog";
                     displayName = "faas_fog";

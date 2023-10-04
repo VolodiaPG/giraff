@@ -48,13 +48,15 @@ in {
   services.grafana = {
     enable = false;
     #   addr = "0.0.0.0";
-    settings.server.http_port = 9030;
-    settings.server.http_addr = "0.0.0.0";
-    #   domain = "0.0.0.0:9030";
-    settings."auth.anonymous" = {
-      enable = true;
-      org_role = "Admin";
-      org_name = "Main Org.";
+    settings = {
+      server.http_port = 9030;
+      server.http_addr = "0.0.0.0";
+      #   domain = "0.0.0.0:9030";
+      "auth.anonymous" = {
+        enable = true;
+        org_role = "Admin";
+        org_name = "Main Org.";
+      };
     };
     # security.adminUser = "admin";
     # security.adminPassword = "admin";

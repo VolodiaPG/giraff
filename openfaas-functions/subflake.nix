@@ -1,6 +1,8 @@
 {
-  outputs = inputs:
-    with inputs;
+  outputs = inputs: extra:
+    with inputs; let
+      inherit (self) outputs;
+    in
       flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
@@ -9,46 +11,14 @@
             overlays = [cargo2nix.overlays.default];
           };
 
-          rustChannel = "nightly";
-          rustProfile = "minimal";
-          rustVersion = "2023-06-15";
-          target = "x86_64-unknown-linux-gnu";
-          extraRustComponents = ["clippy" "rustfmt"];
-
           rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
-            inherit rustChannel rustProfile target rustVersion extraRustComponents;
+            inherit (extra.rustToolchain) rustChannel rustProfile rustVersion extraRustComponents;
             packageFun = import ./echo/Cargo.nix;
             rootFeatures = [];
           };
         in rec {
-          formatter = alejandra.defaultPackage.${system};
-          checks = {
-            pre-commit-check = pre-commit-hooks.lib.${system}.run {
-              src = ./.;
-              settings.statix.ignore = ["Cargo.nix"];
-              hooks = {
-                # Nix
-                alejandra.enable = true;
-                statix.enable = true;
-                deadnix = {
-                  enable = true;
-                  excludes = ["Cargo.nix"];
-                };
-                # Rust
-                rust = {
-                  enable = true;
-                  name = "rust (justfile pre_commit)";
-                  entry = "sh -c 'cd openfaas-functions && just pre_commit'";
-                  language = "system";
-                  pass_filenames = false;
-                };
-                # Git (conventional commits)
-                commitizen.enable = true;
-              };
-            };
-          };
-          devShells = pkgs.mkShell {
-            inherit (self.checks.${system}.pre-commit-check) shellHook;
+          devShells.openfaas_functions = pkgs.mkShell {
+            inherit (outputs.checks.${system}.pre-commit-check) shellHook;
             openfaas_functions = rustPkgsEcho.workspaceShell {
               packages = with pkgs; [
                 docker

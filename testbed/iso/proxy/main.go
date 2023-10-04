@@ -1,3 +1,4 @@
+// Package implements a simple HTTP proxy that adds a `Proxy-Timestamp` in the request header with the timestamp the request is received here.
 package main
 
 import (
