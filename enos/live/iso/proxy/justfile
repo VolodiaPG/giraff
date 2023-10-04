@@ -1,2 +1,0 @@
-_default $PORT="3128":
-    go run *.go
