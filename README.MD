@@ -94,7 +94,7 @@ Here is an overview of the content of this repo:
 
 ```shell
 .
-├── enos # Contains EnosLib code to interact with Grid'5000 (build + deployment of live environment at true scale)
+├── testbed # Contains EnosLib code to interact with Grid'5000 (build + deployment of live environment at true scale)
 ├── manager # contains the code of the marketplace and the fog_node
 ├── iot_emulation # Sends request to fog nodes in the experiments to measure their response time, etc.
 └── openfaas-functions # contains code of Fog FaaS functions
@@ -125,16 +125,16 @@ Usually, `nix develop` gets you started. I code using VS Code, thus the extensio
 
 ### VMs
 
-VMs detail are located in `enos/live/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `enos/live/flake.nix` you can also see the VM used to deploy the code in grid’5000. 
+VMs detail are located in `testbed/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `testbed/flake.nix` you can also see the VM used to deploy the code in grid’5000. 
 
-To start the same vm as in the experiments, one should go to `enos/live/iso` and enter a `nix develop`. Then starting the VM is a matter of `just vm`. Once the VM is started, connection can be made with `just ssh-in`.
+To start the same vm as in the experiments, one should go to `testbed/iso` and enter a `nix develop`. Then starting the VM is a matter of `just vm`. Once the VM is started, connection can be made with `just ssh-in`.
 > This process is used to start the VM used to develop the fog node software programs
 
 ### Experiments
 
 This uses the exact same VMs as the previous section. To generate the VM disk and send it to grid’5000, enter `just upload <rennes|nancy|...>`. The disk will be uploaded.
 
-Then go to `enos/live`, once this is done, you can configure the experiments in `.env`; `.experiments.env` handles the variations of multiple runs. These values are used in `integration.py` that handles the deployment and `definitions.py` that defines the fog network and some Kubernetes configurations.
+Then go to `testbed`, once this is done, you can configure the experiments in `.env`; `.experiments.env` handles the variations of multiple runs. These values are used in `integration.py` that handles the deployment and `definitions.py` that defines the fog network and some Kubernetes configurations.
 
 Then, `just upload` will rsync both the master’s VM and the previously described files to the configured grid’5000 cluster.
 
@@ -150,7 +150,7 @@ This flake has two modes: `just labExport` will start a JupyterLab with Latex su
 
 Then, data exploitation is done using R inside the JupyterLab server.
 
-> With article submissions, one can find the raw data in the [Release page](https://github.com/volodiapg/faas_fog/releases/latest). Take the latest, extract it to `enos/live` under a directory named `metrics-arks`.  Then run `just lab` and you will be able to explore the data. Please notice that this process is heavy on the CPU and especially the RAM. I used some Systemd magic to prevent my computer from using too much RAM and cut the program if so.
+> With article submissions, one can find the raw data in the [Release page](https://github.com/volodiapg/faas_fog/releases/latest). Take the latest, extract it to `testbed` under a directory named `metrics-arks`.  Then run `just lab` and you will be able to explore the data. Please notice that this process is heavy on the CPU and especially the RAM. I used some Systemd magic to prevent my computer from using too much RAM and cut the program if so.
 
 ### Notes about the system architectures
 
