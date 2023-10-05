@@ -233,9 +233,9 @@ build_required_images user:
     done
 
     commands=(
-        "cd $MANAGER_PATH && nix develop -c just ghcr {{user}} $(echo ${tags[@]})"
-        "cd $IOT_EMULATION_PATH && nix develop -c just ghcr {{user}}"
-        "cd $FUNCTIONS_PATH && nix develop -c just faas"
+        "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
+        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
+        "cd $FUNCTIONS_PATH && nix develop .#openfaas_functions -c just faas"
     )
 
     parallel --will-cite --lb ::: "${commands[@]}"
@@ -466,7 +466,7 @@ upload experiments_dotfile=".experiments.env":
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
     rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2&
     
-    bash -c "cd iso ; nix develop -c just upload $city"&
+    bash -c "cd iso ; nix develop .#iso -c just upload $city"&
 
     ssh $city.grid5000.fr mkdir -p enosvm
 
@@ -490,8 +490,8 @@ master_exec user name experiments_dotfile=".experiments.env": (upload experiment
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
 
     # just master_upload $city
-    # bash -c "cd iso; nix develop -c just upload $city"
-    # parallel --will-cite --lb ::: "just master_upload $city" "cd iso; nix develop -c just upload $city" "just build_required_images {{user}}"
+    # bash -c "cd iso; nix develop .#iso -c just upload $city"
+    # parallel --will-cite --lb ::: "just master_upload $city" "cd iso; nix develop .#iso -c just upload $city" "just build_required_images {{user}}"
     # just build_required_images {{user}}
 
     set +e
