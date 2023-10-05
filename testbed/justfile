@@ -151,24 +151,6 @@ _collect:
 logs *FLAGS:
     {{RUN}} integration.py logs {{FLAGS}}
 
-vpn:
-    #!/usr/bin/env bash
-    set -e
-    modprobe tun
-    rm -rf grid5000-openvpn || true
-    mkdir grid5000-openvpn
-    unzip grid5000-openvpn.zip -d grid5000-openvpn
-    cd grid5000-openvpn
-    cat /root/.python-grid5000.yaml | grep 'password: ' | sed 's/password: //' > grid5000vpnpassword
-    cat <<EOF >> Grid5000_VPN.ovpn
-    script-security 2
-    up /etc/openvpn/update-resolv-conf
-    down /etc/openvpn/update-resolv-conf
-    askpass "$PWD/grid5000vpnpassword"
-    daemon
-    EOF
-    openvpn Grid5000_VPN.ovpn
-
 sshconfig:
     #!/usr/bin/env bash
     set -e
@@ -209,14 +191,10 @@ docker_enos name expe_dir cmd="bash":
         --cgroup-manager=cgroupfs \
         enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
 
-# -v $GRID5000OPENVPNZIP:/home/enos/grid5000-openvpn.zip:ro \
-# --cgroup-manager=cgroupfs fix needs to be investigated because ... Linux ?!?
-
 docker_scenarii name tempdir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
     just docker_enos {{name}} {{tempdir}} "just scenarii {{city_name_node_targets}} ; just clean || ."
-# just docker_enos {{name}} {{tempdir}} "just vpn && echo vnp is ok && just scenarii {{city_name_node_targets}} ; just clean || ."
 
 _docker_campaign name tempdir:
     #!/usr/bin/env bash

@@ -196,9 +196,6 @@
               mkdir /tmp
               mkdir -p /usr/bin
               ln -s ${pkgs.busybox}/bin/env /usr/bin/env
-
-              mkdir -p /etc/openvpn
-              ln -s ${pkgs.update-resolv-conf}/libexec/openvpn/* /etc/openvpn
             '';
 
             config = {
