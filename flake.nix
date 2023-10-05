@@ -4,7 +4,10 @@
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
@@ -16,7 +19,14 @@
     };
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        nixpkgs-stable.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+        poetry2nix.follows = "poetry2nix";
+        pre-commit-hooks.follows = "pre-commit-hooks";
+        rust-overlay.follows = "rust-overlay";
+      };
     };
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
@@ -59,9 +69,9 @@
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
-        # (subflake ./testbed/subflake.nix)
+        (subflake ./testbed/subflake.nix)
         (subflake ./manager/subflake.nix)
-        # (subflake ./iot_emulation/subflake.nix)
+        (subflake ./iot_emulation/subflake.nix)
         (subflake ./openfaas-functions/subflake.nix)
         (flake-utils.lib.eachDefaultSystem (
           system: let

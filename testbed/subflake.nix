@@ -7,7 +7,7 @@
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
-        isoOutputs
+        # isoOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
             pkgs = import nixpkgs {
@@ -15,7 +15,7 @@
               overlays = [overlay];
             };
             # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
-            inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
+            # inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
             overlay = self: _super: {
               experiments = self.poetry2nix.mkPoetryEnv {
