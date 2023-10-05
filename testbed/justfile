@@ -4,8 +4,8 @@ RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
 export SSHPASS:="faas"
 export MANAGER_PATH := "../manager"
-export IOT_EMULATION_PATH := "../../iot_emulation"
-export FUNCTIONS_PATH := "../../openfaas-functions"
+export IOT_EMULATION_PATH := "../iot_emulation"
+export FUNCTIONS_PATH := "../openfaas-functions"
 
 # Entrypoint, run deploy and then tunnels
 _default:

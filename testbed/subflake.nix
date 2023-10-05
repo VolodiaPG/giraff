@@ -7,15 +7,13 @@
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
-        # isoOutputs
+        isoOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
-            pkgs = import nixpkgs {
+            pkgs = import inputs.poetry2nix.inputs.nixpkgs {
               inherit system;
               overlays = [overlay];
             };
-            # see https://github.com/nix-community/poetry2nix/tree/master#api for more functions and examples.
-            # inherit (poetry2nix.legacyPackages.${system}) mkPoetryEnv;
 
             overlay = self: _super: {
               experiments = self.poetry2nix.mkPoetryEnv {
@@ -130,7 +128,7 @@
             };
           in {
             packages.experiments = pkgs.experiments;
-            devShells.testbed = pkgs.mkShell {
+            devShells.testbed = pkgs.experiments.env.overrideAttrs (_oldAttrs: {
               shellHook =
                 outputs.checks.${system}.pre-commit-check.shellHook
                 + ''
@@ -138,21 +136,21 @@
                 '';
               # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
               PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
-              packages = with pkgs; [
+              buildInputs = with pkgs; [
                 just
                 jq
-                experiments
                 ruff
                 black
                 isort
                 mypy
+                experiments
                 mprocs
                 parallel
                 bashInteractive
                 bc
                 tmux
               ];
-            };
+            });
           }
         ))
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
@@ -181,10 +179,6 @@
                   jq
                   openssh
                   curl
-
-                  # openvpn # to connect to the inside of g5k
-                  # openresolv
-                  # update-resolv-conf
                 ])
                 ++ (with outputs.packages.${system}; [
                   # Environment to run enos and stuff

@@ -5,7 +5,9 @@
     poetry2nix = {
       url = "github:nix-community/poetry2nix";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
+        # Fixes https://github.com/nix-community/poetry2nix/issues/1291
+        # until poetry2nix works with upstream again
+        # nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
       };
     };
