@@ -2,13 +2,14 @@
 result
 result-*
 .pre-commit-config.yaml
-.direnv/
+.direnv
 # EnosLib
 current
 enos_*/
 _tmp_enos_/
 metrics*
 
+.ruff_cache
 build
 out
 cachedir/
