@@ -25,6 +25,25 @@
             ];
           in {
             packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
+            packages.openfaas =
+              (kubenix.evalModules.${system} {
+                module = {kubenix, ...}: {
+                  imports = [kubenix.modules.k8s kubenix.modules.helm];
+                  kubernetes.helm.releases.openfaas = {
+                    namespace = nixpkgs.lib.mkForce "openfaas";
+                    overrideNamespace = false;
+                    chart = kubenix.lib.helm.fetch {
+                      repo = "https://openfaas.github.io/faas-netes/";
+                      chart = "openfaas";
+                      version = "14.1.9";
+                      sha256 = "sha256-KxZhrunv8DbOvFqw7p2t2Zrqm4urvFWCErsutqNUgiM=";
+                    };
+                  };
+                };
+              })
+              .config
+              .kubernetes
+              .result;
           }
         ))
         (flake-utils.lib.eachDefaultSystem (

@@ -53,6 +53,10 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    kubenix = {
+      url = "github:hall/kubenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs:
