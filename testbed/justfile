@@ -31,10 +31,12 @@ labExport max_memory_gb="20":
     systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlabExport
 
 # Open SSH tunnels
+[private]
 tunnels +FLAGS='':
     {{RUN}} integration.py tunnels {{FLAGS}}
 
 # List end nodes of the Fog network
+[private]
 endpoints:
 	{{RUN}} integration.py endpoints
 
@@ -47,18 +49,22 @@ _is_connected city_name_node_target market_port:
         echo "❌ {{city_name_node_target}}@$market_ip"
     fi
 
+[private]
 is_connected city_name_node_target market_local_port:
     watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
+[private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
     just _deploy {{fog_node_image}} {{market_image}}
 
+[private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{RUN}} integration.py restart
     just _deploy {{fog_node_image}} {{market_image}}
 
 # Delete the Job on grid'5000 and local EnosLib files
+[private]
 clean:
     {{RUN}} integration.py clean || true
     rm -rf enos_* current cachedir __enos*   
@@ -75,9 +81,11 @@ _deploy fog_node_image market_image:
     
     wait
 
+[private]
 expe $IOT_IP $MARKET_IP $TARGET_NODES:
     {{RUN}} expe.py
 
+[private]
 scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
     set -ex
@@ -108,6 +116,7 @@ scenario archive_name +city_name_node_targets:
 
     if [ $DEV ]; then sleep 9999999999; fi
 
+[private]
 scenarii +city_name_node_targets:
     #!/usr/bin/env bash
     set -e
@@ -140,6 +149,7 @@ scenarii +city_name_node_targets:
 
     just clean || .
 
+[private]
 collect:
     mkdir -p metrics
     {{RUN}} integration.py collect --address $INFLUX_ADDRESS
@@ -151,14 +161,11 @@ _collect:
 logs *FLAGS:
     {{RUN}} integration.py logs {{FLAGS}}
 
-sshconfig:
-    #!/usr/bin/env bash
-    set -e
-    login=$(cat /root/.python-grid5000.yaml | grep 'username: ' | sed 's/username: //')
-
+[private]
 docker_enos name expe_dir cmd="bash":
     #!/usr/bin/env bash
-    set -e
+    set -ex
+    eval $(ssh-agent -s)
     {{DOCKER}} run -it --rm \
         --privileged \
         --cap-add=ALL \
@@ -189,8 +196,9 @@ docker_enos name expe_dir cmd="bash":
         -e LOAD_NETWORK_FILE=/home/enos/net \
         --name "{{name}}" \
         --cgroup-manager=cgroupfs \
-        enos_deployment:latest bash -c -E "just sshconfig && {{cmd}}"
+        enos_deployment:latest bash -c -E "{{cmd}}"
 
+[private]
 docker_scenarii name tempdir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
@@ -221,7 +229,7 @@ single_campaign name dotenvfile:
     mkdir -p logs_campaign
     just _docker_campaign {{name}} $tempdir |& tee -a logs_campaign/$fname
 
-
+[private]
 build_required_images user:
     #!/usr/bin/env bash
     set -e
@@ -240,15 +248,16 @@ build_required_images user:
 
     parallel --will-cite --lb ::: "${commands[@]}"
 
+[private]
 docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)
     #!/usr/bin/env bash
-    image_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
+    image_path=$(nix build --extra-experimentafl-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
     {{DOCKER}} load < $image_path
     nix develop --extra-experimental-features "nix-command flakes" -c just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
 
 _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
     #!/usr/bin/env bash
-    set -e
+    set -ex
     
     function expe_command() {
         set -e
@@ -269,7 +278,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
         # Compare times and decide whether to execute the command
         if (( current_time + job_duration_seconds > threshold_time )); then
-            echo "Job will finish after $DO_NOT_EXECUTE_IF_ENDING_AFTER_HOUR the '$DO_NOT_EXECUTE_IF_ENDING_AFTER' day. Command will not be executed."
+            >&2 echo "Job will finish after $DO_NOT_EXECUTE_IF_ENDING_AFTER_HOUR the '$DO_NOT_EXECUTE_IF_ENDING_AFTER' day. Command will not be executed."
             exit 127
         fi
 
@@ -339,7 +348,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     
     set +e
     if [ ! -f $JOB_LOG ] && [ $TYPE != "first_run" ]; then
-        echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
+        >&2 echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
         exit 1
     fi
     if [ $TYPE == "retry" ]; then
@@ -456,7 +465,7 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
     {{RUN}} simulator.py > sim.simple.dump.csv
 
-upload experiments_dotfile=".experiments.env":
+upload experiments_dotfile=".experiments.env" skip_vms="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
@@ -464,9 +473,9 @@ upload experiments_dotfile=".experiments.env":
     set +o allexport
     city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2&
+    ({{skip_vms}} || rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
     
-    bash -c "cd iso ; nix develop .#iso -c just upload $city"&
+    ({{skip_vms}} || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
 
     ssh $city.grid5000.fr mkdir -p enosvm
 
@@ -476,7 +485,7 @@ upload experiments_dotfile=".experiments.env":
     wait
     
 
-master_exec user name experiments_dotfile=".experiments.env": (upload experiments_dotfile)
+master_exec user name experiments_dotfile=".experiments.env" skip_vms="false": (upload experiments_dotfile skip_vms)
     #!/usr/bin/env bash
     set -e
     set -o allexport
@@ -488,11 +497,6 @@ master_exec user name experiments_dotfile=".experiments.env": (upload experiment
 
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
-
-    # just master_upload $city
-    # bash -c "cd iso; nix develop .#iso -c just upload $city"
-    # parallel --will-cite --lb ::: "just master_upload $city" "cd iso; nix develop .#iso -c just upload $city" "just build_required_images {{user}}"
-    # just build_required_images {{user}}
 
     set +e
 

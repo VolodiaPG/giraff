@@ -27,4 +27,6 @@ cachedir/
 enos_*/
 tmp*
 out.*
+experiments
+*.net
 
