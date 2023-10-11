@@ -1,4 +1,26 @@
 - - -
+## 2.0.0 - 2023-10-11
+#### Bug Fixes
+- **(testbed)** Reversed nixpkgs to previous working version to make the testbed run again - (94c4c4b) - Volodia PAROL-GUARINO
+- make changelog not bugged - (1a5afeb) - Volodia PAROL-GUARINO
+- fix update that broke stuff (reverted) - (1a2ec29) - Volodia PAROL-GUARINO
+- fix paths not updated after refactor - (2a6c005) - Volodia PAROL-GUARINO
+#### Features
+- use kubenix for reproducible deployment of openfaas - (dc4f2e9) - Volodia PAROL-GUARINO
+#### Miscellaneous Chores
+- **(update)** update lock - (4d7403c) - Volodia PAROL-GUARINO
+- **(update)** fix poetry2nix having issues with nixpkgs - (1c03742) - Volodia PAROL-GUARINO
+- **(update)** update lock - (1f93b89) - Volodia PAROL-GUARINO
+- remove already ignored dir - (fe9925b) - Volodia PAROL-GUARINO
+- fix missing paths for devshells - (c613c15) - Volodia PAROL-GUARINO
+- remove unused vpn options - (1058971) - Volodia PAROL-GUARINO
+#### Refactoring
+- Unify toolchains - (555065e) - Volodia PAROL-GUARINO
+- Unify flakes - (034ac3b) - Volodia PAROL-GUARINO
+- move enos code into testbed dir - (baced4a) - Volodia PAROL-GUARINO
+
+- - -
+
 ## 1.0.0 - 2023-10-04
 #### Bug Fixes
 - **(echo-function)** better to sort the buckets before remove duplicates, as it is required per the documentation - (4e54f34) - Volodia PAROL-GUARINO
