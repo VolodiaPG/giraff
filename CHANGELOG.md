@@ -1,3 +1,4 @@
+- - -
 ## 1.0.0 - 2023-10-04
 #### Bug Fixes
 - **(echo-function)** better to sort the buckets before remove duplicates, as it is required per the documentation - (4e54f34) - Volodia PAROL-GUARINO
