@@ -24,6 +24,8 @@ use helper_derive::influx_observation;
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry::sdk::propagation::TraceContextPropagator;
+use rand::Rng;
+use rand_distr::{Distribution, Poisson};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
@@ -31,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::task::yield_now;
-use tokio::time::{self, sleep};
+use tokio::time::sleep;
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 #[cfg(feature = "jaeger")]
@@ -72,6 +74,38 @@ struct SendFails {
     tag: String,
 }
 
+struct OpenLoopPoissonProcess {
+    rate:         f64,
+    time:         f64,
+    current_time: f64,
+}
+
+impl OpenLoopPoissonProcess {
+    fn new(rate: f64, time: f64) -> Self {
+        OpenLoopPoissonProcess { rate, time, current_time: 0.0 }
+    }
+}
+
+impl Iterator for OpenLoopPoissonProcess {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_time >= self.time {
+            return None;
+        }
+
+        let mut rng = rand::thread_rng();
+        let poisson = Poisson::new(self.rate).unwrap();
+
+        self.current_time += rng.gen::<f64>();
+        if self.current_time >= self.time {
+            None
+        } else {
+            Some(poisson.sample(&mut rng) as f64)
+        }
+    }
+}
+
 env_var!(INFLUX_ADDRESS);
 env_var!(INFLUX_TOKEN);
 env_var!(INFLUX_ORG);
@@ -81,8 +115,8 @@ env_var!(PROXY_PORT);
 
 #[instrument(
     level = "trace",
-    skip(config),
-    fields(tag=%config.tag)
+    skip(config, cron_jobs, clients, metrics),
+    fields(tag=%config.tag, function_id=%config.function_id)
 )]
 async fn put_cron(
     config: Json<CronConfig>,
@@ -105,8 +139,12 @@ async fn put_cron_content(
     let tag = config.tag.clone();
 
     if !clients.contains_key(&config.first_node_ip) {
-        let Ok(client) = build_http_client(config.first_node_ip.clone()).await else{
-            return HttpResponse::InternalServerError().body(format!("Failed to create the proxy for {}", config.first_node_ip));
+        let Ok(client) = build_http_client(config.first_node_ip.clone()).await
+        else {
+            return HttpResponse::InternalServerError().body(format!(
+                "Failed to create the proxy for {}",
+                config.first_node_ip
+            ));
         };
         clients.insert(config.first_node_ip.clone(), Arc::new(client));
     }
@@ -141,7 +179,7 @@ async fn ping(
 ) -> bool {
     let tag = config.tag.clone();
 
-    let Some(client) = clients.get(&config.first_node_ip) else{
+    let Some(client) = clients.get(&config.first_node_ip) else {
         return true;
     };
 
@@ -203,26 +241,34 @@ async fn loop_send_requests(
         return;
     };
 
-    let mut send_interval =
-        time::interval(Duration::from_millis(config.interval_ms));
-
     sleep(Duration::from_millis(config.initial_wait_ms)).await;
 
     let start = SystemTime::now();
+
+    ping(&config, &clients, &metrics).await;
+
     let until = Duration::from_millis(config.duration_ms);
-    loop {
-        send_interval.tick().await;
+
+    let process = OpenLoopPoissonProcess::new(
+        config.interval_ms as f64,
+        config.duration_ms as f64,
+    );
+    
+    for event_time in process {
         if !jobs.contains_key(&id) {
             info!("Ended loop for {}", id);
             break;
         }
-
+        
         if ping(&config, &clients, &metrics).await {
             info!("Removed cron for function {}", config.tag);
             break;
         };
-
-        yield_now().await;
+        
+        // yield_now().await;
+        
+        tokio::time::sleep(Duration::from_millis(event_time.round() as u64))
+            .await;
 
         let Ok(elapsed) = start.elapsed() else {
             continue;
@@ -233,6 +279,7 @@ async fn loop_send_requests(
     }
 
     jobs.remove(&id);
+    info!("Removed {:?}", id);
 }
 
 /// Compose multiple layers into a `tracing`'s subscriber.

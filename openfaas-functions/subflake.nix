@@ -1,37 +1,33 @@
 {
-  outputs = inputs: extra:
-    with inputs; let
-      inherit (self) outputs;
-    in
+  outputs = inputs: _extra:
+    with inputs;
       flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
             inherit system;
-            config.allowUnfree = true;
-            overlays = [cargo2nix.overlays.default];
+            overlays = [fenix.overlays.default];
           };
+          craneLib = crane.lib.${system}.overrideToolchain (fenix.packages.${system}.latest.withComponents [
+            "cargo"
+            "clippy"
+            "rust-src"
+            "rustc"
+            "rustfmt"
+          ]);
+        in {
+          devShells.openfaas_functions = craneLib.devShell {
+            checks = self.checks.${system};
 
-          rustPkgsEcho = pkgs.rustBuilder.makePackageSet {
-            inherit (extra.rustToolchain) rustChannel rustProfile rustVersion extraRustComponents;
-            packageFun = import ./echo/Cargo.nix;
-            rootFeatures = [];
-          };
-        in rec {
-          devShells.openfaas_functions = pkgs.mkShell {
-            inherit (outputs.checks.${system}.pre-commit-check) shellHook;
-            openfaas_functions = rustPkgsEcho.workspaceShell {
-              packages = with pkgs; [
-                docker
-                faas-cli
-                just
-                pkg-config
-                openssl
-                rust-analyzer
-                lldb
-                (rustfmt.override {asNightly = true;})
-                cargo2nix.packages.${system}.cargo2nix
-              ];
-            };
+            packages = with pkgs; [
+              docker
+              faas-cli
+              just
+              pkg-config
+              openssl
+              rust-analyzer
+              lldb
+              (rustfmt.override {asNightly = true;})
+            ];
           };
         }
       );

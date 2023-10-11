@@ -18,8 +18,10 @@
 
   services.openssh = {
     enable = true;
-    permitRootLogin = "yes";
-    settings.X11Forwarding = false;
+    settings = {
+      PermitRootLogin = "yes";
+      X11Forwarding = false;
+    };
   };
   services.fwupd.enable = true;
 
