@@ -3,9 +3,9 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
+      # Fixes https://github.com/nix-community/poetry2nix/issues/1291
       url = "github:nix-community/poetry2nix";
       inputs = {
-        # Fixes https://github.com/nix-community/poetry2nix/issues/1291
         # until poetry2nix works with upstream again
         # nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
@@ -22,10 +22,9 @@
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
-        nixpkgs-stable.follows = "nixpkgs";
+        # nixpkgs-stable.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
-        poetry2nix.follows = "poetry2nix";
+        poetry2nix.url = "github:nix-community/poetry2nix/?ref=refs/pull/1329/head";
         pre-commit-hooks.follows = "pre-commit-hooks";
         rust-overlay.follows = "rust-overlay";
       };
@@ -114,18 +113,25 @@
                   ruff.enable = true;
                   mypy.enable = true;
                   # manager
-                  # rust = {
+                  # manager = {
                   #   enable = true;
-                  #   name = "rust (justfile pre_commit)";
-                  #   entry = "sh -c '(cd manager || true) && PATH=${outputs.devShells.${system}.default}/bin:$PATH just pre_commit'";
+                  #   name = "rust (manager)";
+                  #   entry = "sh -c 'cd `git rev-parse --show-toplevel`/manager; nix develop -c .#manager just pre_commit'";
                   #   language = "system";
                   #   pass_filenames = false;
                   # };
-                  # functions
+                  # iot_emulation = {
+                  #   enable = true;
+                  #   name = "rust (iot_emulation)";
+                  #   entry = "sh -c 'cd iot_emulation; nix develop -c .#iot_emulation just pre_commit'";
+                  #   language = "system";
+                  #   pass_filenames = false;
+                  # };
+                  # # functions
                   # rustEcho = {
                   #   enable = true;
-                  #   name = "rust (justfile pre_commit)";
-                  #   entry = "sh -c 'cd openfaas-functions && just pre_commit'";
+                  #   name = "rust (OpenFaaS functions)";
+                  #   entry = "sh -c 'cd openfaas-functions && nix develop .#openfaas_functions just pre_commit'";
                   #   language = "system";
                   #   pass_filenames = false;
                   # };
