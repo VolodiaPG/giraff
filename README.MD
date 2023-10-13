@@ -121,7 +121,7 @@ Here is an overview of the content of this repo:
 
 This section concerns OpenFaaS functions, the code for the fog nodes under `manager/`, the code for `iot_emulation`, the code for the proxy.
 
-Usually, `nix develop` gets you started. I code using VS Code, thus the extension [Nix Environment Selector](https://marketplace.visualstudio.com/items?itemName=arrterian.nix-env-selector) will make VS Code use all the applications/env loaded in the `nix develop`, e.g. you can use Rust/Golang LSPs server/toolchains inside VS Code without ever “installing” them on the computer.
+Usually, `nix develop` gets you started. I code using VS Code, thus the extension [Direnv](https://marketplace.visualstudio.com/items?itemName=mkhl.direnv) will make VS Code use all the applications/env loaded in the `nix develop`, e.g. you can use Rust/Golang LSPs server/toolchains inside VS Code without ever “installing” them on the computer.
 
 ### VMs
 
@@ -144,6 +144,34 @@ Finally, `just master_exec <ghcr.io username> <experiment name>` will start the 
 
 In the end, experimental results will be available on the cluster in `metric-arks`. One is able to get them back using the command `just get_metrics_back`. This will download them in the local `metrics-arks` folder.
 
+#### Relation to Azure traces
+
+Azure FaaS traces have been released in 2020. Those traces have been characterized by probabilistic laws [[Hernod](https://doi.org/10.1145/3542929.3563468)]. Those laws are described in the following:
+
+- Execution times follow a highly-variable Log-normal law;
+- functions live in the range of milliseconds to minutes; 
+- ~~Functions are billed with a millisecond granularity;~~
+- the median execution time if 600ms;
+- the 99%th execution time is more than 140 seconds;
+- 0.6% of functions account for 90% of total invocations (they also test a multiple functions balanced workload, where each function receives the same load);
+- arrivals follow an open-loop Poisson law;
+- arrival burstiness index is -0.26;
+- total number of invocations does not vary much;
+- invocations follow diurnal patterns as the Cloud does too;
+- functions are busy-spun for the execution_duration, repeating a timed math operation over-and-over.
+
+In their simulations/experiments, they state they use:
+
+- mu = -0.38
+- sigma = 2.36
+
+For their experiments, they use MSTrace and select a subset of real traces to be re-run on the FaaS platform.
+Functions are 256MB of RAM.
+
+#### Distribution for fog specific characteristics
+
+- A Student T distribution is used for function latencies (as we don't know the real sample size nor the std deviation). The distribution would be divided in three buckets: functions that do not care about the latency (meaning the threshold t is at 10 secs), functions that are normal: they would want their responses back in a usable time (t = 150ms), and low latency functions (t = 15ms). The two extrema would be 5% of the total number functions. We use df=10 with -2.25 and 2.25 for the extrema.
+
 ### Processing the results
 
 This flake has two modes: `just labExport` will start a JupyterLab with Latex support and Tikz export for the graphs, `just lab` starts a lighter version without Latex and Tikz.
@@ -151,6 +179,16 @@ This flake has two modes: `just labExport` will start a JupyterLab with Latex su
 Then, data exploitation is done using R inside the JupyterLab server.
 
 > With article submissions, one can find the raw data in the [Release page](https://github.com/volodiapg/faas_fog/releases/latest). Take the latest, extract it to `testbed` under a directory named `metrics-arks`.  Then run `just lab` and you will be able to explore the data. Please notice that this process is heavy on the CPU and especially the RAM. I used some Systemd magic to prevent my computer from using too much RAM and cut the program if so.
+
+### Dev
+
+To locally develop, I will describe the simple steps to get started:
+- start the VM: `cd testbed/iso; just vm`
+- start the iot_emulation: `cd iot_emulation; just run`
+- start the manager (fog node && market): `cd manager; just run <ip:local ip(not localhost)>`
+- upload the functions to the registry: `cd openfaas-functions; just`
+- you can run parts of the experimental configuration using `cd manager; just expe <ip:same as before>`
+
 
 ### Notes about the system architectures
 

@@ -3,14 +3,24 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
+      # Fixes https://github.com/nix-community/poetry2nix/issues/1291
       url = "github:nix-community/poetry2nix";
       inputs = {
-        # Fixes https://github.com/nix-community/poetry2nix/issues/1291
         # until poetry2nix works with upstream again
         # nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
       };
     };
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs = {
@@ -22,10 +32,9 @@
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
-        nixpkgs-stable.follows = "nixpkgs";
+        # nixpkgs-stable.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
-        poetry2nix.follows = "poetry2nix";
+        poetry2nix.url = "github:nix-community/poetry2nix/?ref=refs/pull/1329/head";
         pre-commit-hooks.follows = "pre-commit-hooks";
         rust-overlay.follows = "rust-overlay";
       };
@@ -45,14 +54,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    cargo2nix = {
-      url = "github:cargo2nix/cargo2nix/release-0.11.0";
-      inputs = {
-        rust-overlay.follows = "rust-overlay";
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     kubenix = {
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -64,16 +65,12 @@
       inherit (self) outputs;
       inherit (nixpkgs) lib;
 
-      rustToolchain = (builtins.fromTOML (builtins.readFile ./rust-toolchain)).toolchain;
-      extra.rustToolchain.rustChannel = lib.lists.elemAt (lib.strings.splitString "-" rustToolchain.channel) 0;
-      extra.rustToolchain.rustVersion = lib.strings.removePrefix (lib.strings.concatStrings [extra.rustToolchain.rustChannel "-"]) rustToolchain.channel;
-      extra.rustToolchain.rustProfile = rustToolchain.profile;
-      extra.rustToolchain.extraRustComponents = rustToolchain.components;
+      extra = {};
 
       subflake = path:
         (import path).outputs inputs extra;
     in
-      nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
+      lib.foldl lib.recursiveUpdate {}
       [
         (subflake ./testbed/subflake.nix)
         (subflake ./manager/subflake.nix)
@@ -114,18 +111,25 @@
                   ruff.enable = true;
                   mypy.enable = true;
                   # manager
-                  # rust = {
+                  # manager = {
                   #   enable = true;
-                  #   name = "rust (justfile pre_commit)";
-                  #   entry = "sh -c '(cd manager || true) && PATH=${outputs.devShells.${system}.default}/bin:$PATH just pre_commit'";
+                  #   name = "rust (manager)";
+                  #   entry = "sh -c 'cd `git rev-parse --show-toplevel`/manager; nix develop -c .#manager just pre_commit'";
                   #   language = "system";
                   #   pass_filenames = false;
                   # };
-                  # functions
+                  # iot_emulation = {
+                  #   enable = true;
+                  #   name = "rust (iot_emulation)";
+                  #   entry = "sh -c 'cd iot_emulation; nix develop -c .#iot_emulation just pre_commit'";
+                  #   language = "system";
+                  #   pass_filenames = false;
+                  # };
+                  # # functions
                   # rustEcho = {
                   #   enable = true;
-                  #   name = "rust (justfile pre_commit)";
-                  #   entry = "sh -c 'cd openfaas-functions && just pre_commit'";
+                  #   name = "rust (OpenFaaS functions)";
+                  #   entry = "sh -c 'cd openfaas-functions && nix develop .#openfaas_functions just pre_commit'";
                   #   language = "system";
                   #   pass_filenames = false;
                   # };

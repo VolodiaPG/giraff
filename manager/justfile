@@ -1,5 +1,5 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
-KUBECONFIG :=  ".." / "enos" / "live" / "iso" / "vm.kubeconfig"
+KUBECONFIG :=  ".." / "testbed" / "iso" / "vm.kubeconfig"
 RUST_LOG := "warn,fog_node=trace,openfaas=warn,kube_metrics=trace,helper=trace,market=trace"
 DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
@@ -137,7 +137,7 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
 
-    env_vars['INFLUX_ADDRESS']="{{MY_IP_ADDRESS}}:9086"
+    env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
     env_vars['INFLUX_ORG']="faasfog"
     env_vars['INFLUX_BUCKET']="faasfog" 
@@ -145,6 +145,8 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
 
     env_vars['PRICING_CPU']="1.0" 
     env_vars['PRICING_MEM']="1.0" 
+    env_vars['PRICING_CPU_INITIAL']="1.0" 
+    env_vars['PRICING_MEM_INITIAL']="1.0" 
     env_vars['PRICING_GEOLOCATION']="1.0"
 
     if "{{node_type}}" in ["node_1", "node_2"]:
@@ -174,24 +176,6 @@ jaeger:
         -p 9411:9411 \
         jaegertracing/all-in-one:latest
 
-prometheus:
-    ({{DOCKER}} stop prometheus || true)
-    ({{DOCKER}} rm prometheus || true)
-    {{DOCKER}} run \
-        --net=host \
-        -v ./prometheus.yaml:/etc/prometheus/prometheus.yml:z \
-        prom/prometheus \
-        --config.file=/etc/prometheus/prometheus.yml \
-        --storage.tsdb.path=/prometheus \
-        --web.console.libraries=/usr/share/prometheus/console_libraries \
-        --web.console.templates=/usr/share/prometheus/consoles \
-        --web.listen-address=:{{PROMETHEUS_PORT}}
-
-pushgateway:
-    ({{DOCKER}} stop pushgateway || true)
-    ({{DOCKER}} rm pushgateway || true)
-    {{DOCKER}} run  -p 3091:9091 prom/pushgateway
-
 run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
     {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{MY_IP_ADDRESS}} {{debug}}" \
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{MY_IP_ADDRESS}} {{debug}}" \
@@ -200,22 +184,8 @@ run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
 
 expe localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
-    cd ../testbed && nix develop .#manager -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
-    cd ../testbed && nix develop .#manager -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
-
-# Consider /etc/resolv.conf -> https://github.com/helm/helm/issues/6027 if not working, just swap the dns with e.g. 1.1.1.1
-k3d:
-    k3d cluster create -c k3d.cluster.yaml
-    arkade install openfaas
-    kubectl rollout status deployment gateway -n openfaas --timeout=90s
-    @just k3d-forward
-
-k3d-forward:
-    kubectl port-forward -n openfaas svc/gateway 8080:8080
-
-k3d-clean:
-    k3d cluster stop fog-node || true
-    k3d cluster delete fog-node || true
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
 
 just compile_container image_path:
     nix build ".#$image" --print-out-paths --no-link --quiet

@@ -23,7 +23,7 @@ from definitions import FOG_NODES, LEVELS, NETWORK, gen_net
 MS = 1
 SECS = 1000
 
-SIM_TIME = expe.FUNCTION_RESERVATION_FINISHES_AFTER * SECS
+SIM_TIME = expe.EXPERIMENT_DURATION * SECS
 
 RANDOM_SEED = expe.RANDOM_SEED
 if RANDOM_SEED is not None and RANDOM_SEED != "":
@@ -934,7 +934,7 @@ def submit_function(
 ):
     #  CPU is in millicpu
     sla = SLA(function.mem, function.cpu / 1000, function.latency * MS, 800 * SECS)
-    yield env.timeout(function.sleep_before_start * SECS)
+    yield env.timeout(function.cold_start_overhead * SECS)
     mon.total_submitted += 1
     yield env.process(
         marketplace.auction(function.target_node, sla, strat_type(env, sla, network))
@@ -1174,16 +1174,10 @@ _first_node, network = init_network(env, latencies, NETWORK, pricing_strategy)
 
 marketplace = MarketPlace(env, network, monitoring)
 
-nb_submitted_functions_low_latency = 0
-nb_submitted_functions_high_latency = 0
 functions = expe.load_functions(os.getenv("EXPE_SAVE_FILE"))
 for function in functions:
     # Use the id of the node instead of its name
     function.target_node = function.target_node.replace("'", "")
-    if function.latency_type == "low":
-        nb_submitted_functions_low_latency += 1
-    else:
-        nb_submitted_functions_high_latency += 1
     env.process(
         submit_function(
             env, latencies, marketplace, function, monitoring, placement_strategy
@@ -1280,8 +1274,6 @@ with open(f"{out_dir}/{JOB_INDEX}.data.csv", "w") as file:
                 "node_cpu_reservation_sla",
                 "node_cpu",
                 "sim_time",
-                "nb_submitted_functions_low_latency",
-                "nb_submitted_functions_high_latency",
                 "nb_nodes",
             ]
         )
@@ -1304,8 +1296,6 @@ with open(f"{out_dir}/{JOB_INDEX}.data.csv", "w") as file:
                     ee.cpu_reservation_used_sla,
                     ee.node_cpu,
                     SIM_TIME,
-                    nb_submitted_functions_low_latency,
-                    nb_submitted_functions_high_latency,
                     nb_nodes,
                 ]
             )

@@ -73,7 +73,7 @@ env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
 
-const INFLUX_DEFAULT_ADDRESS: &str = "0.0.0.0:9086";
+const INFLUX_DEFAULT_ADDRESS: &str = "127.0.0.1:9086";
 
 /// Load the CONFIG env variable
 fn load_config_from_env() -> anyhow::Result<String> {

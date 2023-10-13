@@ -4,7 +4,7 @@ server_port := env_var_or_default("SERVER_PORT", "30080")
 _default:
     @just --list
 
-run:
+run cluster_ip:
     SERVER_PORT={{server_port}} \
         INFLUX_ADDRESS="127.0.0.1:9086" \
         INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \

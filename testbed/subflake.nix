@@ -10,7 +10,7 @@
         isoOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
-            pkgs = import inputs.poetry2nix.inputs.nixpkgs {
+            pkgs = import poetry2nix.inputs.nixpkgs {
               inherit system;
               overlays = [overlay];
             };
@@ -193,7 +193,7 @@
               mkdir -p /home/enos
               chown enos:enos -R /home/enos
 
-              mkdir /tmp
+              mkdir -p /tmp
               mkdir -p /usr/bin
               ln -s ${pkgs.busybox}/bin/env /usr/bin/env
             '';
@@ -275,7 +275,9 @@
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = import nixpkgs {
+            inherit system;
+          };
           jupyterlab = export:
             jupyenv.lib.${system}.mkJupyterlabNew ({...}: {
               imports = [

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import os
 import random
 from dataclasses import dataclass
@@ -7,22 +8,31 @@ from typing import Any, List
 
 import aiohttp  # type: ignore
 import dill  # type: ignore
+import numpy as np  # type: ignore
 from alive_progress import alive_bar  # type: ignore
+
+port_int = int
+MiB_int = int
+millicpu_int = int
+ms_int = int
+secs_int = int
 
 
 @dataclass
 class Function:
     target_node: str
-    mem: int
-    cpu: int
-    latency: int
-    sleep_before_start: int
+    mem: MiB_int
+    cpu: millicpu_int
+    latency: ms_int
+    cold_start_overhead: ms_int
+    stop_overhead: ms_int
+    duration: ms_int
     docker_fn_name: str
     function_name: str
-    request_interval: int
     first_node_ip: str | None
-    request_interval_type: str
-    latency_type: str
+    request_interval: ms_int
+    # load_type: str
+    arrival: secs_int
 
 
 RANDOM_SEED = os.getenv("RANDOM_SEED")
@@ -41,6 +51,26 @@ def generate_rand(min: int, max: int) -> int:
         return (random_integer % (max - min + 1)) + min
 
     return random.randint(min, max)
+
+
+def open_loop_poisson_process(rate, time):
+    """
+    Simulates an open-loop Poisson process.
+
+    Parameters:
+    rate: The average rate of events (lambda).
+    time: The total time to simulate.
+
+    Returns:
+    A list of event times.
+    """
+    num_events = np.random.poisson(rate * time)
+    event_times = np.random.uniform(0, time, num_events)
+
+    # # Sort the event times
+    # event_times.sort()
+
+    return event_times
 
 
 if __name__ == "__main__":
@@ -66,113 +96,24 @@ if len(TARGET_NODES) != 0:
 
 IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
-MARKET_LOCAL_PORT = int(os.getenv("MARKET_LOCAL_PORT", 8088))
-IOT_LOCAL_PORT = int(os.getenv("IOT_LOCAL_PORT", 3003))
+MARKET_LOCAL_PORT = port_int(os.environ["MARKET_LOCAL_PORT"])
+IOT_LOCAL_PORT = port_int(os.environ["IOT_LOCAL_PORT"])
 NODES_IP = os.getenv("NODES_IP")
+IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]
+FUNCTION_NAME = os.environ["FUNCTION_NAME"]
 
-FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY = int(
-    os.environ["FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY"]
-)  # MiB
-FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY = int(
-    os.environ["FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY"]
-)  # Millicpu
-FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY = int(
-    os.environ["FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY"]
-)  # MiB
-FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY = int(
-    os.environ["FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY"]
-)  # Millicpu
-FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY = int(
-    os.environ["FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY"]
-)  # MiB
-FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY = int(
-    os.environ["FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY"]
-)  # Millicpu
-FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY = int(
-    os.environ["FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY"]
-)  # MiB
-FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY = int(
-    os.environ["FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY"]
-)  # Millicpu
+FUNCTION_MEMORY = MiB_int(os.environ["FUNCTION_MEMORY"])  # MiB
+FUNCTION_CPU = millicpu_int(os.environ["FUNCTION_CPU"])  # Millicpu
 
-MAX_LATENCY_LOW_LATENCY = int(os.environ["MAX_LATENCY_LOW_LATENCY"])
-MIN_LATENCY_LOW_LATENCY = int(os.environ["MIN_LATENCY_LOW_LATENCY"])
+NO_LATENCY = ms_int(os.environ["NO_LATENCY"])
+HIGH_LATENCY = ms_int(os.environ["HIGH_LATENCY"])
+LOW_LATENCY = ms_int(os.environ["LOW_LATENCY"])
 
-MAX_LATENCY_REST_LATENCY = int(os.environ["MAX_LATENCY_REST_LATENCY"])
-MIN_LATENCY_REST_LATENCY = int(os.environ["MIN_LATENCY_REST_LATENCY"])
+NB_FUNCTIONS = int(os.environ["NB_FUNCTIONS"])
 
-NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY = int(
-    os.environ["NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY"]
-)
-NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY = int(
-    os.environ["NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY"]
-)
-NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY = int(
-    os.environ["NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY"]
-)
-NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY = int(
-    os.environ["NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY"]
-)
-LOW_REQ_INTERVAL = int(
-    os.environ["LOW_REQ_INTERVAL"]
-)  # ms interval between two requests
-HIGH_REQ_INTERVAL = int(
-    os.environ["HIGH_REQ_INTERVAL"]
-)  # ms interval between two requests
-
-FUNCTION_RESERVATION_DURATION = int(os.getenv("FUNCTION_RESERVATION_DURATION", 60))  # s
-FUNCTION_LOAD_DURATION = int(os.getenv("FUNCTION_LOAD_DURATION", 55))  # s
-FUNCTION_LOAD_STARTS_AFTER = int(os.getenv("FUNCTION_LOAD_STARTS_AFTER", 60))  # s
-FUNCTION_RESERVATION_FINISHES_AFTER = int(
-    os.getenv("FUNCTION_RESERVATION_FINISHES_AFTER", 15)
-)
-
-function_latencies = []
-
-for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY):
-    function_latencies.append(
-        (
-            generate_rand(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
-            HIGH_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_HIGH_LOW_LATENCY,
-            FUNCTION_CPU_REQ_INTERVAL_HIGH_LOW_LATENCY,
-            "low",
-            "high",
-        )
-    )
-for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY):
-    function_latencies.append(
-        (
-            generate_rand(MIN_LATENCY_LOW_LATENCY, MAX_LATENCY_LOW_LATENCY),
-            LOW_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_LOW_LOW_LATENCY,
-            FUNCTION_CPU_REQ_INTERVAL_LOW_LOW_LATENCY,
-            "low",
-            "low",
-        )
-    )
-for ii in range(NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY):
-    function_latencies.append(
-        (
-            generate_rand(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
-            HIGH_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_HIGH_REST_LATENCY,
-            FUNCTION_CPU_REQ_INTERVAL_HIGH_REST_LATENCY,
-            "high",
-            "high",
-        )
-    )
-for ii in range(NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY):
-    function_latencies.append(
-        (
-            generate_rand(MIN_LATENCY_REST_LATENCY, MAX_LATENCY_REST_LATENCY),
-            LOW_REQ_INTERVAL,
-            FUNCTION_MEMORY_REQ_INTERVAL_LOW_REST_LATENCY,
-            FUNCTION_CPU_REQ_INTERVAL_LOW_REST_LATENCY,
-            "high",
-            "low",
-        )
-    )
+FUNCTION_COLD_START_OVERHEAD = ms_int(os.environ["FUNCTION_COLD_START_OVERHEAD"])
+FUNCTION_STOP_OVERHEAD = ms_int(os.environ["FUNCTION_STOP_OVERHEAD"])
+EXPERIMENT_DURATION = secs_int(os.environ["EXPERIMENT_DURATION"])
 
 
 class AsyncSession:
@@ -190,14 +131,15 @@ class AsyncSession:
 async def put_request_fog_node(function: Function):
     url = f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/function"
     headers = {"Content-Type": "application/json"}
+    duration = function.cold_start_overhead + function.duration + function.stop_overhead
     data = {
         "sla": {
             "memory": f"{function.mem} MB",
             "cpu": f"{function.cpu} millicpu",
             "latencyMax": f"{function.latency} ms",
             "maxReplica": 1,
-            "duration": f"{FUNCTION_RESERVATION_DURATION} seconds",
-            "functionImage": f"ghcr.io/volodiapg/{function.docker_fn_name}:latest",
+            "duration": f"{duration} ms",
+            "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}:latest",
             "functionLiveName": f"{function.function_name}",
             "dataFlow": [
                 {
@@ -220,7 +162,6 @@ async def put_request_iot_emulation(
     faas_port: int,
     function_id: str,
     function: Function,
-    duration: int,
 ):
     url = f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/cron"
     headers = {"Content-Type": "application/json"}
@@ -229,8 +170,8 @@ async def put_request_iot_emulation(
         "nodeUrl": f"http://{faas_ip}:{faas_port}/function/fogfn-{function_id}",
         "functionId": function_id,
         "tag": function.function_name,
-        "initialWaitMs": FUNCTION_LOAD_STARTS_AFTER * 1000,
-        "durationMs": duration * 1000,
+        "initialWaitMs": function.cold_start_overhead,
+        "durationMs": function.duration,
         "intervalMs": function.request_interval,
         "firstNodeIp": function.first_node_ip,
     }
@@ -243,12 +184,12 @@ async def put_request_iot_emulation(
 
 
 async def register_new_function(function: Function) -> bool:
-    await asyncio.sleep(function.sleep_before_start)
+    await asyncio.sleep(function.arrival)
 
     response, code = await asyncio.ensure_future(put_request_fog_node(function))
 
     if code == 200:
-        # print(f"[{request_interval_type}][{latency_type}] Provisioned {function_name}")
+        print(f"Provisioned {function.function_name}")
         try:
             data = json.loads(response)
             faas_ip = data["chosen"]["ip"]
@@ -260,17 +201,14 @@ async def register_new_function(function: Function) -> bool:
                     faas_port=faas_port,
                     function_id=function_id,
                     function=function,
-                    duration=FUNCTION_LOAD_DURATION,
                 )
             )
 
             if code == 200:
-                # print(
-                #     f"[{request_interval_type}][{latency_type}] Registered cron for {function_name}"
-                # )
+                print(f"Registered cron for {function.function_name}")
                 return True
         except json.JSONDecodeError:
-            pass
+            print(f"Err for {function.function_name}")
 
     print("---\n", response.decode("utf-8").replace("\\n", "\n"))
 
@@ -293,32 +231,50 @@ async def do_request_progress(bar: Any, function: Function):
     bar()
 
 
+PERCENTILE_NORMAL_LOW = -2
+PERCENTILE_NORMAL_HIGH = 2
+
+
 async def save_file(filename: str):
     functions = []
+    docker_fn_name = FUNCTION_NAME
     for target_node_name in TARGET_NODE_NAMES:
-        index = 0
-        for function in function_latencies:
-            (
-                latency,
-                request_interval,
-                memory,
-                cpu,
-                latency_type,
-                request_interval_type,
-            ) = function
-            sleep_before_start = generate_rand(0, FUNCTION_RESERVATION_FINISHES_AFTER)
+        latencies = [
+            max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, NB_FUNCTIONS)
+        ]
+        request_intervals = [
+            math.ceil(abs(1000 * x))
+            for x in np.random.lognormal(-0.38, 2.36, NB_FUNCTIONS)
+        ]
+        durations = [
+            math.ceil(1000 * x) for x in np.random.lognormal(-0.38, 2.36, NB_FUNCTIONS)
+        ]
+        arrivals = [
+            math.ceil(x)
+            for x in open_loop_poisson_process(NB_FUNCTIONS, EXPERIMENT_DURATION)
+        ]
 
-            docker_fn_name = "echo"
+        for index in range(0, NB_FUNCTIONS):
+            latency = latencies[index]
+            arrival = arrivals[index]
+            duration = durations[index]
+            cpu = FUNCTION_CPU
+            memory = FUNCTION_MEMORY
+
+            request_interval = request_intervals[index]
+
             function_name = (
                 f"{docker_fn_name}"
-                f"-{index}"
-                f"-{latency}"
-                f"-{cpu}"
-                f"-{memory}"
-                f"-{request_interval_type}"
-                f"-{latency_type}"
-                f"-{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}"
-                f"-{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}"
+                f"-i{index}"
+                f"-c{cpu}"
+                f"-m{memory}"
+                f"-l{latency}"
+                f"-a{arrival}"
+                f"-r{request_interval}"
+                f"-d{duration}"
+                # f"-l{load_type}"
+                f"-n{NB_FUNCTIONS}"
+                f"-n{NB_FUNCTIONS * len(TARGET_NODE_NAMES)}"
             )
 
             functions.append(
@@ -327,17 +283,18 @@ async def save_file(filename: str):
                     mem=memory,
                     cpu=cpu,
                     latency=latency,
+                    cold_start_overhead=FUNCTION_COLD_START_OVERHEAD,
+                    stop_overhead=FUNCTION_STOP_OVERHEAD,
+                    duration=duration,
+                    request_interval=request_interval,
+                    # load_type=load_type,
                     function_name=function_name,
                     docker_fn_name=docker_fn_name,
-                    request_interval=request_interval,
-                    sleep_before_start=sleep_before_start,
                     first_node_ip=None,
-                    request_interval_type=request_interval_type,
-                    latency_type=latency_type,
+                    arrival=arrival,
                 )
             )
-
-            index += 1
+    print(functions)
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
         dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)

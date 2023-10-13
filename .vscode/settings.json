@@ -1,4 +1,10 @@
 {
     "crates.listPreReleases": true,
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "none",
+    "languageToolLinter.languageTool.ignoredWordsInWorkspace": [
+        "burstiness"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
 }
