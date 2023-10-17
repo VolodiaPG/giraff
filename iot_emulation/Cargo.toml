@@ -45,6 +45,8 @@ opentelemetry-jaeger = { version = "0.17.0", features = [
     "rt-tokio",
 ], default-features = false, optional = true }
 prometheus = "0.13.3"
+rand = "0.8.5"
+rand_distr = "0.4.3"
 reqwest = { version = "0.11.11", features = ["json", "gzip"] }
 reqwest-middleware = { version = "0.2.0" }
 reqwest-tracing = { version = "0.4.0", features = [

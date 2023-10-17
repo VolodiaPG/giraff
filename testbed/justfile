@@ -25,10 +25,10 @@ init user *FLAGS:
     {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
 
 lab max_memory_gb="20":
-    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlab
+    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlab || nix run .#jupyterlab
 
 labExport max_memory_gb="20":
-    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlabExport
+    systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run .#jupyterlabExport || nix run .#jupyterlabExport
 
 # Open SSH tunnels
 [private]

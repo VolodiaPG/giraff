@@ -342,7 +342,7 @@ def restart(env=None):
     To mitigate, it is adviced to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
     However, precautions have been taken in this function to only reboot one VM at a time per host
     (though only waiting a small amount of time before passing to the next)
-    """ 
+    """
     netem = env["netem"]
     netem.destroy()
 
@@ -366,11 +366,13 @@ def restart(env=None):
     #         p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
     #         p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
     #         sleep(10)
-    with actions(roles=roles, gather_facts=False, strategy="free", background=True) as p:
-        p.wait_for(retries = 5)
-        p.shell('touch /iwasthere', task_name="Create iwasthere checkfile")
+    with actions(
+        roles=roles, gather_facts=False, strategy="free", background=True
+    ) as p:
+        p.wait_for(retries=5)
+        p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
         p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
-    
+
     sleep(10)
     en.wait_for(roles=roles, retries=15)
 
@@ -618,34 +620,6 @@ def names(queue):
         queue.put(("names", tmpfile.name))
 
 
-def number_of_functions(queue):
-    with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
-        with TextIOWrapper(tmpfile, encoding="utf-8") as file:
-            high_load_low_latency = int(
-                os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY")
-            )
-            low_load_low_latency = int(
-                os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY")
-            )
-            high_load_high_latency = int(
-                os.getenv("NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY")
-            )
-            low_load_high_latency = int(
-                os.getenv("NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY")
-            )
-
-            writer = csv.writer(file, delimiter="\t")
-            writer.writerow(["instance", "load", "latency", "value"])
-
-            for source, _lat in IOT_CONNECTION:
-                writer.writerow([source, "high", "low", high_load_low_latency])
-                writer.writerow([source, "high", "high", high_load_high_latency])
-                writer.writerow([source, "low", "low", low_load_low_latency])
-                writer.writerow([source, "low", "high", low_load_high_latency])
-        tmpfile.close()  # Close before sending to threads
-        queue.put(("nb_functions", tmpfile.name))
-
-
 def network_shape(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
@@ -714,7 +688,6 @@ def collect(address=None, **kwargs):
     pool.apply_async(names, (queue,))
     pool.apply_async(network_shape, (queue,))
     pool.apply_async(network_node_levels, (queue,))
-    pool.apply_async(number_of_functions, (queue,))
 
     jobs = []
     for measurement_name in measurements:
