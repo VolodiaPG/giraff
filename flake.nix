@@ -11,6 +11,16 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs = {
@@ -44,14 +54,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    cargo2nix = {
-      url = "github:cargo2nix/cargo2nix/release-0.11.0";
-      inputs = {
-        rust-overlay.follows = "rust-overlay";
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     kubenix = {
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -63,16 +65,12 @@
       inherit (self) outputs;
       inherit (nixpkgs) lib;
 
-      rustToolchain = (builtins.fromTOML (builtins.readFile ./rust-toolchain)).toolchain;
-      extra.rustToolchain.rustChannel = lib.lists.elemAt (lib.strings.splitString "-" rustToolchain.channel) 0;
-      extra.rustToolchain.rustVersion = lib.strings.removePrefix (lib.strings.concatStrings [extra.rustToolchain.rustChannel "-"]) rustToolchain.channel;
-      extra.rustToolchain.rustProfile = rustToolchain.profile;
-      extra.rustToolchain.extraRustComponents = rustToolchain.components;
+      extra = {};
 
       subflake = path:
         (import path).outputs inputs extra;
     in
-      nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
+      lib.foldl lib.recursiveUpdate {}
       [
         (subflake ./testbed/subflake.nix)
         (subflake ./manager/subflake.nix)
