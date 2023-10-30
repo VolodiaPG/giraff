@@ -1,4 +1,10 @@
 - - -
+## 2.1.0 - 2023-10-30
+#### Features
+- replace cargo2nix with crane and fix build steps for jupyterlab and rust - (7effeb8) - Volodia PAROL-GUARINO
+
+- - -
+
 ## 2.0.0 - 2023-10-11
 #### Bug Fixes
 - **(testbed)** Reversed nixpkgs to previous working version to make the testbed run again - (94c4c4b) - Volodia PAROL-GUARINO
