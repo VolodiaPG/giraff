@@ -96,7 +96,7 @@ pub async fn health(metrics: Data<MetricsExporter>) -> HttpResponse {
     if let Err(err) = metrics
         .observe(crate::monitoring::Toto {
             value:     1.0,
-            toto:      "sdqsdf".to_string(),
+            toto:      "health".to_string(),
             timestamp: Utc::now(),
         })
         .await

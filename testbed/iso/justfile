@@ -84,6 +84,8 @@ _run_vm disk="result/nixos.qcow2":
 _openfaas_in_vm:
     #!/usr/bin/env bash
     set -e
+
+    rm vm.kubeconfig
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do

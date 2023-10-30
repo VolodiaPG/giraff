@@ -39,6 +39,8 @@ impl FaaSBackend {
             })?,
         );
 
+        env_vars.extend(bid.0.sla.env_vars.iter().cloned());
+
         let bucket = env_load!(InfluxBucket, INFLUX_BUCKET);
         let address = env_load!(InfluxAddress, INFLUX_ADDRESS);
         let org = env_load!(InfluxOrg, INFLUX_ORG);

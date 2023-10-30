@@ -9,9 +9,8 @@ use helper::uom_helper::{information, ratio, time};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Sla {
-    pub id:     SlaId,
-    // #[serde_as(as = "information::Helper")]
-    // pub storage: Information,
+    pub id: SlaId,
+
     #[serde_as(as = "information::Helper")]
     pub memory: Information,
 
@@ -21,12 +20,6 @@ pub struct Sla {
     #[serde_as(as = "time::Helper")]
     pub latency_max: Time,
 
-    // #[serde_as(as = "information::Helper")]
-    // pub data_input_max_size: Information,
-    // #[serde_as(as = "information::Helper")]
-    // pub data_output_max_size: Information,
-    // #[serde_as(as = "time::Helper")]
-    // pub max_time_before_hot: Time,
     #[serde_as(as = "time::Helper")]
     pub duration: Time,
 
@@ -37,6 +30,8 @@ pub struct Sla {
     pub function_live_name: String,
 
     pub data_flow: Vec<DataFlow>,
+
+    pub env_vars: Vec<(String, String)>,
 }
 
 /// A point in the Fog

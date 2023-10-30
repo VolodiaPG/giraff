@@ -8,7 +8,6 @@ use std::sync::Arc;
 use tracing::trace;
 
 /// Register a SLA and starts the auctioning process, can take a while.
-// TODO define "a while"; set a timeout
 pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<crate::service::auction::Auction>,

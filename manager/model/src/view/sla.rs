@@ -37,6 +37,8 @@ pub struct SlaRequest {
     pub function_live_name: String,
 
     pub data_flow: Vec<DataFlow>,
+
+    pub env_vars: Vec<(String, String)>,
 }
 
 impl From<SlaRequest> for Sla {
@@ -51,6 +53,7 @@ impl From<SlaRequest> for Sla {
             function_image:     val.function_image,
             function_live_name: val.function_live_name,
             data_flow:          val.data_flow,
+            env_vars:           val.env_vars,
         }
     }
 }

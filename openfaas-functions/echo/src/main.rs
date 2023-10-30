@@ -43,7 +43,18 @@ env_var!(INFLUX_ADDRESS);
 env_var!(INFLUX_TOKEN);
 env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
+env_var!(TOTO);
 
+/// timestamp at which the function is fully operational
+#[influx_observation]
+struct FinishedBooting {
+    #[influxdb(field)]
+    value:  f64,
+    #[influxdb(tag)]
+    sla_id: String,
+    #[influxdb(tag)]
+    toto:   String,
+}
 /// SLA that passed here
 #[influx_observation]
 struct Latency {
@@ -193,12 +204,12 @@ async fn main() -> Result<()> {
     let http_client =
         Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
 
-    let Ok(sla_raw)= std::env::var(VAR_SLA) else {
+    let Ok(sla_raw) = std::env::var(VAR_SLA) else {
         panic!("{} env variable not found", VAR_SLA);
     };
 
-    let Ok(sla) = serde_json::from_str::<Sla>(&sla_raw) else{
-        panic!("Cannot read and deserialize {} env variable",VAR_SLA);
+    let Ok(sla) = serde_json::from_str::<Sla>(&sla_raw) else {
+        panic!("Cannot read and deserialize {} env variable", VAR_SLA);
     };
 
     let metrics = Arc::new(
@@ -213,11 +224,14 @@ async fn main() -> Result<()> {
         .expect("Cannot build the InfluxDB2 database connection"),
     );
 
+    let sla_id_raw = sla.id;
+    let metrics_raw = metrics.clone();
+
     let http_client = web::Data::from(http_client);
     let metrics = web::Data::from(metrics);
-    let sla_id = web::Data::from(Arc::new(sla.id.to_string()));
+    let sla_id = web::Data::from(Arc::new(sla_id_raw.to_string()));
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
         #[cfg(feature = "jaeger")]
@@ -236,10 +250,18 @@ async fn main() -> Result<()> {
         .app_data(web::Data::clone(&metrics))
         .app_data(web::Data::clone(&sla_id))
         .service(web::scope("/").route("", web::post().to(handle)))
-    })
-    .bind(("0.0.0.0", 3000))?
-    .run()
-    .await?;
+    });
+
+    metrics_raw
+        .observe(FinishedBooting {
+            value:     0.0,
+            sla_id:    sla_id_raw.to_string(),
+            toto:      std::env::var(TOTO)?,
+            timestamp: Utc::now(),
+        })
+        .await?;
+
+    server.bind(("0.0.0.0", 3000))?.run().await?;
 
     // Ensure all spans have been reported
     #[cfg(feature = "jaeger")]

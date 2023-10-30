@@ -1,6 +1,7 @@
 use helper_derive::influx_observation;
 
-/// Time between the SLA is submittcrate) ed and the function is placed.
+/// What is the duration of the auctioning process, from start to having a
+/// candidate + duration of the provisioning phase?
 #[influx_observation]
 struct FunctionDeploymentDuration {
     #[influxdb(field)]

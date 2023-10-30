@@ -147,6 +147,7 @@ async def put_request_fog_node(function: Function):
                     "to": "thisFunction",
                 }
             ],
+            "envVars": [["TOTO", "toto"]],
         },
         "targetNode": f"{function.target_node}",
     }
