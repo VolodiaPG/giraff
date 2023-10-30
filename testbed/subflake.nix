@@ -54,6 +54,20 @@
                         buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
                       }
                     );
+                  urllib3 =
+                    oldattr.urllib3.overridePythonAttrs
+                    (
+                      old: {
+                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+                      }
+                    );
+                  beautifulsoup4 =
+                    oldattr.beautifulsoup4.overridePythonAttrs
+                    (
+                      old: {
+                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
+                      }
+                    );
                   pyzmq =
                     oldattr.pyzmq.overridePythonAttrs
                     (

@@ -1,13 +1,11 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
     poetry2nix = {
-      # Fixes https://github.com/nix-community/poetry2nix/issues/1291
       url = "github:nix-community/poetry2nix";
       inputs = {
-        # until poetry2nix works with upstream again
-        # nixpkgs.follows = "nixpkgs";
+        nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
       };
     };
@@ -32,11 +30,10 @@
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
       inputs = {
-        # nixpkgs-stable.follows = "nixpkgs";
+        nixpkgs-stable.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
         poetry2nix.url = "github:nix-community/poetry2nix/?ref=refs/pull/1329/head";
         pre-commit-hooks.follows = "pre-commit-hooks";
-        rust-overlay.follows = "rust-overlay";
       };
     };
     gomod2nix = {
@@ -47,13 +44,6 @@
       };
     };
     impermanence.url = "github:nix-community/impermanence";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
     kubenix = {
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
