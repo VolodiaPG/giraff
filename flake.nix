@@ -92,7 +92,7 @@
               trace_pkgs = builtins.concatStringsSep " " (
                 pkgs.lib.mapAttrsToList
                 (name: output:
-                  if (lib.strings.hasSuffix "vm" name) || (lib.strings.hasPrefix "fog_node" name) || (lib.strings.hasPrefix "fn" name) || (lib.strings.hasPrefix "market" name)
+                  if (lib.strings.hasSuffix "vm" name) || (lib.strings.hasPrefix "fog_node" name) || (lib.strings.hasPrefix "market" name)
                   then ""
                   else "${output}")
                 outputs.packages.${system}

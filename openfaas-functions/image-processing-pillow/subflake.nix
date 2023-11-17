@@ -12,47 +12,7 @@
           };
 
           overlay = self: _super: {
-            myFunction = self.poetry2nix.mkPoetryEnv {
-              projectDir = ./.;
-              python = self.python311;
-              overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
-                urllib3 =
-                  oldattr.urllib3.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                    }
-                  );
-                blinker =
-                  oldattr.blinker.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                werkzeug =
-                  oldattr.werkzeug.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                flask =
-                  oldattr.flask.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                textblob =
-                  oldattr.textblob.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                    }
-                  );
-              });
-            };
+            myFunction = self.python311.withPackages (ps: with ps; [waitress flask pillow]);
           };
 
           image = pkgs.dockerTools.streamLayeredImage {
@@ -76,7 +36,8 @@
             shellHook =
               outputs.checks.${system}.pre-commit-check.shellHook
               + ''
-                ln -sfT ${pkgs.myFunction} ./.venv
+                mkdir -p ./.venv/bin
+                ln -sfT ${pkgs.myFunction}/bin/python ./.venv/bin/python
               '';
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
