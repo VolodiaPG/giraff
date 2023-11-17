@@ -120,6 +120,8 @@ spec:
           value: "faasfog"
         - name: INFLUX_BUCKET
           value: "faasfog"
+        - name: COLLECTOR_IP
+          value: "{collector_ip}"
         - name: INSTANCE_NAME
           value: "{node_name}"
         - name: PRICING_MEM
@@ -208,6 +210,8 @@ spec:
           value: "faasfog"
         - name: INFLUX_BUCKET
           value: "faasfog"
+        - name: COLLECTOR_IP
+          value: "{collector_ip}"
         - name: INSTANCE_NAME
           value: "marketplace"
         volumeMounts:
@@ -423,7 +427,7 @@ def set_cloud(dd: Dict, *_):
 def set_iot_connected(keep_one_in: int):
     def set_connected(dd: Dict, first: bool):
         if first or random.randint(1, keep_one_in) == 1:
-          dd["iot_connected"] = 0
+            dd["iot_connected"] = 0
 
     return set_connected
 

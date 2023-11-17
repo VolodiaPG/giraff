@@ -10,36 +10,39 @@ use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::timeout;
 
-#[nutype(sanitize(with = to_snake) validate(min_len = 3, max_len = 64, not_empty))]
-#[derive(Clone, Debug)]
+#[nutype(derive(Clone, Debug), sanitize(with = to_snake), validate(char_len_min = 3, char_len_max = 64, not_empty))]
 pub struct InfluxName(String);
 
-#[nutype(validate(min_len = 3, max_len = 64, not_empty))]
-#[derive(Clone, Debug)]
+#[nutype(
+    derive(Clone, Debug),
+    validate(char_len_min = 3, char_len_max = 64, not_empty)
+)]
 pub struct InfluxBucket(String);
 
-#[nutype(validate(
-    min_len = 88,
-    max_len = 88,
-    not_empty,
-    regex = "^(?:[A-Za-z0-9_-]{4})*(?:\
-             [A-Za-z0-9_-][AQgw]==|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048]=)?$"
-))]
-#[derive(Clone, Debug)]
+#[nutype(
+    derive(Clone, Debug),
+    validate(
+        char_len_min = 88,
+        not_empty,
+        char_len_max = 88,
+        regex = "^(?:[A-Za-z0-9_-]{4})*(?:\
+                 [A-Za-z0-9_-][AQgw]==|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048]=)?$"
+    )
+)]
 pub struct InfluxToken(String);
 
-#[nutype(validate(min_len = 3, max_len = 64, not_empty))]
-#[derive(Clone, Debug)]
+#[nutype(
+    derive(Clone, Debug),
+    validate(char_len_min = 3, char_len_max = 64, not_empty)
+)]
 pub struct InfluxOrg(String);
 
 pub fn to_snake(data: String) -> String { data.to_case(Case::Snake) }
 
-#[nutype(validate(with = validate_ip_port))]
-#[derive(Clone, Debug, Deserialize)]
+#[nutype(derive(Clone, Debug, Deserialize), validate(predicate = validate_ip_port))]
 pub struct InfluxAddress(String);
 
-#[nutype(sanitize(with = to_snake) validate(min_len = 3, max_len = 64, not_empty))]
-#[derive(Clone, Debug, Deserialize)]
+#[nutype(derive(Clone, Debug, Deserialize), sanitize(with = to_snake), validate(char_len_min = 3, char_len_max = 64, not_empty))]
 pub struct InstanceName(String);
 
 #[derive(Debug)]

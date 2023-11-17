@@ -1,8 +1,10 @@
 use nutype::nutype;
 use uom::si::f64::Time;
 
-#[nutype(validate(min = 0, max = 1.0))]
-#[derive(Debug, Clone, PartialEq)]
+#[nutype(
+    derive(Debug, Clone, PartialEq),
+    validate(greater_or_equal = 0, less_or_equal = 1.0)
+)]
 pub struct Alpha(f64);
 
 #[derive(Debug, Clone)]

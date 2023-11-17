@@ -11,6 +11,7 @@ use openfaas::models::delete_function_request::DeleteFunctionRequest;
 use openfaas::models::{FunctionDefinition, Limits, Requests};
 use openfaas::DefaultApiClient;
 use std::collections::HashMap;
+use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -50,6 +51,19 @@ impl FaaSBackend {
         env_vars.insert(INFLUX_ADDRESS.to_string(), address.into_inner());
         env_vars.insert(INFLUX_ORG.to_string(), org.into_inner());
         env_vars.insert(INFLUX_TOKEN.to_string(), token.into_inner());
+        env_vars.insert("ID".to_string(), id.to_string());
+        
+        #[cfg(feature = "jaeger")]
+        {
+            let collector_ip = env::var("COLLECTOR_IP");
+            if let Ok(collector_ip) = collector_ip {
+                env_vars.insert("COLLECTOR_IP".to_string(), collector_ip);
+            }
+            let collector_port = env::var("COLLECTOR_PORT");
+            if let Ok(collector_port) = collector_port {
+                env_vars.insert("COLLECTOR_PORT".to_string(), collector_port);
+            }
+        }
 
         let definition = FunctionDefinition {
             image: bid.0.sla.function_image.to_owned(),

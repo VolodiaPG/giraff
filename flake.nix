@@ -22,19 +22,13 @@
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
+        # nixpkgs.follows = "nixpkgs";
         nixpkgs-stable.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
       };
     };
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
-      inputs = {
-        nixpkgs-stable.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-        poetry2nix.url = "github:nix-community/poetry2nix/?ref=refs/pull/1329/head";
-        pre-commit-hooks.follows = "pre-commit-hooks";
-      };
     };
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
@@ -48,6 +42,15 @@
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    fwatchdog = {
+      url = "github:openfaas/of-watchdog";
+      flake = false;
+    };
+  };
+
+  nixConfig = {
+    trusted-substituters = "https://cache.nixos.org https://giraff.cachix.org";
+    trusted-public-keys = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= giraff.cachix.org-1:3sol29PSsWCh/7bAiRze+5Zq6OML02FDRH13K5i3qF4=";
   };
 
   outputs = inputs:
@@ -55,7 +58,9 @@
       inherit (self) outputs;
       inherit (nixpkgs) lib;
 
-      extra = {};
+      extra = {
+        buildRustEnv = import ./rust.nix {inherit inputs;};
+      };
 
       subflake = path:
         (import path).outputs inputs extra;
@@ -72,12 +77,57 @@
               inherit system;
             };
           in {
+            apps.cachix = let
+              binPath = with pkgs;
+                lib.strings.makeBinPath (
+                  [
+                    nix
+                    parallel
+                    cachix
+                    toybox
+                  ]
+                  ++ stdenv.initialPath
+                );
+
+              trace_pkgs = builtins.concatStringsSep " " (
+                pkgs.lib.mapAttrsToList
+                (name: output:
+                  if (lib.strings.hasSuffix "vm" name) || (lib.strings.hasPrefix "fog_node" name) || (lib.strings.hasPrefix "market" name)
+                  then ""
+                  else "${output}")
+                outputs.packages.${system}
+              );
+              trace_apps = builtins.concatStringsSep " " (
+                pkgs.lib.mapAttrsToList
+                (name: output:
+                  if (lib.strings.hasInfix "cachix" name) || (lib.strings.hasSuffix "Export" name)
+                  then ""
+                  else "${output.program}")
+                outputs.apps.${system}
+              );
+
+              script = pkgs.writeShellScript "cachix" ''
+                set -e
+                export PATH=${binPath}:$PATH
+                tmp=$(mktemp)
+
+                parallel nix-store -qR {} ">>" $tmp ::: ${trace_pkgs} ${trace_apps}
+                # keep uniques only
+                awk '{!seen[$0]++};END{for(i in seen) if(seen[i]==1)print i}' $tmp
+                cachix push giraff $(cat $tmp)
+
+                rm $tmp
+              '';
+            in {
+              type = "app";
+              program = "${script}";
+            };
             devShells.default = pkgs.mkShell {
               inherit
                 (outputs.checks.${system}.pre-commit-check)
                 shellHook
                 ;
-              packages = [pkgs.just];
+              packages = with pkgs; [just cachix];
             };
             formatter = pkgs.alejandra;
             checks = {
@@ -100,6 +150,13 @@
                   isort.enable = true;
                   ruff.enable = true;
                   mypy.enable = true;
+                  cachix = {
+                    enable = true;
+                    name = "push cachix";
+                    entry = "sh -c 'nix run .#cachix'";
+                    language = "system";
+                    pass_filenames = false;
+                  };
                   # manager
                   # manager = {
                   #   enable = true;

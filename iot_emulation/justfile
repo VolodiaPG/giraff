@@ -11,7 +11,7 @@ run cluster_ip:
         INFLUX_ORG="faasfog" \
         INFLUX_BUCKET="faasfog" \
         INSTANCE_NAME="iot_emulation" \
-        cargo run #--features jaeger
+        cargo run --features jaeger
 
 interval period='20' enabled='true':
     curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
@@ -22,19 +22,9 @@ pre_commit: check clippy
 clippy:
 	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
 
-# Build the project as a docker image
-container:
-    nix build .#iot_emulation
-    {{DOCKER}} load < result
-
-# Push an image to ghcr
-_push image user:
-    {{DOCKER}} tag {{image}} ghcr.io/{{user}}/{{image}}
-    {{DOCKER}} push ghcr.io/{{user}}/{{image}}
-
 # Push docker images to ghcr
-ghcr user: container
-    just _push iot_emulation:latest {{user}}
+ghcr user features="no-telemetry":
+	$(nix build .#iot_emulation_{{features}} --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/iot_emulation:latest
 
 check:
     cargo check

@@ -242,8 +242,8 @@ build_required_images user:
 
     commands=(
         "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
-        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
-        "cd $FUNCTIONS_PATH && nix develop .#openfaas_functions -c just faas"
+        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}} $IOT_EMULATION_FEATURES"
+        "cd $FUNCTIONS_PATH && nix develop .#openfaas_functions -c just ghcr {{user}} $FUNCTION_FEATURES"
     )
 
     parallel --will-cite --lb ::: "${commands[@]}"
@@ -487,11 +487,6 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
 master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
     #!/usr/bin/env bash
-
-    just upload {{experiments_dotfile}} {{skip_vms}}&
-    just build_required_images {{user}}&
-    wait
-
     set -e
     set -o allexport
     source {{experiments_dotfile}}
@@ -499,11 +494,12 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
 
     city=$({{RUN}} master.py get-city)
     username=$({{RUN}} master.py get-username)
-
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
 
-    set +e
+    just upload {{experiments_dotfile}} {{skip_vms}}&
+    just build_required_images {{user}}&
+    wait
 
     {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
     {{RUN}} master.py run-command

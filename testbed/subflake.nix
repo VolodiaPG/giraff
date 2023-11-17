@@ -289,23 +289,20 @@
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = import nixpkgs {
-            inherit system;
-          };
+          pkgs = jupyenv.inputs.nixpkgs.legacyPackages.${system};
           jupyterlab = export:
             jupyenv.lib.${system}.mkJupyterlabNew ({...}: {
               imports = [
                 {
                   kernel.r.experiment = {
-                    runtimePackages =
-                      nixpkgs.lib.optionals export (with pkgs; [
-                        texlive.combined.scheme-full
-                        pgf3
-                      ])
-                      ++ [pkgs.toybox]
-                      ++ outputs.devShells.${system}.testbed.buildInputs
-                      ++ outputs.devShells.${system}.testbed.nativeBuildInputs
-                      ++ outputs.devShells.${system}.testbed.propagatedBuildInputs;
+                    runtimePackages = nixpkgs.lib.optionals export (with pkgs; [
+                      texlive.combined.scheme-full
+                      pgf3
+                    ]);
+                    # ++ [pkgs.toysbox]
+                    # ++ outputs.devShells.${system}.testbed.buildInputs
+                    # ++ outputs.devShells.${system}.testbed.nativeBuildInputs
+                    # ++ outputs.devShells.${system}.testbed.propagatedBuildInputs;
                     enable = true;
                     name = "faas_fog";
                     displayName = "faas_fog";

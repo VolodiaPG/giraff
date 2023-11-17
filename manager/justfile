@@ -136,6 +136,7 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
+    env_vars['COLLECTOR_IP'] = "10.42.0.1"
 
     env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
@@ -162,20 +163,6 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     print(cmd)
     os.system(cmd)
 
-jaeger:
-    ({{DOCKER}} stop jaeger || true)
-    ({{DOCKER}} rm jaeger || true)
-    {{DOCKER}} run -d --name jaeger \
-        -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
-        -p 5775:5775/udp \
-        -p 6831:6831/udp \
-        -p 6832:6832/udp \
-        -p 5778:5778 \
-        -p 16686:16686 \
-        -p 14268:14268 \
-        -p 9411:9411 \
-        jaegertracing/all-in-one:latest
-
 run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
     {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{MY_IP_ADDRESS}} {{debug}}" \
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{MY_IP_ADDRESS}} {{debug}}" \
@@ -184,33 +171,22 @@ run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
     {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
 
 expe localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
-    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
-    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
-
-just compile_container image_path:
-    nix build ".#$image" --print-out-paths --no-link --quiet
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FUNCTION_IP=gateway.openfaas ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FUNCTION_IP=gateway.openfaas ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
 
 # Push container images o ghcr.
 ghcr user +images:
     #!/usr/bin/env bash
     set -e
     function run_docker() {
-        export image_path=$(nix build ".#$1" --print-out-paths --no-link --quiet)
-        name=$({{DOCKER}} load --quiet < $image_path | grep "Loaded image: localhost")
-        re="localhost/(.*)"
-        if [[ $name =~ $re  ]]; then
+        re="fog_node_(.*)"
+        if [[ $1 =~ $re  ]]; then
             name="${BASH_REMATCH[1]}"
-            {{DOCKER}} tag "localhost/$name" ghcr.io/{{user}}/$name
-            {{DOCKER}} push --quiet ghcr.io/{{user}}/$name
-            echo -ne "\r\033[K✅ $image\n"
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/fog_node:$name
         else
-            echo -ne "\r\033[K❌ $image\n"
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/$1:latest
         fi
     }
 
     export -f run_docker
     parallel --lb  run_docker ::: {{images}} "market"
-
-# Cleans
-clean:
-    rm -rf target

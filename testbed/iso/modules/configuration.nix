@@ -11,7 +11,10 @@ in {
     chrony.servers = readLines ../config/ntp-servers.txt;
   };
 
-  programs.fish.shellAliases = {kubectl = "k3s kubectl";};
+  programs.fish.shellAliases = {
+    kubectl = "k3s kubectl";
+    k = "kubectl";
+  };
 
   virtualisation.docker.enable = true;
 
@@ -23,7 +26,10 @@ in {
     faas-cli
     kubectl
     arkade
+    tailscale
   ];
+
+  services.tailscale.enable = true;
 
   system.stateVersion = "22.05"; # Do not change
 }

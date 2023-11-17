@@ -406,7 +406,6 @@ def iot_emulation(env=None, **kwargs):
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
         p.shell(
-            # --env INFLUX_ADDRESS="{roles["prom_master"][0].address}:9086" \
             """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/iot_emulation:latest \
@@ -417,8 +416,27 @@ def iot_emulation(env=None, **kwargs):
                     --env INFLUX_BUCKET="faasfog"  \
                     --env INSTANCE_NAME="iot_emulation" \
                     --env PROXY_PORT="3128" \
+                    --env COLLECTOR_IP="10.42.0.1" \
                     -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
             task_name="Run iot_emulation on the endpoints",
+            background=True,
+        )
+        p.shell(
+            """(docker stop jaeger || true) \
+                && (docker rm jaeger || true) \
+                && docker pull jaegertracing/all-in-one:1.51.0 \
+                && docker run --name jaeger \
+                    -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+                    -p 5775:5775/udp \
+                    -p 6831:6831/udp \
+                    -p 6832:6832/udp \
+                    -p 5778:5778 \
+                    -p 16686:16686 \
+                    -p 14268:14268 \
+                    -p 9411:9411 \
+                    jaegertracing/all-in-one:1.51.0
+                    """,
+            task_name="Run jaeger on the endpoints",
             background=True,
         )
 
@@ -561,6 +579,7 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
             pricing_cpu_initial=pricing_cpu_initial,
             pricing_mem_initial=pricing_mem_initial,
             pricing_geolocation=tier_flavor["pricing_geolocation"],
+            collector_ip=roles["iot_emulation"][0].address,
             is_cloud="is_cloud"
             if tier_flavor.get("is_cloud") is not None
             and tier_flavor.get("is_cloud") is True
@@ -573,6 +592,7 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
         market_deployment=MARKET_DEPLOYMENT.format(
             # influx_ip=roles["prom_master"][0].address,
             influx_ip="10.42.0.1",
+            collector_ip=roles["iot_emulation"][0].address,
             market_image=market_image,
         )
     )

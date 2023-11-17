@@ -47,8 +47,7 @@ pub struct MovingMedian {
     window: RingOrderedSkipList<Time>,
 }
 
-#[nutype(validate(min = 4))]
-#[derive[Debug, Clone]]
+#[nutype(derive(Debug, Clone), validate(greater_or_equal = 4))]
 pub struct MovingMedianSize(usize);
 
 impl MovingMedian {

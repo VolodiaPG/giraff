@@ -7,13 +7,13 @@ edition = "2021"
 anyhow = "1.0.58"
 chrono = "0.4"
 dashmap = "5.4.0"
-lazy-regex = "2.3.0"
+lazy-regex = "3.1.0"
 lazy_static = "1.4.0"
-nutype = "0.2.0"
+nutype = "0.4.0-beta.2"
 ron = "0.8.0"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
-serde_with = "2.0.0"
+serde_with = "3.4.0"
 skiplist = "0.5.1"
 thiserror = "1.0.31"
 uom = { version = "0.34.0", default-features = false, features = [

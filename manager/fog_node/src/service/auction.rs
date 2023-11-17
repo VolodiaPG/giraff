@@ -13,8 +13,10 @@ use nutype::nutype;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
 
-#[nutype(validate(finite, min = 0.0))]
-#[derive(PartialEq, PartialOrd)]
+#[nutype(
+    derive(PartialEq, PartialOrd),
+    validate(finite, greater_or_equal = 0.0)
+)]
 pub struct PricingRatio(f64);
 
 env_var!(PRICING_CPU);
@@ -158,9 +160,10 @@ impl Auction {
         let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
-                .context("Failed to found a suitable node for the sla")? else{
-                    return Ok(None);
-                };
+                .context("Failed to found a suitable node for the sla")?
+        else {
+            return Ok(None);
+        };
 
         let ram_ratio_sla: f64 = (sla.memory / available_ram).into();
         let cpu_ratio_sla: f64 = (sla.cpu / available_cpu).into();
@@ -192,9 +195,10 @@ impl Auction {
         let Some((node, bid)) = self
             .compute_bid(&sla, accumulated_latency)
             .await
-            .context("Failed to compute bid for sla")? else{
-                return Ok(None);
-            };
+            .context("Failed to compute bid for sla")?
+        else {
+            return Ok(None);
+        };
         let record = FunctionRecord::new(bid, sla, node);
         let id = self.db.insert(record.clone());
         self.metrics

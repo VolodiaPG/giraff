@@ -23,7 +23,7 @@ use helper_derive::influx_observation;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
-use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use rand::Rng;
 use rand_distr::{Distribution, Poisson};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -50,6 +50,8 @@ pub struct Payload {
     #[serde(with = "ts_microseconds")]
     sent_at: DateTime<Utc>,
     tag:     String,
+    from:    String,
+    to:      String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -166,12 +168,12 @@ async fn put_cron_content(
     HttpResponse::Ok().finish()
 }
 
-// #[instrument(
-//     level = "trace",
-//     skip(config),
-//     fields(tag=%config.tag)
-// )]
 /// Returns if the function should be removed from cron
+#[instrument(
+    level = "trace",
+    skip(config)
+    // fields(tags=%config.tag)
+)]
 async fn ping(
     config: &CronConfig,
     clients: &DashMap<String, Arc<ClientWithMiddleware>>,
@@ -183,9 +185,12 @@ async fn ping(
         return true;
     };
 
-    let res = client
-        .post(&config.node_url)
-        .json(&Payload { tag: tag.clone(), sent_at: Utc::now() });
+    let res = client.post(&config.node_url).json(&Payload {
+        tag:     tag.clone(),
+        sent_at: Utc::now(),
+        from:    "iot_emulation".to_string(),
+        to:      config.node_url.clone(),
+    });
 
     let res = res.send().await;
 
@@ -205,18 +210,21 @@ async fn ping(
         }
         Ok(response) => {
             let code = response.status();
+            let text = response.text().await;
             if code.is_client_error() {
                 error!(
-                    "Client error on {}: {:?}",
+                    "Client error on {}: {:?} ({:?})",
                     config.tag,
-                    code.canonical_reason()
+                    code.canonical_reason(),
+                    text
                 );
                 return true;
             } else if code.is_server_error() {
                 warn!(
-                    "Server error on {}: {:?}",
+                    "Server error on {}: {:?} ({:?})",
                     config.tag,
-                    code.canonical_reason()
+                    code.canonical_reason(),
+                    text
                 );
                 if let Err(err) = metrics
                     .observe(SendFails { n: 1, tag, timestamp: Utc::now() })
@@ -253,20 +261,20 @@ async fn loop_send_requests(
         config.interval_ms as f64,
         config.duration_ms as f64,
     );
-    
+
     for event_time in process {
         if !jobs.contains_key(&id) {
             info!("Ended loop for {}", id);
             break;
         }
-        
+
         if ping(&config, &clients, &metrics).await {
             info!("Removed cron for function {}", config.tag);
             break;
         };
-        
+
         // yield_now().await;
-        
+
         tokio::time::sleep(Duration::from_millis(event_time.round() as u64))
             .await;
 
@@ -305,7 +313,7 @@ pub fn get_subscriber(
             ))
             .with_reqwest()
             .with_service_name(_name)
-            .install_batch(opentelemetry::runtime::Tokio)
+            .install_batch(opentelemetry_sdk::runtime::Tokio)
             .unwrap(),
     );
 
@@ -328,7 +336,10 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 async fn build_http_client(
     proxy: String,
 ) -> anyhow::Result<ClientWithMiddleware> {
-    let mut http_client = reqwest::Client::builder();
+    let mut http_client = reqwest::Client::builder()
+        .pool_max_idle_per_host(0)
+        .pool_idle_timeout(Duration::new(20, 0));
+    
     if let Ok(port) = std::env::var(PROXY_PORT) {
         info!(
             "Create new http client w/ proxy for {}, proxy through port {}",
@@ -395,7 +406,7 @@ async fn main() -> anyhow::Result<()> {
 
         #[cfg(feature = "jaeger")]
         let app =
-            app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
+            app.wrap(TracingLogger::default()).wrap(RequestTracing::default());
 
         app.app_data(web::JsonConfig::default().limit(4096))
             .app_data(web::Data::clone(&http_clients))

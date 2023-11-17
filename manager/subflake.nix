@@ -1,5 +1,5 @@
 {
-  outputs = inputs: _extra:
+  outputs = inputs: extra:
     with inputs;
       flake-utils.lib.eachDefaultSystem (
         system: let
@@ -9,53 +9,19 @@
           };
 
           inherit (pkgs) lib;
-
-          craneLib = crane.lib.${system}.overrideToolchain (fenix.packages.${system}.latest.withComponents [
-            "cargo"
-            "clippy"
-            "rust-src"
-            "rustc"
-            "rustfmt"
-          ]);
-
-          buildRustPackage = pname: features: let
-            features_cmd = builtins.concatStringsSep " " features;
-            src = craneLib.cleanCargoSource (craneLib.path ./.);
-            commonArgs = {
-              inherit src;
-              inherit pname;
-              version = "0.1";
-              strictDeps = true;
-
-              nativeBuildInputs = with pkgs; [
-                pkg-config
-              ];
-
-              buildInputs = with pkgs;
-                [
-                  openssl
-                ]
-                ++ lib.optionals pkgs.stdenv.isDarwin [
-                  pkgs.libiconv
-                ];
-            };
-            cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+          rust = let
+            src = ./.;
+            symlinks = [./helper ./helper_derive ./model ./openfaas ./kube_metrics];
           in
-            craneLib.buildPackage (
-              commonArgs
-              // {
-                inherit cargoArtifacts;
-                cargoExtraArgs = "--bin ${pname} --features '${features_cmd}'";
-              }
-            );
+            extra.buildRustEnv {inherit pkgs src symlinks;};
 
           dockerImageFogNodeGenerator = {
             tag,
             features, # crate_name/feature
           }: let
-            fog_node = buildRustPackage "fog_node" features;
+            fog_node = rust.buildRustPackage "fog_node" features;
           in
-            pkgs.dockerTools.buildLayeredImage {
+            pkgs.dockerTools.streamLayeredImage {
               inherit tag;
               name = "fog_node";
               config = {
@@ -63,12 +29,12 @@
               };
             };
 
-          dockerImageMarket = pkgs.dockerTools.buildLayeredImage {
+          dockerImageMarket = pkgs.dockerTools.streamLayeredImage {
             name = "market";
             tag = "latest";
             config = {
               Env = ["SERVER_PORT=3003"];
-              Cmd = ["${buildRustPackage "market" []}/bin/market"];
+              Cmd = ["${rust.buildRustPackage "market" []}/bin/market"];
             };
           };
         in rec {
@@ -104,7 +70,7 @@
                 }
               )
             );
-          devShells.manager = craneLib.devShell {
+          devShells.manager = rust.craneLib.devShell {
             checks = self.checks.${system};
 
             packages = with pkgs; [
@@ -124,6 +90,7 @@
               kubectl
               (rustfmt.override {asNightly = true;})
               parallel
+              skopeo
             ];
           };
         }

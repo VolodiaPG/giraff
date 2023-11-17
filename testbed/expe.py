@@ -35,6 +35,14 @@ class Function:
     arrival: secs_int
 
 
+@dataclass
+class FunctionProvisioned:
+    faas_ip: str
+    faas_port: int
+    function_id: str
+    node_id: str
+
+
 RANDOM_SEED = os.getenv("RANDOM_SEED")
 if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
@@ -115,6 +123,11 @@ FUNCTION_COLD_START_OVERHEAD = ms_int(os.environ["FUNCTION_COLD_START_OVERHEAD"]
 FUNCTION_STOP_OVERHEAD = ms_int(os.environ["FUNCTION_STOP_OVERHEAD"])
 EXPERIMENT_DURATION = secs_int(os.environ["EXPERIMENT_DURATION"])
 
+# Debug function for running local
+OVERRIDE_FUNCTION_IP = os.getenv("OVERRIDE_FUNCTION_IP")
+
+print(f"OVERRIDE_FUNCTION_IP={OVERRIDE_FUNCTION_IP}")
+
 
 class AsyncSession:
     def __init__(self):
@@ -141,13 +154,12 @@ async def put_request_fog_node(function: Function):
             "duration": f"{duration} ms",
             "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}:latest",
             "functionLiveName": f"{function.function_name}",
-            "dataFlow": [
+            "dataFlow": [  # TODO: update because outdated
                 {
                     "from": {"dataSource": f"{function.target_node}"},
                     "to": "thisFunction",
                 }
             ],
-            "envVars": [["TOTO", "toto"]],
         },
         "targetNode": f"{function.target_node}",
     }
@@ -158,18 +170,57 @@ async def put_request_fog_node(function: Function):
             return response, http_code
 
 
+async def post_request_chain_functions(urls: List[FunctionProvisioned]):
+    headers = {"Content-Type": "application/json"}
+    last = len(urls) - 1
+    if last == 0:
+        return None
+
+    # await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 2)
+
+    # print(urls)
+
+    ret = []
+    for ii in range(0, last):
+        faas_ip = urls[ii].faas_ip
+        if OVERRIDE_FUNCTION_IP is not None:
+            faas_ip = OVERRIDE_FUNCTION_IP
+        data = {
+            "nextFunctionUrl": f"http://{faas_ip}:{urls[ii+1].faas_port}/function/fogfn-{urls[ii+1].function_id}",
+        }
+        # Sync request
+        url = f"http://{urls[ii].faas_ip}:{urls[ii].faas_port}/function/fogfn-{urls[ii].function_id}/reconfigure"
+
+        print(
+            "from:",
+            urls[ii].function_id,
+            "- to:",
+            urls[ii + 1].function_id,
+            "- url:",
+            url,
+            "- data:",
+            data,
+        )
+        async with AsyncSession() as session:
+            async with session.post(url, headers=headers, json=data) as response:
+                http_code = response.status
+                response = await response.content.read()
+
+                ret.append((response, http_code))
+
+    return ret
+
+
 async def put_request_iot_emulation(
-    faas_ip: str,
-    faas_port: int,
-    function_id: str,
+    provisioned: FunctionProvisioned,
     function: Function,
 ):
     url = f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/cron"
     headers = {"Content-Type": "application/json"}
     data = {
         "iotUrl": f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/print",
-        "nodeUrl": f"http://{faas_ip}:{faas_port}/function/fogfn-{function_id}",
-        "functionId": function_id,
+        "nodeUrl": f"http://{provisioned.faas_ip}:{provisioned.faas_port}/function/fogfn-{provisioned.function_id}",
+        "functionId": provisioned.function_id,
         "tag": function.function_name,
         "initialWaitMs": function.cold_start_overhead,
         "durationMs": function.duration,
@@ -184,34 +235,57 @@ async def put_request_iot_emulation(
             return response, http_code
 
 
-async def register_new_function(function: Function) -> bool:
-    await asyncio.sleep(function.arrival)
+async def register_new_functions(functions: List[Function]) -> bool:
+    await asyncio.sleep(functions[0].arrival)
 
-    response, code = await asyncio.ensure_future(put_request_fog_node(function))
+    responses = []
+    for ii in range(0, len(functions)):
+        function = functions[ii]
+        response, code = await asyncio.ensure_future(put_request_fog_node(function))
+        if code != 200:
+            return False
 
-    if code == 200:
-        print(f"Provisioned {function.function_name}")
-        try:
-            data = json.loads(response)
-            faas_ip = data["chosen"]["ip"]
-            faas_port = data["chosen"]["port"]
-            function_id = data["chosen"]["bid"]["id"]
-            response, code = await asyncio.ensure_future(
-                put_request_iot_emulation(
-                    faas_ip=faas_ip,
-                    faas_port=faas_port,
-                    function_id=function_id,
-                    function=function,
-                )
+        response = json.loads(response)
+        faas_ip = response["chosen"]["ip"]
+        node_id = response["chosen"]["bid"]["nodeId"]
+        faas_port = response["chosen"]["port"]
+        function_id = response["chosen"]["bid"]["id"]
+        response = FunctionProvisioned(faas_ip, faas_port, function_id, node_id)
+        responses.append(response)
+        if ii + 1 < len(functions):
+            functions[ii + 1].target_node = response.node_id
+            functions[ii + 1].first_node_ip = response.faas_ip
+
+        print(f"Provisioning... {ii+1}/{len(functions)}")
+
+    print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
+
+    tasks = []
+    tasks.append(asyncio.create_task(post_request_chain_functions(responses)))
+    tasks.append(
+        asyncio.create_task(
+            put_request_iot_emulation(
+                responses[0],
+                function=functions[0],
             )
+        )
+    )
 
-            if code == 200:
-                print(f"Registered cron for {function.function_name}")
-                return True
-        except json.JSONDecodeError:
-            print(f"Err for {function.function_name}")
+    response_list = await asyncio.gather(*tasks)
+    responses_chain = response_list[-2]
+    response_iot, code_iot = response_list[-1]
 
-    print("---\n", response.decode("utf-8").replace("\\n", "\n"))
+    if responses_chain is not None:
+        for response, http_code in responses_chain:
+            if http_code != 200:
+                return False
+
+    print(f"Chained {','.join([ff.function_name for ff in functions])}")
+    if code_iot == 200:
+        print(f"Registered cron for {functions[0].function_name}")
+        return True
+
+    print("---\n", response_iot.decode("utf-8").replace("\\n", "\n"))
 
     return False
 
@@ -220,10 +294,10 @@ successes = 0
 errors = 0
 
 
-async def do_request_progress(bar: Any, function: Function):
+async def do_request_progress(bar: Any, functions: List[Function]):
     global successes
     global errors
-    success = await register_new_function(function)
+    success = await register_new_functions(functions)
     if success:
         successes += 1
     else:
@@ -237,7 +311,8 @@ PERCENTILE_NORMAL_HIGH = 2
 
 
 async def save_file(filename: str):
-    functions = []
+    functions: List[List[Function]] = []
+    functions_raw: List[Function] = []
     docker_fn_name = FUNCTION_NAME
     for target_node_name in TARGET_NODE_NAMES:
         latencies = [
@@ -278,7 +353,7 @@ async def save_file(filename: str):
                 f"-n{NB_FUNCTIONS * len(TARGET_NODE_NAMES)}"
             )
 
-            functions.append(
+            functions_raw.append(
                 Function(
                     target_node=target_node_name,
                     mem=memory,
@@ -295,13 +370,36 @@ async def save_file(filename: str):
                     arrival=arrival,
                 )
             )
+
+        while len(functions_raw) != 0:
+            functions_subset: List[Function] = []
+            function: Function = functions_raw.pop()
+            functions_subset.append(function)
+            # if len(functions_raw) != 0 and random.randint(0, 3) == 0:
+            # TODO: redo that
+            if len(functions_raw) != 0:
+                function = functions_raw.pop()
+                functions_subset.append(function)
+
+            min_duration = function.duration
+            for function in functions_subset:
+                min_duration = min(min_duration, function.duration)
+
+            # TODO: remove that
+            min_duration = 30000
+
+            for function in functions_subset:
+                function.duration = min_duration
+
+            functions.append(functions_subset)
+
     print(functions)
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
         dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)
 
 
-def load_functions(filename) -> List[Function]:
+def load_functions(filename) -> List[List[Function]]:
     functions = []
     with open(filename, "rb") as inp:
         functions = dill.load(inp)
@@ -328,14 +426,17 @@ async def load_file(filename: str):
     fognet = {fog_node_data["id"]: fog_node_data["ip"] for fog_node_data in response}
 
     with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
-        for function in functions:
+        for function_sublist in functions:
             # Use the id of the node instead of its name
-            function.target_node = nodes[function.target_node.replace("'", "")]
-            function.first_node_ip = (
-                NODES_IP if NODES_IP else fognet[function.target_node]
-            )
+            for function in function_sublist:
+                function.target_node = nodes[function.target_node.replace("'", "")]
+                function.first_node_ip = (
+                    NODES_IP if NODES_IP else fognet[function.target_node]
+                )
             tasks.append(
-                asyncio.create_task(do_request_progress(bar=bar, function=function))
+                asyncio.create_task(
+                    do_request_progress(bar=bar, functions=function_sublist)
+                )
             )
 
         await asyncio.gather(*tasks)

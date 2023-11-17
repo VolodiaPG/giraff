@@ -41,7 +41,7 @@ use openfaas::{Configuration, DefaultApiClient};
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
-use opentelemetry::sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
@@ -122,7 +122,7 @@ pub fn get_subscriber(
             ))
             .with_reqwest()
             .with_service_name(_name)
-            .install_batch(opentelemetry::runtime::Tokio)
+            .install_batch(opentelemetry_sdk::runtime::Tokio)
             .unwrap(),
     );
 

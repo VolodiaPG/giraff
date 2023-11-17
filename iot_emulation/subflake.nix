@@ -1,5 +1,5 @@
 {
-  outputs = inputs: _extra:
+  outputs = inputs: extra:
     with inputs;
       flake-utils.lib.eachDefaultSystem (
         system: let
@@ -8,87 +8,41 @@
             overlays = [fenix.overlays.default];
           };
 
-          inherit (pkgs) lib;
+          rust = let
+            src = ./.;
+            symlinks = [./helper ./helper_derive];
+          in
+            extra.buildRustEnv {inherit pkgs src symlinks;};
 
-          craneLib = crane.lib.${system}.overrideToolchain (fenix.packages.${system}.latest.withComponents [
-            "cargo"
-            "clippy"
-            "rust-src"
-            "rustc"
-            "rustfmt"
-          ]);
-
-          src = craneLib.cleanCargoSource (craneLib.path ./.);
-          helper = craneLib.cleanCargoSource (craneLib.path ./helper);
-          helper_derive = craneLib.cleanCargoSource (craneLib.path ./helper_derive);
-
-          # Common arguments can be set here to avoid repeating them later
-          commonArgs = {
-            inherit src;
-            strictDeps = true;
-
-            preConfigurePhases = [
-              "link_local_deps"
-            ];
-
-            link_local_deps = ''
-              ln -s ${helper} ./helper
-              ln -s ${helper_derive} ./helper_derive
-            '';
-
-            nativeBuildInputs = with pkgs; [
-              pkg-config
-            ];
-
-            buildInputs = with pkgs;
-              [
-                openssl
-              ]
-              ++ lib.optionals pkgs.stdenv.isDarwin [
-                pkgs.libiconv
-              ];
-          };
-
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-          iot_emulation = craneLib.buildPackage (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-            }
-          );
-
-          dockerIOTEmulation = pkgs.dockerTools.buildLayeredImage {
-            name = "iot_emulation";
-            tag = "latest";
-            config = {
-              Env = ["SERVER_PORT=3003"];
-              Cmd = ["${iot_emulation}/bin/iot_emulation"];
+          dockerIOTEmulation = features:
+            pkgs.dockerTools.streamLayeredImage {
+              name = "iot_emulation";
+              tag = "latest";
+              config = {
+                Env = ["SERVER_PORT=3003"];
+                Cmd = ["${rust.buildRustPackage "iot_emulation" features}/bin/iot_emulation"];
+              };
             };
-          };
         in {
           packages = {
-            iot_emulation = dockerIOTEmulation;
-            iot_emulation_raw = iot_emulation;
+            iot_emulation_no-telemetry = dockerIOTEmulation [];
+            iot_emulation_jaeger = dockerIOTEmulation ["jaeger"];
           };
-          devShells.iot_emulation = craneLib.devShell {
+          devShells.iot_emulation = rust.craneLib.devShell {
             checks = self.checks.${system};
 
-            # Automatically inherit any build inputs from `my-crate`
-            # inputsFrom = [iot_emulation];
-
-            packages = with pkgs;
-              [
-                just
-                # pkg-config
-                jq
-                # openssl
-                # rust-analyzer
-                cargo-outdated
-                cargo-udeps
-                lldb
-                (rustfmt.override {asNightly = true;})
-              ]
-              ++ commonArgs.buildInputs;
+            packages = with pkgs; [
+              just
+              # pkg-config
+              jq
+              # openssl
+              # rust-analyzer
+              cargo-outdated
+              cargo-udeps
+              lldb
+              (rustfmt.override {asNightly = true;})
+              skopeo
+            ];
           };
         }
       );

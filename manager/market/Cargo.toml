@@ -11,6 +11,7 @@ mimalloc = []
 # Enable jaeger
 jaeger = [
     "opentelemetry",
+    "opentelemetry_sdk",
     "opentelemetry-jaeger",
     "reqwest-tracing",
     "tracing-opentelemetry",
@@ -18,8 +19,8 @@ jaeger = [
 ]
 
 [dependencies]
-actix-web = "4.2.1"
-actix-web-opentelemetry = "0.13.0"
+actix-web = "4.4.0"
+actix-web-opentelemetry = "0.16.0"
 anyhow = "1.0.58"
 base64 = { version = "0.13.0", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
@@ -31,34 +32,38 @@ influxdb2 = "0.4.2"
 influxdb2-derive = "0.1.1"
 influxdb2-structmap = "0.2"
 num-traits = "0.2"
-lazy-regex = "2.3.0"
+lazy-regex = "3.1.0"
 lazy_static = "1.4.0"
-# log = "0.4.17"
-mimalloc = { version = "0.1.32", default-features = false }
-opentelemetry = { version = "0.18.0", features = ["rt-tokio"], optional = true }
-opentelemetry-jaeger = { version = "0.17.0", features = [
+opentelemetry = { version = "0.21.0", default-features = false, optional = true }
+opentelemetry_sdk = { version = "0.21.1", features = [
+    "rt-tokio",
+], default-features = false, optional = true }
+opentelemetry-jaeger = { version = "0.20.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
-reqwest = { version = "0.11.11", features = ["json", "gzip"] }
-reqwest-middleware = "0.2.0"
-reqwest-tracing = { version = "0.4.0", features = [
-    "opentelemetry_0_18",
+reqwest = { version = "0.11.22", features = ["json", "gzip"] }
+reqwest-middleware = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-middleware" }
+# reqwest-tracing = { version = "0.4.6", features = [
+#     "opentelemetry_0_20",
+# ], optional = true }
+reqwest-tracing = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-tracing", features = [
+    "opentelemetry_0_21",
 ], optional = true }
 ron = "0.8.0"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }
-serde_with = "2.0.0"
+serde_with = "3.4.0"
 tokio = { version = "1.20.1", features = ["full"] }
 tracing = "0.1.37"
-tracing-actix-web = { version = "0.7.2", features = [
-    "opentelemetry_0_18",
+tracing-actix-web = { version = "0.7.9", features = [
+    "opentelemetry_0_21",
 ], optional = true }
 tracing-appender = "0.2"
 tracing-forest = { version = "0.1.5", features = ["tokio"] }
-tracing-log = "0.1.3"
+tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-opentelemetry = { version = "0.18.0", optional = true }
+tracing-opentelemetry = { version = "0.22.0", optional = true }
 uom = { version = "0.34.0", default-features = false, features = [
     "f64",
     "si",
@@ -69,3 +74,4 @@ uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
 helper = { path = "../helper" }
 helper_derive = { path = "../helper_derive" }
 model = { path = "../model" }
+mimalloc = { version = "0.1.32", default-features = false }
