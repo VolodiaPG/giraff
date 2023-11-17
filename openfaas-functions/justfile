@@ -1,0 +1,13 @@
+DOCKER:=env_var_or_default("DOCKER", "docker")
+
+_default:
+    @just --list
+
+docker:
+    #!/usr/bin/env bash
+    set -e
+    fn_dir=$(basename {{invocation_directory()}})
+    echo $fn_dir
+    stream_docker=$(nix build .#fn_$fn_dir  --print-out-paths --no-link --quiet)
+    sh -c $stream_docker | {{DOCKER}} load
+    {{DOCKER}} run --rm --name speech -p 8080:8080 fn_$fn_dir:latest
