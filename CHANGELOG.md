@@ -1,4 +1,14 @@
 - - -
+## 2.2.0 - 2023-11-17
+#### Features
+- add function chaining + nixifying and caching - (c55de52) - Volodia PAROL-GUARINO
+- add env vars to the sla and function - (d9d1215) - Volodia PAROL-GUARINO
+#### Miscellaneous Chores
+- migrate from unstable to stable channel - (8b4bd1d) - Volodia PAROL-GUARINO
+- update repo name in some links - (25b5c9c) - Volodia PAROL-GUARINO
+
+- - -
+
 ## 2.1.0 - 2023-10-30
 #### Features
 - replace cargo2nix with crane and fix build steps for jupyterlab and rust - (7effeb8) - Volodia PAROL-GUARINO
