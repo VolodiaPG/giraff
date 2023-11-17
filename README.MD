@@ -172,6 +172,16 @@ Functions are 256MB of RAM.
 
 - A Student T distribution is used for function latencies (as we don't know the real sample size nor the std deviation). The distribution would be divided in three buckets: functions that do not care about the latency (meaning the threshold t is at 10 secs), functions that are normal: they would want their responses back in a usable time (t = 150ms), and low latency functions (t = 15ms). The two extrema would be 5% of the total number functions. We use df=10 with -2.25 and 2.25 for the extrema.
 
+### Included functions
+
+Our own functions are:
+  
+  - `echo` simply register to Influx the arrival time of the functions. It can transfer the request to a next function. (Rust)
+
+We borrowed functions from [EdgeFaaSBench](https://github.com/kaustubhrajput46/EdgeFaaSBench)
+  
+  - `speech-to-text` (Python)
+
 ### Processing the results
 
 This flake has two modes: `just labExport` will start a JupyterLab with Latex support and Tikz export for the graphs, `just lab` starts a lighter version without Latex and Tikz.

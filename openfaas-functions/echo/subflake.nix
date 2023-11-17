@@ -1,18 +1,13 @@
 {
   outputs = inputs: extra:
-    with inputs;
+    with inputs; let
+      inherit (self) outputs;
+    in
       flake-utils.lib.eachDefaultSystem (
         system: let
           pkgs = import nixpkgs {
             inherit system;
             overlays = [fenix.overlays.default];
-          };
-
-          fwatchdog = pkgs.buildGoModule {
-            pname = "of-watchdog";
-            version = "giraff-0.1";
-            src = inputs.fwatchdog;
-            vendorHash = null;
           };
 
           rust = let
@@ -28,7 +23,7 @@
             echo = rust.buildRustPackage "echo" features;
           in
             pkgs.dockerTools.streamLayeredImage {
-              name = "echo";
+              name = "fn_echo";
               tag = "latest";
               config = {
                 Env = [
@@ -40,46 +35,39 @@
                 ExposedPorts = {
                   "8080/tcp" = {};
                 };
-                Cmd = ["${fwatchdog}/bin/of-watchdog"];
+                Cmd = ["${outputs.packages.${system}.fwatchdog}/bin/of-watchdog"];
               };
             };
         in {
-          packages =
-            {
-              inherit fwatchdog;
-            }
-            // builtins.listToAttrs (
-              builtins.map
-              (
-                settings: let
-                  tag = "${settings.telemetry}";
-                in {
-                  name = "echo_${tag}";
-                  value = echoGenerator {
-                    inherit tag;
-                    features = nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "${settings.telemetry}";
-                  };
-                }
-              )
-              (
-                nixpkgs.lib.attrsets.cartesianProductOfSets
-                {
-                  # Do not forget to run cargo2nix at each new features added
-                  telemetry = ["no-telemetry" "jaeger"];
-                }
-              )
-            );
-          devShells.openfaas_functions = rust.craneLib.devShell {
+          packages = builtins.listToAttrs (
+            builtins.map
+            (
+              settings: let
+                tag = "${settings.telemetry}";
+              in {
+                name = "fn_echo_${tag}";
+                value = echoGenerator {
+                  inherit tag;
+                  features = nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "${settings.telemetry}";
+                };
+              }
+            )
+            (
+              nixpkgs.lib.attrsets.cartesianProductOfSets
+              {
+                # Do not forget to run cargo2nix at each new features added
+                telemetry = ["no-telemetry" "jaeger"];
+              }
+            )
+          );
+          devShells.fn_echo = rust.craneLib.devShell {
             checks = self.checks.${system};
 
             packages = with pkgs; [
-              docker
-              faas-cli
               just
               pkg-config
               openssl
               rust-analyzer
-              lldb
               skopeo
               (rustfmt.override {asNightly = true;})
             ];

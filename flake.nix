@@ -70,7 +70,7 @@
         (subflake ./testbed/subflake.nix)
         (subflake ./manager/subflake.nix)
         (subflake ./iot_emulation/subflake.nix)
-        (subflake ./openfaas-functions/echo/subflake.nix)
+        (subflake ./openfaas-functions/subflake.nix)
         (flake-utils.lib.eachDefaultSystem (
           system: let
             pkgs = import nixpkgs {
@@ -92,7 +92,7 @@
               trace_pkgs = builtins.concatStringsSep " " (
                 pkgs.lib.mapAttrsToList
                 (name: output:
-                  if (lib.strings.hasSuffix "vm" name) || (lib.strings.hasPrefix "fog_node" name) || (lib.strings.hasPrefix "market" name)
+                  if (lib.strings.hasSuffix "vm" name) || (lib.strings.hasPrefix "fog_node" name) || (lib.strings.hasPrefix "fn" name) || (lib.strings.hasPrefix "market" name)
                   then ""
                   else "${output}")
                 outputs.packages.${system}
