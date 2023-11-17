@@ -70,7 +70,7 @@
         (subflake ./testbed/subflake.nix)
         (subflake ./manager/subflake.nix)
         (subflake ./iot_emulation/subflake.nix)
-        (subflake ./openfaas-functions/subflake.nix)
+        (subflake ./openfaas-functions/echo/subflake.nix)
         (flake-utils.lib.eachDefaultSystem (
           system: let
             pkgs = import nixpkgs {
