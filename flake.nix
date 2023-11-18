@@ -52,8 +52,8 @@
   };
 
   nixConfig = {
-    trusted-substituters = "https://cache.nixos.org https://giraff.cachix.org";
-    trusted-public-keys = "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= giraff.cachix.org-1:3sol29PSsWCh/7bAiRze+5Zq6OML02FDRH13K5i3qF4=";
+    extra-substituters = ["https://giraff.cachix.org"];
+    extra-trusted-public-keys = ["giraff.cachix.org-1:3sol29PSsWCh/7bAiRze+5Zq6OML02FDRH13K5i3qF4="];
   };
 
   outputs = inputs:
@@ -113,10 +113,8 @@
                 set -e
                 export PATH=${binPath}:$PATH
                 tmp=$(mktemp)
-
-                parallel nix-store -qR {} ">>" $tmp ::: ${trace_pkgs} ${trace_apps}
-                # keep uniques only
-                awk '{!seen[$0]++};END{for(i in seen) if(seen[i]==1)print i}' $tmp
+                parallel nix path-info --derivation {} '>>' $tmp ::: ${trace_apps} ${trace_pkgs}
+                parallel nix-store --query --requisites --include-outputs '$(' nix path-info --derivation {} ') >>' $tmp ::: ${trace_apps} ${trace_pkgs}
                 cachix push -j $(nproc --all) -m xz -c 9 giraff $(cat $tmp | tr "\n" " ")
                 rm $tmp
               '';

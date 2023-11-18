@@ -110,8 +110,10 @@ Here is an overview of the content of this repo:
     max-jobs = auto
     cores = 0
     log-lines = 50
+    builders-use-substitutes = true
+    trusted-useres = root <YOUR USERNAME>
     ```
-    > This enables commands such as `nix develop`, multithreading, and bigger logs
+    > This enables commands such as `nix develop`, multithreading, bigger logs and the usage of the projet's [cachix](https://giraff.cachix.org) cache
 3. `nix develop` (or configure direnv)
 4. All usual commands can be found in the justfiles, just type `just --list`
 
