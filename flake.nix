@@ -13,7 +13,10 @@
       url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
+    srvos = {
+      url = "github:nix-community/srvos";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -114,8 +117,7 @@
                 parallel nix-store -qR {} ">>" $tmp ::: ${trace_pkgs} ${trace_apps}
                 # keep uniques only
                 awk '{!seen[$0]++};END{for(i in seen) if(seen[i]==1)print i}' $tmp
-                cachix push giraff $(cat $tmp)
-
+                cachix push -j $(nproc --all) -m xz -c 9 giraff $(cat $tmp | tr "\n" " ")
                 rm $tmp
               '';
             in {

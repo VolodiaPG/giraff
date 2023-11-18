@@ -12,7 +12,7 @@
     inherit (pkgs) system;
     modules =
       [
-        # inputs.srvos.nixosModules.server
+        inputs.srvos.nixosModules.server
         "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
         "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
       ]

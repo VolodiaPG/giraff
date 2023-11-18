@@ -85,7 +85,7 @@ _openfaas_in_vm:
     #!/usr/bin/env bash
     set -e
 
-    rm vm.kubeconfig
+    rm vm.kubeconfig || true
     
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
     do
