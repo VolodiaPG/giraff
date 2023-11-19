@@ -150,7 +150,7 @@
                   isort.enable = true;
                   ruff.enable = true;
                   mypy.enable = true;
-                  cachix = {
+                  zCachix = {
                     enable = true;
                     name = "push cachix";
                     entry = "sh -c 'nix run .#cachix'";

@@ -1,3 +1,21 @@
 schema = 3
 
 [mod]
+  [mod."github.com/apapsch/go-jsonmerge/v2"]
+    version = "v2.0.0"
+    hash = "sha256-xp/1B6XUN2EbddBfoUkTV3oTk+34m4kOZP+66HhfLg4="
+  [mod."github.com/deepmap/oapi-codegen"]
+    version = "v1.12.4"
+    hash = "sha256-VbaGFTDfe/bm4EP3chiG4FPEna+uC4HnfGG4C7YUWHc="
+  [mod."github.com/google/uuid"]
+    version = "v1.3.0"
+    hash = "sha256-QoR55eBtA94T2tBszyxfDtO7/pjZZSGb5vm7U0Xhs0Y="
+  [mod."github.com/influxdata/influxdb-client-go/v2"]
+    version = "v2.12.4"
+    hash = "sha256-8M3MTTogrPng8xHCGy0uyrcfyEFCL1yFSPDlt1IumCM="
+  [mod."github.com/influxdata/line-protocol"]
+    version = "v0.0.0-20200327222509-2487e7298839"
+    hash = "sha256-U5aoGA5j6UtR3lYAj0o71jCPF1er4ynzWyCPcpuTye4="
+  [mod."golang.org/x/net"]
+    version = "v0.17.0"
+    hash = "sha256-qRawHWLSsJ06QNbLhUWPXGVSO1eaioeC9xZlUEWN8J8="
