@@ -1,31 +1,17 @@
-DOCKER := "podman"
-server_port := env_var_or_default("SERVER_PORT", "30080")
-
 _default:
-    @just --list
+    PORT="30080" \
+    INFLUX_ADDRESS="10.42.0.1:9086" \
+    INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+    INFLUX_ORG="faasfog" \
+    INFLUX_BUCKET="faasfog" \
+    PROXY_PORT="3128" \
+    COLLECTOR_URL="127.0.0.1:14268" \
+    DEV=TRUE \
+    go run *.go
 
-run cluster_ip:
-    SERVER_PORT={{server_port}} \
-        INFLUX_ADDRESS="127.0.0.1:9086" \
-        INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
-        INFLUX_ORG="faasfog" \
-        INFLUX_BUCKET="faasfog" \
-        INSTANCE_NAME="iot_emulation" \
-        cargo run --features jaeger
+update:
+    go mod tidy
+    gomod2nix
 
-interval period='20' enabled='true':
-    curl -X POST --url "http://localhost:{{server_port}}/api/interval?enabled={{enabled}}&intervalMs={{period}}"
-
-pre_commit: check clippy
-    cargo fmt
-
-clippy:
-	cargo clippy --fix --allow-staged --allow-dirty  -- -A clippy::let_unit_value -D warnings
-
-# Push docker images to ghcr
-ghcr user features="no-telemetry":
-	$(nix build .#iot_emulation_{{features}} --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/iot_emulation:latest
-
-check:
-    cargo check
-    cargo check --features jaeger
+ghcr user:
+    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/iot_emulation:latest

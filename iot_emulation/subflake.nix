@@ -1,49 +1,43 @@
 {
-  outputs = inputs: extra:
-    with inputs;
-      flake-utils.lib.eachDefaultSystem (
-        system: let
-          pkgs = import nixpkgs {
-            inherit system;
-            overlays = [fenix.overlays.default];
+  outputs = inputs: _extra:
+    with inputs; let
+      inherit (self) outputs;
+    in
+      flake-utils.lib.eachDefaultSystem (system: let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [gomod2nix.overlays.default];
+        };
+        iot_emulation = pkgs.buildGoApplication {
+          pname = "iot_emulation";
+          version = "0.1";
+          pwd = ./.;
+          src = ./.;
+          modules = ./gomod2nix.toml;
+        };
+        dockerIOTEmulation = pkgs.dockerTools.streamLayeredImage {
+          name = "iot_emulation";
+          tag = "latest";
+          config = {
+            Env = ["SERVER_PORT=30080"];
+            Cmd = ["${iot_emulation}/bin/iot_emulation"];
           };
-
-          rust = let
-            src = ./.;
-            symlinks = [./helper ./helper_derive];
-          in
-            extra.buildRustEnv {inherit pkgs src symlinks;};
-
-          dockerIOTEmulation = features:
-            pkgs.dockerTools.streamLayeredImage {
-              name = "iot_emulation";
-              tag = "latest";
-              config = {
-                Env = ["SERVER_PORT=3003"];
-                Cmd = ["${rust.buildRustPackage "iot_emulation" features}/bin/iot_emulation"];
-              };
-            };
-        in {
-          packages = {
-            iot_emulation_no-telemetry = dockerIOTEmulation [];
-            iot_emulation_jaeger = dockerIOTEmulation ["jaeger"];
-          };
-          devShells.iot_emulation = rust.craneLib.devShell {
-            checks = self.checks.${system};
-
-            packages = with pkgs; [
-              just
-              # pkg-config
-              jq
-              # openssl
-              # rust-analyzer
-              cargo-outdated
-              cargo-udeps
-              lldb
-              (rustfmt.override {asNightly = true;})
-              skopeo
-            ];
-          };
-        }
-      );
+        };
+      in {
+        packages.iot_emulation = dockerIOTEmulation;
+        devShells.iot_emulation = pkgs.mkShell {
+          inherit (outputs.checks.${system}.pre-commit-check) shellHook;
+          packages = with pkgs; [
+            git
+            gnumake
+            gomod2nix
+            gopls
+            gotools
+            just
+            go-tools
+            skopeo
+            (pkgs.mkGoEnv {pwd = ./.;})
+          ];
+        };
+      });
 }

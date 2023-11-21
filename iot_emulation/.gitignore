@@ -1,4 +1,3 @@
+/gomod2nix-template
 .direnv/
-result
-result-*
 .pre-commit-config.yaml

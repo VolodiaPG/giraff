@@ -1,6 +1,4 @@
 {
-  description = "A basic gomod2nix flake";
-
   outputs = inputs: _extra:
     with inputs; let
       inherit (self) outputs;
@@ -11,14 +9,13 @@
           overlays = [gomod2nix.overlays.default];
         };
       in {
-        packages.default = pkgs.buildGoApplication {
+        packages.proxy = pkgs.buildGoApplication {
           pname = "proxy";
           version = "0.1";
           pwd = ./.;
           src = ./.;
           modules = ./gomod2nix.toml;
         };
-        packages.goEnv = pkgs.mkGoEnv {pwd = ./.;};
         devShells.proxy = pkgs.mkShell {
           inherit (outputs.checks.${system}.pre-commit-check) shellHook;
           packages = with pkgs; [
@@ -29,7 +26,7 @@
             gotools
             just
             go-tools
-            outputs.packages.${system}.goEnv
+            (pkgs.mkGoEnv {pwd = ./.;})
           ];
         };
       });

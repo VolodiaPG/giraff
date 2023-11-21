@@ -14,14 +14,14 @@ check:
 _ghcr user features:
 	#!/usr/bin/env bash
 	echo "Buidlding with features {{features}}"
-	$(nix build .#echo_{{features}} --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/echo:latest
+	$(nix build .#fn_echo_{{features}} --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/echo:latest
 
 docker_load features="no-telemetry":
 	echo "Buidlding with features {{features}}"
-	$(nix build .#echo_{{features}} --print-out-paths --no-link --quiet) | docker load
+	$(nix build .#fn_echo_{{features}} --print-out-paths --no-link --quiet) | docker load
 
 ghcr user features="no-telemetry":
-	nix develop .#openfaas_functions -c just _ghcr {{user}} {{features}}
+	nix develop .#fn_echo -c just _ghcr {{user}} {{features}}
 
 run:
 	#!/usr/bin/env bash

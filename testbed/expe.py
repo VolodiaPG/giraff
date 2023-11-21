@@ -125,8 +125,9 @@ EXPERIMENT_DURATION = secs_int(os.environ["EXPERIMENT_DURATION"])
 
 # Debug function for running local
 OVERRIDE_FUNCTION_IP = os.getenv("OVERRIDE_FUNCTION_IP")
-
 print(f"OVERRIDE_FUNCTION_IP={OVERRIDE_FUNCTION_IP}")
+OVERRIDE_FIRST_NODE_IP = os.getenv("OVERRIDE_FIRST_NODE_IP")
+print(f"OVERRIDE_FIRST_NODE_IP={OVERRIDE_FIRST_NODE_IP}")
 
 
 class AsyncSession:
@@ -215,6 +216,10 @@ async def put_request_iot_emulation(
     provisioned: FunctionProvisioned,
     function: Function,
 ):
+    faas_ip = function.first_node_ip
+    if OVERRIDE_FIRST_NODE_IP is not None:
+        faas_ip = OVERRIDE_FIRST_NODE_IP
+
     url = f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/cron"
     headers = {"Content-Type": "application/json"}
     data = {
@@ -225,7 +230,7 @@ async def put_request_iot_emulation(
         "initialWaitMs": function.cold_start_overhead,
         "durationMs": function.duration,
         "intervalMs": function.request_interval,
-        "firstNodeIp": function.first_node_ip,
+        "firstNodeIp": faas_ip,
     }
 
     async with AsyncSession() as session:

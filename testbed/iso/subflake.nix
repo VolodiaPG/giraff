@@ -9,7 +9,7 @@
         proxyFlakeOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: {
-            packages.proxy = proxyFlakeOutputs.packages.${system}.default;
+            packages.proxy = proxyFlakeOutputs.packages.${system}.proxy;
           }
         ))
         (flake-utils.lib.eachSystem ["x86_64-linux"] (
