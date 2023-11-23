@@ -72,6 +72,7 @@ env_var!(INFLUX_TOKEN);
 env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
+env_var!(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION);
 
 const INFLUX_DEFAULT_ADDRESS: &str = "127.0.0.1:9086";
 

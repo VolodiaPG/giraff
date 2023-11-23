@@ -6,13 +6,27 @@
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
-          pkgs = import poetry2nix.inputs.nixpkgs {
+          pkgs = import nixpkgs {
             inherit system;
             overlays = [overlay];
           };
 
           overlay = self: _super: {
-            myFunction = self.python311.withPackages (ps: with ps; [waitress flask pillow]);
+            myFunction = self.python311.withPackages (ps:
+              (with ps; [
+                waitress
+                flask
+                pillow
+                requests
+                opentelemetry-exporter-otlp
+                opentelemetry-exporter-otlp-proto-grpc
+                opentelemetry-api
+                opentelemetry-sdk
+              ])
+              ++ (with outputs.packages.${system}; [
+                otelFlask
+                otelRequests
+              ]));
           };
 
           image = pkgs.dockerTools.streamLayeredImage {
@@ -23,6 +37,7 @@
                 "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
+                "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
                 "8080/tcp" = {};

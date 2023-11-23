@@ -45,10 +45,6 @@ log = logging.getLogger("rich")
 
 KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
 
-TELEGRAF_IMAGE = "ghcr.io/volodiapg/telegraf:latest"
-PROMETHEUS_IMAGE = "ghcr.io/volodiapg/prometheus:latest"
-GRAFANA_IMAGE = "ghcr.io/volodiapg/grafana:latest"
-
 
 def get_aliases(env):
     roles = env["roles"]
@@ -408,7 +404,7 @@ def iot_emulation(env=None, **kwargs):
         p.shell(
             """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
-                && docker pull ghcr.io/volodiapg/iot_emulation:latest \
+                && docker pull ghcr.io/volodiapg/giraff:iot_emulation \
                 && docker run --name iot_emulation \
                     --env INFLUX_ADDRESS="10.42.0.1:9086" \
                     --env INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
@@ -417,7 +413,7 @@ def iot_emulation(env=None, **kwargs):
                     --env INSTANCE_NAME="iot_emulation" \
                     --env PROXY_PORT="3128" \
                     --env COLLECTOR_IP="10.42.0.1" \
-                    -p 3003:3003 ghcr.io/volodiapg/iot_emulation:latest""",
+                    -p 3003:3003 ghcr.io/volodiapg/giraff:iot_emulation""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
         )
@@ -426,7 +422,7 @@ def iot_emulation(env=None, **kwargs):
                 && (docker rm jaeger || true) \
                 && docker pull jaegertracing/all-in-one:1.51.0 \
                 && docker run --name jaeger \
-                    -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+                    -e COLLECTOR_OTLP_ENABLED=true \
                     -p 5775:5775/udp \
                     -p 6831:6831/udp \
                     -p 6832:6832/udp \
@@ -436,6 +432,7 @@ def iot_emulation(env=None, **kwargs):
                     -p 9411:9411 \
                     jaegertracing/all-in-one:1.51.0
                     """,
+            # -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
             task_name="Run jaeger on the endpoints",
             background=True,
         )
@@ -500,11 +497,11 @@ def gen_conf(node, parent_id, parent_ip, ids):
 @cli.command()
 @click.option(
     "--fog_node_image",
-    help="The container image URL. eg. ghcr.io/volodiapg/fog_node:latest",
+    help="The container image URL. eg. ghcr.io/volodiapg/giraf::fog_node",
 )
 @click.option(
     "--market_image",
-    help="The container image URL. eg. ghcr.io/volodiapg/market:latest",
+    help="The container image URL. eg. ghcr.io/volodiapg/giraff:market",
 )
 @enostask()
 def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):

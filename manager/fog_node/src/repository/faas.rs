@@ -1,4 +1,7 @@
-use crate::{INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN};
+use crate::{
+    INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN,
+    OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION,
+};
 
 use anyhow::{Context, Result};
 use helper::env_load;
@@ -52,7 +55,16 @@ impl FaaSBackend {
         env_vars.insert(INFLUX_ORG.to_string(), org.into_inner());
         env_vars.insert(INFLUX_TOKEN.to_string(), token.into_inner());
         env_vars.insert("ID".to_string(), id.to_string());
-        
+
+        let otel_endpoint_function =
+            env::var(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION.to_string());
+        if let Ok(otel_endpoint_function) = otel_endpoint_function {
+            env_vars.insert(
+                OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION.to_string(),
+                otel_endpoint_function,
+            );
+        }
+
         #[cfg(feature = "jaeger")]
         {
             let collector_ip = env::var("COLLECTOR_IP");

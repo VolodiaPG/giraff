@@ -1,7 +1,35 @@
 DOCKER:=env_var_or_default("DOCKER", "docker")
+FLAKE:=file_name(justfile_directory())
 
 _default:
     @just --list
+
+ghcr user dir=invocation_directory():
+    #!/usr/bin/env bash
+    echo {{justfile_directory()}}
+    echo {{dir}}
+    if [ "{{file_name(justfile_directory())}}" = "{{dir}}" ]; then
+        echo "Consider locating yourself to the function directory to run this command from there"
+        exit 1
+    fi
+    just _ghcr_wrapped {{user}} {{dir}}
+
+ghcr_all user:
+    nix develop .#{{FLAKE}} -c just _ghcr_all {{user}}
+
+_ghcr_wrapped user dir:
+    nix develop .#{{FLAKE}} -c just _ghcr {{user}} {{dir}}
+
+_ghcr user dir:
+    #!/usr/bin/env bash
+    fn_dir=$(basename {{dir}})
+    fn_name="fn_$fn_dir"
+    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
+
+_ghcr_all user:
+    #!/usr/bin/env bash
+    find . -maxdepth 1 -type d '!' -type l '!' -name '.*' '!' -name '.*' '!' -name '.' -printf '%f\n' \
+        | parallel --lb just _ghcr_wrapped {{user}} {}
 
 docker:
     #!/usr/bin/env bash
@@ -10,4 +38,4 @@ docker:
     echo "Doing function $fn_dir"
     stream_docker=$(nix build .#fn_$fn_dir  --print-out-paths --no-link --quiet)
     sh -c $stream_docker | {{DOCKER}} load
-    {{DOCKER}} run --rm --name speech -p 8080:8080 fn_$fn_dir:latest
+    {{DOCKER}} run --rm --name speech -p 8081:8080 -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true -e OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION=http://10.42.0.1:4317 fn_$fn_dir:latest

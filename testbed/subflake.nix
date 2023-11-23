@@ -10,135 +10,41 @@
         isoOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
-            pkgs = import poetry2nix.inputs.nixpkgs {
+            pkgs = import nixpkgs {
               inherit system;
               overlays = [overlay];
             };
+            overlay = self: super: {
+              experiments = super.python311.withPackages (ps: (with ps; [
+                dill
+                click
+                cryptography
+                aiohttp
+                influxdb-client
+                simpy
+                scipy
+                marshmallow-dataclass
+               ( alive-progress.overridePythonAttrs
+                (
+                  old: {
+                    postInstall = ''
+                      rm $out/LICENSE
+                    '';
+                  }
+                ))
+                (buildPythonPackage rec {
+                  pname = "randomname";
+                  version = "0.2.1";
 
-            overlay = self: _super: {
-              experiments = self.poetry2nix.mkPoetryEnv {
-                projectDir = ./.;
-                python = self.python311;
-                overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
-                  # Fixes Enoslib
-                  jsonschema-specifications =
-                    oldattr.jsonschema-specifications.overridePythonAttrs
-                    (
-                      old: {
-                        postPatch = ''
-                          sed -i "/Topic/d" pyproject.toml
-                        '';
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatch-vcs];
-                      }
-                    );
-                  jsonschema =
-                    oldattr.jsonschema.overridePythonAttrs
-                    (
-                      _old: {
-                        postPatch = ''
-                          sed -i "/Topic/d" pyproject.toml
-                        '';
-                      }
-                    );
-                  overrides =
-                    oldattr.overrides.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                      }
-                    );
-                  randomname =
-                    oldattr.randomname.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                      }
-                    );
-                  urllib3 =
-                    oldattr.urllib3.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                      }
-                    );
-                  beautifulsoup4 =
-                    oldattr.beautifulsoup4.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                      }
-                    );
-                  pyzmq =
-                    oldattr.pyzmq.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                      }
-                    );
-                  referencing =
-                    oldattr.referencing.overridePythonAttrs
-                    (
-                      old: {
-                        postPatch = ''
-                          sed -i "/Topic/d" pyproject.toml
-                        '';
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.hatch-vcs];
-                      }
-                    );
-                  rpds-py =
-                    oldattr.rpds-py.overridePythonAttrs
-                    (
-                      old: rec {
-                        version = "0.9.2";
-                        src = pkgs.fetchgit {
-                          url = "https://github.com/crate-py/rpds";
-                          rev = "v${version}";
-                          hash = "sha256-RV4voOdWGSr4jtvU19Sfo/j0/DjO42FS70cZUwyIZrA=";
-                        };
+                  src = super.fetchPypi rec {
+                    inherit pname version;
+                    hash = "sha256-t5uYMCukR5FksKT4eZW3vrvR2RASrtpIM0Hj5YrOUg4=";
+                  };
 
-                        cargoDeps = pkgs.rustPlatform.fetchCargoTarball {
-                          inherit src;
-                          name = "rpds-py-${version}";
-                          hash = "sha256-jpeRHKFuzJg2Gngt266cD9SmLnRLMhaX0jDAUaWNX2w=";
-                        };
-
-                        buildInputs =
-                          (old.buildInputs or [])
-                          ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
-                            pkgs.libiconv
-                          ];
-
-                        nativeBuildInputs =
-                          (old.nativeBuildInputs or [])
-                          ++ [
-                            pkgs.rustPlatform.cargoSetupHook
-                            pkgs.rustPlatform.maturinBuildHook
-                          ];
-                      }
-                    );
-                  # Fixes alive-progress
-                  about-time =
-                    oldattr.about-time.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                        postInstall = ''
-                          rm $out/LICENSE
-                        '';
-                      }
-                    );
-                  alive-progress =
-                    oldattr.alive-progress.overridePythonAttrs
-                    (
-                      old: {
-                        buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                        postInstall = ''
-                          rm $out/LICENSE
-                        '';
-                      }
-                    );
-                });
-              };
+                  doCheck = false;
+                  doInstallCheck = false;
+                })
+              ]) ++ [inputs.nur-kapack.packages.${system}.enoslib]);
             };
           in {
             packages.experiments = pkgs.experiments;

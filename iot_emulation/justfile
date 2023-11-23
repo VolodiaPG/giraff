@@ -7,6 +7,7 @@ _default:
     PROXY_PORT="3128" \
     COLLECTOR_URL="127.0.0.1:14268" \
     DEV=TRUE \
+    FOLDER_RESOURCES=content \
     go run *.go
 
 update:
@@ -14,4 +15,4 @@ update:
     gomod2nix
 
 ghcr user:
-    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/iot_emulation:latest
+    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation

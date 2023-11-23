@@ -10,12 +10,24 @@ schema = 3
   [mod."github.com/felixge/httpsnoop"]
     version = "v1.0.4"
     hash = "sha256-c1JKoRSndwwOyOxq9ddCe+8qn7mG9uRq2o/822x5O/c="
+  [mod."github.com/gabriel-vasile/mimetype"]
+    version = "v1.4.2"
+    hash = "sha256-laV+IkgbnEG07h1eFfPISqp0ctnLXfzchz/CLR1lftk="
   [mod."github.com/go-logr/logr"]
     version = "v1.3.0"
     hash = "sha256-N8JYtQlwpLWTaCczfhfA/YmHExko0ObPMYVGw8JwbSw="
   [mod."github.com/go-logr/stdr"]
     version = "v1.2.2"
     hash = "sha256-rRweAP7XIb4egtT1f2gkz4sYOu7LDHmcJ5iNsJUd0sE="
+  [mod."github.com/go-playground/locales"]
+    version = "v0.14.1"
+    hash = "sha256-BMJGAexq96waZn60DJXZfByRHb8zA/JP/i6f/YrW9oQ="
+  [mod."github.com/go-playground/universal-translator"]
+    version = "v0.18.1"
+    hash = "sha256-2/B2qP51zfiY+k8G0w0D03KXUc7XpWj6wKY7NjNP/9E="
+  [mod."github.com/go-playground/validator/v10"]
+    version = "v10.16.0"
+    hash = "sha256-ewMfH1WuN1QHbo27HMo6puDiWHC5qYISTTMhRay2fwI="
   [mod."github.com/google/uuid"]
     version = "v1.4.0"
     hash = "sha256-FU0gzLmS48Ik9T+quGg5z/7ESGMPSXM3SY+rdJtG+5w="
@@ -25,12 +37,9 @@ schema = 3
   [mod."github.com/influxdata/line-protocol"]
     version = "v0.0.0-20200327222509-2487e7298839"
     hash = "sha256-U5aoGA5j6UtR3lYAj0o71jCPF1er4ynzWyCPcpuTye4="
-  [mod."github.com/kr/pretty"]
-    version = "v0.3.1"
-    hash = "sha256-DlER7XM+xiaLjvebcIPiB12oVNjyZHuJHoRGITzzpKU="
-  [mod."github.com/rogpeppe/go-internal"]
-    version = "v1.10.0"
-    hash = "sha256-vR7+d0aoKTuKeTYSgZxsGhH9e5Zvxix3Zrq9SPm5+NQ="
+  [mod."github.com/leodido/go-urn"]
+    version = "v1.2.4"
+    hash = "sha256-N2HO7ChScxI79KGvXI9LxoIlr+lkBNdDZP9OPGwPRK0="
   [mod."github.com/uptrace/opentelemetry-go-extra/otelutil"]
     version = "v0.2.3"
     hash = "sha256-fEHqHUvCvJTfNFkh4HioOuLA+eKipCGXW04a0l4iSAM="
@@ -61,12 +70,18 @@ schema = 3
   [mod."go.uber.org/zap"]
     version = "v1.26.0"
     hash = "sha256-EUQnALSDtoJryWp01K/PMbRUvQYG1uDbqGnlJ/7thE4="
+  [mod."golang.org/x/crypto"]
+    version = "v0.14.0"
+    hash = "sha256-UUSt3X/i34r1K0mU+Y5IzljX5HYy07JcHh39Pm1MU+o="
+  [mod."golang.org/x/exp"]
+    version = "v0.0.0-20231110203233-9a3e6036ecaa"
+    hash = "sha256-m1T4KePBRCJpAjnuq4BnDYXebOHiVI6h2489XD5R9BA="
   [mod."golang.org/x/net"]
     version = "v0.17.0"
     hash = "sha256-qRawHWLSsJ06QNbLhUWPXGVSO1eaioeC9xZlUEWN8J8="
   [mod."golang.org/x/sys"]
     version = "v0.14.0"
     hash = "sha256-ReIRQmONicRW9idzGVPCBx5TTcKacmQTF1vPC3L4SxY="
-  [mod."gopkg.in/validator.v2"]
-    version = "v2.0.1"
-    hash = "sha256-K+q7J2/BgxzIDkznJmtJBNMxt3zZBMvsPOVsDO+QW54="
+  [mod."golang.org/x/text"]
+    version = "v0.13.0"
+    hash = "sha256-J34dbc8UNVIdRJUZP7jPt11oxuwG8VvrOOylxE7V3oA="

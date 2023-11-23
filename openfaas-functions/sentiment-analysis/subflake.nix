@@ -6,53 +6,42 @@
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
-          pkgs = import poetry2nix.inputs.nixpkgs {
+          pkgs = import nixpkgs {
             inherit system;
             overlays = [overlay];
           };
 
-          overlay = self: _super: {
-            myFunction = self.poetry2nix.mkPoetryEnv {
-              projectDir = ./.;
-              python = self.python311;
-              overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
-                urllib3 =
-                  oldattr.urllib3.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                    }
-                  );
-                blinker =
-                  oldattr.blinker.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                werkzeug =
-                  oldattr.werkzeug.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                flask =
-                  oldattr.flask.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                textblob =
-                  oldattr.textblob.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                    }
-                  );
-              });
-            };
+          overlay = self: super: {
+            myFunction = self.python311.withPackages (ps:
+              (with ps; [
+                waitress
+                flask
+                pillow
+                nltk
+                opentelemetry-exporter-otlp
+                opentelemetry-exporter-otlp-proto-grpc
+                opentelemetry-api
+                opentelemetry-sdk
+                (buildPythonPackage rec {
+                  pname = "textblob";
+                  version = "0.17.1";
+                  format = "wheel";
+
+                  src = super.fetchPypi rec {
+                    inherit pname version format;
+                    hash = "sha256-FVRtfzCelqP1Qr7kJ1HI5c5NUZ09J07nnfIxgUHwt4g=";
+                  };
+
+                  # https://pypi.org/pypi/textblob/json
+                  propagatedBuildInputs = with pkgs.python3Packages; [
+                    nltk
+                  ];
+                })
+              ])
+              ++ (with outputs.packages.${system}; [
+                otelFlask
+                otelRequests
+              ]));
           };
 
           punktModel = pkgs.stdenv.mkDerivation rec {
@@ -79,6 +68,7 @@
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
                 "NLTK_DATA=${punktModel}"
+                "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
                 "8080/tcp" = {};

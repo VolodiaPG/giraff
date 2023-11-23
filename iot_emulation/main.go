@@ -7,13 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"math"
 	"math/rand"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
@@ -25,39 +29,135 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
-	"gopkg.in/validator.v2"
 )
 
 type envContext struct {
-	MyPort        string
-	InfluxAddress string
-	InfluxToken   string
-	InfluxOrg     string
-	InfluxBucket  string
-	ProxyPort     string
-	CollectorURL  *string
-	Dev           bool
-	InfluxWriter  api.WriteAPI
-	InfluxClient  influxdb2.Client
-	Logger        *otelzap.Logger
+	MyPort             string
+	InfluxAddress      string
+	InfluxToken        string
+	InfluxOrg          string
+	InfluxBucket       string
+	ProxyPort          string
+	CollectorURL       *string
+	FolderResources    map[string][]fs.DirEntry
+	FolderResourceName string
+	Dev                bool
+	InfluxWriter       api.WriteAPI
+	InfluxClient       influxdb2.Client
+	Logger             *otelzap.Logger
+	Validator          *validator.Validate
 }
 
 type cronConfig struct {
-	FunctionID    string `json:"functionId" validate:"nonnil"`
-	IoTURL        string `json:"iotUrl" validate:"nonnil"`
-	NodeURL       string `json:"nodeUrl" validate:"nonnil"`
-	Tag           string `json:"tag" validate:"nonnil"`
-	InitialWaitMs uint   `json:"intialWaitMs"`
-	IntervalMs    uint   `json:"intervalMs" validate:"min=1"`
-	DurationMs    uint   `json:"durationMs" validate:"min=1"`
-	FirstNodeIP   string `json:"firstNodeIp" validate:"nonnil"`
+	FunctionID    string     `json:"functionId"`
+	IoTURL        string     `json:"iotUrl"`
+	NodeURL       string     `json:"nodeUrl"`
+	Tag           string     `json:"tag"`
+	InitialWaitMs uint       `json:"intialWaitMs"`
+	IntervalMs    uint       `json:"intervalMs" validate:"min=1"`
+	DurationMs    uint       `json:"durationMs" validate:"min=1"`
+	FirstNodeIP   string     `json:"firstNodeIp"`
+	Content       reqContent `json:"content"`
 }
+
+type reqContent struct {
+	inner reqContentType
+}
+
+type reqContentType interface {
+	NewRequest(env *envContext, config *cronConfig) (*http.Request, error)
+}
+
+type contentPing struct{}
+type contentAudio struct{}
+type contentImage struct{}
 
 type payload struct {
 	Tag    string `json:"tag"`
 	SentAt uint   `json:"sentAt"`
 	From   string `json:"from"`
 	To     string `json:"to"`
+}
+
+func (content contentPing) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
+	payload := payload{
+		Tag:    config.Tag,
+		SentAt: uint(time.Now().UnixMicro()),
+		From:   "iot_emumation",
+		To:     config.NodeURL,
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", config.NodeURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return req, nil
+}
+
+func (content contentAudio) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
+	index := uint(rand.Uint32()) % uint(len(env.FolderResources["audios"]))
+	data, err := os.Open(filepath.Join(env.FolderResourceName, "audios", env.FolderResources["audios"][index].Name()))
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", config.NodeURL, data)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func (content contentImage) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
+	index := uint(rand.Uint32()) % uint(len(env.FolderResources["images"]))
+	filename := env.FolderResources["images"][index].Name()
+	data, err := os.Open(filepath.Join(env.FolderResourceName, "images", filename))
+	if err != nil {
+		return nil, err
+	}
+	defer data.Close()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	part, err := w.CreateFormFile("file", filename)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = io.Copy(part, data); err != nil {
+		return nil, err
+	}
+
+	w.Close()
+
+	req, err := http.NewRequest("POST", config.NodeURL, &b)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	return req, nil
+}
+
+func (content *reqContent) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	switch s {
+	case "ping":
+		content.inner = contentPing{}
+	case "audio":
+		content.inner = contentAudio{}
+	case "image":
+		content.inner = contentImage{}
+	}
+
+	return nil
 }
 
 func lookupVar(varName string) (string, error) {
@@ -68,7 +168,7 @@ func lookupVar(varName string) (string, error) {
 	return theVar, nil
 }
 
-func initEnvContext(logger *otelzap.Logger) (envContext, error) {
+func initEnvContext(logger *zap.Logger) (envContext, error) {
 	myPort, err := lookupVar("PORT")
 	if err != nil {
 		return envContext{}, err
@@ -107,23 +207,48 @@ func initEnvContext(logger *otelzap.Logger) (envContext, error) {
 	if err != nil {
 		return envContext{}, err
 	}
+	folderResources := make(map[string][]fs.DirEntry)
+	folder, err := lookupVar("FOLDER_RESOURCES")
+	if err != nil {
+		return envContext{}, err
+	}
+	subdirs, err := os.ReadDir(folder)
+	if err != nil {
+		logger.Error("Failed to read the content directory")
+		return envContext{}, err
+	}
+	for _, dir := range subdirs {
+		if dir.IsDir() {
+			files, err := os.ReadDir(filepath.Join(folder, dir.Name()))
+			if err != nil {
+				logger.Error("Failed to read the content directory")
+				return envContext{}, err
+			}
+			folderResources[dir.Name()] = files
+		}
+	}
 
 	client := influxdb2.NewClientWithOptions("http://"+influxAddress, influxToken,
 		influxdb2.DefaultOptions().SetBatchSize(20))
 	writeAPI := client.WriteAPI(influxOrg, influxBucket)
 
+	validate := validator.New()
+
 	return envContext{
-		MyPort:        myPort,
-		InfluxAddress: influxAddress,
-		InfluxToken:   influxToken,
-		InfluxOrg:     influxOrg,
-		InfluxBucket:  influxBucket,
-		ProxyPort:     proxyPort,
-		CollectorURL:  collectorURL,
-		InfluxWriter:  writeAPI,
-		InfluxClient:  client,
-		Dev:           dev,
-		Logger:        logger,
+		MyPort:             myPort,
+		InfluxAddress:      influxAddress,
+		InfluxToken:        influxToken,
+		InfluxOrg:          influxOrg,
+		InfluxBucket:       influxBucket,
+		ProxyPort:          proxyPort,
+		CollectorURL:       collectorURL,
+		InfluxWriter:       writeAPI,
+		InfluxClient:       client,
+		FolderResources:    folderResources,
+		Dev:                dev,
+		Logger:             nil,
+		Validator:          validate,
+		FolderResourceName: folder,
 	}, nil
 }
 
@@ -144,40 +269,27 @@ func poissonProcess(lambda time.Duration, eventChan chan struct{}, duration time
 }
 
 func ping(env *envContext, config *cronConfig, client *http.Client, ctx *context.Context) error {
-	payload := payload{
-		Tag:    config.Tag,
-		SentAt: uint(time.Now().UnixMicro()),
-		From:   "iot_emumation",
-		To:     config.NodeURL,
-	}
-	jsonData, err := json.Marshal(payload)
+	req, err := config.Content.inner.NewRequest(env, config)
 	if err != nil {
-		env.Logger.Error("Failed to serialize the payload for the cron ping:", zap.Error(err))
+		env.Logger.Ctx(*ctx).Error("HTTP POST creation failed:", zap.Error(err))
 		return err
 	}
-	req, err := http.NewRequest("POST", config.NodeURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		env.Logger.Error("HTTP POST creation failed:", zap.Error(err))
-		return err
-	}
-	req = req.WithContext(*ctx)
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Sla-Id", config.FunctionID)
+	req = req.WithContext(*ctx)
 	resp, err := client.Do(req)
 	if err != nil {
-		env.Logger.Error("HTTP POST failed:", zap.Error(err))
+		env.Logger.Ctx(*ctx).Error("HTTP POST failed:", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		b, err := io.ReadAll(resp.Body)
-		// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
 		if err != nil {
-			env.Logger.Error("Error reading response body", zap.Error(err))
+			env.Logger.Ctx(*ctx).Error("Error reading response body", zap.Error(err))
 			return err
 		}
-		env.Logger.Error("Errored response body", zap.String("fn_id", config.FunctionID), zap.String("resp_body", string(b)))
+		env.Logger.Ctx(*ctx).Error("Errored response body", zap.String("fn_id", config.FunctionID), zap.String("resp_body", string(b)))
 	}
 
 	return nil
@@ -194,17 +306,17 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 		http.Error(*w, "Cannot unmarshall request json: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := validator.Validate(config); err != nil {
+	if err := env.Validator.Struct(config); err != nil {
 		http.Error(*w, "Request body validation failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	env.Logger.Info("Registered cron", zap.String("fn_id", config.FunctionID))
+	env.Logger.Ctx(r.Context()).Info("Registered cron", zap.String("fn_id", config.FunctionID))
 
 	go func() {
 		proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort)
 		if err != nil {
-			env.Logger.Fatal("Failed to configure proxy:", zap.Error(err))
+			env.Logger.Ctx(r.Context()).Fatal("Failed to configure proxy:", zap.Error(err))
 			http.Error(*w, "Failed to configure proxy: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -221,7 +333,7 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 			for range eventChan {
 				err := ping(env, &config, httpClient, &ctx)
 				if err != nil {
-					env.Logger.Warn("Ping failed", zap.Error(err))
+					env.Logger.Ctx(ctx).Warn("Ping failed", zap.Error(err))
 					p := influxdb2.NewPoint("proxy_send",
 						map[string]string{"sla_id": config.FunctionID},
 						map[string]interface{}{"value": 1},
@@ -229,7 +341,7 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 					env.InfluxWriter.WritePoint(p)
 				}
 			}
-			env.Logger.Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
+			env.Logger.Ctx(ctx).Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
 		}()
 	}()
 }
@@ -257,9 +369,9 @@ func main() {
 	config.Encoding = "console"
 	loggerRaw, _ := config.Build()
 
-	vars, err := initEnvContext(nil)
+	vars, err := initEnvContext(loggerRaw)
 	if err != nil {
-		loggerRaw.Sugar().Fatalf("Error starting iot_emulation: ", err)
+		loggerRaw.Sugar().Fatalf("Error starting iot_emulation: %s", err)
 		return
 	}
 	// Force all unwritten data to be sent

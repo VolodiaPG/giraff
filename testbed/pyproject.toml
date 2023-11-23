@@ -19,6 +19,7 @@ simpy = "~4.0"
 scipy = "~1.10"
 randomname = "~0.2"
 dill = "~0.3"
+marshmallow-dataclass = "8.6.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

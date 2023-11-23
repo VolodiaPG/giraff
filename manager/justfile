@@ -75,8 +75,8 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3030",
-        reserved_cpu: "4 cpus",
-        reserved_memory: "4 GiB",
+        reserved_cpu: "8 cpus",
+        reserved_memory: "8 GiB",
         tags: ["market connected"],
     )'''
 
@@ -89,8 +89,8 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3032",
-        reserved_cpu: "1 cpu",
-        reserved_memory: "1 GiB",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
         tags: ["node_connected_1"],
     )'''
 
@@ -103,8 +103,8 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3034",
-        reserved_cpu: "1 cpu",
-        reserved_memory: "1 GiB",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
         tags: ["node_connected_2"],
     )'''
 
@@ -137,6 +137,7 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
     env_vars['COLLECTOR_IP'] = "10.42.0.1"
+    env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317" 
 
     env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
@@ -182,9 +183,9 @@ ghcr user +images:
         re="fog_node_(.*)"
         if [[ $1 =~ $re  ]]; then
             name="${BASH_REMATCH[1]}"
-            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/fog_node:$name
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$name
         else
-            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/$1:latest
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$1
         fi
     }
 

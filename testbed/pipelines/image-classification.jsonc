@@ -1,0 +1,24 @@
+{
+    "name": "image",
+    "content": "image",
+    "nbVarName": "NB_IMAGE_FUNCTIONS",
+    "pipeline": {
+        "imagePreProcessing": {
+            "nextFunction": "classif",
+            "image": "giraff:fn_image-processing-pillow",
+            "mem": 500,
+            "cpu": 150
+        },
+        "classif": {
+            "nextFunction": "echo",
+            "image": "giraff:fn_image-classification-squeezenet-cpu",
+            "mem": 500,
+            "cpu": 250
+        },
+        "echo": {
+            "image": "giraff:fn_echo",
+            "mem": 100,
+            "cpu": 50
+        }
+    }
+}

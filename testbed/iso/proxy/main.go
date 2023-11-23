@@ -63,22 +63,13 @@ func initEnvVars() (envVars, error) {
 
 func handleRequest(w *http.ResponseWriter, r *http.Request, influxAPI *api.WriteAPI) {
 	// Create a new HTTP request with the same method, URL, and body as the original request
-	targetURL := r.URL
-	proxyReq, err := http.NewRequest(r.Method, targetURL.String(), r.Body)
-	if err != nil {
-		http.Error(*w, "Error creating proxy request", http.StatusInternalServerError)
-		return
-	}
-
 	slaID := r.Header.Get("Sla-Id")
 	proxyTs := time.Now()
 
-	proxyReq.Header = r.Header
-	proxyReq.Header.Add("Proxy-Timestamp", strconv.FormatInt(proxyTs.UnixMilli(), 10))
-	proxyReq.ContentLength = r.ContentLength
+	r.Header.Add("Proxy-Timestamp", strconv.FormatInt(proxyTs.UnixMilli(), 10))
 
 	// Send the proxy request using the custom transport
-	resp, err := http.DefaultTransport.RoundTrip(proxyReq)
+	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
 		http.Error(*w, "Error sending proxy request", http.StatusInternalServerError)
 		fmt.Println("Error sending proxy request", err)

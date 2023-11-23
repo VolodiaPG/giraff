@@ -542,3 +542,13 @@ get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     echo $city
     mkdir -p metrics-arks
     ssh $city.grid5000.fr ls {{folder}} | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+
+[private]
+test_expe  experiments_dotfile=".experiments.env":
+    #!/usr/bin/env bash
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+    export TARGET_NODE_NAMES=toto
+    export TARGET_NODES=toto
+    EXPE_SAVE_FILE=toto.txt python expe.py

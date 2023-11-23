@@ -52,7 +52,7 @@ in
     inherit (vm-persistence) config;
     diskSize = "auto";
     memSize = 16384; # During build-phase, here, locally
-    additionalSpace = "12G"; # Space added after all the necessary
+    additionalSpace = "10G"; # Space added after all the necessary
     format = "qcow2-compressed";
     installBootLoader = false;
     VMMounts = ''

@@ -6,13 +6,29 @@
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
-          pkgs = import poetry2nix.inputs.nixpkgs {
+          pkgs = import nixpkgs {
             inherit system;
             overlays = [overlay];
           };
 
           overlay = self: _super: {
-            myFunction = self.python310.withPackages (ps: with ps; [torch torchvision waitress flask pillow]);
+            myFunction = self.python311.withPackages (ps:
+              (with ps; [
+                torch
+                torchvision
+                waitress
+                flask
+                pillow
+                requests
+                opentelemetry-exporter-otlp
+                opentelemetry-exporter-otlp-proto-grpc
+                opentelemetry-api
+                opentelemetry-sdk
+              ])
+              ++ (with outputs.packages.${system}; [
+                otelFlask
+                otelRequests
+              ]));
           };
 
           squeezenetModel = pkgs.stdenv.mkDerivation {
@@ -40,6 +56,7 @@
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
                 "SQUEEZENET_MODEL=${squeezenetModel}"
+                "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
                 "8080/tcp" = {};

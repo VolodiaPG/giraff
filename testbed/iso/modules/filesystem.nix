@@ -51,6 +51,10 @@ in {
         "/var/lib/systemd"
         "/var/lib/containers" # podman caches
         "/run/k3s/containerd" # K3S caches
+        "/var/lib/rancher/k3s/agent/containerd"
+        "/var/lib/docker/overlay2"
+        "/var/lib/docker/image"
+        "/var/lib/docker/containerd"
         "/var/log"
         "/root"
       ];

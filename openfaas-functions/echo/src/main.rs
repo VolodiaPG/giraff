@@ -212,13 +212,6 @@ async fn reconfigure(
     let data = payload.0;
     info!("Configured next jump url to be {}", data.next_function_url);
     config.write().await.next_function_url = Some(data.next_function_url);
-    let _ = metrics
-        .observe(FinishedBooting {
-            value:     0.0,
-            sla_id:    config.read().await.sla.id.to_string(),
-            timestamp: Utc::now(),
-        })
-        .await;
     HttpResponse::Ok().finish()
 }
 

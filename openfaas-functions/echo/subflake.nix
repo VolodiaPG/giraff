@@ -39,27 +39,31 @@
               };
             };
         in {
-          packages = builtins.listToAttrs (
-            builtins.map
-            (
-              settings: let
-                tag = "${settings.telemetry}";
-              in {
-                name = "fn_echo_${tag}";
-                value = echoGenerator {
-                  inherit tag;
-                  features = nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "${settings.telemetry}";
-                };
-              }
+          packages =
+            builtins.listToAttrs (
+              builtins.map
+              (
+                settings: let
+                  tag = "${settings.telemetry}";
+                in {
+                  name = "fn_echo_${tag}";
+                  value = echoGenerator {
+                    inherit tag;
+                    features = nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "${settings.telemetry}";
+                  };
+                }
+              )
+              (
+                nixpkgs.lib.attrsets.cartesianProductOfSets
+                {
+                  # Do not forget to run cargo2nix at each new features added
+                  telemetry = ["no-telemetry" "jaeger"];
+                }
+              )
             )
-            (
-              nixpkgs.lib.attrsets.cartesianProductOfSets
-              {
-                # Do not forget to run cargo2nix at each new features added
-                telemetry = ["no-telemetry" "jaeger"];
-              }
-            )
-          );
+            // {
+              fn_echo = outputs.packages.${system}.fn_echo_jaeger;
+            };
           devShells.fn_echo = rust.craneLib.devShell {
             checks = self.checks.${system};
 

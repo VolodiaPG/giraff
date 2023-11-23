@@ -6,53 +6,65 @@
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
-          pkgs = import poetry2nix.inputs.nixpkgs {
+          pkgs = import nixpkgs {
             inherit system;
             overlays = [overlay];
           };
 
-          overlay = self: _super: {
-            myFunction = self.poetry2nix.mkPoetryEnv {
-              projectDir = ./.;
-              python = self.python311;
-              overrides = self.poetry2nix.overrides.withDefaults (_newattr: oldattr: {
-                urllib3 =
-                  oldattr.urllib3.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.hatchling];
-                    }
-                  );
-                speechrecognition =
-                  oldattr.speechrecognition.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.setuptools];
-                    }
-                  );
-                blinker =
-                  oldattr.blinker.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                werkzeug =
-                  oldattr.werkzeug.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-                flask =
-                  oldattr.flask.overridePythonAttrs
-                  (
-                    old: {
-                      buildInputs = (old.buildInputs or []) ++ [oldattr.flit-core];
-                    }
-                  );
-              });
-            };
+          overlay = self: super: {
+            myFunction = self.python311.withPackages (ps:
+              (with ps; [
+                waitress
+                flask
+                pillow
+                pyttsx3
+                opentelemetry-exporter-otlp
+                opentelemetry-exporter-otlp-proto-grpc
+                opentelemetry-api
+                opentelemetry-sdk
+                (buildPythonPackage rec {
+                  pname = "vosk";
+                  version = "0.3.45";
+                  format = "wheel";
+
+                  src = super.fetchPypi rec {
+                    inherit pname version format;
+                    hash = "sha256-JeAlCTxDmdcnj1Q1aO2MxUYKw6S/SMI2c6zh4l0mYZ8=";
+                    dist = python;
+                    python = "py3";
+                    abi = "none";
+                    platform = "manylinux_2_12_x86_64.manylinux2010_x86_64";
+                  };
+
+                  # https://pypi.org/pypi/vosk/json
+                  propagatedBuildInputs = with pkgs.python3Packages; [
+                    cffi
+                    requests
+                    srt
+                    tqdm
+                    websockets
+                  ];
+                })
+                (buildPythonPackage rec {
+                  pname = "SpeechRecognition";
+                  version = "3.10.0";
+                  format = "wheel";
+
+                  src = super.fetchPypi rec {
+                    inherit pname version format;
+                    hash = "sha256-eumWaIfZkJzj5aDCfsw+rPyhb9DAgp939VKRlBjoYwY=";
+                  };
+
+                  # https://pypi.org/pypi/SpeechRecognition/json
+                  propagatedBuildInputs = with pkgs.python3Packages; [
+                    requests
+                  ];
+                })
+              ])
+              ++ (with outputs.packages.${system}; [
+                otelFlask
+                otelRequests
+              ]));
           };
 
           voskModel = pkgs.stdenv.mkDerivation rec {
@@ -81,6 +93,7 @@
                 "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
+                "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
                 "8080/tcp" = {};

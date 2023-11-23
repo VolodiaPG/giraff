@@ -3,11 +3,12 @@ import json
 import math
 import os
 import random
-from dataclasses import dataclass
-from typing import Any, List
+from dataclasses import dataclass, field
+from typing import Any, List, Optional
 
 import aiohttp  # type: ignore
-import dill  # type: ignore
+import dill
+import marshmallow_dataclass  # type: ignore
 import numpy as np  # type: ignore
 from alive_progress import alive_bar  # type: ignore
 
@@ -31,8 +32,24 @@ class Function:
     function_name: str
     first_node_ip: str | None
     request_interval: ms_int
-    # load_type: str
     arrival: secs_int
+    req_content: str
+
+
+@dataclass
+class FunctionPipeline:
+    image: str
+    nextFunction: Optional[str] = None
+    mem: MiB_int = 256
+    cpu: millicpu_int = 100
+
+
+@dataclass
+class FunctionPipelineDescription:
+    name: str
+    content: str
+    nbVarName: str
+    pipeline: dict[str, FunctionPipeline]
 
 
 @dataclass
@@ -108,16 +125,10 @@ MARKET_LOCAL_PORT = port_int(os.environ["MARKET_LOCAL_PORT"])
 IOT_LOCAL_PORT = port_int(os.environ["IOT_LOCAL_PORT"])
 NODES_IP = os.getenv("NODES_IP")
 IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]
-FUNCTION_NAME = os.environ["FUNCTION_NAME"]
-
-FUNCTION_MEMORY = MiB_int(os.environ["FUNCTION_MEMORY"])  # MiB
-FUNCTION_CPU = millicpu_int(os.environ["FUNCTION_CPU"])  # Millicpu
 
 NO_LATENCY = ms_int(os.environ["NO_LATENCY"])
 HIGH_LATENCY = ms_int(os.environ["HIGH_LATENCY"])
 LOW_LATENCY = ms_int(os.environ["LOW_LATENCY"])
-
-NB_FUNCTIONS = int(os.environ["NB_FUNCTIONS"])
 
 FUNCTION_COLD_START_OVERHEAD = ms_int(os.environ["FUNCTION_COLD_START_OVERHEAD"])
 FUNCTION_STOP_OVERHEAD = ms_int(os.environ["FUNCTION_STOP_OVERHEAD"])
@@ -128,6 +139,11 @@ OVERRIDE_FUNCTION_IP = os.getenv("OVERRIDE_FUNCTION_IP")
 print(f"OVERRIDE_FUNCTION_IP={OVERRIDE_FUNCTION_IP}")
 OVERRIDE_FIRST_NODE_IP = os.getenv("OVERRIDE_FIRST_NODE_IP")
 print(f"OVERRIDE_FIRST_NODE_IP={OVERRIDE_FIRST_NODE_IP}")
+
+FUNCTION_DESCRIPTIONS = os.getenv(
+    "FUNCTION_DESCRIPTIONS", ""
+).split()  # Shoud be in the same order than TARGET_NODES
+assert len(FUNCTION_DESCRIPTIONS) != 0
 
 
 class AsyncSession:
@@ -153,7 +169,7 @@ async def put_request_fog_node(function: Function):
             "latencyMax": f"{function.latency} ms",
             "maxReplica": 1,
             "duration": f"{duration} ms",
-            "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}:latest",
+            "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}",
             "functionLiveName": f"{function.function_name}",
             "dataFlow": [  # TODO: update because outdated
                 {
@@ -177,9 +193,9 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
     if last == 0:
         return None
 
-    # await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 2)
+    await asyncio.sleep((FUNCTION_COLD_START_OVERHEAD / 2) / 1000)
 
-    # print(urls)
+    print(urls)
 
     ret = []
     for ii in range(0, last):
@@ -231,6 +247,7 @@ async def put_request_iot_emulation(
         "durationMs": function.duration,
         "intervalMs": function.request_interval,
         "firstNodeIp": faas_ip,
+        "content": function.req_content,
     }
 
     async with AsyncSession() as session:
@@ -248,6 +265,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
         function = functions[ii]
         response, code = await asyncio.ensure_future(put_request_fog_node(function))
         if code != 200:
+            print("Fog request somehow failed", code, response)
             return False
 
         response = json.loads(response)
@@ -283,6 +301,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
     if responses_chain is not None:
         for response, http_code in responses_chain:
             if http_code != 200:
+                print("Request failed", http_code, response)
                 return False
 
     print(f"Chained {','.join([ff.function_name for ff in functions])}")
@@ -315,88 +334,88 @@ PERCENTILE_NORMAL_LOW = -2
 PERCENTILE_NORMAL_HIGH = 2
 
 
+def load_function_descriptions() -> List[FunctionPipelineDescription]:
+    ret = []
+    schema = marshmallow_dataclass.class_schema(FunctionPipelineDescription)()
+    for desc_file in FUNCTION_DESCRIPTIONS:
+        with open(desc_file) as ff:
+            ret.append(schema.load(json.load(ff)))
+    return ret
+
+
 async def save_file(filename: str):
     functions: List[List[Function]] = []
-    functions_raw: List[Function] = []
-    docker_fn_name = FUNCTION_NAME
+
+    function_descriptions = load_function_descriptions()
+    nb_functions = []
+    for fn_desc in function_descriptions:
+        nb_functions.append(int(os.getenv(fn_desc.nbVarName, "0")))
     for target_node_name in TARGET_NODE_NAMES:
-        latencies = [
-            max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, NB_FUNCTIONS)
-        ]
-        request_intervals = [
-            math.ceil(abs(1000 * x))
-            for x in np.random.lognormal(-0.38, 2.36, NB_FUNCTIONS)
-        ]
-        durations = [
-            math.ceil(1000 * x) for x in np.random.lognormal(-0.38, 2.36, NB_FUNCTIONS)
-        ]
-        arrivals = [
-            math.ceil(x)
-            for x in open_loop_poisson_process(NB_FUNCTIONS, EXPERIMENT_DURATION)
-        ]
+        for ii, fn_desc in enumerate(function_descriptions):
+            nb_function = nb_functions[ii]
+            latencies = [
+                max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
+            ]
+            request_intervals = [
+                math.ceil(abs(1000 * x))
+                for x in np.random.lognormal(-0.38, 2.36, nb_function)
+            ]
+            # TODO check that thing
+            durations = [
+                math.ceil(1000000 * x)
+                for x in np.random.lognormal(-0.38, 2.36, nb_function)
+            ]
+            arrivals = [
+                math.ceil(x)
+                for x in open_loop_poisson_process(nb_function, EXPERIMENT_DURATION)
+            ]
 
-        for index in range(0, NB_FUNCTIONS):
-            latency = latencies[index]
-            arrival = arrivals[index]
-            duration = durations[index]
-            cpu = FUNCTION_CPU
-            memory = FUNCTION_MEMORY
+            for index in range(0, nb_function):
+                latency = latencies[index]
+                arrival = arrivals[index]
+                duration = durations[index]
+                request_interval = request_intervals[index]
 
-            request_interval = request_intervals[index]
+                fn_name = list(fn_desc.pipeline.keys())[0]
 
-            function_name = (
-                f"{docker_fn_name}"
-                f"-i{index}"
-                f"-c{cpu}"
-                f"-m{memory}"
-                f"-l{latency}"
-                f"-a{arrival}"
-                f"-r{request_interval}"
-                f"-d{duration}"
-                # f"-l{load_type}"
-                f"-n{NB_FUNCTIONS}"
-                f"-n{NB_FUNCTIONS * len(TARGET_NODE_NAMES)}"
-            )
+                print(fn_name)
+                print(fn_desc)
 
-            functions_raw.append(
-                Function(
-                    target_node=target_node_name,
-                    mem=memory,
-                    cpu=cpu,
-                    latency=latency,
-                    cold_start_overhead=FUNCTION_COLD_START_OVERHEAD,
-                    stop_overhead=FUNCTION_STOP_OVERHEAD,
-                    duration=duration,
-                    request_interval=request_interval,
-                    # load_type=load_type,
-                    function_name=function_name,
-                    docker_fn_name=docker_fn_name,
-                    first_node_ip=None,
-                    arrival=arrival,
-                )
-            )
+                fn_chain = list()
+                while True:
+                    fn: FunctionPipeline = fn_desc.pipeline[fn_name]
+                    function_name = (
+                        f"{fn_name}"
+                        f"-i{index}"
+                        f"-c{fn.cpu}"
+                        f"-m{fn.mem}"
+                        f"-l{latency}"
+                        f"-a{arrival}"
+                        f"-r{request_interval}"
+                        f"-d{duration}"
+                    )
+                    fn_chain.append(
+                        Function(
+                            target_node=target_node_name,
+                            mem=fn.mem,
+                            cpu=fn.cpu,
+                            latency=latency,
+                            cold_start_overhead=FUNCTION_COLD_START_OVERHEAD,
+                            stop_overhead=FUNCTION_STOP_OVERHEAD,
+                            duration=duration,
+                            request_interval=request_interval,
+                            function_name=function_name,
+                            docker_fn_name=fn.image,
+                            first_node_ip=None,
+                            arrival=arrival,
+                            req_content=fn_desc.content,
+                        )
+                    )
 
-        while len(functions_raw) != 0:
-            functions_subset: List[Function] = []
-            function: Function = functions_raw.pop()
-            functions_subset.append(function)
-            # if len(functions_raw) != 0 and random.randint(0, 3) == 0:
-            # TODO: redo that
-            if len(functions_raw) != 0:
-                function = functions_raw.pop()
-                functions_subset.append(function)
-
-            min_duration = function.duration
-            for function in functions_subset:
-                min_duration = min(min_duration, function.duration)
-
-            # TODO: remove that
-            min_duration = 30000
-
-            for function in functions_subset:
-                function.duration = min_duration
-
-            functions.append(functions_subset)
+                    if fn.nextFunction == None:
+                        break
+                    fn_name = fn.nextFunction
+                functions.append(fn_chain)
 
     print(functions)
 
