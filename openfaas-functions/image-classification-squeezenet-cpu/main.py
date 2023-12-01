@@ -1,24 +1,26 @@
+import logging
 import os
+from io import BytesIO
+from urllib.parse import urlparse
+
 import torch  # type: ignore
 from flask import Flask, abort, request  # type: ignore
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+    OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from PIL import Image  # type: ignore
 from torchvision import models, transforms  # type: ignore
 from waitress import serve  # type: ignore
-import requests
-import logging
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.resources import Resource
 
 model_path = os.environ["SQUEEZENET_MODEL"]
 
 resource = {
     "telemetry.sdk.language": "python",
-    "service.name": os.environ.get("SLA_ID", "dev"),
+    "service.name": os.environ.get("ID", "dev"),
 }
 resource = Resource.create(resource)
 
@@ -40,22 +42,28 @@ tracer = trace.get_tracer(__name__)
 
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
-RequestsInstrumentor().instrument()
-
 
 NEXT_URL: str = None
+
+
+@app.after_request
+def add_headers(response):
+    if NEXT_URL:
+        response.headers["GIRAFF-Redirect"] = NEXT_URL
+        parsed_url = urlparse(NEXT_URL)
+        hostname = parsed_url.hostname
+        response.headers["GIRAFF-Redirect-Proxy"] = f"http://{hostname}:3128/"
+    return response
 
 
 @app.route("/", methods=["POST"])
 def handle():
     with tracer.start_as_current_span("classification"):
         if "file" not in request.files:
-            abort(
-                400,
-                description="file is not embedded in the request (file not in request.files)",
-            )
-
-        file = request.files["file"]
+            file = request.get_data()
+            file = BytesIO(file)
+        else:
+            file = request.files["file"]
 
         model = models.squeezenet1_1()  # initialize the model
         model.load_state_dict(torch.load(model_path))
@@ -90,14 +98,6 @@ def handle():
         print(classes[index[0]], percentage[index[0]].item())
 
         _, indices = torch.sort(out, descending=True)
-
-        if NEXT_URL:
-            with tracer.start_as_current_span("forwarding"):
-                requests.post(
-                    NEXT_URL,
-                    [(classes[idx], percentage[idx].item()) for idx in indices[0][:5]],
-                )
-            return ("", 200)
 
         return [(classes[idx], percentage[idx].item()) for idx in indices[0][:5]]
 

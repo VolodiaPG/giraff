@@ -22,7 +22,7 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
-    en.set_config(g5k_auto_jump=False, ansible_forks=10)
+    en.set_config(g5k_auto_jump=False)
 
 
 @cli.command()

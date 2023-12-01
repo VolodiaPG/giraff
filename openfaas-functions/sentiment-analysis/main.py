@@ -1,20 +1,21 @@
-from flask import Flask, abort, request  # type: ignore
-from textblob import TextBlob  # type: ignore
-from waitress import serve  # type: ignore
-import requests
 import logging
 import os
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from urllib.parse import urlparse
+
+from flask import Flask, abort, request  # type: ignore
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+    OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.resources import Resource
+from textblob import TextBlob  # type: ignore
+from waitress import serve  # type: ignore
 
 resource = {
     "telemetry.sdk.language": "python",
-    "service.name": os.environ.get("SLA_ID", "dev"),
+    "service.name": os.environ.get("ID", "dev"),
 }
 resource = Resource.create(resource)
 
@@ -36,10 +37,19 @@ tracer = trace.get_tracer(__name__)
 
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
-RequestsInstrumentor().instrument()
 
 
 NEXT_URL: str = None
+
+
+@app.after_request
+def add_headers(response):
+    if NEXT_URL:
+        response.headers["GIRAFF-Redirect"] = NEXT_URL
+        parsed_url = urlparse(NEXT_URL)
+        hostname = parsed_url.hostname
+        response.headers["GIRAFF-Redirect-Proxy"] = f"http://{hostname}:3128/"
+    return response
 
 
 @app.route("/", methods=["POST"])
@@ -61,11 +71,6 @@ def handle():
         res["sentence_count"] = total
         res["polarity"] = res["polarity"] / total
         res["subjectivity"] = res["subjectivity"] / total
-
-        if NEXT_URL:
-            with tracer.start_as_current_span("forwarding"):
-                requests.post(NEXT_URL, res)
-                return ("", 200)
 
         return res
 

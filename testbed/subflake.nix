@@ -14,29 +14,29 @@
               inherit system;
               overlays = [overlay];
             };
-            overlay = self: super: {
-              experiments = super.python311.withPackages (ps: (with ps; [
+            overlay = final: prev: {
+              experiments = prev.python311.withPackages (ps: (with ps; [
                 dill
                 click
-                cryptography
+                # importlib-resources
                 aiohttp
                 influxdb-client
-                simpy
-                scipy
+                # simpy
+                # scipy
                 marshmallow-dataclass
-               ( alive-progress.overridePythonAttrs
-                (
-                  old: {
-                    postInstall = ''
-                      rm $out/LICENSE
-                    '';
-                  }
-                ))
+                (alive-progress.overridePythonAttrs
+                  (
+                    old: {
+                      postInstall = ''
+                        rm $out/LICENSE
+                      '';
+                    }
+                  ))
                 (buildPythonPackage rec {
                   pname = "randomname";
                   version = "0.2.1";
 
-                  src = super.fetchPypi rec {
+                  src = prev.fetchPypi rec {
                     inherit pname version;
                     hash = "sha256-t5uYMCukR5FksKT4eZW3vrvR2RASrtpIM0Hj5YrOUg4=";
                   };
@@ -44,18 +44,95 @@
                   doCheck = false;
                   doInstallCheck = false;
                 })
-              ]) ++ [inputs.nur-kapack.packages.${system}.enoslib]);
+                (buildPythonPackage rec {
+                  pname = "enoslib";
+                  version = "v8.1.5";
+                  src = prev.fetchFromGitLab {
+                    domain = "gitlab.inria.fr";
+                    owner = "discovery";
+                    repo = pname;
+                    rev = "${version}";
+                    hash = "sha256-3pyPtj8xzbQVVtoFGAaOEuEp98qWAhc35yt3liZkIvM=";
+                  };
+
+                  # We do the following because nix cannot yet access the extra builds of poetry
+                  patchPhase = ''
+                    substituteInPlace setup.cfg --replace "importlib_resources>=5,<6" ""
+                    substituteInPlace setup.cfg --replace "importlib_metadata>=6,<7" ""
+                    substituteInPlace setup.cfg --replace "rich[jupyter]~=12.0.0" "rich>=12.0.0"
+                    substituteInPlace setup.cfg --replace "packaging~=21.3" "packaging>=21.3"
+                    substituteInPlace setup.cfg --replace "pytz~=2022.1" "pytz>=2022.1"
+                    substituteInPlace setup.cfg --replace "ansible>=2.9,<7.2" "ansible>=2.9"
+                  '';
+                  propagatedBuildInputs = [
+                    cryptography
+                    sshtunnel
+                    ipywidgets
+                    rich
+                    jsonschema
+                    packaging
+                    pytz
+                    importlib-resources
+                    # (nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible-core.override {
+                    #    inherit (ps) callPackage buildPythonPackage fetchPypi ansible cryptography jinja2 junit-xml lxml ncclient packaging paramiko pexpect psutil pycrypto pyyaml requests resolvelib scp xmltodict;
+                    # })
+                    (nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible-core.override {
+                      inherit (ps) callPackage buildPythonPackage fetchPypi cryptography jinja2 junit-xml lxml ncclient packaging paramiko pexpect psutil pycrypto pyyaml requests resolvelib scp xmltodict;
+                      ansible = nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible.override {
+                        inherit (ps) buildPythonPackage fetchPypi jsonschema jxmlease ncclient netaddr paramiko pynetbox scp textfsm ttp xmltodict;
+                      };
+                    })
+                    (buildPythonPackage rec {
+                      pname = "python-grid5000";
+                      version = "1.2.4";
+                      src = prev.fetchFromGitLab {
+                        domain = "gitlab.inria.fr";
+                        owner = "msimonin";
+                        repo = pname;
+                        rev = "v${version}";
+                        sha256 = "sha256-wfDyoaOn0Dlbz/metxskbN4frsJbkEe8byUeO01upV8=";
+                      };
+                      doCheck = false;
+                      propagatedBuildInputs = [
+                        pyyaml
+                        requests
+                        ipython
+                      ];
+                    })
+                  ];
+                  doCheck = false;
+                })
+              ]));
             };
           in {
             packages.experiments = pkgs.experiments;
-            devShells.testbed = pkgs.experiments.env.overrideAttrs (_oldAttrs: {
-              shellHook =
-                outputs.checks.${system}.pre-commit-check.shellHook
-                + ''
-                  ln -sfT ${pkgs.experiments} ./.venv
-                '';
-              # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
+            devShells.testbed = pkgs.mkShell {
+              shellHook = let
+                venvDir = "./.venv";
+              in
+                outputs.checks.${system}.pre-commit-check.shellHook;
+              # + ''
+              #   #ln -sfT ${pkgs.experiments} ./.venv
+              # SOURCE_DATE_EPOCH=$(date +%s)
+              # if [ -d "${venvDir}" ]; then
+              #   echo "Skipping venv creation, '${venvDir}' already exists"
+              # else
+              #   echo "Creating new venv environment in path: '${venvDir}'"
+              #   ${pkgs.experiments.interpreter} -m venv "${venvDir}"
+              # fi
+              # source "${venvDir}/bin/activate"
+
+              # # Add additional folders to to XDG_DATA_DIRS if they exists, which will get sourced by bash-completion
+              # for p in ''${buildInputs}; do
+              #   if [ -d "$p/share/bash-completion" ]; then
+              #     XDG_DATA_DIRS="$XDG_DATA_DIRS:$p/share"
+              #   fi
+              # done
+
+              # source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
+              # '';
               PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
+
               buildInputs = with pkgs; [
                 just
                 jq
@@ -69,57 +146,50 @@
                 bashInteractive
                 bc
                 tmux
+                ansible
               ];
-            });
+            };
           }
         ))
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
           pkgs = nixpkgs.legacyPackages.${system};
 
-          dockerImage = pkgs.dockerTools.buildImage {
+          dockerImage = pkgs.dockerTools.streamLayeredImage {
             name = "enos_deployment";
             tag = "latest";
-            copyToRoot = pkgs.buildEnv {
-              name = "image-root";
-              pathsToLink = [
-                "/bin"
-                "/"
-              ];
-              paths =
-                (with pkgs; [
-                  # Linux toolset
-                  busybox
-                  gnused
-                  bashInteractive
-                  parallel
-                  cacert
+            contents =
+              (with pkgs; [
+                # Linux toolset
+                busybox
+                gnused
+                bashInteractive
+                parallel
+                cacert
 
-                  # My toolset
-                  just
-                  jq
-                  openssh
-                  curl
-                ])
-                ++ (with outputs.packages.${system}; [
-                  # Environment to run enos and stuff
-                  experiments
-                ]);
-            };
-            runAsRoot = ''
-              #!${pkgs.runtimeShell}
-              ${pkgs.dockerTools.shadowSetup}
-              groupadd -g 1000 enos
-              useradd -u 1000 -g 1000 enos
-              mkdir -p /home/enos
-              chown enos:enos -R /home/enos
+                # My toolset
+                just
+                jq
+                openssh
+                curl
+              ])
+              ++ (with outputs.packages.${system}; [
+                # Environment to run enos and stuff
+                experiments
+              ]);
+            # runAsRoot = ''
+            #   #!${pkgs.runtimeShell}
+            #   ${pkgs.dockerTools.shadowSetup}
+            #   groupadd -g 1000 enos
+            #   useradd -u 1000 -g 1000 enos
+            #   mkdir -p /home/enos
+            #   chown enos:enos -R /home/enos
 
-              mkdir -p /tmp
-              mkdir -p /usr/bin
-              ln -s ${pkgs.busybox}/bin/env /usr/bin/env
-            '';
+            #   mkdir -p /tmp
+            #   mkdir -p /usr/bin
+            #   ln -s ${pkgs.busybox}/bin/env /usr/bin/env
+            # '';
 
             config = {
-              Env = ["RUN=python" "HOME=/root"];
             };
           };
         in {
@@ -183,12 +253,14 @@
           VMMounts = ''
             #!${pkgs.bash}/bin/bash
             set -ex
-            touch $mountPoint/${outputs.packages.${pkgs.system}.docker}
-            mount --bind -o ro ${outputs.packages.${pkgs.system}.docker} $mountPoint/${outputs.packages.${pkgs.system}.docker}
+            df -h
+            mkdir -p $mountPoint
+            sh -c ${outputs.packages.${pkgs.system}.docker} | gzip --fast > $mountPoint/output.gz
           '';
           inVMScript = ''
             set -ex
-            podman load -i ${outputs.packages.${pkgs.system}.docker}
+            df -h
+            gunzip -c output.gz | podman load
           '';
         in {
           packages.enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};

@@ -1,20 +1,23 @@
-from flask import Flask, abort, request  # type: ignore
-from waitress import serve  # type: ignore
-import requests
+import json
 import logging
 import os
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from io import BytesIO
+from urllib.parse import urlparse
+
+import speech_recognition as sr  # type: ignore
+from flask import Flask, abort, request  # type: ignore
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
+    OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.sdk.resources import Resource
-import speech_recognition as sr  # type: ignore
+from waitress import serve  # type: ignore
 
 resource = {
     "telemetry.sdk.language": "python",
-    "service.name": os.environ.get("SLA_ID", "dev"),
+    "service.name": os.environ.get("ID", "dev"),
 }
 resource = Resource.create(resource)
 
@@ -36,21 +39,31 @@ tracer = trace.get_tracer(__name__)
 
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
-RequestsInstrumentor().instrument()
 
 
 NEXT_URL: str = None
+
+
+@app.after_request
+def add_headers(response):
+    if NEXT_URL:
+        response.headers["GIRAFF-Redirect"] = NEXT_URL
+        parsed_url = urlparse(NEXT_URL)
+        hostname = parsed_url.hostname
+        response.headers["GIRAFF-Redirect-Proxy"] = f"http://{hostname}:3128/"
+    return response
 
 
 @app.route("/", methods=["POST"])
 def handle():
     with tracer.start_as_current_span("speech_recognition"):
         if "file" not in request.files:
-            abort(400)
+            file = request.get_data()
+            file = BytesIO(file)
+        else:
+            file = request.files["file"]
 
-        file = request.files["file"]
-
-        finalData = "hello there"
+        finalData = {}
         try:
             r = sr.Recognizer()
             with sr.AudioFile(file) as source:
@@ -60,14 +73,8 @@ def handle():
         except Exception as e:
             print("Following error was obeserved:", e)
             print("Exiting the code.")
-            exit(0)
-
-        if NEXT_URL:
-            with tracer.start_as_current_span("forwarding"):
-                requests.post(NEXT_URL, finalData)
-                return ("", 200)
-
-        return finalData
+            abort(500, e)
+        return json.loads(finalData)
 
 
 @app.route("/reconfigure", methods=["POST"])

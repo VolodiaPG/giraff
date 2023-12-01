@@ -85,6 +85,16 @@ _openfaas_in_vm:
     #!/usr/bin/env bash
     set -e
 
+    # Function to clean up background jobs
+    cleanup() {
+        echo "Cleaning up background jobs..."
+        kill $(jobs -p)
+        exit
+    }
+
+    # Trap signals to trigger cleanup
+    trap 'cleanup' EXIT HUP INT QUIT TERM
+
     rm vm.kubeconfig || true
 
     until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null; do sleep 2; done
@@ -101,21 +111,22 @@ _openfaas_in_vm:
 
     wait
 
-    $SSH_CMD -N -L 6443:0.0.0.0:6443&
-    $SSH_CMD -N -L 8080:0.0.0.0:8080&
-    $SSH_CMD -N -L 9090:0.0.0.0:9090&
-    $SSH_CMD -N -L 9086:0.0.0.0:9086&
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
     $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
-    $SSH_CMD -N -L 14268:0.0.0.0:14268&
-    $SSH_CMD -N -L 16686:0.0.0.0:16686&
-    $SSH_CMD -N -L 4317:0.0.0.0:4317&
-    $SSH_CMD -N -L 4318:0.0.0.0:4318&
-    $SSH_CMD -N -L 5775:0.0.0.0:5775&
-    $SSH_CMD -N -L 6831:0.0.0.0:6831&
-    $SSH_CMD -N -L 6832:0.0.0.0:6832&
-    $SSH_CMD -N -L 5778:0.0.0.0:5778&
-    $SSH_CMD -N -L 3128:0.0.0.0:3128&
+
+    $SSH_CMD -N -L 6443:127.0.0.1:6443 \
+        -L 8080:127.0.0.1:8080 \
+        -L 9090:127.0.0.1:9090 \
+        -L 9086:127.0.0.1:9086 \
+        -L 14268:127.0.0.1:14268 \
+        -L 16686:127.0.0.1:16686 \
+        -L 4317:127.0.0.1:4317 \
+        -L 4318:127.0.0.1:4318 \
+        -L 5775:127.0.0.1:5775 \
+        -L 6831:127.0.0.1:6831 \
+        -L 6832:127.0.0.1:6832 \
+        -L 5778:127.0.0.1:5778 \
+        -L 3128:127.0.0.1:3128&
 
     wait
 

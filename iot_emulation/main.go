@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -23,12 +24,14 @@ import (
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type envContext struct {
@@ -52,7 +55,7 @@ type cronConfig struct {
 	FunctionID    string     `json:"functionId"`
 	IoTURL        string     `json:"iotUrl"`
 	NodeURL       string     `json:"nodeUrl"`
-	Tag           string     `json:"tag"`
+	Tags          string     `json:"tags"`
 	InitialWaitMs uint       `json:"intialWaitMs"`
 	IntervalMs    uint       `json:"intervalMs" validate:"min=1"`
 	DurationMs    uint       `json:"durationMs" validate:"min=1"`
@@ -81,7 +84,7 @@ type payload struct {
 
 func (content contentPing) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
 	payload := payload{
-		Tag:    config.Tag,
+		Tag:    config.Tags,
 		SentAt: uint(time.Now().UnixMicro()),
 		From:   "iot_emumation",
 		To:     config.NodeURL,
@@ -201,7 +204,7 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	if err != nil {
 		logger.Sugar().Warn("Missing variable, but will proceed by deactivating the related feature (dev=false):", err)
 	} else {
-		dev = devRaw == "TRUE"
+		dev = strings.ToLower(devRaw) == "true"
 	}
 	proxyPort, err := lookupVar("PROXY_PORT")
 	if err != nil {
@@ -252,8 +255,9 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	}, nil
 }
 
+// TODO remove arbitrary stuff
 func poissonInterval(lambda time.Duration) time.Duration {
-	return time.Duration(float64(time.Second) * (-math.Log(1-rand.Float64()) / float64(lambda.Seconds())))
+	return time.Duration(float64(time.Second) * 10 * (-math.Log(1-rand.Float64()) / float64(lambda.Seconds())))
 }
 
 func poissonProcess(lambda time.Duration, eventChan chan struct{}, duration time.Duration) {
@@ -271,14 +275,15 @@ func poissonProcess(lambda time.Duration, eventChan chan struct{}, duration time
 func ping(env *envContext, config *cronConfig, client *http.Client, ctx *context.Context) error {
 	req, err := config.Content.inner.NewRequest(env, config)
 	if err != nil {
-		env.Logger.Ctx(*ctx).Error("HTTP POST creation failed:", zap.Error(err))
+		env.Logger.Error("HTTP POST creation failed:", zap.Error(err))
 		return err
 	}
-	req.Header.Set("Sla-Id", config.FunctionID)
+	req.Header.Set("GIRAFF-Tags", config.Tags)
+	req.Header.Set("GIRAFF-Sla-Id", config.FunctionID)
 	req = req.WithContext(*ctx)
 	resp, err := client.Do(req)
 	if err != nil {
-		env.Logger.Ctx(*ctx).Error("HTTP POST failed:", zap.Error(err))
+		env.Logger.Error("HTTP POST failed:", zap.Error(err))
 		return err
 	}
 	defer resp.Body.Close()
@@ -286,10 +291,10 @@ func ping(env *envContext, config *cronConfig, client *http.Client, ctx *context
 	if resp.StatusCode != http.StatusOK {
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			env.Logger.Ctx(*ctx).Error("Error reading response body", zap.Error(err))
+			env.Logger.Error("Error reading response body", zap.Error(err))
 			return err
 		}
-		env.Logger.Ctx(*ctx).Error("Errored response body", zap.String("fn_id", config.FunctionID), zap.String("resp_body", string(b)))
+		env.Logger.Error("Errored response body", zap.String("fn_id", config.FunctionID), zap.String("resp_body", string(b)))
 	}
 
 	return nil
@@ -311,12 +316,15 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 		return
 	}
 
-	env.Logger.Ctx(r.Context()).Info("Registered cron", zap.String("fn_id", config.FunctionID))
+	ctx, span := otel.Tracer("").Start(r.Context(), "cron_"+config.FunctionID)
+	defer span.End()
+
+	env.Logger.Ctx(ctx).Info("Registered cron", zap.String("fn_id", config.FunctionID))
 
 	go func() {
-		proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort)
+		proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort + "/proxy")
 		if err != nil {
-			env.Logger.Ctx(r.Context()).Fatal("Failed to configure proxy:", zap.Error(err))
+			env.Logger.Fatal("Failed to configure proxy:", zap.Error(err))
 			http.Error(*w, "Failed to configure proxy: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -328,45 +336,65 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 		go poissonProcess(time.Duration(config.IntervalMs)*time.Millisecond, eventChan, time.Duration(config.DurationMs)*time.Millisecond)
 
 		go func() {
-			ctx, span := otel.GetTracerProvider().Tracer("toto").Start(context.Background(), "ping_"+config.FunctionID)
-			defer span.End()
 			for range eventChan {
+				ctx, span := otel.Tracer("").Start(context.Background(), "ping_"+config.FunctionID)
 				err := ping(env, &config, httpClient, &ctx)
 				if err != nil {
-					env.Logger.Ctx(ctx).Warn("Ping failed", zap.Error(err))
+					env.Logger.Warn("Ping failed", zap.Error(err))
 					p := influxdb2.NewPoint("proxy_send",
 						map[string]string{"sla_id": config.FunctionID},
 						map[string]interface{}{"value": 1},
 						time.Now())
 					env.InfluxWriter.WritePoint(p)
 				}
+				span.End()
 			}
-			env.Logger.Ctx(ctx).Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
+			env.Logger.Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
 		}()
 	}()
 }
 
 func initTracer(env *envContext) (func(context.Context) error, error) {
-	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint("http://" + *env.CollectorURL + "/api/traces")))
+	exp, err := otlptrace.New(
+		context.Background(),
+		otlptracegrpc.NewClient(
+			otlptracegrpc.WithInsecure(),
+			otlptracegrpc.WithEndpoint(*env.CollectorURL),
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exp),
-		sdktrace.WithResource(resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceNameKey.String("iot_emulation"),
-			semconv.DeploymentEnvironmentKey.String("production"),
-		)),
+	res, err := resource.New(
+		context.Background(),
+		resource.WithAttributes(
+			attribute.String("service.name", "iot_emulation"),
+			attribute.String("library.language", "go"),
+		),
 	)
-	otel.SetTracerProvider(tp)
+	if err != nil {
+		return nil, err
+	}
+	otel.SetTracerProvider(
+		sdktrace.NewTracerProvider(
+			sdktrace.WithSampler(sdktrace.AlwaysSample()),
+			sdktrace.WithBatcher(exp),
+			sdktrace.WithResource(res),
+		),
+	)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-	return tp.Shutdown, nil
+	return exp.Shutdown, nil
 }
 
 func main() {
-	config := zap.NewProductionConfig()
-	config.Encoding = "console"
+	dev, err := lookupVar("DEV")
+	var config zap.Config
+	if err == nil && strings.ToLower(dev) == "true" {
+		config = zap.NewDevelopmentConfig()
+		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		config = zap.NewProductionConfig()
+	}
 	loggerRaw, _ := config.Build()
 
 	vars, err := initEnvContext(loggerRaw)
@@ -379,22 +407,18 @@ func main() {
 	// Ensures background processes finishes
 	defer vars.InfluxClient.Close()
 
-	if vars.Dev {
-		loggerRaw, _ = zap.NewDevelopment()
-	}
-	logger := otelzap.New(loggerRaw)
-	defer logger.Sync()
-	logger.Logger.Debug("Logger in dev mode")
-	vars.Logger = logger
-
 	if vars.CollectorURL != nil {
 		// Initialize the OpenTelemetry SDK.
 		shutdown, err := initTracer(&vars)
 		if err != nil {
-			logger.Sugar().Fatal("Failed to init tracing with jaeger/opentlp", err)
+			loggerRaw.Sugar().Fatal("Failed to init tracing with jaeger/opentlp", err)
 			return
 		}
 		defer shutdown(context.Background())
+		logger := otelzap.New(loggerRaw, otelzap.WithMinLevel(loggerRaw.Level()))
+		defer logger.Sync()
+		vars.Logger = logger
+		vars.Logger.Info("Initialized otel")
 	}
 
 	mux := http.NewServeMux()
@@ -402,17 +426,19 @@ func main() {
 		handleCron(&w, r, &vars)
 	})
 
-	logger.Sugar().Infof("Starting iot_emulation server on %s", vars.MyPort)
+	vars.Logger.Sugar().Infof("Starting iot_emulation server on %s", vars.MyPort)
 	if vars.CollectorURL != nil {
+		vars.Logger.Info("Starting server w/ otel")
 		handler := otelhttp.NewHandler(mux, "/api/cron")
 		err = http.ListenAndServe(":"+vars.MyPort, handler)
 		if err != nil {
-			logger.Sugar().Fatal("Error starting iot_emulation server: ", err)
+			vars.Logger.Sugar().Fatal("Error starting iot_emulation server: ", err)
 		}
 	} else {
+		vars.Logger.Info("Starting server w/o otel")
 		err = http.ListenAndServe(":"+vars.MyPort, mux)
 		if err != nil {
-			logger.Sugar().Fatal("Error starting iot_emulation server: ", err)
+			vars.Logger.Sugar().Fatal("Error starting iot_emulation server: ", err)
 		}
 	}
 }

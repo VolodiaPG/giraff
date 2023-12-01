@@ -5,14 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
+	"net/url"
 	"os"
-	"strconv"
+	"strings"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type envVars struct {
@@ -21,6 +25,7 @@ type envVars struct {
 	influxToken   string
 	influxOrg     string
 	influxBucket  string
+	log           *zap.Logger
 }
 
 func lookupVar(varName string) (string, error) {
@@ -31,7 +36,7 @@ func lookupVar(varName string) (string, error) {
 	return theVar, nil
 }
 
-func initEnvVars() (envVars, error) {
+func initEnvVars(log *zap.Logger) (envVars, error) {
 	myPort, err := lookupVar("PORT")
 	if err != nil {
 		return envVars{}, err
@@ -58,50 +63,132 @@ func initEnvVars() (envVars, error) {
 		influxToken:   influxToken,
 		influxOrg:     influxOrg,
 		influxBucket:  influxBucket,
+		log:           log,
 	}, nil
 }
 
-func handleRequest(w *http.ResponseWriter, r *http.Request, influxAPI *api.WriteAPI) {
+func transmitRequest(r *http.Request, transmitURL string, transmitProxyURL string, env *envVars) (*http.Response, error) {
+	if transmitURL == "" {
+		return nil, errors.New("URL to transmit is empty; not transmitting")
+	}
+	var err error
+	r.URL, err = url.Parse(transmitURL)
+
+	if err != nil {
+		return nil, errors.Join(errors.New("URL to transmit cannot be parsed; not transmitting;"), err)
+	}
+	transport := http.Transport{}
+	proxyURL, err := url.Parse(transmitProxyURL)
+	if err != nil {
+		env.log.Warn("Failed to parse proxy URL", zap.Error(err))
+	} else {
+		transport.Proxy = http.ProxyURL(proxyURL)
+	}
+	client := &http.Client{
+		Transport: &transport,
+	}
+
+	env.log.Debug("Sending transmit request")
+
+	resp, err := client.Transport.RoundTrip(r)
+	if err != nil {
+		return nil, errors.Join(errors.New("error sending a transmit proxy request"), err)
+	}
+	return resp, nil
+}
+
+func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influxAPI *api.WriteAPI) {
 	// Create a new HTTP request with the same method, URL, and body as the original request
-	slaID := r.Header.Get("Sla-Id")
-	proxyTs := time.Now()
+	proxyRx := time.Now()
+	requestID := r.Header.Get("GIRAFF-Request-ID")
+	if requestID == "" {
+		requestID = uuid.NewV4().String()
+		r.Header.Add("GIRAFF-Request-ID", requestID)
+		env.log.Debug("Creating Giraff request ID", zap.String("requestID", requestID))
+	}
+	slaID := r.Header.Get("GIRAFF-Sla-Id")
+	tags := r.Header.Get("GIRAFF-Tags")
+	env.log.Debug("Processing request", zap.String("requestID", requestID), zap.String("slaID", slaID))
 
-	r.Header.Add("Proxy-Timestamp", strconv.FormatInt(proxyTs.UnixMilli(), 10))
-
-	// Send the proxy request using the custom transport
 	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
-		http.Error(*w, "Error sending proxy request", http.StatusInternalServerError)
-		fmt.Println("Error sending proxy request", err)
+		http.Error(*ww, fmt.Sprintf("Error sending proxy request; %s", err.Error()), http.StatusInternalServerError)
+		env.log.Error("Error sending proxy request", zap.Error(err))
 		return
 	}
-	respTs := time.Now()
 	defer resp.Body.Close()
+	proxyTx := time.Now()
 
-	// Copy the headers from the proxy response to the original response
-	for name, values := range resp.Header {
+	transmitURL := resp.Header.Get("GIRAFF-Redirect")
+	transmitProxyURL := resp.Header.Get("GIRAFF-Redirect-Proxy")
+	if transmitURL != "" && resp.StatusCode == 200 {
+		for key, values := range r.Header {
+			if resp.Header.Get(key) == "" {
+				for _, value := range values {
+					resp.Header.Add(key, value)
+				}
+			}
+		}
+		outReq, err := http.NewRequest(r.Method, r.URL.String(), resp.Body)
+		if err != nil {
+			env.log.Error("Failed to create the request", zap.Error(err))
+			return
+		}
+		for key, values := range resp.Header {
+			if outReq.Header.Get(key) == "" {
+				for _, value := range values {
+					outReq.Header.Add(key, value)
+				}
+			}
+		}
+		env.log.Debug("Sending transmit...", zap.String("transmitURL", transmitProxyURL), zap.String("transmitProxyURL", transmitProxyURL))
+		resp, err = transmitRequest(outReq, transmitURL, transmitProxyURL, env)
+		if err != nil {
+			env.log.Error("Failed to transmit the resquest to the next url", zap.Error(err))
+		}
+		defer resp.Body.Close()
+	} else {
+		env.log.Debug("Sent back normally")
+	}
+	for key, values := range resp.Header {
 		for _, value := range values {
-			(*w).Header().Add(name, value)
+			(*ww).Header().Add(key, value)
 		}
 	}
-
-	// Set the status code of the original response to the status code of the proxy response
-	(*w).WriteHeader(resp.StatusCode)
-
-	// Copy the body of the proxy response to the original response
-	io.Copy((*w), resp.Body)
-
-	p := influxdb2.NewPoint("proxy_send",
-		map[string]string{"sla_id": slaID},
-		map[string]interface{}{"value": proxyTs},
-		respTs)
+	(*ww).WriteHeader(resp.StatusCode)
+	_, err = io.Copy(*ww, resp.Body)
+	if err != nil {
+		http.Error(*ww, fmt.Sprintf("Error copying response body: %v", err), http.StatusInternalServerError)
+		env.log.Error("Error copying response body", zap.Error(err))
+		return
+	}
+	p := influxdb2.NewPoint("proxy",
+		map[string]string{"sla_id": slaID, "req_id": requestID, "tags": tags},
+		map[string]interface{}{"value": proxyRx},
+		proxyTx)
 	(*influxAPI).WritePoint(p)
 }
 
 func main() {
-	vars, err := initEnvVars()
+	dev, err := lookupVar("DEV")
+	var config zap.Config
+	if err == nil && strings.ToLower(dev) == "true" {
+		config = zap.NewDevelopmentConfig()
+	} else {
+		config = zap.NewProductionConfig()
+	}
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.Encoding = "console"
+
+	log, err := config.Build()
 	if err != nil {
-		log.Fatal("Error starting proxy server: ", err)
+		panic(err)
+	}
+
+	vars, err := initEnvVars(log)
+	if err != nil {
+		log.Sugar().Fatal("Error starting proxy server: ", err)
 	}
 
 	client := influxdb2.NewClientWithOptions("http://"+vars.influxAddress, vars.influxToken,
@@ -111,14 +198,14 @@ func main() {
 	server := http.Server{
 		Addr: ":" + vars.myPort,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			handleRequest(&w, r, &writeAPI)
+			handleRequest(&w, r, &vars, &writeAPI)
 		}),
 	}
 
-	log.Println("Starting proxy server on", vars.myPort)
+	log.Sugar().Info("Starting proxy server on", vars.myPort)
 	err = server.ListenAndServe()
 	if err != nil {
-		log.Fatal("Error starting proxy server: ", err)
+		log.Sugar().Fatal("Error starting proxy server: ", err)
 	}
 
 	// Force all unwritten data to be sent

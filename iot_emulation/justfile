@@ -5,7 +5,7 @@ _default:
     INFLUX_ORG="faasfog" \
     INFLUX_BUCKET="faasfog" \
     PROXY_PORT="3128" \
-    COLLECTOR_URL="127.0.0.1:14268" \
+    COLLECTOR_URL="127.0.0.1:4317" \
     DEV=TRUE \
     FOLDER_RESOURCES=content \
     go run *.go

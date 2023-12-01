@@ -110,104 +110,16 @@ impl Configuration {
     fn new(sla: Sla) -> Self { Self { sla, next_function_url: None } }
 }
 
-#[instrument(
-    level = "trace",
-    skip(req, payload, config, metrics, sla_id, client)
-)]
-async fn handle(
-    req: HttpRequest,
-    payload: web::Json<IncomingPayload>,
-    config: web::Data<RwLock<Configuration>>,
-    metrics: web::Data<MetricsExporter>,
-    sla_id: web::Data<String>,
-    client: web::Data<ClientWithMiddleware>,
-) -> HttpResponse {
-    let first_byte_received =
-        *req.extensions().get::<DateTime<Utc>>().unwrap();
-
-    let mut data = payload.0;
-
-    let processing_ready = Utc::now();
-
-    let elapsed = first_byte_received - data.sent_at;
-
-    if let Err(err) = metrics
-        .observe(Latency {
-            value:     elapsed.num_milliseconds().abs() as f64 / 1000.0,
-            sla_id:    sla_id.to_string(),
-            tag:       data.tag.clone(),
-            timestamp: first_byte_received,
-        })
-        .await
-    {
-        warn!("Failed to save metrics: {:?}", err);
-        return HttpResponse::InternalServerError()
-            .body(format!("Failed to save metrics: {:?}", err));
-    }
-
-    let proxy_timestamp = req.headers().get("Proxy-Timestamp");
-
-    if let Some(timestamp) = proxy_timestamp {
-        let timestamp = timestamp.to_str();
-        if let Ok(timestamp) = timestamp {
-            if let Ok(timestamp) = timestamp.parse::<i64>() {
-                let elapsed =
-                    first_byte_received.timestamp_millis() - timestamp;
-
-                if let Err(err) = metrics
-                    .observe(LatencyHeader {
-                        value:     elapsed as f64 / 1000.0,
-                        sla_id:    sla_id.to_string(),
-                        tag:       data.tag.clone(),
-                        timestamp: first_byte_received,
-                    })
-                    .await
-                {
-                    warn!("Failed to save metrics: {:?}", err);
-                    return HttpResponse::InternalServerError()
-                        .body(format!("Failed to save metrics: {:?}", err));
-                }
-            }
-        }
-    }
-
-    if let Some(next_url) = config.read().await.next_function_url.clone() {
-        let elapsed = Utc::now() - processing_ready;
-        data.from = data.to;
-        data.to = next_url.clone();
-        if let Err(err) = metrics
-            .observe(ProcessingTime {
-                value:     elapsed.num_milliseconds() as f64 / 1000.0,
-                sla_id:    sla_id.to_string(),
-                timestamp: Utc::now(),
-                to:        data.to.clone(),
-            })
-            .await
-        {
-            warn!("Failed to save metrics: {:?}", err);
-            return HttpResponse::InternalServerError()
-                .body(format!("Failed to save metrics: {:?}", err));
-        }
-        if let Err(err) = client.post(next_url).json(&data).send().await {
-            error!(
-                "Failed to send the request to the next fog node: {:?}",
-                err
-            );
-            return HttpResponse::InternalServerError().body(format!(
-                "Failed to send the request to the next fog node: {:?}",
-                err
-            ));
-        }
-        debug!("Sent data to next function");
-    }
+#[instrument(level = "trace")]
+async fn handle() -> HttpResponse { 
+    info!("Got it");
     HttpResponse::Ok().finish()
-}
+ }
 
-#[instrument(level = "trace", skip(config, metrics), fields(next_function_url=payload.0.next_function_url))]
+#[instrument(level = "trace", skip(config), fields(next_function_url=payload.0.next_function_url))]
 async fn reconfigure(
     payload: web::Json<Reconfigure>,
     config: web::Data<RwLock<Configuration>>,
-    metrics: web::Data<MetricsExporter>,
 ) -> HttpResponse {
     let data = payload.0;
     info!("Configured next jump url to be {}", data.next_function_url);

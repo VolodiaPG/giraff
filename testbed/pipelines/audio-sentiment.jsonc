@@ -5,7 +5,9 @@
     "pipeline": {
         "audioToText": {
             "nextFunction": "sentiment-analysis",
-            "image": "giraff:fn_speech_recognition"
+            "image": "giraff:fn_speech_recognition",
+            "mem": 512,
+            "cpu": 300
         },
         "sentiment-analysis": {
             "nextFunction": "echo",

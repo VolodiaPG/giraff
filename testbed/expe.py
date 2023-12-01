@@ -3,7 +3,7 @@ import json
 import math
 import os
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import aiohttp  # type: ignore
@@ -193,7 +193,7 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
     if last == 0:
         return None
 
-    await asyncio.sleep((FUNCTION_COLD_START_OVERHEAD / 2) / 1000)
+    await asyncio.sleep((3 * FUNCTION_COLD_START_OVERHEAD / 4) / 1000)
 
     print(urls)
 
@@ -242,7 +242,7 @@ async def put_request_iot_emulation(
         "iotUrl": f"http://{IOT_IP}:{IOT_LOCAL_PORT}/api/print",
         "nodeUrl": f"http://{provisioned.faas_ip}:{provisioned.faas_port}/function/fogfn-{provisioned.function_id}",
         "functionId": provisioned.function_id,
-        "tag": function.function_name,
+        "tags": function.function_name,
         "initialWaitMs": function.cold_start_overhead,
         "durationMs": function.duration,
         "intervalMs": function.request_interval,
@@ -283,28 +283,31 @@ async def register_new_functions(functions: List[Function]) -> bool:
 
     print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
 
-    tasks = []
-    tasks.append(asyncio.create_task(post_request_chain_functions(responses)))
-    tasks.append(
-        asyncio.create_task(
-            put_request_iot_emulation(
-                responses[0],
-                function=functions[0],
-            )
-        )
-    )
+    # tasks = []
+    # tasks.append(asyncio.create_task(post_request_chain_functions(responses)))
+    # tasks.append(
+    #     asyncio.create_task(
 
-    response_list = await asyncio.gather(*tasks)
-    responses_chain = response_list[-2]
-    response_iot, code_iot = response_list[-1]
+    #     )
+    # )
+
+    responses_chain = await post_request_chain_functions(responses)
+    # response_list = await asyncio.gather(*tasks)
+    # responses_chain = response_list[-2]
+    # response_iot, code_iot = response_list[-1]
 
     if responses_chain is not None:
         for response, http_code in responses_chain:
             if http_code != 200:
                 print("Request failed", http_code, response)
                 return False
-
     print(f"Chained {','.join([ff.function_name for ff in functions])}")
+
+    response_iot, code_iot = await put_request_iot_emulation(
+        responses[0],
+        function=functions[0],
+    )
+
     if code_iot == 200:
         print(f"Registered cron for {functions[0].function_name}")
         return True

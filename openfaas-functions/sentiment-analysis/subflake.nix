@@ -40,7 +40,7 @@
               ])
               ++ (with outputs.packages.${system}; [
                 otelFlask
-                otelRequests
+                # otelRequests
               ]));
           };
 

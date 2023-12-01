@@ -140,7 +140,7 @@ Then go to `testbed`, once this is done, you can configure the experiments in `.
 
 Then, `just upload` will rsync both the master’s VM and the previously described files to the configured grid’5000 cluster.
 
-Finally, `just master_exec <ghcr.io username> <experiment name>` will start the experiment as configured.
+Finally, `just master_exec <ghcr.io username> <experiment name>` will start the experiment as configured. Do not forget to make the ghcr.io image public. The different parts of GIRAFF make use of labels to only have 1 image public.
 
 > Note that in `.experiments.env` there are some options to gracefully handle failures, as I use GNU parallel, one can “resume” a job that had some failures before.
 

@@ -4,4 +4,5 @@ _default:
     INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
     INFLUX_ORG="faasfog" \
     INFLUX_BUCKET="faasfog" \
+    DEV=True \
     go run *.go

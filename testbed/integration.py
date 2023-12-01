@@ -15,31 +15,18 @@ from time import sleep
 
 import click  # type: ignore
 import enoslib as en  # type: ignore
-
+from collect import listener, worker
+from definitions import (ADJACENCY, EXTREMITIES, FOG_NODE_DEPLOYMENT,
+                         FOG_NODES, IOT_CONNECTION, LEVELS,
+                         MARKET_CONNECTED_NODE, MARKET_DEPLOYMENT,
+                         NB_CPU_PER_MACHINE_PER_CLUSTER, NETWORK,
+                         NODE_CONNECTED_NODE, flatten, gen_net, gen_vm_conf)
 # Enable rich logging
 from enoslib import enostask  # type: ignore
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
 from grid5000 import Grid5000  # type: ignore
 from grid5000.cli import auth  # type: ignore
 from influxdb_client import InfluxDBClient  # type: ignore
-
-from collect import listener, worker
-from definitions import (
-    ADJACENCY,
-    EXTREMITIES,
-    FOG_NODE_DEPLOYMENT,
-    FOG_NODES,
-    IOT_CONNECTION,
-    LEVELS,
-    MARKET_CONNECTED_NODE,
-    MARKET_DEPLOYMENT,
-    NB_CPU_PER_MACHINE_PER_CLUSTER,
-    NETWORK,
-    NODE_CONNECTED_NODE,
-    flatten,
-    gen_net,
-    gen_vm_conf,
-)
 
 log = logging.getLogger("rich")
 
@@ -165,7 +152,9 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
-    en.set_config(g5k_auto_jump=False, ansible_forks=200)
+    # en.set_config(ansible_forks=200)
+    en.config._config["ansible_forks"] = 200
+    # en.config._config["ansible_stdout"] = "console"
 
 
 def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):

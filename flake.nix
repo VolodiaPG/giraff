@@ -1,6 +1,7 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     crane = {
       url = "github:ipetkov/crane";
@@ -25,6 +26,7 @@
     nur-kapack = {
       url = "github:oar-team/nur-kapack";
       inputs = {
+        # nixpkgs.follows = "nixpkgs";
         flake-utils.follows = "flake-utils";
       };
     };
@@ -111,10 +113,13 @@
                 set -e
                 export PATH=${binPath}:$PATH
                 tmp=$(mktemp)
-                parallel nix path-info --derivation {} '>>' $tmp ::: ${trace_apps} ${trace_pkgs}
-                parallel nix-store --query --requisites --include-outputs '$(' nix path-info --derivation {} ') >>' $tmp ::: ${trace_apps} ${trace_pkgs}
-                cachix push -j $(nproc --all) -m xz -c 9 giraff $(cat $tmp | tr "\n" " ")
+                tmp2=$(mktemp)
+                parallel "(nix path-info --json --derivation {} | jq -r 'map(.path)' | jq -r '.[]' | grep '/nix/store') >> $tmp" ::: ${trace_apps} ${trace_pkgs}
+                parallel -N1000 -a $tmp "(nix-store --query --requisites --include-outputs {} | grep '/nix/store') >> $tmp2"
+                cat $tmp2 >> $tmp
+                parallel -N1000 -a $tmp cachix push -j $(nproc --all) -m xz -c 9 giraff {}
                 rm $tmp
+                rm $tmp2
               '';
             in {
               type = "app";

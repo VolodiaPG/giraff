@@ -39,6 +39,61 @@
                       sha256 = "sha256-KxZhrunv8DbOvFqw7p2t2Zrqm4urvFWCErsutqNUgiM=";
                     };
                   };
+                  # kubernetes.resources = {
+                  #   services.proxy = {
+                  #     metadata.namespace = "openfaas";
+                  #     metadata.labels.app = "fn";
+                  #     spec = {
+                  #       selector.app = "fn";
+                  #       type= "ExternalName";
+                  #       externalName="10.0.100.100";
+                  #       ports = [
+                  #         {
+                  #           protocol = "TCP";
+                  #           port = 3128;
+                  #         }
+                  #       ];
+                  #     };
+                  #   };
+                  #   # services.proxy = {
+                  #   #   metadata.namespace = "openfaas";
+                  #   #   metadata.labels.app = "fn";
+                  #   #   spec = {
+                  #   #     selector.app = "fn";
+                  #   #     type= "ClusterIP";
+                  #   #     clusterIP = "None";
+                  #   #     # selector.name = "proxy";
+                  #   #     ports = [
+                  #   #       {
+                  #   #         name = "http";
+                  #   #         protocol = "TCP";
+                  #   #         port = 3128;
+                  #   #         targetPort = 3128;
+                  #   #         # nodePort = 30128;
+                  #   #       }
+                  #   #     ];
+                  #   #   };
+                  #   # };
+                  #   # endpoints.proxy = {
+                  #   #   metadata.namespace = "openfaas";
+                  #   #   metadata.labels.app = "fn";
+                  #   #   # selector.labels.app = "fn";
+                  #   #   # selector.matchLabels.app = "fn";
+                  #   #   subsets = [
+                  #   #     {
+                  #   #       addresses = [
+                  #   #         # {ip = "10.0.100.100";}
+                  #   #         {ip = "10.0.2.15";}
+                  #   #       ];
+                  #   #       ports = [
+                  #   #         {
+                  #   #           port = 3128;
+                  #   #         }
+                  #   #       ];
+                  #   #     }
+                  #   #   ];
+                  #   # };
+                  # };
                 };
               })
               .config

@@ -149,7 +149,6 @@ scenarii +city_name_node_targets:
 
     just clean || .
 
-[private]
 collect:
     mkdir -p metrics
     {{RUN}} integration.py collect --address $INFLUX_ADDRESS
@@ -243,7 +242,7 @@ build_required_images user:
     commands=(
         "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
         "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}} $IOT_EMULATION_FEATURES"
-        "cd $FUNCTIONS_PATH && nix develop .#openfaas_functions -c just ghcr {{user}} $FUNCTION_FEATURES"
+        "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
     )
 
     parallel --will-cite --lb ::: "${commands[@]}"
