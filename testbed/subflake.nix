@@ -18,11 +18,8 @@
               experiments = prev.python311.withPackages (ps: (with ps; [
                 dill
                 click
-                # importlib-resources
                 aiohttp
                 influxdb-client
-                # simpy
-                # scipy
                 marshmallow-dataclass
                 (alive-progress.overridePythonAttrs
                   (
@@ -73,9 +70,6 @@
                     packaging
                     pytz
                     importlib-resources
-                    # (nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible-core.override {
-                    #    inherit (ps) callPackage buildPythonPackage fetchPypi ansible cryptography jinja2 junit-xml lxml ncclient packaging paramiko pexpect psutil pycrypto pyyaml requests resolvelib scp xmltodict;
-                    # })
                     (nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible-core.override {
                       inherit (ps) callPackage buildPythonPackage fetchPypi cryptography jinja2 junit-xml lxml ncclient packaging paramiko pexpect psutil pycrypto pyyaml requests resolvelib scp xmltodict;
                       ansible = nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible.override {
@@ -221,13 +215,11 @@
           VMMounts = ''
             #!${pkgs.bash}/bin/bash
             set -ex
-            df -h
             mkdir -p $mountPoint
             sh -c ${outputs.packages.${pkgs.system}.docker} | gzip --fast > $mountPoint/output.gz
           '';
           inVMScript = ''
             set -ex
-            df -h
             gunzip -c output.gz | podman load
           '';
         in {
@@ -293,7 +285,6 @@
                           foreach
                           multidplyr
 
-                          # gifski
                           magick
                           future_apply
                           (

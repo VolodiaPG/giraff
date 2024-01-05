@@ -80,12 +80,10 @@
               jq
               mprocs
               openssl
-              # rust-analyzer
               rust-analyzer-nightly
               cargo-outdated
               cargo-udeps
               cargo-expand
-              # cargo-watch
               lldb
               kubectl
               (rustfmt.override {asNightly = true;})

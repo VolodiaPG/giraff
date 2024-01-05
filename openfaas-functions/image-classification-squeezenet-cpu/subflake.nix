@@ -19,7 +19,6 @@
                 waitress
                 flask
                 pillow
-                # requests
                 opentelemetry-exporter-otlp
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
@@ -27,7 +26,6 @@
               ])
               ++ (with outputs.packages.${system}; [
                 otelFlask
-                # otelRequests
               ]));
           };
 

@@ -1,20 +1,26 @@
 {
   inputs = {
+    # Al packages
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # This defines the ansible dependencies for enoslib as it uses an older version
     nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
+    # Rust
     crane = {
       url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    srvos = {
-      url = "github:nix-community/srvos";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Rust tooling
     fenix = {
       url = "github:nix-community/fenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Linux server general optimizations
+    srvos = {
+      url = "github:nix-community/srvos";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    # Made to run at each commit and check
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs = {
@@ -23,6 +29,7 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    # Provides enoslib
     nur-kapack = {
       url = "github:oar-team/nur-kapack";
       inputs = {
@@ -30,9 +37,11 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    # JupyterLab
     jupyenv = {
       url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
     };
+    # Go
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
       inputs = {
@@ -40,17 +49,21 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+    # Provides linux on temporary filesystems (wiped at reboot)
     impermanence.url = "github:nix-community/impermanence";
+    # Kubernetes config file definitions striclty defined
     kubenix = {
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # OpenFaaS function software running in the container (like a proxy)
     fwatchdog = {
       url = "github:openfaas/of-watchdog";
       flake = false;
     };
   };
 
+  # Enable caching
   nixConfig = {
     extra-substituters = ["https://giraff.cachix.org"];
     extra-trusted-public-keys = ["giraff.cachix.org-1:3sol29PSsWCh/7bAiRze+5Zq6OML02FDRH13K5i3qF4="];
@@ -166,7 +179,6 @@
               pre-commit-check = pre-commit-hooks.lib.${system}.run {
                 src = ./.;
                 settings.statix.ignore = ["Cargo.nix"];
-                # settings.mypy.binPath = "${pkgs.mypy}/bin/mypy --scripts-are-modules";
                 hooks = {
                   # Nix
                   alejandra.enable = true;
@@ -182,6 +194,7 @@
                   isort.enable = true;
                   ruff.enable = true;
                   pyright.enable = true;
+                  # Update the cache at each commit
                   zCachix = {
                     enable = true;
                     name = "push cachix";

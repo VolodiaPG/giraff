@@ -18,7 +18,7 @@
                 flask
                 pillow
                 (pyttsx3.overrideAttrs {
-                  meta.broken = false;
+                  meta.broken = false; # For darwin
                 })
                 opentelemetry-exporter-otlp
                 opentelemetry-exporter-otlp-proto-grpc
@@ -65,7 +65,6 @@
               ])
               ++ (with outputs.packages.${system}; [
                 otelFlask
-                # otelRequests
               ]));
           };
 
