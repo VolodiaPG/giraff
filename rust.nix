@@ -39,7 +39,9 @@ with inputs; let
             openssl
           ]
           ++ lib.optionals pkgs.stdenv.isDarwin [
+            # Additional darwin specific inputs can be set here
             pkgs.libiconv
+            darwin.apple_sdk.frameworks.SystemConfiguration
           ];
       };
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;

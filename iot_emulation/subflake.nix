@@ -1,8 +1,6 @@
 {
-  outputs = inputs: _extra:
-    with inputs; let
-      inherit (self) outputs;
-    in
+  outputs = inputs: extra:
+    with inputs;
       flake-utils.lib.eachDefaultSystem (system: let
         pkgs = import nixpkgs {
           inherit system;
@@ -26,7 +24,7 @@
       in {
         packages.iot_emulation = dockerIOTEmulation;
         devShells.iot_emulation = pkgs.mkShell {
-          inherit (outputs.checks.${system}.pre-commit-check) shellHook;
+          shellHook = (extra.shellHook system) "iot_emulation";
           packages = with pkgs; [
             git
             gnumake

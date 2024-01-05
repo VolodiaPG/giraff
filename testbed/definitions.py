@@ -6,7 +6,7 @@ import os
 import random
 import sys
 from collections import defaultdict
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import dill  # type: ignore
 import randomname  # type: ignore
@@ -396,28 +396,33 @@ def generate_level(
     *,
     nb_nodes: Tuple[int, int],
     latencies: Tuple[int, int],
-    modifiers: List[Callable[[Dict, bool], None]]
-    | None = None,  # Takes a Dict but otherwise mypy just errors on kwargs
-    next_lvl: Callable[[int], Dict] | None = None,
-    depth: int = 1,
-) -> List[Dict]:
-    ret: List[Dict] = []
-    global uuid
-    first = True
-    for _ in range(0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))):
-        uuid += 1
-        city = {
-            "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
-            "flavor": copy.copy(flavor),
-            "latency": random.randint(latencies[0], latencies[1]),
-            "children": next_lvl(depth=depth + 1) if next_lvl else [],  # type: ignore
-        }
-        if modifiers:
-            for mod in modifiers:
-                mod(city, first)
-        first = False
-        ret.append(city)
-    return ret
+    modifiers: Optional[
+        List[Callable[[Dict[str, Any], bool], None]]
+    ] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
+    next_lvl: Optional[Callable[[int], List[Dict[str, Any]]]] = None,
+) -> Callable[[int], List[Dict[str, Any]]]:
+    def inner(depth: int = 1) -> List[Dict[str, Any]]:
+        ret: List[Dict] = []
+        global uuid
+        first = True
+        for _ in range(
+            0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))
+        ):
+            uuid += 1
+            city = {
+                "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
+                "flavor": copy.copy(flavor),
+                "latency": random.randint(latencies[0], latencies[1]),
+                "children": next_lvl(depth=depth + 1) if next_lvl else [],  # type: ignore
+            }
+            if modifiers:
+                for mod in modifiers:
+                    mod(city, first)
+            first = False
+            ret.append(city)
+        return ret
+
+    return inner
 
 
 def set_cloud(dd: Dict, *_):
@@ -475,41 +480,40 @@ def network_generation():
         "flavor": TIER_1_FLAVOR,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, 4 * SIZE_MULTIPLIER),
+            nb_nodes=(1, int(4 * SIZE_MULTIPLIER)),
             latencies=(2, 3),
             modifiers=[set_cloud, drop_children(drop_one_in=2)],
-            next_lvl=functools.partial(
-                generate_level,
+            next_lvl=generate_level(
                 TIER_2_FLAVOR,
-                nb_nodes=(2, 4 * SIZE_MULTIPLIER),
+                nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(10, 32),
                 modifiers=[
                     drop_children(drop_one_in=4),
-                    flavor_randomizer_cpu(0, 2),
-                    flavor_randomizer_mem(0, 2),
+                    flavor_randomizer_cpu([0, 2]),
+                    flavor_randomizer_mem([0, 2]),
                 ],
-                next_lvl=functools.partial(
-                    generate_level,
+                next_lvl=generate_level(
                     TIER_3_FLAVOR,
-                    nb_nodes=(2, 4 * SIZE_MULTIPLIER),
+                    nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                     latencies=(3, 20),
                     modifiers=[
-                        flavor_randomizer_cpu(0, 2),
-                        flavor_randomizer_mem(0, 2, 4),
+                        flavor_randomizer_cpu([0, 2]),
+                        flavor_randomizer_mem([0, 2, 4]),
                     ],
-                    next_lvl=functools.partial(
-                        generate_level,
+                    next_lvl=generate_level(
                         TIER_4_FLAVOR,
-                        nb_nodes=(1, 6 * SIZE_MULTIPLIER),
+                        nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
                         latencies=(1, 5),
                         modifiers=[
                             set_iot_connected(keep_one_in=3),
-                            flavor_randomizer_mem(0, 2),
+                            flavor_randomizer_mem([0, 2]),
                         ],
                     ),
                 ),
             ),
-        ),
+        )(
+            1
+        ),  # depth = 1, because python typesafety stuff wants you to repeat it:'(
     }
 
 
@@ -529,45 +533,6 @@ def pprint_network(node):
     for child in node["children"]:
         ret["children"].append(pprint_network(child))
     return ret
-
-
-NETWORK = None
-
-if os.getenv("DEV"):
-    NETWORK = {
-        "name": "market",
-        "flavor": TIER_1_FLAVOR,
-        "children": [
-            {
-                "name": "node_1",
-                "flavor": TIER_3_FLAVOR,
-                "latency": 3,
-                "children": [
-                    {
-                        "name": "node_2",
-                        "flavor": TIER_3_FLAVOR,
-                        "latency": 6,
-                        "children": [
-                            {
-                                "name": "node_3",
-                                "flavor": TIER_4_FLAVOR,
-                                "latency": 10,
-                                "children": [],
-                                "iot_connected": 0,
-                            },
-                            {
-                                "name": "node_34",
-                                "flavor": TIER_4_FLAVOR,
-                                "latency": 5,
-                                "children": [],
-                                "iot_connected": 0,
-                            },
-                        ],
-                    }
-                ],
-            },
-        ],
-    }
 
 
 def flatten(container):
@@ -734,7 +699,42 @@ def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
 LOAD_NETWORK_FILE = "LOAD_NETWORK_FILE"
 SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 
-if NETWORK is None:
+if os.getenv("DEV"):
+    NETWORK = {
+        "name": "market",
+        "flavor": TIER_1_FLAVOR,
+        "children": [
+            {
+                "name": "node_1",
+                "flavor": TIER_3_FLAVOR,
+                "latency": 3,
+                "children": [
+                    {
+                        "name": "node_2",
+                        "flavor": TIER_3_FLAVOR,
+                        "latency": 6,
+                        "children": [
+                            {
+                                "name": "node_3",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 10,
+                                "children": [],
+                                "iot_connected": 0,
+                            },
+                            {
+                                "name": "node_34",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 5,
+                                "children": [],
+                                "iot_connected": 0,
+                            },
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+else:
     save_network_file = os.getenv(SAVE_NETWORK_FILE)
     load_network_file = os.getenv(LOAD_NETWORK_FILE)
     if save_network_file and load_network_file:

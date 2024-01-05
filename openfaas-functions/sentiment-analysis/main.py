@@ -1,15 +1,17 @@
 import logging
 import os
+from typing import Optional
 from urllib.parse import urlparse
 
 from flask import Flask, abort, request  # type: ignore
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-    OTLPSpanExporter
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry import trace  # type: ignore
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore
+    OTLPSpanExporter,
+)
+from opentelemetry.instrumentation.flask import FlaskInstrumentor  # type: ignore
+from opentelemetry.sdk.resources import Resource  # type: ignore
+from opentelemetry.sdk.trace import TracerProvider  # type: ignore
+from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
 from textblob import TextBlob  # type: ignore
 from waitress import serve  # type: ignore
 
@@ -39,7 +41,7 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 
-NEXT_URL: str = None
+NEXT_URL: Optional[str] = None
 
 
 @app.after_request
@@ -60,7 +62,7 @@ def handle():
             logger.error("text field in json required")
             abort(400, "text field in json required")
         blob = TextBlob(text["text"])
-        res = {"polarity": 0, "subjectivity": 0}
+        res = {"polarity": 0.0, "subjectivity": 0.0}
 
         for sentence in blob.sentences:
             res["subjectivity"] = res["subjectivity"] + sentence.sentiment.subjectivity

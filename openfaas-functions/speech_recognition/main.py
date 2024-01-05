@@ -2,17 +2,19 @@ import json
 import logging
 import os
 from io import BytesIO
+from typing import Optional
 from urllib.parse import urlparse
 
-import speech_recognition as sr  # type: ignore
 from flask import Flask, abort, request  # type: ignore
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-    OTLPSpanExporter
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry import trace  # type: ignore
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore
+    OTLPSpanExporter,
+)
+from opentelemetry.instrumentation.flask import FlaskInstrumentor  # type: ignore
+from opentelemetry.sdk.resources import Resource  # type: ignore
+from opentelemetry.sdk.trace import TracerProvider  # type: ignore
+from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
+from speech_recognition import AudioFile, Recognizer  # type: ignore
 from waitress import serve  # type: ignore
 
 resource = {
@@ -41,7 +43,7 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 
-NEXT_URL: str = None
+NEXT_URL: Optional[str] = None
 
 
 @app.after_request
@@ -63,10 +65,10 @@ def handle():
         else:
             file = request.files["file"]
 
-        finalData = {}
+        finalData = ""
         try:
-            r = sr.Recognizer()
-            with sr.AudioFile(file) as source:
+            r = Recognizer()
+            with AudioFile(file) as source:
                 audio_data = r.listen(source)
                 finalData = r.recognize_vosk(audio_data)
                 print("\nThis is the output:", finalData)

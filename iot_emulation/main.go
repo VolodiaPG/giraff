@@ -82,7 +82,7 @@ type payload struct {
 	To     string `json:"to"`
 }
 
-func (content contentPing) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
+func (content contentPing) NewRequest(_ *envContext, config *cronConfig) (*http.Request, error) {
 	payload := payload{
 		Tag:    config.Tags,
 		SentAt: uint(time.Now().UnixMicro()),

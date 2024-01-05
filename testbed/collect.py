@@ -53,7 +53,7 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
 
 
 def listener(queue, filepath):
-    with tarfile.open(filepath, "w:xz", preset=9) as tar:
+    with tarfile.open(filepath, "w:xz", preset=9) as tar:  # type: ignore
         while True:
             m = queue.get()
             if m == "kill":
@@ -63,7 +63,7 @@ def listener(queue, filepath):
 
             tarinfo = tarfile.TarInfo(f"{metrixName}.csv")
             tarinfo.size = os.path.getsize(tmpfile_name)
-            tarinfo.mtime = os.path.getmtime(tmpfile_name)
+            tarinfo.mtime = int(os.path.getmtime(tmpfile_name))
             with open(tmpfile_name, "rb") as tmpfile:
                 tar.addfile(tarinfo, tmpfile)
 

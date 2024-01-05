@@ -1,17 +1,19 @@
 import logging
 import os
 from io import BytesIO
+from typing import Optional
 from urllib.parse import urlparse
 
 import torch  # type: ignore
 from flask import Flask, abort, request  # type: ignore
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import \
-    OTLPSpanExporter
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry import trace  # type: ignore
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore
+    OTLPSpanExporter,
+)
+from opentelemetry.instrumentation.flask import FlaskInstrumentor  # type: ignore
+from opentelemetry.sdk.resources import Resource  # type: ignore
+from opentelemetry.sdk.trace import TracerProvider  # type: ignore
+from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
 from PIL import Image  # type: ignore
 from torchvision import models, transforms  # type: ignore
 from waitress import serve  # type: ignore
@@ -43,7 +45,7 @@ tracer = trace.get_tracer(__name__)
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
-NEXT_URL: str = None
+NEXT_URL: Optional[str] = None
 
 
 @app.after_request

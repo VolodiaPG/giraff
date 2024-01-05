@@ -1,5 +1,5 @@
 {
-  outputs = inputs: _extra:
+  outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
       fn_name = "image-classification-squeezenet-cpu";
@@ -68,11 +68,8 @@
           packages."fn_${fn_name}" = image;
           devShells."fn_${fn_name}" = pkgs.mkShell {
             shellHook =
-              outputs.checks.${system}.pre-commit-check.shellHook
-              + ''
-                mkdir -p ./.venv/bin
-                ln -sfT ${pkgs.myFunction}/bin/python ./.venv/bin/python
-              '';
+              ((extra.shellHook system) "fn_${fn_name}")
+              + (extra.shellHookPython pkgs.myFunction.interpreter);
             SQUEEZENET_MODEL = squeezenetModel;
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";

@@ -1,5 +1,5 @@
 {
-  outputs = inputs: _extra:
+  outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
       fn_name = "speech_recognition";
@@ -17,7 +17,9 @@
                 waitress
                 flask
                 pillow
-                pyttsx3
+                (pyttsx3.overrideAttrs {
+                  meta.broken = false;
+                })
                 opentelemetry-exporter-otlp
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
@@ -105,11 +107,8 @@
           packages."fn_${fn_name}" = image;
           devShells."fn_${fn_name}" = pkgs.mkShell {
             shellHook =
-              outputs.checks.${system}.pre-commit-check.shellHook
-              + ''
-                ln -sfT ${pkgs.myFunction} ./.venv
-                ln -sfT ${voskModel} ./model
-              '';
+              ((extra.shellHook system) "fn_${fn_name}")
+              + (extra.shellHookPython pkgs.myFunction.interpreter);
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
             packages = with pkgs; [

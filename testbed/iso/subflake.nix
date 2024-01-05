@@ -106,6 +106,7 @@
             pkgs = nixpkgs.legacyPackages.${system};
           in {
             devShells.iso = pkgs.mkShell {
+              shellHook = (extra.shellHook system) "iso";
               nativeBuildInputs = with pkgs; [
                 just
                 nixos-rebuild

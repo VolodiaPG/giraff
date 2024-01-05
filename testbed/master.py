@@ -2,12 +2,22 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import Any, Optional
 
 import click  # type: ignore
-import enoslib as en  # type: ignore
+from enoslib import (  # type: ignore
+    VMonG5k,
+    VMonG5kConf,
+    actions,
+    enostask,
+    g5k_api_utils,
+    init_logging,
+)
+from enoslib import run_command as enos_run_command  # type: ignore
+from enoslib import set_config, sync_info  # type: ignore
+from infra.enos_g5k.g5k_api_utils import get_cluster_site, get_threads  # type: ignore
 
-# Enable rich logging
-from enoslib import enostask  # type: ignore
+EnosEnv = Optional[dict[str, Any]]
 
 log = logging.getLogger("rich")
 
@@ -21,8 +31,8 @@ def cli(**kwargs):
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
-    en.init_logging(level=logging.INFO)
-    en.set_config(g5k_auto_jump=False)
+    init_logging(level=logging.INFO)
+    set_config(g5k_auto_jump=False)
 
 
 @cli.command()
@@ -34,21 +44,23 @@ def up(
     force,
     name="Nix❄️+En0SLib FTW ❤️",
     walltime="2:00:00",
-    env=None,
+    env: EnosEnv = None,
     **kwargs,
 ):
     """Claim the resources and setup k3s."""
+    if env is None:
+        print("env is None")
+        exit(1)
+
     env["MASTER_CLUSTER"] = os.environ["MASTER_CLUSTER"]
     cluster = env["MASTER_CLUSTER"]
 
-    nb_cpu_per_machine = en.infra.enos_g5k.g5k_api_utils.get_threads(
-        env["MASTER_CLUSTER"]
-    )
+    nb_cpu_per_machine = get_threads(env["MASTER_CLUSTER"])
     mem_per_machine = 1024 * 16
 
     print(f"Deploying on {cluster}, force: {force}")
 
-    conf = en.VMonG5kConf.from_settings(
+    conf = VMonG5kConf.from_settings(
         job_name=name,
         walltime=walltime,
         image="/home/volparolguarino/nixos.env.qcow2",
@@ -64,27 +76,25 @@ def up(
 
     conf.finalize()
 
-    provider = en.VMonG5k(conf)
+    provider = VMonG5k(conf)
     env["provider"] = provider
 
     roles, networks = provider.init(force_deploy=force)
 
-    job = provider.g5k_provider.jobs[0]
+    job = provider.g5k_provider.jobs[0]  # type: ignore
 
     # get the ips to white list
     ips = [vm.address for vm in roles["master"]]
 
-    city = en.infra.enos_g5k.g5k_api_utils.get_cluster_site(
-        os.environ["MASTER_CLUSTER"]
-    )
+    city = get_cluster_site(os.environ["MASTER_CLUSTER"])
 
     # add ips to the white list for the job duration
-    en.g5k_api_utils.enable_home_for_job(job, ips)
+    g5k_api_utils.enable_home_for_job(job, ips)
 
-    username = en.g5k_api_utils.get_api_username()
+    username = g5k_api_utils.get_api_username()
     print(f"Mounting home of {username} on ips {ips}")
 
-    roles = en.sync_info(roles, networks)
+    roles = sync_info(roles, networks)
 
     env["roles"] = roles
     env["networks"] = networks
@@ -97,7 +107,7 @@ def up(
         ]
     )
 
-    with en.actions(roles=roles["master"]) as a:
+    with actions(roles=roles["master"]) as a:
         a.shell("mkdir -p /nfs/{metrics-arks,logs,logs_campaign,experiment}")
         a.shell("touch /nfs/joblog")
         a.shell(
@@ -125,24 +135,26 @@ EOF
 
 @cli.command()
 def get_city():
-    city = en.infra.enos_g5k.g5k_api_utils.get_cluster_site(
-        os.environ["MASTER_CLUSTER"]
-    )
+    city = get_cluster_site(os.environ["MASTER_CLUSTER"])
     print(city)
 
 
 @cli.command()
 def get_username():
-    username = en.g5k_api_utils.get_api_username()
+    username = g5k_api_utils.get_api_username()
     print(username)
 
 
 @cli.command()
 @click.option("--variations", help="Docker variation tags", required=False)
 @enostask()
-def run_command(env=None, variations: str | None = None, **kwargs):
+def run_command(env: EnosEnv = None, variations: str | None = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+
     roles = env["roles"]
-    en.run_command(
+    enos_run_command(
         "until [ -f /home/enos/env.source ]; do sleep 3; done; "
         "cd /home/enos;"
         ". /home/enos/env.source;"
@@ -161,8 +173,12 @@ def run_command(env=None, variations: str | None = None, **kwargs):
 
 @cli.command()
 @enostask()
-def clean(env=None, **kwargs):
+def clean(env: EnosEnv = None, **kwargs):
     """Destroy the provided environment"""
+    if env is None:
+        print("env is None")
+        exit(1)
+
     provider = env["provider"]
 
     provider.destroy()

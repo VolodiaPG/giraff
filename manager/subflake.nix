@@ -71,7 +71,7 @@
               )
             );
           devShells.manager = rust.craneLib.devShell {
-            checks = self.checks.${system};
+            shellHook = (extra.shellHook system) "manager";
 
             packages = with pkgs; [
               docker

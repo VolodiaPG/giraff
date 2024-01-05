@@ -20,12 +20,6 @@
               packages = {
                 inherit fwatchdog;
               };
-              devShells."openfaas-functions" = pkgs.mkShell {
-                packages = with pkgs; [
-                  parallel
-                  skopeo
-                ];
-              };
             }
           ))
           (flake-utils.lib.eachDefaultSystem (
@@ -102,6 +96,7 @@
                 inherit otelFlask otelRequests;
               };
               devShells."openfaas-functions" = pkgs.mkShell {
+                shellHook = (extra.shellHook system) "openfaas-functions";
                 packages = with pkgs; [
                   parallel
                   skopeo

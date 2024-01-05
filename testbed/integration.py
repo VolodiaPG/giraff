@@ -12,21 +12,37 @@ from datetime import datetime
 from io import TextIOWrapper
 from pathlib import Path
 from time import sleep
+from typing import Any, Optional
 
 import click  # type: ignore
 import enoslib as en  # type: ignore
-from collect import listener, worker
-from definitions import (ADJACENCY, EXTREMITIES, FOG_NODE_DEPLOYMENT,
-                         FOG_NODES, IOT_CONNECTION, LEVELS,
-                         MARKET_CONNECTED_NODE, MARKET_DEPLOYMENT,
-                         NB_CPU_PER_MACHINE_PER_CLUSTER, NETWORK,
-                         NODE_CONNECTED_NODE, flatten, gen_net, gen_vm_conf)
+
 # Enable rich logging
 from enoslib import enostask  # type: ignore
 from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
 from grid5000 import Grid5000  # type: ignore
 from grid5000.cli import auth  # type: ignore
 from influxdb_client import InfluxDBClient  # type: ignore
+
+from collect import listener, worker
+from definitions import (
+    ADJACENCY,
+    EXTREMITIES,
+    FOG_NODE_DEPLOYMENT,
+    FOG_NODES,
+    IOT_CONNECTION,
+    LEVELS,
+    MARKET_CONNECTED_NODE,
+    MARKET_DEPLOYMENT,
+    NB_CPU_PER_MACHINE_PER_CLUSTER,
+    NETWORK,
+    NODE_CONNECTED_NODE,
+    flatten,
+    gen_net,
+    gen_vm_conf,
+)
+
+EnosEnv = Optional[dict[str, Any]]
 
 log = logging.getLogger("rich")
 
@@ -153,11 +169,14 @@ def cli(**kwargs):
     """
     en.init_logging(level=logging.INFO)
     # en.set_config(ansible_forks=200)
-    en.config._config["ansible_forks"] = 200
+    en.config._config["ansible_forks"] = 200  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
 
 def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host):
+    if NETWORK is None:
+        print("NETWORK is None")
+        exit(1)
     attributions = {}
     vms = gen_vm_conf(node)
     # add the market
@@ -243,10 +262,14 @@ def up(
     name="Nix❄️+En0SLib FTW ❤️",
     walltime="2:00:00",
     dry_run=False,
-    env=None,
+    env: EnosEnv = None,
     **kwargs,
 ):
     """Claim the resources and setup k3s."""
+    if env is None:
+        print("env is None")
+        exit(1)
+
     env["CLUSTER"] = os.environ["CLUSTER"]
     cluster = env["CLUSTER"]
 
@@ -295,7 +318,7 @@ def up(
 
     roles, networks = provider.init(force_deploy=force)
 
-    job = provider.g5k_provider.jobs[0]
+    job = provider.g5k_provider.jobs[0] # type: ignore
 
     ips = [vm.address for vm in roles["ssh"]]
 
@@ -318,7 +341,7 @@ def up(
 
 @cli.command()
 @enostask()
-def restart(env=None):
+def restart(env: EnosEnv = None):
     """
     Restarts the VMs, because they are Stateless NixOS instances, rebooting will umount all tmpfs (aka /) and will reset everything, except some stuff
 
@@ -328,6 +351,9 @@ def restart(env=None):
     However, precautions have been taken in this function to only reboot one VM at a time per host
     (though only waiting a small amount of time before passing to the next)
     """
+    if env is None:
+        print("env is None")
+        exit(1)
     netem = env["netem"]
     netem.destroy()
 
@@ -370,7 +396,10 @@ def restart(env=None):
 
 @cli.command()
 @enostask()
-def k3s_setup(env=None):
+def k3s_setup(env: EnosEnv = None):
+    if env is None:
+        print("env is None")
+        exit(1)
     roles = env["roles"]
     print("Setting up k3s and FaaS...")
 
@@ -386,7 +415,10 @@ def k3s_setup(env=None):
 
 @cli.command()
 @enostask()
-def iot_emulation(env=None, **kwargs):
+def iot_emulation(env: EnosEnv = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
     roles = env["roles"]
     # Deploy the echo node
     with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
@@ -429,7 +461,11 @@ def iot_emulation(env=None, **kwargs):
 
 @cli.command()
 @enostask()
-def network(env=None):
+def network(env: EnosEnv = None):
+    if env is None:
+        print("env is None")
+        exit(1)
+
     netem = en.NetemHTB()
     env["netem"] = netem
     roles = env["roles"]
@@ -451,15 +487,22 @@ def network(env=None):
 
 @cli.command()
 @enostask()
-def k3s_config(env=None, **kwargs):
+def k3s_config(env: EnosEnv = None, **kwargs):
     """SCP the remote kubeconfig files"""
+    if env is None:
+        print("env is None")
+        exit(1)
     for out in env["k3s-token"]:
         print(out)
 
 
 @enostask()
-def aliases(env=None, **kwargs):
+def aliases(env: EnosEnv = None, **kwargs):
     """Get aliases"""
+    if env is None:
+        print("env is None")
+        exit(1)
+
     return get_aliases_from_ip(env)
 
 
@@ -493,7 +536,14 @@ def gen_conf(node, parent_id, parent_ip, ids):
     help="The container image URL. eg. ghcr.io/volodiapg/giraff:market",
 )
 @enostask()
-def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
+def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+    if NETWORK is None:
+        print("NETWORK is None")
+        exit(1)
+
     roles = env["roles"]
 
     # en.run_command(
@@ -604,7 +654,11 @@ def k3s_deploy(fog_node_image, market_image, env=None, **kwargs):
 @cli.command()
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
-def health(env=None, all=False, **kwargs):
+def health(env: EnosEnv = None, all=False, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+
     roles = env["roles"]
 
     command = "kubectl get deployments -n openfaas"
@@ -650,7 +704,10 @@ def network_node_levels(queue):
 
 
 @enostask()
-def _collect(env=None, **kwargs):
+def _collect(env: EnosEnv, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
     return env["agent_tunnels"]
 
 
@@ -723,7 +780,11 @@ def collect(address=None, **kwargs):
 @cli.command()
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
-def logs(env=None, all=False, **kwargs):
+def logs(env: EnosEnv = None, all=False, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+
     roles = env["roles"]
 
     res = []
@@ -760,7 +821,11 @@ def logs(env=None, all=False, **kwargs):
 
 
 @enostask()
-def do_open_tunnels(env=None, **kwargs):
+def do_open_tunnels(env: EnosEnv = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+
     roles = env["roles"]
     env["agent_tunnels"] = list()
     for prom_agent in roles["prom_agent"]:
@@ -801,8 +866,12 @@ def tunnels(command=None, **kwargs):
 
 @cli.command()
 @enostask()
-def endpoints(env=None, **kwargs):
+def endpoints(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
+    if env is None:
+        print("env is None")
+        exit(1)
+
     roles = env["roles"]
     for extremity in EXTREMITIES:
         role = roles[extremity][0]
@@ -814,15 +883,18 @@ def endpoints(env=None, **kwargs):
 
 @cli.command()
 @enostask()
-def market_ip(env=None, **kwargs):
+def market_ip(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
+    if env is None:
+        print("env is None")
+        exit(1)
     role = env["roles"]["market"][0]
     address = role.address
     print(f"address: {address}")
 
 
 @cli.command()
-def iot_connections(env=None, **kwargs):
+def iot_connections(env: EnosEnv = None, **kwargs):
     """List the endpoints name where IoT Emulation is connected to"""
     for name, _ in IOT_CONNECTION:
         print(f"{name}")
@@ -830,8 +902,11 @@ def iot_connections(env=None, **kwargs):
 
 @cli.command()
 @enostask()
-def clean(env=None, **kwargs):
+def clean(env: EnosEnv = None, **kwargs):
     """Destroy the provided environment"""
+    if env is None:
+        print("env is None")
+        exit(1)
     provider = env["provider"]
 
     provider.destroy()

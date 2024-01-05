@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import aiohttp  # type: ignore
-import dill
+import dill  # type: ignore
 import marshmallow_dataclass  # type: ignore
 import numpy as np  # type: ignore
 from alive_progress import alive_bar  # type: ignore
@@ -415,7 +415,7 @@ async def save_file(filename: str):
                         )
                     )
 
-                    if fn.nextFunction == None:
+                    if fn.nextFunction is None:
                         break
                     fn_name = fn.nextFunction
                 functions.append(fn_chain)
@@ -470,13 +470,14 @@ async def load_file(filename: str):
 
 
 async def main():
-    if os.getenv("EXPE_SAVE_FILE") is not None:
-        await save_file(os.getenv("EXPE_SAVE_FILE"))
-    elif os.getenv("EXPE_LOAD_FILE") is not None:
+    env_save_file = os.getenv("EXPE_SAVE_FILE")
+    env_load_file = os.getenv("EXPE_LOAD_FILE")
+    if env_save_file is not None:
+        await save_file(env_save_file)
+    elif env_load_file is not None:
         print(f"Using market ({MARKET_IP}) and iot_emulation({IOT_IP})")
-        await load_file(os.getenv("EXPE_LOAD_FILE"))
+        await load_file(env_load_file)
         print(f"--> Did {successes}, failed to provision {errors} functions.")
-
     else:
         print("Not EXPE_SAVE_FILE nor EXPE_LOAD_FILE were passed, aborting")
         return 1

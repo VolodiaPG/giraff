@@ -65,7 +65,7 @@
               fn_echo = outputs.packages.${system}.fn_echo_jaeger;
             };
           devShells.fn_echo = rust.craneLib.devShell {
-            checks = self.checks.${system};
+            shellHook = (extra.shellHook system) "fn_echo";
 
             packages = with pkgs; [
               just

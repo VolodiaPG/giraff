@@ -1,8 +1,6 @@
 {
-  outputs = inputs: _extra:
-    with inputs; let
-      inherit (self) outputs;
-    in
+  outputs = inputs: extra:
+    with inputs;
       flake-utils.lib.eachDefaultSystem (system: let
         pkgs = import nixpkgs {
           inherit system;
@@ -17,7 +15,7 @@
           modules = ./gomod2nix.toml;
         };
         devShells.proxy = pkgs.mkShell {
-          inherit (outputs.checks.${system}.pre-commit-check) shellHook;
+          shellHook = (extra.shellHook system) "proxy";
           packages = with pkgs; [
             git
             gnumake

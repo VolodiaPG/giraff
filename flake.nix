@@ -63,6 +63,38 @@
 
       extra = {
         buildRustEnv = import ./rust.nix {inherit inputs;};
+        shellHook = system: shellName: let
+          pkgs = nixpkgs.legacyPackages.${system};
+          # packages is used as bash list in the following script
+          # deadnix: skip
+          packages =
+            outputs.devShells.${system}.${shellName}.buildInputs
+            ++ outputs.devShells.${system}.${shellName}.nativeBuildInputs
+            ++ outputs.devShells.${system}.${shellName}.propagatedBuildInputs;
+        in ''
+          # Add additional folders to to XDG_DATA_DIRS if they exists, which will get sourced by bash-completion
+          for p in ''${packages}; do
+            if [ -d "$p/share/bash-completion" ]; then
+              XDG_DATA_DIRS="$XDG_DATA_DIRS:$p/share"
+            fi
+          done
+
+          source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
+          ${outputs.checks.${system}.pre-commit-check.shellHook}
+        '';
+
+        shellHookPython = interpreter: let
+          venvDir = "./.venv";
+        in ''
+          SOURCE_DATE_EPOCH=$(date +%s)
+          if [ -d "${venvDir}" ]; then
+            echo "Skipping venv creation, '${venvDir}' already exists"
+          else
+            echo "Creating new venv environment in path: '${venvDir}'"
+            ${interpreter} -m venv "${venvDir}"
+          fi
+          source "${venvDir}/bin/activate"
+        '';
       };
 
       subflake = path:
@@ -126,10 +158,7 @@
               program = "${script}";
             };
             devShells.default = pkgs.mkShell {
-              inherit
-                (outputs.checks.${system}.pre-commit-check)
-                shellHook
-                ;
+              shellHook = (extra.shellHook system) "default";
               packages = with pkgs; [just cachix];
             };
             formatter = pkgs.alejandra;
@@ -137,7 +166,7 @@
               pre-commit-check = pre-commit-hooks.lib.${system}.run {
                 src = ./.;
                 settings.statix.ignore = ["Cargo.nix"];
-                settings.mypy.binPath = "${pkgs.mypy}/bin/mypy --no-namespace-packages";
+                # settings.mypy.binPath = "${pkgs.mypy}/bin/mypy --scripts-are-modules";
                 hooks = {
                   # Nix
                   alejandra.enable = true;
@@ -152,11 +181,11 @@
                   autoflake.enable = true;
                   isort.enable = true;
                   ruff.enable = true;
-                  mypy.enable = true;
+                  pyright.enable = true;
                   zCachix = {
                     enable = true;
                     name = "push cachix";
-                    entry = "sh -c 'nix run .#cachix'";
+                    entry = "sh -c '${pkgs.nix}/bin/nix run .#cachix'";
                     language = "system";
                     pass_filenames = false;
                   };

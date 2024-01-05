@@ -14,7 +14,7 @@
               inherit system;
               overlays = [overlay];
             };
-            overlay = final: prev: {
+            overlay = _final: prev: {
               experiments = prev.python311.withPackages (ps: (with ps; [
                 dill
                 click
@@ -26,7 +26,7 @@
                 marshmallow-dataclass
                 (alive-progress.overridePythonAttrs
                   (
-                    old: {
+                    _old: {
                       postInstall = ''
                         rm $out/LICENSE
                       '';
@@ -107,30 +107,10 @@
           in {
             packages.experiments = pkgs.experiments;
             devShells.testbed = pkgs.mkShell {
-              shellHook = let
-                venvDir = "./.venv";
-              in
-                outputs.checks.${system}.pre-commit-check.shellHook;
-              # + ''
-              #   #ln -sfT ${pkgs.experiments} ./.venv
-              # SOURCE_DATE_EPOCH=$(date +%s)
-              # if [ -d "${venvDir}" ]; then
-              #   echo "Skipping venv creation, '${venvDir}' already exists"
-              # else
-              #   echo "Creating new venv environment in path: '${venvDir}'"
-              #   ${pkgs.experiments.interpreter} -m venv "${venvDir}"
-              # fi
-              # source "${venvDir}/bin/activate"
+              shellHook =
+                ((extra.shellHook system) "testbed")
+                + (extra.shellHookPython pkgs.experiments.interpreter);
 
-              # # Add additional folders to to XDG_DATA_DIRS if they exists, which will get sourced by bash-completion
-              # for p in ''${buildInputs}; do
-              #   if [ -d "$p/share/bash-completion" ]; then
-              #     XDG_DATA_DIRS="$XDG_DATA_DIRS:$p/share"
-              #   fi
-              # done
-
-              # source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
-              # '';
               PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
 
               buildInputs = with pkgs; [
@@ -176,18 +156,6 @@
                 # Environment to run enos and stuff
                 experiments
               ]);
-            # runAsRoot = ''
-            #   #!${pkgs.runtimeShell}
-            #   ${pkgs.dockerTools.shadowSetup}
-            #   groupadd -g 1000 enos
-            #   useradd -u 1000 -g 1000 enos
-            #   mkdir -p /home/enos
-            #   chown enos:enos -R /home/enos
-
-            #   mkdir -p /tmp
-            #   mkdir -p /usr/bin
-            #   ln -s ${pkgs.busybox}/bin/env /usr/bin/env
-            # '';
 
             config = {
             };
@@ -277,10 +245,6 @@
                       texlive.combined.scheme-full
                       pgf3
                     ]);
-                    # ++ [pkgs.toysbox]
-                    # ++ outputs.devShells.${system}.testbed.buildInputs
-                    # ++ outputs.devShells.${system}.testbed.nativeBuildInputs
-                    # ++ outputs.devShells.${system}.testbed.propagatedBuildInputs;
                     enable = true;
                     name = "faas_fog";
                     displayName = "faas_fog";
