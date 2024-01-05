@@ -46,13 +46,13 @@
                 })
                 (buildPythonPackage rec {
                   pname = "enoslib";
-                  version = "v8.1.5";
+                  version = "v9.0.1";
                   src = prev.fetchFromGitLab {
                     domain = "gitlab.inria.fr";
                     owner = "discovery";
                     repo = pname;
                     rev = "${version}";
-                    hash = "sha256-3pyPtj8xzbQVVtoFGAaOEuEp98qWAhc35yt3liZkIvM=";
+                    hash = "sha256-Fk5RfkGt1M19VZc4GPvoockDtayf7O5FmrcHKM6V968=";
                   };
 
                   # We do the following because nix cannot yet access the extra builds of poetry
