@@ -19,6 +19,7 @@
                 dill
                 click
                 aiohttp
+                numpy
                 influxdb-client
                 marshmallow-dataclass
                 (alive-progress.overridePythonAttrs
@@ -43,14 +44,8 @@
                 })
                 (buildPythonPackage rec {
                   pname = "enoslib";
-                  version = "v9.0.1";
-                  src = prev.fetchFromGitLab {
-                    domain = "gitlab.inria.fr";
-                    owner = "discovery";
-                    repo = pname;
-                    rev = "${version}";
-                    hash = "sha256-Fk5RfkGt1M19VZc4GPvoockDtayf7O5FmrcHKM6V968=";
-                  };
+                  src = inputs.enoslib;
+                  version = "${builtins.toString inputs.enoslib.revCount}-${inputs.enoslib.shortRev}";
 
                   # We do the following because nix cannot yet access the extra builds of poetry
                   patchPhase = ''
@@ -128,9 +123,27 @@
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
           pkgs = nixpkgs.legacyPackages.${system};
 
+          basis = pkgs.dockerTools.buildImage {
+            name = "enos_deployment_base";
+            tag = "latest";
+            runAsRoot = ''
+              #!${pkgs.runtimeShell}
+              ${pkgs.dockerTools.shadowSetup}
+              groupadd -g 1000 enos
+              useradd -u 1000 -g 1000 enos
+              mkdir -p /home/enos
+              chown enos:enos -R /home/enos
+
+              mkdir -p /tmp
+              mkdir -p /usr/bin
+              ln -s ${pkgs.busybox}/bin/env /usr/bin/env
+            '';
+          };
+
           dockerImage = pkgs.dockerTools.streamLayeredImage {
             name = "enos_deployment";
             tag = "latest";
+            fromImage = basis;
             contents =
               (with pkgs; [
                 # Linux toolset
@@ -151,8 +164,13 @@
                 experiments
               ]);
 
-            config = {
-            };
+            # extraCommands = ''
+            #   ${pkgs.dockerTools.shadowSetup}
+            #   # mkdir -p /home/enos
+            #   mkdir -p -m 0777 /tmp
+            #   mkdir -p -m 0777 /usr/bin
+            #   ln -s ${pkgs.busybox}/bin/env /usr/bin/env
+            # '';
           };
         in {
           packages.docker = dockerImage;

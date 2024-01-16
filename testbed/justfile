@@ -2,7 +2,7 @@ set dotenv-load
 
 RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
-export SSHPASS:="faas"
+export SSHPASS:="giraff"
 export MANAGER_PATH := "../manager"
 export IOT_EMULATION_PATH := "../iot_emulation"
 export FUNCTIONS_PATH := "../openfaas-functions"
@@ -241,11 +241,13 @@ build_required_images user:
 
     commands=(
         "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
-        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}} $IOT_EMULATION_FEATURES"
+        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}} iot_emulation"
         "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
     )
 
-    parallel --will-cite --lb ::: "${commands[@]}"
+    echo "${commands[@]}"
+
+    # parallel --will-cite --lb ::: "${commands[@]}"
 
 [private]
 docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)
@@ -478,8 +480,10 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     ssh $city.grid5000.fr mkdir -p enosvm
 
+    echo "Copying whitelisted files for mouting inside the master VM"
+
     parallel rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
-        ::: *.py .env {{experiments_dotfile}} justfile
+        ::: *.py .env {{experiments_dotfile}} justfile pipelines/
 
     wait
     

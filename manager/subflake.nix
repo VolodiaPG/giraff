@@ -88,7 +88,6 @@
               kubectl
               (rustfmt.override {asNightly = true;})
               parallel
-              skopeo
             ];
           };
         }

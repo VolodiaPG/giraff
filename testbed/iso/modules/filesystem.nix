@@ -69,13 +69,33 @@ in {
     systemPackages = [pkgs.nfs-utils];
   };
 
+  # useful for debugging
+  systemd.services.sshx = {
+    description = "sshx";
+    wantedBy = ["multi-user.target"];
+    script = ''
+      dir=$(mktemp -d)
+      ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
+      ${pkgs.sshx}/bin/sshx -q > $dir/sshx
+    '';
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = "yes";
+      Restart = "on-failure";
+      RestartSec = "3";
+    };
+  };
   systemd.services.mountNfs = {
     description = "Mount ssh";
-    after = ["network.target"];
     wantedBy = ["multi-user.target"];
     script = ''
       mkdir -p /nfs
       ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} /nfs
+
+      mkdir -p /etc/ssh/authorized_keys.d
+      cat /nfs/.ssh/authorized_keys > /etc/ssh/authorized_keys.d/root
+      chmod 644 /etc/ssh/authorized_keys.d/root
+
       mkdir -p /root/.ssh
       cp /nfs/.ssh/{authorized_keys,config,id_rsa,id_rsa.pub} /root/.ssh
       chmod 700 -R /root/.ssh

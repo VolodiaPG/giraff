@@ -100,6 +100,7 @@
                 packages = with pkgs; [
                   parallel
                   skopeo
+                  just
                 ];
               };
             }

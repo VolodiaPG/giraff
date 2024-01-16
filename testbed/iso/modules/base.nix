@@ -11,7 +11,7 @@
     isSystemUser = true;
     shell = pkgs.fish;
     extraGroups = ["networkmanager" "wheel"];
-    password = "faas";
+    password = "giraff";
     # hashedPassword = "$6$qi8XAsi7E.eVCsQK$7xIDTcn0g3h9iRGU3IMBBq7e53oTC5dDSa3qn/2EmIjO.nvNvfDq2OiEBiw8aDWLxkAiuuo.BcBdCtAK6p6Y71"; # faas
     # openssh.authorizedKeys.keys = readLines ../config/id_rsa.pub;# Acutally mounted by enos
   };
@@ -23,6 +23,7 @@
       settings = {
         PermitRootLogin = "yes";
         X11Forwarding = false;
+        KbdInteractiveAuthentication = lib.mkForce true;
         PasswordAuthentication = lib.mkForce true;
       };
     };
@@ -66,11 +67,14 @@
   networking = {
     firewall = {
       enable = lib.mkForce false;
-      allowPing = true;
+      # allowPing = true;
     };
     useNetworkd = false;
     useDHCP = true;
   };
+
+  # systemd.services.NetworkManager-wait-online.enable = true;
+  # systemd.network.wait-online.enable = true;
 
   system.stateVersion = "22.05"; # Do not change
 }

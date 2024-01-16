@@ -163,7 +163,7 @@ def cli(**kwargs):
     """Experiment with k3s in G5K.
 
     Don't forget to clean with the `clean` verb.
-
+ 
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """

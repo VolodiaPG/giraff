@@ -32,11 +32,14 @@
                   kubernetes.helm.releases.openfaas = {
                     namespace = nixpkgs.lib.mkForce "openfaas";
                     overrideNamespace = false;
-                    chart = kubenix.lib.helm.fetch {
-                      repo = "https://openfaas.github.io/faas-netes/";
-                      chart = "openfaas";
-                      version = "14.1.9";
-                      sha256 = "sha256-KxZhrunv8DbOvFqw7p2t2Zrqm4urvFWCErsutqNUgiM=";
+                    chart = pkgs.stdenvNoCC.mkDerivation {
+                      name = "openfaas";
+                      src = inputs.openfaas;
+
+                      buildCommand = ''
+                        ls $src
+                        cp -r $src/chart/openfaas/ $out
+                      '';
                     };
                   };
                   # kubernetes.resources = {

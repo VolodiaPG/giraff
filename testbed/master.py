@@ -15,7 +15,10 @@ from enoslib import (  # type: ignore
 )
 from enoslib import run_command as enos_run_command  # type: ignore
 from enoslib import set_config, sync_info  # type: ignore
-from infra.enos_g5k.g5k_api_utils import get_cluster_site, get_threads  # type: ignore
+from enoslib.infra.enos_g5k.g5k_api_utils import (  # type: ignore
+    get_cluster_site,
+    get_threads,
+)
 
 EnosEnv = Optional[dict[str, Any]]
 
@@ -93,7 +96,7 @@ def up(
 
     username = g5k_api_utils.get_api_username()
     print(f"Mounting home of {username} on ips {ips}")
-
+    
     roles = sync_info(roles, networks)
 
     env["roles"] = roles
@@ -106,10 +109,13 @@ def up(
             "rm ~/ca-certificates.crt; cp /etc/ssl/certs/ca-certificates.crt ~/ca-certificates.crt",
         ]
     )
+    
+
 
     with actions(roles=roles["master"]) as a:
         a.shell("mkdir -p /nfs/{metrics-arks,logs,logs_campaign,experiment}")
         a.shell("touch /nfs/joblog")
+        a.shell("mkdir -p /home/enos")
         a.shell(
             "ln -s /nfs/{metrics-arks,logs,logs_campaign,joblog,experiment} /home/enos"
         )

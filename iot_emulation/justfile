@@ -15,4 +15,4 @@ update:
     gomod2nix
 
 ghcr user:
-    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation
+    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation

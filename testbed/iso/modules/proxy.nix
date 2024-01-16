@@ -9,7 +9,6 @@
 in {
   systemd.services.proxy = {
     description = "Start the proxy server";
-    after = ["network.target"];
     wantedBy = ["multi-user.target"];
     serviceConfig = {
       Environment = [
@@ -20,6 +19,8 @@ in {
         "INFLUX_TOKEN=${toString influxToken}"
       ];
       ExecStart = "${outputs.packages.${pkgs.system}.proxy}/bin/proxy";
+      Restart = "on-failure";
+      RestartSec = "3";
     };
   };
 }

@@ -61,6 +61,14 @@
       url = "github:openfaas/of-watchdog";
       flake = false;
     };
+    enoslib = {
+      url = "git+https://gitlab.inria.fr/discovery/enoslib?ref=refs/tags/v8.1.5";
+      flake = false;
+    };
+    openfaas = {
+      url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
+      flake = false;
+    };
   };
 
   # Enable caching
@@ -100,11 +108,13 @@
           venvDir = "./.venv";
         in ''
           SOURCE_DATE_EPOCH=$(date +%s)
-          if [ -d "${venvDir}" ]; then
+          if [ -d "${venvDir}" ] && [ "${interpreter}" == $(cat "${venvDir}/interpreter.hash") ]; then
             echo "Skipping venv creation, '${venvDir}' already exists"
           else
+            rm -rf ${venvDir} || true
             echo "Creating new venv environment in path: '${venvDir}'"
             ${interpreter} -m venv "${venvDir}"
+            echo ${interpreter} > "${venvDir}"/interpreter.hash
           fi
           source "${venvDir}/bin/activate"
         '';
@@ -159,7 +169,7 @@
                 export PATH=${binPath}:$PATH
                 tmp=$(mktemp)
                 tmp2=$(mktemp)
-                parallel "(nix path-info --json --derivation {} | jq -r 'map(.path)' | jq -r '.[]' | grep '/nix/store') >> $tmp" ::: ${trace_apps} ${trace_pkgs}
+                parallel "(nix  --extra-experimental-features 'nix-command flakes' path-info --json --derivation {} | jq -r 'map(.path)' | jq -r '.[]' | grep '/nix/store') >> $tmp" ::: ${trace_apps} ${trace_pkgs}
                 parallel -N1000 -a $tmp "(nix-store --query --requisites --include-outputs {} | grep '/nix/store') >> $tmp2"
                 cat $tmp2 >> $tmp
                 parallel -N1000 -a $tmp cachix push -j $(nproc --all) -m xz -c 9 giraff {}
@@ -196,9 +206,11 @@
                   pyright.enable = true;
                   # Update the cache at each commit
                   zCachix = {
-                    enable = true;
+                    enable = false;
                     name = "push cachix";
-                    entry = "sh -c '${pkgs.nix}/bin/nix run .#cachix'";
+                    entry = ''
+                      sh -c 'nix run --extra-experimental-features "nix-command flakes" .#cachix'
+                    '';
                     language = "system";
                     pass_filenames = false;
                   };

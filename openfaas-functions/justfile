@@ -24,7 +24,7 @@ _ghcr user dir:
     #!/usr/bin/env bash
     fn_dir=$(basename {{dir}})
     fn_name="fn_$fn_dir"
-    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast | skopeo copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
+    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
 
 _ghcr_all user:
     #!/usr/bin/env bash
