@@ -1,3 +1,5 @@
+NIX_FLAGS := env_var_or_default("NIX_FLAGS", "--extra-experimental-features nix-command,flakes --print-out-paths --no-link --quiet")
+
 _default:
     PORT="30080" \
     INFLUX_ADDRESS="10.42.0.1:9086" \
@@ -7,7 +9,8 @@ _default:
     PROXY_PORT="3128" \
     COLLECTOR_URL="127.0.0.1:4317" \
     DEV=TRUE \
-    FOLDER_RESOURCES=content \
+    PATH_AUDIO=$(nix build {{NIX_FLAGS}} .#dataset_audio) \
+    PATH_IMAGE=$(nix build {{NIX_FLAGS}} .#dataset_image) \
     go run *.go
 
 update:
@@ -15,4 +18,4 @@ update:
     gomod2nix
 
 ghcr user:
-    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation
+    $(nix build .#iot_emulation --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation

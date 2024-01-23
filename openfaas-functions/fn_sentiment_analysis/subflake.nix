@@ -2,7 +2,7 @@
   outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
-      fn_name = "image-processing-pillow";
+      fn_name = "sentiment_analysis";
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
@@ -11,20 +11,51 @@
             overlays = [overlay];
           };
 
-          overlay = self: _super: {
+          overlay = self: super: {
             myFunction = self.python311.withPackages (ps:
               (with ps; [
                 waitress
                 flask
                 pillow
+                nltk
                 opentelemetry-exporter-otlp
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
                 opentelemetry-sdk
+                (buildPythonPackage rec {
+                  pname = "textblob";
+                  version = "0.17.1";
+                  format = "wheel";
+
+                  src = super.fetchPypi rec {
+                    inherit pname version format;
+                    hash = "sha256-FVRtfzCelqP1Qr7kJ1HI5c5NUZ09J07nnfIxgUHwt4g=";
+                  };
+
+                  # https://pypi.org/pypi/textblob/json
+                  propagatedBuildInputs = with pkgs.python3Packages; [
+                    nltk
+                  ];
+                })
               ])
               ++ (with outputs.packages.${system}; [
                 otelFlask
               ]));
+          };
+
+          punktModel = pkgs.stdenv.mkDerivation rec {
+            pname = "punkt";
+            version = "1.0";
+            src = builtins.fetchurl {
+              url = "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/tokenizers/punkt.zip";
+              sha256 = "sha256:1v306rjpjfcqd8mh276lfz8s1d22zgj8n0lfzh5nbbxfjj4hghsi";
+            };
+            nativeBuildInputs = [pkgs.unzip];
+            unpackPhase = "unzip $src -d folder";
+            installPhase = ''
+              mkdir -p $out/tokenizers
+              cp -r folder/* $out/tokenizers
+            '';
           };
 
           image = pkgs.dockerTools.streamLayeredImage {
@@ -35,6 +66,7 @@
                 "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
+                "NLTK_DATA=${punktModel}"
                 "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
@@ -49,6 +81,7 @@
             shellHook =
               ((extra.shellHook system) "fn_${fn_name}")
               + (extra.shellHookPython pkgs.myFunction.interpreter);
+            NLTK_DATA = "${punktModel}";
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
             packages = with pkgs; [

@@ -57,6 +57,7 @@ in {
         "/var/lib/docker/containerd"
         "/var/log"
         "/root"
+        "/etc/ssh"
       ];
       files = [
         # Preserve influxdb login informations as created initially in Nix
@@ -76,7 +77,17 @@ in {
     script = ''
       dir=$(mktemp -d)
       ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
-      ${pkgs.sshx}/bin/sshx -q > $dir/sshx
+
+      while ! [ -f "/my_group" ] ; do
+        sleep 1
+      done
+      while ! [ -f "/my_name" ] ; do
+        sleep 1
+      done
+      mkdir -p "$dir/sshx/$(cat /my_group)"
+      export PATH=/run/current-system/sw/bin:$PATH
+      export SHELL="fish"
+      ${pkgs.lib.getExe inputs.nixpkgs_unstable.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
     '';
     serviceConfig = {
       Type = "oneshot";

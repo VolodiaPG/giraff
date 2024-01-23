@@ -58,7 +58,7 @@ run_market *FLAGS:
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node node_type MY_IP_ADDRESS debug="false":
-    #!/usr/bin/env python3
+    #!.venv/bin/python
     import os
     import base64
     import subprocess
@@ -183,9 +183,9 @@ ghcr user +images:
         re="fog_node_(.*)"
         if [[ $1 =~ $re  ]]; then
             name="${BASH_REMATCH[1]}"
-            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$name
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$name
         else
-            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$1
+            $(nix build ".#$1" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$1
         fi
     }
 

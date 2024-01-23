@@ -241,7 +241,9 @@
             gunzip -c output.gz | podman load
           '';
         in {
-          packages.enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
+          packages = {
+            enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
+          };
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
         }))
         (flake-utils.lib.eachDefaultSystem (system: let

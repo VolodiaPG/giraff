@@ -1,6 +1,8 @@
 {
   outputs = inputs: extra:
-    with inputs;
+    with inputs; let
+      inherit (self) outputs;
+    in
       flake-utils.lib.eachDefaultSystem (system: let
         pkgs = import nixpkgs {
           inherit system;
@@ -17,12 +19,20 @@
           name = "iot_emulation";
           tag = "latest";
           config = {
-            Env = ["SERVER_PORT=30080"];
+            Env = [
+              "PORT=30080"
+              "PATH_AUDIO=${outputs.packages.${system}.dataset_audio}"
+              "PATH_IMAGE=${outputs.packages.${system}.dataset_image}"
+            ];
             Cmd = ["${iot_emulation}/bin/iot_emulation"];
           };
         };
       in {
-        packages.iot_emulation = dockerIOTEmulation;
+        packages = {
+          iot_emulation = dockerIOTEmulation;
+          dataset_image = import ./dataset_image.nix {inherit pkgs;};
+          dataset_audio = import ./dataset_audio.nix {inherit pkgs;};
+        };
         devShells.iot_emulation = pkgs.mkShell {
           shellHook = (extra.shellHook system) "iot_emulation";
           packages = with pkgs; [

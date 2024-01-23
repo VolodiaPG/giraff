@@ -2,7 +2,7 @@
   outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
-      fn_name = "sentiment-analysis";
+      fn_name = "image_classification_squeezenet_cpu";
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
@@ -11,62 +11,49 @@
             overlays = [overlay];
           };
 
-          overlay = self: super: {
+          overlay = self: _super: {
             myFunction = self.python311.withPackages (ps:
               (with ps; [
+                torch
+                torchvision
                 waitress
                 flask
                 pillow
-                nltk
                 opentelemetry-exporter-otlp
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
                 opentelemetry-sdk
-                (buildPythonPackage rec {
-                  pname = "textblob";
-                  version = "0.17.1";
-                  format = "wheel";
-
-                  src = super.fetchPypi rec {
-                    inherit pname version format;
-                    hash = "sha256-FVRtfzCelqP1Qr7kJ1HI5c5NUZ09J07nnfIxgUHwt4g=";
-                  };
-
-                  # https://pypi.org/pypi/textblob/json
-                  propagatedBuildInputs = with pkgs.python3Packages; [
-                    nltk
-                  ];
-                })
               ])
               ++ (with outputs.packages.${system}; [
                 otelFlask
               ]));
           };
 
-          punktModel = pkgs.stdenv.mkDerivation rec {
-            pname = "punkt";
-            version = "1.0";
+          squeezenetModel = pkgs.stdenv.mkDerivation {
+            name = "squeezenet";
+            version = "1.1";
             src = builtins.fetchurl {
-              url = "https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/tokenizers/punkt.zip";
-              sha256 = "sha256:1v306rjpjfcqd8mh276lfz8s1d22zgj8n0lfzh5nbbxfjj4hghsi";
+              url = "https://download.pytorch.org/models/squeezenet1_1-b8a52dc0.pth";
+              sha256 = "sha256:0yvy9nmms2k5q6yzxch4cf5spbv2fd2xzl4anrm4n3mn9702v9dq";
             };
-            nativeBuildInputs = [pkgs.unzip];
-            unpackPhase = "unzip $src -d folder";
+            unpackPhase = ":";
             installPhase = ''
-              mkdir -p $out/tokenizers
-              cp -r folder/* $out/tokenizers
+              cp $src $out
             '';
           };
 
           image = pkgs.dockerTools.streamLayeredImage {
             name = "fn_${fn_name}";
             tag = "latest";
+            extraCommands = ''
+              ln -s ${./imagenet_classes.txt} imagenet_classes.txt
+            '';
             config = {
               Env = [
                 "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
-                "NLTK_DATA=${punktModel}"
+                "SQUEEZENET_MODEL=${squeezenetModel}"
                 "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
               ];
               ExposedPorts = {
@@ -81,7 +68,7 @@
             shellHook =
               ((extra.shellHook system) "fn_${fn_name}")
               + (extra.shellHookPython pkgs.myFunction.interpreter);
-            NLTK_DATA = "${punktModel}";
+            SQUEEZENET_MODEL = squeezenetModel;
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
             packages = with pkgs; [

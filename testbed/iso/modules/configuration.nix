@@ -14,6 +14,7 @@ in {
   programs.fish.shellAliases = {
     kubectl = "k3s kubectl";
     k = "kubectl";
+    k9 = "k9s --kubeconfig /etc/rancher/k3s/k3s.yaml -A";
   };
 
   virtualisation.docker.enable = true;
@@ -27,6 +28,7 @@ in {
     kubectl
     arkade
     tailscale
+    k9s
   ];
 
   services.tailscale.enable = true;

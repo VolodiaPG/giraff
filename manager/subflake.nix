@@ -71,7 +71,9 @@
               )
             );
           devShells.manager = rust.craneLib.devShell {
-            shellHook = (extra.shellHook system) "manager";
+            shellHook =
+              ((extra.shellHook system) "manager")
+              + (extra.shellHookPython pkgs.python3.interpreter);
 
             packages = with pkgs; [
               docker
@@ -88,6 +90,7 @@
               kubectl
               (rustfmt.override {asNightly = true;})
               parallel
+              skopeo
             ];
           };
         }

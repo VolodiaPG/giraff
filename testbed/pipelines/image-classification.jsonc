@@ -5,11 +5,11 @@
     "pipeline": {
         "imagePreProcessing": {
             "nextFunction": "classif",
-            "image": "giraff:fn_image-processing-pillow"
+            "image": "giraff:fn_image_processing_pillow"
         },
         "classif": {
             "nextFunction": "echo",
-            "image": "giraff:fn_image-classification-squeezenet-cpu",
+            "image": "giraff:fn_image_classification_squeezenet_cpu",
             "mem": 512,
             "cpu": 300
         },

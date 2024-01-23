@@ -1,7 +1,8 @@
 {
   inputs = {
     # Al packages
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs_unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     # This defines the ansible dependencies for enoslib as it uses an older version
     nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";

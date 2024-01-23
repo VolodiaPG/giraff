@@ -35,20 +35,22 @@ import (
 )
 
 type envContext struct {
-	MyPort             string
-	InfluxAddress      string
-	InfluxToken        string
-	InfluxOrg          string
-	InfluxBucket       string
-	ProxyPort          string
-	CollectorURL       *string
-	FolderResources    map[string][]fs.DirEntry
-	FolderResourceName string
-	Dev                bool
-	InfluxWriter       api.WriteAPI
-	InfluxClient       influxdb2.Client
-	Logger             *otelzap.Logger
-	Validator          *validator.Validate
+	MyPort                  string
+	InfluxAddress           string
+	InfluxToken             string
+	InfluxOrg               string
+	InfluxBucket            string
+	ProxyPort               string
+	CollectorURL            *string
+	FolderResourcesAudio    []fs.DirEntry
+	FolderResourcesAudioEnv string
+	FolderResourcesImage    []fs.DirEntry
+	FolderResourcesImageEnv string
+	Dev                     bool
+	InfluxWriter            api.WriteAPI
+	InfluxClient            influxdb2.Client
+	Logger                  *otelzap.Logger
+	Validator               *validator.Validate
 }
 
 type cronConfig struct {
@@ -102,8 +104,8 @@ func (content contentPing) NewRequest(_ *envContext, config *cronConfig) (*http.
 }
 
 func (content contentAudio) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
-	index := uint(rand.Uint32()) % uint(len(env.FolderResources["audios"]))
-	data, err := os.Open(filepath.Join(env.FolderResourceName, "audios", env.FolderResources["audios"][index].Name()))
+	index := uint(rand.Uint32()) % uint(len(env.FolderResourcesAudio))
+	data, err := os.Open(filepath.Join(env.FolderResourcesAudioEnv, env.FolderResourcesAudio[index].Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +117,9 @@ func (content contentAudio) NewRequest(env *envContext, config *cronConfig) (*ht
 }
 
 func (content contentImage) NewRequest(env *envContext, config *cronConfig) (*http.Request, error) {
-	index := uint(rand.Uint32()) % uint(len(env.FolderResources["images"]))
-	filename := env.FolderResources["images"][index].Name()
-	data, err := os.Open(filepath.Join(env.FolderResourceName, "images", filename))
+	index := uint(rand.Uint32()) % uint(len(env.FolderResourcesImage))
+	filename := env.FolderResourcesImage[index].Name()
+	data, err := os.Open(filepath.Join(env.FolderResourcesImageEnv, env.FolderResourcesImage[index].Name()))
 	if err != nil {
 		return nil, err
 	}
@@ -210,25 +212,23 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	if err != nil {
 		return envContext{}, err
 	}
-	folderResources := make(map[string][]fs.DirEntry)
-	folder, err := lookupVar("FOLDER_RESOURCES")
+	folderResourcesAudioEnv, err := lookupVar("PATH_AUDIO")
 	if err != nil {
 		return envContext{}, err
 	}
-	subdirs, err := os.ReadDir(folder)
+	folderResourcesAudio, err := os.ReadDir(folderResourcesAudioEnv)
 	if err != nil {
-		logger.Error("Failed to read the content directory")
+		logger.Error("Failed to read the content directory (audio)")
 		return envContext{}, err
 	}
-	for _, dir := range subdirs {
-		if dir.IsDir() {
-			files, err := os.ReadDir(filepath.Join(folder, dir.Name()))
-			if err != nil {
-				logger.Error("Failed to read the content directory")
-				return envContext{}, err
-			}
-			folderResources[dir.Name()] = files
-		}
+	folderResourcesImageEnv, err := lookupVar("PATH_IMAGE")
+	if err != nil {
+		return envContext{}, err
+	}
+	folderResourcesImage, err := os.ReadDir(folderResourcesImageEnv)
+	if err != nil {
+		logger.Error("Failed to read the content directory (image)")
+		return envContext{}, err
 	}
 
 	client := influxdb2.NewClientWithOptions("http://"+influxAddress, influxToken,
@@ -238,20 +238,22 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	validate := validator.New()
 
 	return envContext{
-		MyPort:             myPort,
-		InfluxAddress:      influxAddress,
-		InfluxToken:        influxToken,
-		InfluxOrg:          influxOrg,
-		InfluxBucket:       influxBucket,
-		ProxyPort:          proxyPort,
-		CollectorURL:       collectorURL,
-		InfluxWriter:       writeAPI,
-		InfluxClient:       client,
-		FolderResources:    folderResources,
-		Dev:                dev,
-		Logger:             nil,
-		Validator:          validate,
-		FolderResourceName: folder,
+		MyPort:                  myPort,
+		InfluxAddress:           influxAddress,
+		InfluxToken:             influxToken,
+		InfluxOrg:               influxOrg,
+		InfluxBucket:            influxBucket,
+		ProxyPort:               proxyPort,
+		CollectorURL:            collectorURL,
+		InfluxWriter:            writeAPI,
+		InfluxClient:            client,
+		Dev:                     dev,
+		Logger:                  nil,
+		Validator:               validate,
+		FolderResourcesAudio:    folderResourcesAudio,
+		FolderResourcesAudioEnv: folderResourcesAudioEnv,
+		FolderResourcesImageEnv: folderResourcesImageEnv,
+		FolderResourcesImage:    folderResourcesImage,
 	}, nil
 }
 

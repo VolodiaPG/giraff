@@ -88,7 +88,10 @@ expe $IOT_IP $MARKET_IP $TARGET_NODES:
 [private]
 scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
-    set -ex
+    _status=0
+    trap "_status=1 _localstatus=\$?" ERR
+    _localstatus=0
+
     NODE_TARGETS=()
     
     sleep 60
@@ -99,22 +102,49 @@ scenario archive_name +city_name_node_targets:
         timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"
         NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
+   
+    if (( _localstatus > 0 )); then
+        printf "Failed to get info on fog nodes (%s)" "$_localstatus"
+        exit $_status
+    fi
+    _localstatus=0
+
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     export TARGET_NODE_NAMES="{{city_name_node_targets}}"
+    if (( _localstatus > 0 )); then
+        printf "Failed to get endpoints (%s)" "$_localstatus"
+        exit $_status
+    fi
+    _localstatus=0
 
     sleep 60
     
     just expe $IOT_IP $MARKET_IP "$joined"
-    
-    sleep $WAIT_TIME
+    if (( _localstatus > 0 )); then
+        printf "Experiments failed (%s)" "$_localstatus"
+    fi
 
-    export COLLECT_ARCHIVE_NAME="{{archive_name}}"
-    {{RUN}} integration.py collect
+    if (( _localstatus == 0 )); then
+        sleep $WAIT_TIME
+        
+        export COLLECT_ARCHIVE_NAME="{{archive_name}}"
+        {{RUN}} integration.py collect
+
+        if (( _localstatus > 0 )); then
+            printf "Failed to collect metrics (%s)" "$_localstatus"
+            exit $_status
+        fi
+    fi
 
     sleep 60
 
-    if [ $DEV ]; then sleep 9999999999; fi
+    if [ $DEV ]; then 
+        printf "DEV activated ; waiting indefinitely"
+        sleep 9999999999; 
+    fi
+
+    exit $_status
 
 [private]
 scenarii +city_name_node_targets:
@@ -241,13 +271,11 @@ build_required_images user:
 
     commands=(
         "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
-        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}} iot_emulation"
+        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
         "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
     )
 
-    echo "${commands[@]}"
-
-    # parallel --will-cite --lb ::: "${commands[@]}"
+    parallel --will-cite --lb ::: "${commands[@]}"
 
 [private]
 docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)

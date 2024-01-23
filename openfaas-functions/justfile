@@ -22,13 +22,12 @@ _ghcr_wrapped user dir:
 
 _ghcr user dir:
     #!/usr/bin/env bash
-    fn_dir=$(basename {{dir}})
-    fn_name="fn_$fn_dir"
-    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast | skopeo --insecure-policy copy docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
+    fn_name=$(basename {{dir}})
+    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
 
 _ghcr_all user:
     #!/usr/bin/env bash
-    find . -maxdepth 1 -type d '!' -type l '!' -name '.*' '!' -name '.*' '!' -name '.' -printf '%f\n' \
+    find . -maxdepth 1 -type d -name 'fn_*'  -printf '%f\n' \
         | parallel --lb just _ghcr_wrapped {{user}} {}
 
 docker:

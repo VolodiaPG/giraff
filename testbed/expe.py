@@ -148,7 +148,7 @@ assert len(FUNCTION_DESCRIPTIONS) != 0
 
 class AsyncSession:
     def __init__(self):
-        self.timeout = aiohttp.ClientTimeout()
+        self.timeout = aiohttp.ClientTimeout(total = 60)
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(timeout=self.timeout)
@@ -193,7 +193,7 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
     if last == 0:
         return None
 
-    await asyncio.sleep((3 * FUNCTION_COLD_START_OVERHEAD / 4) / 1000)
+    await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 1000)
 
     print(urls)
 

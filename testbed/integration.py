@@ -16,14 +16,6 @@ from typing import Any, Optional
 
 import click  # type: ignore
 import enoslib as en  # type: ignore
-
-# Enable rich logging
-from enoslib import enostask  # type: ignore
-from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
-from grid5000 import Grid5000  # type: ignore
-from grid5000.cli import auth  # type: ignore
-from influxdb_client import InfluxDBClient  # type: ignore
-
 from collect import listener, worker
 from definitions import (
     ADJACENCY,
@@ -41,6 +33,13 @@ from definitions import (
     gen_net,
     gen_vm_conf,
 )
+
+# Enable rich logging
+from enoslib import enostask  # type: ignore
+from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
+from grid5000 import Grid5000  # type: ignore
+from grid5000.cli import auth  # type: ignore
+from influxdb_client import InfluxDBClient  # type: ignore
 
 EnosEnv = Optional[dict[str, Any]]
 
@@ -270,6 +269,8 @@ def up(
         print("env is None")
         exit(1)
 
+    env["NAME"]=name
+
     env["CLUSTER"] = os.environ["CLUSTER"]
     cluster = env["CLUSTER"]
 
@@ -338,6 +339,8 @@ def up(
     env["roles"] = roles
     env["networks"] = networks
 
+    set_sshx(env)
+
 
 @cli.command()
 @enostask()
@@ -393,6 +396,24 @@ def restart(env: EnosEnv = None):
             task_name="Checking if reboot took effect, aka is iwasthere is no more",
         )
 
+    set_sshx(env)
+
+
+def set_sshx(env: EnosEnv):
+    if env is None:
+        print("env is None")
+        exit(1)
+    assignations = env["assignations"]
+    roles = env["roles"]
+
+    en.run_command(f'rm -rf "/nfs/sshx/{env["NAME"]}" || true', task_name="Clearing sshx folder", roles = roles["market"])
+
+    en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "market" > /my_name', task_name="Setting name for market", roles = roles["market"])
+    en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "iot_emulation" > /my_name', task_name="Setting name for iot_emulation", roles = roles["iot_emulation"])
+
+    for vm_name in assignations.keys():
+        en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "{vm_name}" > /my_name', task_name=f"Setting name for {vm_name}", roles = roles[vm_name])
+    
 
 @cli.command()
 @enostask()
@@ -427,13 +448,14 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/giraff:iot_emulation \
                 && docker run --name iot_emulation \
+                    --env PORT="3003" \
                     --env INFLUX_ADDRESS="10.42.0.1:9086" \
                     --env INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
                     --env INFLUX_ORG="faasfog" \
                     --env INFLUX_BUCKET="faasfog"  \
                     --env INSTANCE_NAME="iot_emulation" \
                     --env PROXY_PORT="3128" \
-                    --env COLLECTOR_IP="10.42.0.1" \
+                    --env COLLECTOR_URL="10.42.0.1:4317" \
                     -p 3003:3003 ghcr.io/volodiapg/giraff:iot_emulation""",
             task_name="Run iot_emulation on the endpoints",
             background=True,
