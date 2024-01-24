@@ -4,12 +4,12 @@
     "nbVarName": "NB_AUDIO_FUNCTIONS",
     "pipeline": {
         "audioToText": {
-            "nextFunction": "sentiment_analysis",
+            "nextFunction": "sentimentAnalysis",
             "image": "giraff:fn_speech_recognition",
             "mem": 512,
             "cpu": 300
         },
-        "sentiment-analysis": {
+        "sentimentAnalysis": {
             "nextFunction": "echo",
             "image": "giraff:fn_sentiment_analysis"
         },
