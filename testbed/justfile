@@ -55,7 +55,13 @@ is_connected city_name_node_target market_local_port:
 
 [private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
-    {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    #!/usr/bin/env bash
+    echo "REFRESH?: $REFRESH"
+    if [ $REFRESH = "true" ] ; then
+        {{RUN}} integration.py restart
+    else
+        {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    fi
     just _deploy {{fog_node_image}} {{market_image}}
 
 [private]
@@ -74,12 +80,9 @@ _deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
     {{RUN}} integration.py network
-
-    {{RUN}} integration.py iot-emulation&
-    ({{RUN}} integration.py k3s-setup && \
-        {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}})&
-    
-    wait
+    {{RUN}} integration.py iot-emulation
+    {{RUN}} integration.py k3s-setup 
+    {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}}
 
 [private]
 expe $IOT_IP $MARKET_IP $TARGET_NODES:
@@ -195,57 +198,60 @@ docker_enos name expe_dir cmd="bash":
     #!/usr/bin/env bash
     set -ex
     eval $(ssh-agent -s)
-    {{DOCKER}} run -it --rm \
-        --privileged \
-        --cap-add=ALL \
-        --workdir /home/enos \
-        -v /lib/modules:/lib/modules \
-        -v {{justfile_directory()}}/integration.py:/home/enos/integration.py:ro \
-        -v {{justfile_directory()}}/collect.py:/home/enos/collect.py:ro \
-        -v {{expe_dir}}/definitions.py:/home/enos/definitions.py:ro \
-        -v {{justfile_directory()}}/expe.py:/home/enos/expe.py:ro \
-        -v {{justfile_directory()}}/justfile:/home/enos/justfile:ro \
-        -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
-        -v {{justfile_directory()}}/logs:/home/enos/logs \
-        -v {{expe_dir}}/.env:/home/enos/.env:ro \
-        -v {{expe_dir}}/requests:/home/enos/requests:ro \
-        -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
-        -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
-        -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
-        -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
-        -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
-        -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
-        -e SSH_AUTH_SOCK=/ssh-agent \
-        -e DEPLOYMENT_NAME="{{name}}" \
-        -e EXPE_LOAD_FILE=/home/enos/requests \
-        -e NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
-        -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
-        -e NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
-        -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
-        -e LOAD_NETWORK_FILE=/home/enos/net \
-        --name "{{name}}" \
-        --cgroup-manager=cgroupfs \
-        enos_deployment:latest bash -c -E "{{cmd}}"
+    rsync -rL {{justfile_directory()}}/* {{expe_dir}}
+
+    export REFRESH="false"
+    if {{DOCKER}} ps -a --format '{{{{.Names}}}}' | grep -wq "{{name}}"; then
+        export REFRESH="true"
+        {{DOCKER}} exec "{{name}}" bash -c -E "export REFRESH=$REFRESH; {{cmd}}"
+    else
+        {{DOCKER}} run -it --rm \
+            --privileged \
+            --cap-add=ALL \
+            --workdir /home/enos \
+            -v /lib/modules:/lib/modules \
+            -v {{expe_dir}}:/home/enos \
+            -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
+            -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
+            -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
+            -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
+            -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
+            -e SSH_AUTH_SOCK=/ssh-agent \
+            -e DEPLOYMENT_NAME="{{name}}" \
+            -e EXPE_LOAD_FILE=/home/enos/requests \
+            -e NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
+            -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
+            -e NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
+            -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
+            -e LOAD_NETWORK_FILE=/home/enos/net \
+            -e REFRESH="false" \
+            --name "{{name}}" \
+            --cgroup-manager=cgroupfs \
+            enos_deployment:latest bash -c -E "{{cmd}}"
+        fi
+        
 
 [private]
-docker_scenarii name tempdir +city_name_node_targets:
+docker_scenarii name expe_dir +city_name_node_targets:
     echo "Generating requests for all subsequent experiments..."
-    EXPE_SAVE_FILE={{tempdir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{tempdir}} "just scenarii {{city_name_node_targets}} ; just clean || ."
+    EXPE_SAVE_FILE={{expe_dir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
+    just docker_enos {{name}} {{expe_dir}} "just scenarii {{city_name_node_targets}} ; just clean || ."
 
-_docker_campaign name tempdir:
+_docker_campaign name expe_dir:
     #!/usr/bin/env bash
     set -e
     cities=()
     for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
-    just docker_scenarii {{name}} {{tempdir}} ${cities[@]}
+    just docker_scenarii {{name}} {{expe_dir}} ${cities[@]}
 
 single_campaign name dotenvfile:
     #!/usr/bin/env bash
-    set -e
-    tempdir=$(mktemp -d)
-    cp {{dotenvfile}} $tempdir/.env
-    cp definitions.py $tempdir/definitions.py
+    set -ex
+    expe_dir="/tmp/{{name}}"
+    mkdir -p $expe_dir
+    cp {{dotenvfile}} $expe_dir/.env
+    cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs
 
     today=$( date +%Y%m%d )
@@ -256,7 +262,7 @@ single_campaign name dotenvfile:
     done
 
     mkdir -p logs_campaign
-    just _docker_campaign {{name}} $tempdir |& tee -a logs_campaign/$fname
+    just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
 
 [private]
 build_required_images user:
@@ -502,15 +508,15 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     set +o allexport
     city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    ({{skip_vms}} || rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
+    ([ "{{skip_vms}}" = "true" ] || rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
     
-    ({{skip_vms}} || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
+    ([ "{{skip_vms}}" = "true" ] || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
 
     ssh $city.grid5000.fr mkdir -p enosvm
 
     echo "Copying whitelisted files for mouting inside the master VM"
 
-    parallel rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
+    parallel --will-cite rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
         ::: *.py .env {{experiments_dotfile}} justfile pipelines/
 
     wait
@@ -534,6 +540,19 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
 
     {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
     {{RUN}} master.py run-command
+
+master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="false":
+    #!/usr/bin/env bash
+    set -e
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+
+    just upload {{experiments_dotfile}} "true"&
+    ([ "{{skip_rebuild}}" = "true" ] || just build_required_images {{user}})&
+    wait
+
+    {{RUN}} master.py run-command-refresh
 
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
     just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
@@ -572,7 +591,7 @@ get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     city=$({{RUN}} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    ssh $city.grid5000.fr ls {{folder}} | parallel -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
 
 [private]
 test_expe  experiments_dotfile=".experiments.env":

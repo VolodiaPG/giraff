@@ -170,7 +170,33 @@ def run_command(env: EnosEnv = None, variations: str | None = None, **kwargs):
         ". /home/enos/env.source;"
         "eval $(ssh-agent -s);"
         "ssh-add;"
-        "just master_docker_campaign 2> ./logs_campaign/out.logs"
+        "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
+        "'",
+        task_name="Run command experiment",
+        roles=roles["master"],
+    )
+
+    
+@cli.command()
+@click.option("--variations", help="Docker variation tags", required=False)
+@enostask()
+def run_command_refresh(env: EnosEnv = None, variations: str | None = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+
+    roles = env["roles"]
+    enos_run_command(
+        "until [ -f /home/enos/env.source ]; do sleep 3; done; "
+        "cd /home/enos;"
+        ". /home/enos/env.source;"
+        "tmux new -d bash -c "
+        "'"
+        "cd /home/enos;"
+        ". /home/enos/env.source;"
+        "eval $(ssh-agent -s);"
+        "ssh-add;"
+        "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
         "'",
         task_name="Run command experiment",
         roles=roles["master"],
