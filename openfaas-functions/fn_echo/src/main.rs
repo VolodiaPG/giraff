@@ -127,6 +127,10 @@ async fn reconfigure(
     HttpResponse::Ok().finish()
 }
 
+async fn health() -> HttpResponse {
+    HttpResponse::Ok().finish()
+}
+
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
     _name: String,
@@ -252,7 +256,8 @@ async fn main() -> Result<()> {
         .service(
             web::scope("")
                 .route("/", web::post().to(handle))
-                .route("/reconfigure", web::post().to(reconfigure)),
+                .route("/reconfigure", web::post().to(reconfigure))
+                .route("/health", web::get().to(health)),
         )
     });
 

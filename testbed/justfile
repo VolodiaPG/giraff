@@ -143,7 +143,7 @@ scenario archive_name +city_name_node_targets:
     sleep 60
 
     if [ $DEV ]; then 
-        printf "DEV activated ; waiting indefinitely"
+        printf "DEV activated ; waiting indefinitely\n"
         sleep 9999999999; 
     fi
 
@@ -260,7 +260,7 @@ single_campaign name dotenvfile:
     while [ -e "$fname" ]; do
         printf -v fname '%s-%02d.log' "{{name}}-$today" "$(( ++number ))"
     done
-
+ 
     mkdir -p logs_campaign
     just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
 
@@ -508,7 +508,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     set +o allexport
     city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    ([ "{{skip_vms}}" = "true" ] || rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
+    ([ "{{skip_vms}}" = "true" ] || rsync -cazp --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
     
     ([ "{{skip_vms}}" = "true" ] || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
 
@@ -516,7 +516,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     echo "Copying whitelisted files for mouting inside the master VM"
 
-    parallel --will-cite rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
+    parallel --will-cite rsync -cazp --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
         ::: *.py .env {{experiments_dotfile}} justfile pipelines/
 
     wait
@@ -591,7 +591,7 @@ get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     city=$({{RUN}} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j 4 -v rsync -chavzP --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j 4 -v rsync -cazp --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
 
 [private]
 test_expe  experiments_dotfile=".experiments.env":

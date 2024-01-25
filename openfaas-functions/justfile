@@ -23,7 +23,7 @@ _ghcr_wrapped user dir:
 _ghcr user dir:
     #!/usr/bin/env bash
     fn_name=$(basename {{dir}})
-    $(nix build .#$fn_name --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
+    $(nix build .#$fn_name --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name
 
 _ghcr_all user:
     #!/usr/bin/env bash

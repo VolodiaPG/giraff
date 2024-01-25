@@ -87,6 +87,7 @@ spec:
       containers:
       - name: fog-node
         image: {fog_node_image}
+        imagePullPolicy: Always
         env:
         - name: OPENFAAS_USERNAME
           valueFrom:
@@ -109,7 +110,7 @@ spec:
         - name: LOG_CONFIG_FILENAME
           value: "{node_name}.log"
         - name: RUST_LOG
-          value: "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace"
+          value: "warn,fog_node=trace"
         - name: IS_CLOUD
           value: "{is_cloud}"
         - name: INFLUX_ADDRESS
@@ -189,6 +190,7 @@ spec:
       containers:
       - name: market
         image: {market_image}
+        imagePullPolicy: Always
         ports:
         - containerPort: 30008
         - containerPort: 6831

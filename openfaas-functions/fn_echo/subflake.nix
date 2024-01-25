@@ -31,6 +31,7 @@
                   "fprocess=${echo}/bin/echo"
                   "mode=http"
                   "http_upstream_url=http://127.0.0.1:3000"
+                  "ready_path=http://127.0.0.1:3000/health"
                 ];
                 ExposedPorts = {
                   "8080/tcp" = {};

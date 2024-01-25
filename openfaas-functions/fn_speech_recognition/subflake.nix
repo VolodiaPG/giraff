@@ -95,6 +95,7 @@
                 "mode=http"
                 "http_upstream_url=http://127.0.0.1:5000"
                 "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
+                "ready_path=http://127.0.0.1:3000/health"
               ];
               ExposedPorts = {
                 "8080/tcp" = {};

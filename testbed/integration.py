@@ -551,7 +551,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
 @cli.command()
 @click.option(
     "--fog_node_image",
-    help="The container image URL. eg. ghcr.io/volodiapg/giraf::fog_node",
+    help="The container image URL. eg. ghcr.io/volodiapg/giraff::fog_node",
 )
 @click.option(
     "--market_image",
