@@ -67,6 +67,33 @@ impl DefaultApiClient {
     }
 
     #[instrument(level = "trace", skip(self))]
+    pub async fn check_is_live(
+        &self,
+        function_name: String,
+    ) -> Result<(), Error<String>> {
+        let uri_str = format!(
+            "{}/function/{}/health",
+            self.configuration.base_path, function_name
+        );
+        trace!("Checking liveness of {}", uri_str);
+
+        let mut builder = self.client.get(&uri_str);
+
+        if let Some((username, password)) = &self.configuration.basic_auth {
+            builder = builder.basic_auth(username, password.as_ref());
+        }
+
+        let response = builder.send().await?;
+        trace!("response: {:#?}", response);
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::from((response.status(), response.text().await)))
+        }
+    }
+
+    #[instrument(level = "trace", skip(self))]
     pub async fn async_function_name_post(
         &self,
         function_name: &str,

@@ -35,6 +35,8 @@
         };
         devShells.iot_emulation = pkgs.mkShell {
           shellHook = (extra.shellHook system) "iot_emulation";
+          PATH_AUDIO = "${outputs.packages.${system}.dataset_audio}";
+          PATH_IMAGE = "${outputs.packages.${system}.dataset_image}";
           packages = with pkgs; [
             git
             gnumake

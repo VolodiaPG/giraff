@@ -25,6 +25,7 @@
               inherit tag;
               name = "fog_node";
               config = {
+                Env = ["FUNCTION_LIVE_TIMEOUT_MSECS=60000"];
                 Cmd = ["${fog_node}/bin/fog_node"];
               };
             };

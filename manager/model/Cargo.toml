@@ -9,7 +9,7 @@ chrono = "0.4"
 dashmap = "5.4.0"
 lazy-regex = "3.1.0"
 lazy_static = "1.4.0"
-nutype = "0.4.0-beta.2"
+nutype = { version = "0.4.0-beta.2", features = ["regex"] }
 ron = "0.8.0"
 serde = { version = "1.0.140", features = ["derive", "rc"] }
 serde_json = { version = "1.0.82", features = ["raw_value"] }

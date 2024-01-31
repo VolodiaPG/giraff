@@ -1,4 +1,5 @@
 use crate::repository::cron::Cron;
+use crate::repository::faas::FunctionTimeout;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
 #[cfg(any(
@@ -9,15 +10,18 @@ use crate::service::auction::Auction;
     feature = "edge_ward_v3",
 ))]
 use crate::service::neighbor_monitor::NeighborMonitor;
-use crate::{NodeQuery, NodeSituation};
+use crate::{NodeQuery, NodeSituation, FUNCTION_LIVE_TIMEOUT_MSECS};
 use anyhow::{Context, Result};
+use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
+use backoff::SystemClock;
+use helper::env_load;
 use model::BidId;
 use std::sync::Arc;
 
 pub struct FunctionLife {
-    function:          Arc<Function>,
-    auction:           Arc<Auction>,
-    node_situation:    Arc<NodeSituation>,
+    function:              Arc<Function>,
+    auction:               Arc<Auction>,
+    node_situation:        Arc<NodeSituation>,
     #[cfg(any(
         feature = "auction",
         feature = "edge_first",
@@ -25,10 +29,11 @@ pub struct FunctionLife {
         feature = "edge_ward_v2",
         feature = "edge_ward_v3",
     ))]
-    neighbor_monitor:  Arc<NeighborMonitor>,
-    node_query:        Arc<NodeQuery>,
-    function_tracking: Arc<FunctionTracking>,
-    cron:              Arc<Cron>,
+    neighbor_monitor:      Arc<NeighborMonitor>,
+    node_query:            Arc<NodeQuery>,
+    function_tracking:     Arc<FunctionTracking>,
+    cron:                  Arc<Cron>,
+    function_live_timeout: Arc<std::time::Duration>,
 }
 
 #[cfg(feature = "auction")]
@@ -89,7 +94,7 @@ impl FunctionLife {
         node_query: Arc<NodeQuery>,
         function_tracking: Arc<FunctionTracking>,
         cron: Arc<Cron>,
-    ) -> Self {
+    ) -> Result<Self> {
         #[cfg(feature = "edge_first")]
         {
             info!("Using edge-first placement");
@@ -122,7 +127,14 @@ impl FunctionLife {
         {
             info!("Using auction placement");
         }
-        Self {
+
+        let function_live_timeout =
+            env_load!(FunctionTimeout, FUNCTION_LIVE_TIMEOUT_MSECS, u64);
+        let function_live_timeout =
+            Arc::new(std::time::Duration::from_millis(
+                function_live_timeout.into_inner(),
+            ));
+        Ok(Self {
             function,
             auction,
             node_situation,
@@ -137,36 +149,44 @@ impl FunctionLife {
             node_query,
             function_tracking,
             cron,
-        }
+            function_live_timeout,
+        })
     }
 
     pub async fn provision_function(&self, id: BidId) -> Result<()> {
         let function = self.function.lock().await?;
         function.provision_function(id.clone()).await?;
 
-        let provisioned = self
-            .function_tracking
-            .get_provisioned(&id)
-            .with_context(|| {
-                format!(
-                    "Failed to get data about the provisioned function {}",
-                    id
-                )
-            })?;
-
         drop(function);
+
+        backoff::future::retry(self.get_backoff(), || async {
+            trace!("Checking if function is alive");
+            self.function.check_and_set_function_is_live(id.clone()).await?;
+            Ok(())
+        })
+        .await?;
+
+        let live =
+            self.function_tracking.get_live(&id).with_context(|| {
+                format!("Failed to get data about the live function {}", id)
+            })?;
 
         let function = self.function.clone();
         let id2 = id.clone();
         self.cron
-            .add_oneshot(provisioned.0.sla.duration, move || {
+            .add_oneshot(live.0.sla.duration, move || {
                 let id = id.clone();
                 let function = function.clone();
                 Box::pin(async move {
-                    let Ok(function) = function.lock().await.context(
-                        "Failed to lock when calling cron to unprovision \
-                         function",
-                    ).map_err(|err| error!("{:?}", err)) else{
+                    let Ok(function) = function
+                        .lock()
+                        .await
+                        .context(
+                            "Failed to lock when calling cron to unprovision \
+                             function",
+                        )
+                        .map_err(|err| error!("{:?}", err))
+                    else {
                         return;
                     };
 
@@ -188,5 +208,13 @@ impl FunctionLife {
                 )
             })?;
         Ok(())
+    }
+
+    fn get_backoff(&self) -> ExponentialBackoff<SystemClock> {
+        let backoff = ExponentialBackoffBuilder::default()
+            .with_max_elapsed_time(Some((*self.function_live_timeout).clone()))
+            .build();
+
+        backoff
     }
 }

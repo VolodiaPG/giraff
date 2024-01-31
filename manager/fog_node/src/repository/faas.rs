@@ -8,8 +8,9 @@ use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
-use model::dto::function::{FunctionRecord, Proposed, Provisioned};
+use model::dto::function::{FunctionRecord, Live, Proposed, Provisioned};
 use model::BidId;
+use nutype::nutype;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
 use openfaas::models::{FunctionDefinition, Limits, Requests};
 use openfaas::DefaultApiClient;
@@ -20,9 +21,28 @@ use std::sync::Arc;
 
 const ENV_VAR_SLA: &str = "SLA";
 
+#[nutype(derive(Clone, Debug), validate(greater_or_equal = 0))]
+pub struct FunctionTimeout(u64);
+
 #[derive(Debug)]
 pub struct FaaSBackend {
     client: Arc<DefaultApiClient>,
+}
+
+pub struct RemovableFunctionRecord {
+    function_name: String,
+}
+
+impl From<FunctionRecord<Provisioned>> for RemovableFunctionRecord {
+    fn from(value: FunctionRecord<Provisioned>) -> Self {
+        Self { function_name: value.0.function_name }
+    }
+}
+
+impl From<FunctionRecord<Live>> for RemovableFunctionRecord {
+    fn from(value: FunctionRecord<Live>) -> Self {
+        Self { function_name: value.0.function_name }
+    }
 }
 
 impl FaaSBackend {
@@ -102,19 +122,27 @@ impl FaaSBackend {
         Ok(bid)
     }
 
-    pub async fn remove_function(
+    pub async fn check_is_live(
         &self,
         function: &FunctionRecord<Provisioned>,
     ) -> Result<()> {
+        self.client.check_is_live(function.0.function_name.clone()).await?;
+        Ok(())
+    }
+
+    pub async fn remove_function(
+        &self,
+        function: RemovableFunctionRecord,
+    ) -> Result<()> {
         self.client
             .system_functions_delete(DeleteFunctionRequest {
-                function_name: function.0.function_name.clone(),
+                function_name: function.function_name.clone(),
             })
             .await
             .with_context(|| {
                 format!(
                     "Failed to delete function named '{}' from the cluster",
-                    function.0.function_name
+                    function.function_name
                 )
             })?;
         Ok(())

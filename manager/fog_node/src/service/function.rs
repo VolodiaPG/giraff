@@ -92,15 +92,36 @@ impl Function {
             permit,
         })
     }
+
+    pub(in crate::service) async fn check_and_set_function_is_live(
+        &self,
+        id: BidId,
+    ) -> Result<()> {
+        let function = self
+            .function_tracking
+            .get_provisioned(&id)
+            .with_context(|| {
+                format!(
+                    "Failed to get provisioned function {} from the tracking \
+                     data",
+                    id
+                )
+            })?;
+        self.function.check_is_live(&function).await?;
+
+        let live = (*function).clone().to_live();
+        self.function_tracking.save_live(&id, live);
+        Ok(())
+    }
 }
 
 impl<State> Drop for Function<State> {
     fn drop(&mut self) {
         trace!("Unlocking FunctionLife Service after drop...");
         let permit = self.permit.take();
-        let Some(permit) =  permit else {
-                return;
-            };
+        let Some(permit) = permit else {
+            return;
+        };
         drop(permit);
     }
 }
@@ -176,12 +197,13 @@ impl Function<Locked> {
         self.function_tracking.save_provisioned(&id, provisioned);
 
         let Ok(()) = self
-                .resource_tracking
-                .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
-                .await else {
-                    error!("Could not set updated tracked cpu and memory");
-                    return Ok(());
-                };
+            .resource_tracking
+            .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
+            .await
+        else {
+            error!("Could not set updated tracked cpu and memory");
+            return Ok(());
+        };
 
         Ok(())
     }
@@ -190,17 +212,20 @@ impl Function<Locked> {
         &self,
         function: BidId,
     ) -> Result<()> {
-        let record = self
-            .function_tracking
-            .get_provisioned(&function)
-            .with_context(|| {
+        let record =
+            self.function_tracking.get_live(&function).with_context(|| {
                 format!(
                     "Failed to get provisioned function {} from the tracking \
                      data",
                     function
                 )
             })?;
-        if self.function.remove_function(&record).await.is_err() {
+        if self
+            .function
+            .remove_function((*record).clone().into())
+            .await
+            .is_err()
+        {
             warn!("Failed to delete function {}", function);
         }
 
@@ -220,17 +245,19 @@ impl Function<Locked> {
             .await?;
         self.function_tracking.save_finished(&function, record);
 
-        let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await else{
+        let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await
+        else {
             error!("Could not get tracked cpu and memory");
-                return Ok(());
-            };
+            return Ok(());
+        };
         let Ok(()) = self
-                .resource_tracking
-                .set_used(name, memory - sla_memory, cpu - sla_cpu)
-                .await else {
-                    error!("Could not set updated tracked cpu and memory");
-                    return Ok(());
-                };
+            .resource_tracking
+            .set_used(name, memory - sla_memory, cpu - sla_cpu)
+            .await
+        else {
+            error!("Could not set updated tracked cpu and memory");
+            return Ok(());
+        };
 
         Ok(())
     }

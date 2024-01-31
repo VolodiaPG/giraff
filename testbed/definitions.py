@@ -449,7 +449,7 @@ def drop_children(drop_one_in: int):
     return drop
 
 
-def flavor_randomizer_mem(*reductions: List[int]):
+def flavor_randomizer_mem(reductions: List[int]):
     def drop(dd: Dict, *_):
         diff_index = random.randint(0, len(reductions) - 1)
         diff = 1024 * reductions[diff_index]
@@ -461,7 +461,7 @@ def flavor_randomizer_mem(*reductions: List[int]):
     return drop
 
 
-def flavor_randomizer_cpu(*reductions: List[int]):
+def flavor_randomizer_cpu(reductions: List[int]):
     def drop(dd: Dict, *_):
         diff_index = random.randint(0, len(reductions) - 1)
         diff = reductions[diff_index]
@@ -701,7 +701,7 @@ def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
 LOAD_NETWORK_FILE = "LOAD_NETWORK_FILE"
 SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 
-if os.getenv("DEV"):
+if os.getenv("DEV") == "true":
     NETWORK = {
         "name": "market",
         "flavor": TIER_1_FLAVOR,

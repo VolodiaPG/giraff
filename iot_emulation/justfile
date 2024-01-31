@@ -9,8 +9,6 @@ _default:
     PROXY_PORT="3128" \
     COLLECTOR_URL="127.0.0.1:4317" \
     DEV=TRUE \
-    PATH_AUDIO=$(nix build {{NIX_FLAGS}} .#dataset_audio) \
-    PATH_IMAGE=$(nix build {{NIX_FLAGS}} .#dataset_image) \
     go run *.go
 
 update:

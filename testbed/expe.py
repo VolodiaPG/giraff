@@ -148,7 +148,7 @@ assert len(FUNCTION_DESCRIPTIONS) != 0
 
 class AsyncSession:
     def __init__(self):
-        self.timeout = aiohttp.ClientTimeout(total = 60)
+        self.timeout = aiohttp.ClientTimeout()
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(timeout=self.timeout)
@@ -324,7 +324,11 @@ errors = 0
 async def do_request_progress(bar: Any, functions: List[Function]):
     global successes
     global errors
-    success = await register_new_functions(functions)
+    success = False
+    try:
+        success = await register_new_functions(functions)
+    except Exception:
+        pass
     if success:
         successes += 1
     else:

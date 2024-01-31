@@ -73,6 +73,7 @@ env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
 env_var!(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION);
+env_var!(FUNCTION_LIVE_TIMEOUT_MSECS);
 
 const INFLUX_DEFAULT_ADDRESS: &str = "127.0.0.1:9086";
 
@@ -326,7 +327,7 @@ async fn main() -> anyhow::Result<()> {
         node_query.clone(),
         function_tracking_repo.clone(),
         cron_repo.clone(),
-    ));
+    )?);
 
     if node_situation.is_market() {
         info!("This node is a provider node located at the market node");

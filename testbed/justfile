@@ -57,7 +57,7 @@ is_connected city_name_node_target market_local_port:
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash
     echo "REFRESH?: $REFRESH"
-    if [ $REFRESH = "true" ] ; then
+    if [ "$REFRESH" = "true" ] ; then
         {{RUN}} integration.py restart
     else
         {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
@@ -142,7 +142,7 @@ scenario archive_name +city_name_node_targets:
 
     sleep 60
 
-    if [ $DEV ]; then 
+    if [ "$DEV" = "true" ]; then 
         printf "DEV activated ; waiting indefinitely\n"
         sleep 9999999999; 
     fi
@@ -200,6 +200,8 @@ docker_enos name expe_dir cmd="bash":
     eval $(ssh-agent -s)
     rsync -rL {{justfile_directory()}}/* {{expe_dir}}
 
+    echo "LOAD_NET: $LOAD_NETWORK_FILE"
+
     export REFRESH="false"
     if {{DOCKER}} ps -a --format '{{{{.Names}}}}' | grep -wq "{{name}}"; then
         export REFRESH="true"
@@ -211,6 +213,8 @@ docker_enos name expe_dir cmd="bash":
             --workdir /home/enos \
             -v /lib/modules:/lib/modules \
             -v {{expe_dir}}:/home/enos \
+            -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
+            -v {{justfile_directory()}}/logs:/home/enos/logs \
             -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
             -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
@@ -260,6 +264,8 @@ single_campaign name dotenvfile:
     while [ -e "$fname" ]; do
         printf -v fname '%s-%02d.log' "{{name}}-$today" "$(( ++number ))"
     done
+
+    echo "qsdklhjfjqhsjok: $LOAD_NETWORK_FILE"
  
     mkdir -p logs_campaign
     just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
@@ -320,7 +326,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
         timeout --foreground ${job_duration_seconds} just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
     }
 
-    if [ $DEV ]; then 
+    if [ "$DEV" = "true" ]; then 
         export LOAD_NETWORK_FILE=$(mktemp)
         just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
         exit 0
@@ -334,14 +340,13 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
     mkdir -p $JOB_DIR
     if [ $TYPE == "first_run" ]; then
-        rm -rf $JOB_DIR/*
-        timeout --preserve-status --foreground 5m \
-            parallel --will-cite \
+        rm -rf $JOB_DIR/* 
+        parallel --will-cite \
             SAVE_NETWORK_FILE=$JOB_DIR/{1}-{4}.net \
             SIZE_MULTIPLIER={1} \
             MIN_NB_VMS={2} \
             MAX_NB_NODES={3} \
-            bash -c '"until timeout 15s {{RUN}} definitions.py; do : ; done"' \
+            {{RUN}} definitions.py \
             ::: $SIZE_MULTIPLIERS \
             :::+ $MIN_NUMBER_VMS \
             :::+ $MAX_NUMBER_NODES \
@@ -354,45 +359,34 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
     export free_port=$(comm -23 <(seq 49152 65535 | sort) <(ss -Htan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
 
-    function encapsulated_expe_command_mprocs() {
-        set -e
-        JOB_TERMINATION=$(mktemp)
-        ctl=$(cat <<EOF
-    export NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$1
-    ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$2
-    ; export NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$3
-    ; export NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$4
-    ; export LOAD_NETWORK_FILE=$6
-    ; bash -c "set -e; expe_command $5"
-    ; exit_status=\$?
-    ; exit \$(echo \$exit_status | tee $JOB_TERMINATION)
-    EOF
-        )
-        mprocs --server 0:$free_port --ctl "{c: add-proc, cmd: '$ctl'}" || exit 1
-        until [ $(wc -l < "${JOB_TERMINATION}") -ne 0 ]; do sleep 5; done
-        job_status=$(cat $JOB_TERMINATION)
-        rm $JOB_TERMINATION
-        exit $job_status
+    function encapsulated_expe_command() {
+        set -ex
+        export NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$1
+        export NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$2
+        export NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$3
+        export NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$4
+        export LOAD_NETWORK_FILE=$6
+        echo "Running the expe command with LOAD_NETWORK_FILE=$LOAD_NETWORK_FILE"
+        expe_command $5
     }
 
     # Enable job control
     set -m
     export -f expe_command
-    export -f encapsulated_expe_command_mprocs
-    mprocs --server 0:$free_port&
+    export -f encapsulated_expe_command
     
     set +e
-    if [ ! -f $JOB_LOG ] && [ $TYPE != "first_run" ]; then
+    if [ ! -f $JOB_LOG ] && [ "$TYPE" != "first_run" ]; then
         >&2 echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
         exit 1
     fi
     if [ $TYPE == "retry" ]; then
-        (parallel --will-cite --retry-failed --joblog $JOB_LOG)&
+        (parallel --will-cite --retry-failed --joblog $JOB_LOG)
     else
         cmd=$(cat <<EOF
         --joblog $JOB_LOG \
         -j $NB_IN_PARALLEL \
-        encapsulated_expe_command_mprocs {1} {2} {3} {4} {#} '$JOB_DIR/'{5}-{6}.net \
+        encapsulated_expe_command {1} {2} {3} {4} {#} '$JOB_DIR/'{5}-{6}.net \
         ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
         :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
         ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
@@ -402,16 +396,13 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     EOF
     )
         if [ $TYPE == "resume" ]; then
-            parallel --will-cite --resume $cmd&
+            parallel --will-cite --resume $cmd
         else
             rm $JOB_LOG || .
-            parallel --will-cite $cmd&
+            parallel --will-cite $cmd
         fi
     fi
 
-    fg %1
-    fg %2
-    
     echo "Here is the JOB_LOG:"
     cat $JOB_LOG
    

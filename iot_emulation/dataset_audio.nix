@@ -8,11 +8,21 @@ pkgs.stdenv.mkDerivation rec {
     hash = "sha256-F27FAUkOztLWwfifTw3cff55nmSeUyL4ukn+P/UMgBI="; # Replace with the actual hash
   };
 
+  nativeBuildInputs = with pkgs; [
+    flac
+  ];
+
   unpackPhase = "tar -xzf $src";
+
+  # find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; flac --decode "$f" "''${f%.flac}.wav"'
+  buildPhase = ''
+    echo "Converting from FLAC to WAV"
+    find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; flac --no-keep-foreign-metadata --decode "$f"'
+  '';
 
   installPhase = ''
     mkdir -p $out
-    find -name '*.flac' -type f -print0 | xargs -0 -r -- cp -t "$out/" --
+    find -name '*.wav' -type f -print0 | xargs -0 -r -- cp -t "$out/" --
   '';
 
   meta = with pkgs.lib; {

@@ -28,7 +28,9 @@ impl NodeCommunication {
         to: &NodeId,
         route: &str,
     ) -> Result<reqwest_middleware::RequestBuilder> {
-        let Some(NodeRecord {ip, port_http, ..}) = self.network.get_node(to).await else {
+        let Some(NodeRecord { ip, port_http, .. }) =
+            self.network.get_node(to).await
+        else {
             bail!("Failed to find a record correspod to the node {}", to);
         };
 
@@ -60,8 +62,8 @@ impl NodeCommunication {
             .with_context(|| {
                 format!(
                     "Failed to deserialize the response when trying to get \
-                     bids from node {}",
-                    to
+                     bids from node {} in response of sla {:?}",
+                    to, sla
                 )
             })
     }

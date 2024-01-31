@@ -49,6 +49,7 @@ edge_ward_v3 = []
 actix-web = "4.4.0"
 actix-web-opentelemetry = "0.16.0"
 anyhow = "1.0.66"
+backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = { version = "0.13.1", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
 ] }

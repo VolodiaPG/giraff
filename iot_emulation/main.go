@@ -113,6 +113,7 @@ func (content contentAudio) NewRequest(env *envContext, config *cronConfig) (*ht
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("Content-Type", "audio/wav")
 	return req, nil
 }
 

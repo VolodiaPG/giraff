@@ -73,7 +73,7 @@ def handle():
                 finalData = r.recognize_vosk(audio_data)
                 print("\nThis is the output:", finalData)
         except Exception as e:
-            print("Following error was obeserved:", e)
+            print("Following error was observed:", e)
             print("Exiting the code.")
             abort(500, e)
         return json.loads(finalData)

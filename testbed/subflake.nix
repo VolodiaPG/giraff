@@ -110,7 +110,6 @@
                 isort
                 mypy
                 experiments
-                mprocs
                 parallel
                 bashInteractive
                 bc
@@ -253,13 +252,15 @@
               imports = [
                 {
                   kernel.r.experiment = {
-                    runtimePackages = nixpkgs.lib.optionals export (with pkgs; [
-                      texlive.combined.scheme-full
-                      pgf3
-                    ]);
+                    runtimePackages =
+                      (with pkgs; [bash toybox])
+                      ++ (nixpkgs.lib.optionals export (with pkgs; [
+                        texlive.combined.scheme-full
+                        pgf3
+                      ]));
                     enable = true;
-                    name = "faas_fog";
-                    displayName = "faas_fog";
+                    name = "giraff";
+                    displayName = "giraff";
                     extraRPackages = ps:
                       with ps;
                         [
@@ -329,13 +330,26 @@
                 }
               ];
             });
+
+          # Starts the script cleanly, outside what is currently messed up in the current shell
+          jupyterlabScript = executable:
+            pkgs.writeShellScriptBin "start" ''
+              # Check if the script needs to clear the environment
+              if [ -z "$CLEARED_ENV" ]; then
+                  # Re-invoke the script with a cleared environment
+                  env -i CLEARED_ENV=1 ${pkgs.bash}/bin/bash "$0" "$@"
+                  exit $?
+              fi
+
+              exec -a "jupyter-giraff" ${executable} --NotebookApp.token="291d6ed55226ce5802cb0a8a6055fa5bffafbffb0d1f3e81"
+            '';
         in {
           apps.jupyterlabExport = {
-            program = "${jupyterlab true}/bin/jupyter-lab";
+            program = "${nixpkgs.lib.getExe' (jupyerlabScript "${jupyterlab true}/bin/jupyter-lab") "start"}";
             type = "app";
           };
           apps.jupyterlab = {
-            program = "${jupyterlab false}/bin/jupyter-lab";
+            program = "${nixpkgs.lib.getExe' (jupyterlabScript "${jupyterlab false}/bin/jupyter-lab") "start"}";
             type = "app";
           };
         }))

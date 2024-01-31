@@ -1,0 +1,1 @@
+curl -X POST -H "Content-Type: audio/wav" --data-binary "@1988-147956-0000.wav" localhost:8081
