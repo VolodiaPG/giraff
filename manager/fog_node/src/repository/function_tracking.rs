@@ -1,7 +1,7 @@
 use model::dto::function::{
     Finished, FunctionRecord, Live, Proposed, Provisioned,
 };
-use model::BidId;
+use model::{BidId, SlaId};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -34,19 +34,19 @@ impl From<Arc<FunctionRecord<Finished>>> for States {
 
 #[derive(Debug, Default)]
 pub struct FunctionTracking {
-    database: dashmap::DashMap<BidId, States>,
+    database: dashmap::DashMap<SlaId, States>,
 }
 
 impl FunctionTracking {
-    pub fn insert(&self, record: FunctionRecord<Proposed>) -> BidId {
-        let id = BidId::from(uuid::Uuid::new_v4());
+    pub fn insert(&self, record: FunctionRecord<Proposed>) -> SlaId {
+        let id = record.0.sla.id.clone();
         self.database.insert(id.clone(), Arc::new(record).into());
         id
     }
 
     pub fn get_proposed(
         &self,
-        id: &BidId,
+        id: &SlaId,
     ) -> Option<Arc<FunctionRecord<Proposed>>> {
         self.database.get(id).and_then(|x| match x.value() {
             States::Proposed(x) => Some(x.clone()),
@@ -56,7 +56,7 @@ impl FunctionTracking {
 
     pub fn save_provisioned(
         &self,
-        id: &BidId,
+        id: &SlaId,
         record: FunctionRecord<Provisioned>,
     ) {
         let Some(mut previous_record) = self.database.get_mut(id) else {
@@ -68,7 +68,7 @@ impl FunctionTracking {
         };
     }
 
-    pub fn save_live(&self, id: &BidId, record: FunctionRecord<Live>) {
+    pub fn save_live(&self, id: &SlaId, record: FunctionRecord<Live>) {
         let Some(mut previous_record) = self.database.get_mut(id) else {
             return;
         };
@@ -78,7 +78,7 @@ impl FunctionTracking {
         };
     }
 
-    pub fn save_finished(&self, id: &BidId, record: FunctionRecord<Finished>) {
+    pub fn save_finished(&self, id: &SlaId, record: FunctionRecord<Finished>) {
         let Some(mut previous_record) = self.database.get_mut(id) else {
             return;
         };
@@ -90,7 +90,7 @@ impl FunctionTracking {
 
     pub fn get_provisioned(
         &self,
-        id: &BidId,
+        id: &SlaId,
     ) -> Option<Arc<FunctionRecord<Provisioned>>> {
         self.database.get(id).and_then(|x| match x.value() {
             States::Provisioned(x) => Some(x.clone()),
@@ -98,7 +98,7 @@ impl FunctionTracking {
         })
     }
 
-    pub fn get_live(&self, id: &BidId) -> Option<Arc<FunctionRecord<Live>>> {
+    pub fn get_live(&self, id: &SlaId) -> Option<Arc<FunctionRecord<Live>>> {
         self.database.get(id).and_then(|x| match x.value() {
             States::Live(x) => Some(x.clone()),
             _ => None,

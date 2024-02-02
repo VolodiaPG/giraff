@@ -5,7 +5,7 @@ use model::dto::node::NodeRecord;
 use model::view::auction::{
     AccumulatedLatency, BidProposal, BidProposals, BidRequest,
 };
-use model::NodeId;
+use model::{NodeId, SlaId};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -68,13 +68,9 @@ impl NodeCommunication {
             })
     }
 
-    pub async fn take_offer(
-        &self,
-        to: NodeId,
-        bid: &BidProposal,
-    ) -> Result<()> {
+    pub async fn take_offer(&self, to: NodeId, id: &SlaId) -> Result<()> {
         let response = self
-            .send(&to, &format!("bid/{}", bid.id))
+            .send(&to, &format!("accept/{}", id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)

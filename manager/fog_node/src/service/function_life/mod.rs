@@ -15,7 +15,7 @@ use anyhow::{Context, Result};
 use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
 use backoff::SystemClock;
 use helper::env_load;
-use model::BidId;
+use model::{BidId, SlaId};
 use std::sync::Arc;
 
 pub struct FunctionLife {
@@ -153,7 +153,7 @@ impl FunctionLife {
         })
     }
 
-    pub async fn provision_function(&self, id: BidId) -> Result<()> {
+    pub async fn provision_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
         function.provision_function(id.clone()).await?;
 

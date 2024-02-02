@@ -27,9 +27,7 @@ impl FogNodeFaaS {
         trace!("Provisioning function...");
 
         let node = bid.chosen.bid.node_id.clone();
-        self.node_communication
-            .take_offer(node.clone(), &bid.chosen.bid)
-            .await?;
+        self.node_communication.take_offer(node.clone(), &bid.sla.id).await?;
 
         let mut record: NodeRecord =
             self.fog_node.get(&node).await.map(|node| node.data).ok_or_else(

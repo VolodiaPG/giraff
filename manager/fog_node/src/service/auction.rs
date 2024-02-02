@@ -8,10 +8,11 @@ use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
 use model::view::auction::AccumulatedLatency;
-use model::BidId;
+use model::{BidId, SlaId};
 use nutype::nutype;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
+use uuid::Uuid;
 
 #[nutype(
     derive(PartialEq, PartialOrd),
@@ -200,7 +201,9 @@ impl Auction {
             return Ok(None);
         };
         let record = FunctionRecord::new(bid, sla, node);
-        let id = self.db.insert(record.clone());
+        self.db.insert(record.clone());
+        let id = Uuid::new_v4();
+        let id = BidId::from(id);
         self.metrics
             .observe(BidGauge {
                 bid,

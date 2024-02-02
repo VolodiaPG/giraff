@@ -19,10 +19,8 @@ impl FunctionLife {
         if neighbor == from {
             return Ok(None);
         }
-        let Some(latency) = self
-        .neighbor_monitor
-        .get_latency_to(neighbor)
-        .await
+        let Some(latency) =
+            self.neighbor_monitor.get_latency_to(neighbor).await
         else {
             warn!("Cannot get Latency of {}", neighbor);
             return Ok(None);

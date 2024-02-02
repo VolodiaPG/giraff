@@ -8,7 +8,7 @@ use anyhow::{ensure, Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
-use model::BidId;
+use model::{BidId, SlaId};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
@@ -95,7 +95,7 @@ impl Function {
 
     pub(in crate::service) async fn check_and_set_function_is_live(
         &self,
-        id: BidId,
+        id: SlaId,
     ) -> Result<()> {
         let function = self
             .function_tracking
@@ -129,7 +129,7 @@ impl<State> Drop for Function<State> {
 impl Function<Locked> {
     pub(in crate::service) async fn provision_function(
         &self,
-        id: BidId,
+        id: SlaId,
     ) -> Result<()> {
         let proposed =
             self.function_tracking.get_proposed(&id).with_context(|| {
@@ -210,7 +210,7 @@ impl Function<Locked> {
 
     pub(in crate::service) async fn unprovision_function(
         &self,
-        function: BidId,
+        function: SlaId,
     ) -> Result<()> {
         let record =
             self.function_tracking.get_live(&function).with_context(|| {

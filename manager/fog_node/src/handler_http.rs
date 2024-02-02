@@ -5,7 +5,7 @@ use actix_web::HttpResponse;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
-use model::BidId;
+use model::{BidId, SlaId};
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub async fn post_bid(
 
 #[derive(Debug, Deserialize)]
 pub struct PostBidAcceptParams {
-    id: BidId,
+    id: SlaId,
 }
 
 /// Second function called after [post_bid] if the bid is accepted and the
@@ -53,7 +53,7 @@ pub async fn post_bid_accept(
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
     #[allow(clippy::let_unit_value)]
     let res =
-        controller::auction::provision_from_bid(params.id.clone(), &function)
+        controller::auction::provision_from_sla(params.id.clone(), &function)
             .await?;
     Ok(HttpResponse::Ok().json(res))
 }

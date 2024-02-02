@@ -383,7 +383,7 @@ async fn main() -> anyhow::Result<()> {
             .service(
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
-                    .route("/bid/{id}", web::post().to(post_bid_accept))
+                    .route("/accept/{id}", web::post().to(post_bid_accept))
                     .route(
                         "/register",
                         web::post().to(post_register_child_node),

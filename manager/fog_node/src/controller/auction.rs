@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::{BidProposals, BidRequestOwned};
-use model::BidId;
+use model::{BidId, SlaId};
 use std::sync::Arc;
 use uom::si::time::second;
 
@@ -44,13 +44,13 @@ pub async fn bid_on(
 
 /// Returns a bid for the SLA.
 /// Creates the function on OpenFaaS and use the SLA to enable the limits
-pub async fn provision_from_bid(
-    id: BidId,
+pub async fn provision_from_sla(
+    id: SlaId,
     function: &Arc<FunctionLife>,
 ) -> Result<()> {
-    trace!("Transforming bid into provisioned resource {:?}", id);
+    trace!("Transforming SLA into provisioned resource {:?}", id);
     function.provision_function(id.clone()).await.with_context(|| {
-        format!("Failed to provision function from bid {}", id)
+        format!("Failed to provision function from SLA {}", id)
     })?;
     Ok(())
 }

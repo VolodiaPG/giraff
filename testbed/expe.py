@@ -3,6 +3,7 @@ import json
 import math
 import os
 import random
+import traceback
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
@@ -195,7 +196,7 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
 
     await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 1000)
 
-    print(urls)
+    print("urls:", urls)
 
     ret = []
     for ii in range(0, last):
@@ -267,12 +268,11 @@ async def register_new_functions(functions: List[Function]) -> bool:
         if code != 200:
             print("Fog request somehow failed", code, response)
             return False
-
         response = json.loads(response)
         faas_ip = response["chosen"]["ip"]
         node_id = response["chosen"]["bid"]["nodeId"]
         faas_port = response["chosen"]["port"]
-        function_id = response["chosen"]["bid"]["id"]
+        function_id = response["sla"]["id"]
         response = FunctionProvisioned(faas_ip, faas_port, function_id, node_id)
         responses.append(response)
         if ii + 1 < len(functions):
@@ -328,7 +328,7 @@ async def do_request_progress(bar: Any, functions: List[Function]):
     try:
         success = await register_new_functions(functions)
     except Exception:
-        pass
+        traceback.print_exc()
     if success:
         successes += 1
     else:
@@ -385,8 +385,8 @@ async def save_file(filename: str):
 
                 fn_name = list(fn_desc.pipeline.keys())[0]
 
-                print(fn_name)
-                print(fn_desc)
+                # print(fn_name)
+                # print(fn_desc)
 
                 fn_chain = list()
                 while True:
@@ -424,7 +424,7 @@ async def save_file(filename: str):
                     fn_name = fn.nextFunction
                 functions.append(fn_chain)
 
-    print(functions)
+    # print(functions)
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
         dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)
