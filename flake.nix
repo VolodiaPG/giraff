@@ -38,10 +38,6 @@
         flake-utils.follows = "flake-utils";
       };
     };
-    # JupyterLab
-    jupyenv = {
-      url = "github:dialohq/jupyenv"; #"github:tweag/jupyenv";
-    };
     # Go
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
