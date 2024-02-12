@@ -246,111 +246,96 @@
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
         }))
         (flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = jupyenv.inputs.nixpkgs.legacyPackages.${system};
-          jupyterlab = export:
-            jupyenv.lib.${system}.mkJupyterlabNew ({...}: {
-              imports = [
-                {
-                  kernel.r.experiment = {
-                    runtimePackages =
-                      (with pkgs; [bash toybox])
-                      ++ (nixpkgs.lib.optionals export (with pkgs; [
-                        texlive.combined.scheme-full
-                        pgf3
-                      ]));
-                    enable = true;
-                    name = "giraff";
-                    displayName = "giraff";
-                    extraRPackages = ps:
-                      with ps;
-                        [
-                          (
-                            archive.overrideAttrs (old: {
-                              buildInputs =
-                                old.buildInputs
-                                ++ (with pkgs; [
-                                  libarchive
-                                ]);
-                            })
-                          )
-                          cowplot
-                          reticulate
-                          vroom
-                          tidyverse
-                          igraph
-                          r2r
-                          formattable
-                          stringr
-                          viridis
-                          geomtextpath
-                          scales
-                          zoo
-                          gghighlight
-                          ggdist
-                          ggbreak
-                          lemon
-                          ggprism
-                          ggh4x
-                          ggExtra
-                          tibbletime
-                          snakecase
-                          reshape2
-                          ggside
-                          ggbeeswarm
-                          ggpubr
-                          Hmisc
-                          rstatix
-                          multcompView
+          pkgs = inputs.nixpkgs.legacyPackages.${system};
+          R-pkgs = with pkgs.rPackages; [
+            (
+              archive.overrideAttrs (old: {
+                buildInputs =
+                  old.buildInputs
+                  ++ (with pkgs; [
+                    libarchive
+                  ]);
+              })
+            )
+            cowplot
+            reticulate
+            vroom
+            tidyverse
+            igraph
+            r2r
+            formattable
+            stringr
+            viridis
+            geomtextpath
+            scales
+            zoo
+            gghighlight
+            ggdist
+            ggbreak
+            lemon
+            ggprism
+            ggh4x
+            ggExtra
+            tibbletime
+            snakecase
+            reshape2
+            ggside
+            ggbeeswarm
+            ggpubr
+            Hmisc
+            rstatix
+            multcompView
 
-                          doParallel
-                          foreach
-                          multidplyr
+            doParallel
+            foreach
+            multidplyr
 
-                          magick
-                          future_apply
-                          (
-                            gganimate.overrideAttrs (old: {
-                              buildInputs =
-                                old.buildInputs
-                                ++ (with pkgs; [
-                                  future_apply
-                                ]);
-                              src = pkgs.fetchgit {
-                                url = "https://github.com/VolodiaPG/gganimate.git";
-                                hash = "sha256-RGtqslMy2hommHJinaHlkamT+hvmD6hOTthc5DbV6xw=";
-                              };
-                            })
-                          )
-                          intergraph
-                          network
-                          ggnetwork
-                        ]
-                        ++ pkgs.lib.optional export tikzDevice;
-                  };
-                }
-              ];
-            });
-
-          # Starts the script cleanly, outside what is currently messed up in the current shell
-          jupyterlabScript = executable:
-            pkgs.writeShellScriptBin "start" ''
-              # Check if the script needs to clear the environment
-              if [ -z "$CLEARED_ENV" ]; then
-                  # Re-invoke the script with a cleared environment
-                  env -i CLEARED_ENV=1 ${pkgs.bash}/bin/bash "$0" "$@"
-                  exit $?
-              fi
-
-              exec -a "jupyter-giraff" ${executable} --ip "0.0.0.0" --NotebookApp.token="291d6ed55226ce5802cb0a8a6055fa5bffafbffb0d1f3e81"
-            '';
+            magick
+            future_apply
+            (
+              gganimate.overrideAttrs (old: {
+                buildInputs =
+                  old.buildInputs
+                  ++ (with pkgs; [
+                    future_apply
+                  ]);
+                src = pkgs.fetchgit {
+                  url = "https://github.com/VolodiaPG/gganimate.git";
+                  hash = "sha256-RGtqslMy2hommHJinaHlkamT+hvmD6hOTthc5DbV6xw=";
+                };
+              })
+            )
+            intergraph
+            network
+            ggnetwork
+          ];
+          # ++ pkgs.lib.optional export tikzDevice;
         in {
-          apps.jupyterlabExport = {
-            program = "${nixpkgs.lib.getExe' (jupyerlabScript "${jupyterlab true}/bin/jupyter-lab") "start"}";
-            type = "app";
+          devShells.mining = pkgs.mkShell {
+            shellHook =
+              (extra.shellHook system) "mining";
+
+            buildInputs =
+              (with pkgs; [
+                just
+                R
+              ])
+              ++ R-pkgs;
           };
-          apps.jupyterlab = {
-            program = "${nixpkgs.lib.getExe' (jupyterlabScript "${jupyterlab false}/bin/jupyter-lab") "start"}";
-            type = "app";
+          devShells.mining-export = pkgs.mkShell {
+            shellHook =
+              (extra.shellHook system) "mining-export";
+
+            buildInputs =
+              (with pkgs; [
+                just
+                R
+
+                texliveMinimal
+                pgf3
+                rPackages.tikzDevice
+              ])
+              ++ R-pkgs;
           };
         }))
       ];
