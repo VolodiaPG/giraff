@@ -341,7 +341,7 @@
                   exit $?
               fi
 
-              exec -a "jupyter-giraff" ${executable} --NotebookApp.token="291d6ed55226ce5802cb0a8a6055fa5bffafbffb0d1f3e81"
+              exec -a "jupyter-giraff" ${executable} --ip "0.0.0.0" --NotebookApp.token="291d6ed55226ce5802cb0a8a6055fa5bffafbffb0d1f3e81"
             '';
         in {
           apps.jupyterlabExport = {
