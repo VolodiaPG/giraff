@@ -811,6 +811,34 @@ output_respected_data_plot_simple <- function(respected_sla) {
     return(p)
 }
 
+output_ran_for_plot_simple <- function(respected_sla) {
+    df <- respected_sla
+
+    p <- ggplot(data = df, aes(x = folder, y = ran_for, color = function_name, alpha = 1)) +
+        #  facet_grid(~var_facet) +
+        theme(legend.background = element_rect(
+            fill = alpha("white", .7),
+            size = 0.2, color = alpha("white", .7)
+        )) +
+        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+        theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
+        theme(legend.position = "none") +
+        scale_color_viridis(discrete = T) +
+        scale_fill_viridis(discrete = T) +
+        # scale_y_continuous(labels = scales::percent) +
+        labs(
+            x = "Placement method",
+            y = "mean ran_for (s)"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+    mean_cb <- function(Letters, mean) {
+        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
+    }
+    return(p)
+}
+
 output_jains_index_plot <- function(earnings.jains.plot.data.raw) {
     df <- earnings.jains.plot.data.raw %>%
         mutate(toto = "toto") %>%
@@ -968,6 +996,7 @@ functions_total <- load_functions_total(functions)
 plots.respected_sla <- load_respected_sla_plot_data(respected_sla)
 # # ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
 ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla))
+ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
 # # ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
 # raw_deployment_times <- load_raw_deployment_times()
