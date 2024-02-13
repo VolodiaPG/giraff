@@ -571,7 +571,7 @@ load_respected_sla <- memoised(function() {
             mutate(ran_for = timestamp - value) %>%
             arrange(timestamp) %>%
             mutate(in_flight = value - lag(value, default = first(value))) %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name) %>%
             summarise(
                 satisfied_count = sum(in_flight <= latency),
                 acceptable_count = sum(in_flight <= latency + 0.001),
@@ -795,7 +795,6 @@ output_respected_data_plot_simple <- function(respected_sla) {
     #     ungroup()
     df <- respected_sla
 
-    print(df)
     p <- ggplot(data = df, aes(x = folder, y = count.acceptable, color = function_name, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
@@ -824,7 +823,7 @@ output_respected_data_plot_simple <- function(respected_sla) {
 output_ran_for_plot_simple <- function(respected_sla) {
     df <- respected_sla
 
-    p <- ggplot(data = df, aes(x = folder, y = ran_for, color = function_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = ran_for, color = folder, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
             fill = alpha("white", .7),
@@ -925,6 +924,33 @@ output_mean_time_to_deploy <- function(raw.deployment_times) {
     return(plots.deploymenttimes)
 }
 
+output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
+    df <- raw.deployment_times
+
+    p <- ggplot(data = df, aes(x = folder, y = value, alpha = 1)) +
+        #  facet_grid(~var_facet) +
+        theme(legend.position = "none") +
+        scale_alpha_continuous(guide = "none") +
+        labs(
+            y = "Mean time to deploy (ms)",
+            x = "Placement method",
+        ) +
+        theme(
+            legend.background = element_rect(
+                fill = alpha("white", .7),
+                size = 0.2, color = alpha("white", .7)
+            ),
+            axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
+        ) +
+        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+        # theme(legend.position = c(.8, .5)) +
+        guides(colour = guide_legend(ncol = 1)) +
+        scale_color_viridis(discrete = T) +
+        scale_fill_viridis(discrete = T) +
+        geom_beeswarm()
+    return(p)
+}
+
 load_spending_plot_data <- memoised(function(bids_won_function) {
     plots.spending.data <- bids_won_function %>%
         extract_function_name_info() %>%
@@ -976,6 +1002,37 @@ output_spending_plot <- function(plots.spending.data) {
     return(plots.spending)
 }
 
+output_spending_plot_simple <- function(plots.spending.data) {
+    df <- plots.spending.data %>%
+        extract_function_name_info()
+
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = cost, color = folder, alpha = 1)) +
+        theme(legend.position = "none") +
+        scale_alpha_continuous(guide = "none") +
+        labs(
+            y = "Function cost",
+            x = "Placement method",
+        ) +
+        theme(legend.background = element_rect(
+            fill = alpha("white", .7),
+            size = 0.2, color = alpha("white", .7)
+        )) +
+        theme(
+            legend.spacing.y = unit(0, "cm"),
+            legend.margin = margin(0, 0, 0, 0),
+            legend.box.margin = margin(-10, -10, -10, -10),
+            axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
+        ) +
+        # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+        # theme(legend.position = c(.5, .93)) +
+        scale_color_viridis(discrete = T) +
+        scale_fill_viridis(discrete = T) +
+        guides(colour = guide_legend(nrow = 1)) +
+        geom_beeswarm()
+
+    return(p)
+}
+
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)
 output_latency(latency)
@@ -999,18 +1056,31 @@ respected_sla <- load_respected_sla()
 functions <- load_functions()
 functions_total <- load_functions_total(functions)
 
+ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla))
+ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
 # # ggsave("anova_nb_deployed.png", output_anova_nb_deployed(plots.nb_deployed.data))
 
-plots.respected_sla <- load_respected_sla_plot_data(respected_sla)
+# plots.respected_sla <- load_respected_sla_plot_data(respected_sla)
 # # ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
-ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla))
-ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
-# # ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
-# raw_deployment_times <- load_raw_deployment_times()
-# # ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
+# ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
+raw_deployment_times <- load_raw_deployment_times()
+# ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
+ggsave("mean_time_to_deploy_simple.png", output_mean_time_to_deploy_simple(raw_deployment_times))
 
 # spending_plot_data <- load_spending_plot_data(bids_won_function)
 # ggsave("spending.png", output_spending_plot(spending_plot_data))
+print(bids_won_function)
+ggsave("spending_simple.png", output_spending_plot_simple(bids_won_function))
+# options(width = 1000)
+# toto <- load_csv("proxy.csv") %>%
+#     # rename(function_name = tags) %>%
+#     # extract_function_name_info() %>%
+#     filter(req_id == "063ea3fa-b428-4977-a1e4-7588c326b8a4") %>%
+#     {
+#         .
+#     }
+
+# print(toto)
