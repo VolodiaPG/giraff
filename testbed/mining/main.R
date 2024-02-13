@@ -60,6 +60,16 @@ source("config.R")
 
 cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-myapp"), max_size = 5 * 1024 * 1024^2)
 
+if (cd$exists("metrics")) {
+    cached <- cd$get("metrics")
+    if (!identical(METRICS_ARKS, cached)) {
+        cd$reset()
+    }
+} else {
+    cd$reset()
+    cd$set("metrics", METRICS_ARKS)
+}
+
 memoised <- function(f) {
     memoise(f, cache = cd)
 }
