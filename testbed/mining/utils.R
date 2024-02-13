@@ -317,14 +317,15 @@ correct_names <- function(x) {
 
 fig(20, 20)
 
-adjust_timestamps <- function(x, var_name = "timestamp") {
+adjust_timestamps <- function(x, var_name = "timestamp", reference = "timestamp") {
   # Careful where we put this, as the first measurement may not be the same accross all of the combined values for the same folder
 
   var_sym <- ensym(var_name)
+  ref_sym <- ensym(reference)
 
   minvalue <- x %>%
     group_by(folder) %>%
-    summarise(minvalue = min({{ var_sym }})) %>%
+    summarise(minvalue = min({{ ref_sym }})) %>%
     ungroup()
 
   return(

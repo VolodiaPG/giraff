@@ -4,8 +4,6 @@ init <- function() {
     system("rm ./vroom/*")
 
     # To call python from R
-    library(car)
-
     library(archive)
     library(dplyr)
     library(reticulate)
@@ -15,7 +13,7 @@ init <- function() {
     library(formattable)
     library(stringr)
     library(viridis)
-    library(geomtextpath)
+    # library(geomtextpath)
     library(cowplot)
     library(scales)
     library(vroom)
@@ -59,7 +57,6 @@ suppressMessages(init())
 
 source("utils.R")
 source("config.R")
-# source("exportTikz.R")
 
 cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-myapp"), max_size = 5 * 1024 * 1024^2)
 
@@ -260,24 +257,26 @@ load_bids_won_function <- memoised(function(bids_raw, provisioned_sla) {
 
 load_raw_cpu_observed_from_fog_node <- memoised(function() {
     registerDoParallel(parallel_loading_datasets_small)
-    raw.cpu.observed_from_fog_node <- foreach(ark = METRICS_ARKS) %dopar% {
+    raw_cpu_observed_from_fog_node <- foreach(ark = METRICS_ARKS) %dopar% {
         cpu <- load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
             prepare() %>%
             prepare_convert()
         cpu %>%
             filter(field == "initial_allocatable") %>%
             rename(initial_allocatable = value) %>%
-            inner_join(cpu %>% filter(field == "used") %>% rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
+            inner_join(cpu %>%
+                filter(field == "used") %>%
+                rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
             mutate(usage = used / initial_allocatable) %>%
             select(instance, timestamp, usage, folder, metric_group, metric_group_group)
     }
-    raw.cpu.observed_from_fog_node <- bind_rows(raw.cpu.observed_from_fog_node)
-    return(raw.cpu.observed_from_fog_node)
+    raw_cpu_observed_from_fog_node <- bind_rows(raw_cpu_observed_from_fog_node)
+    return(raw_cpu_observed_from_fog_node)
 })
 
 load_auc_usage_cpu <- memoised(function() {
     registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-    raw.auc_usage.cpu <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
+    raw_auc_usage_cpu <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
         load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
             prepare() %>%
             prepare_convert() %>%
@@ -285,11 +284,11 @@ load_auc_usage_cpu <- memoised(function() {
     })
 
     gc()
-    return(raw.auc_usage.cpu)
+    return(raw_auc_usage_cpu)
 })
 
 load_auc_usage_mem <- memoised(function() {
-    raw.auc_usage.mem <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
+    raw_auc_usage_mem <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
         load_single_csv(ark, "memory_observed_from_fog_node.csv") %>%
             prepare() %>%
             prepare_convert() %>%
@@ -297,7 +296,7 @@ load_auc_usage_mem <- memoised(function() {
     })
 
     gc()
-    return(raw.auc_usage.mem)
+    return(raw_auc_usage_mem)
 })
 
 load_total_gains <- memoised(function(bids_won_function) {
@@ -328,7 +327,15 @@ load_errors <- memoised(function() {
         },
         error = function(cond) {
             columns <- c("instance", "job", "timestamp", "tag", "period", "folder", "metric_group", "latency", "value")
-            df <- data.frame(instance = character(0), job = character(0), period = numeric(0), folder = character(0), metric_group = character(0), latency = character(0), value = numeric(0))
+            df <- data.frame(
+                instance = character(0),
+                job = character(0),
+                period = numeric(0),
+                folder = character(0),
+                metric_group = character(0),
+                latency = character(0),
+                value = numeric(0)
+            )
             return(df)
         }
     )
@@ -540,32 +547,32 @@ output_jains <- function(earnings.jains.plot.data.raw) {
 load_respected_sla <- memoised(function() {
     registerDoParallel(cl = parallel_loading_datasets, cores = parallel_loading_datasets)
     respected_sla.header.nb <- foreach(ark = METRICS_ARKS) %dopar% {
-        # max_timestamp <- data %>%
-        #     group_by(folder, metric_group, metric_group_group) %>%
-        #     summarise(max_timestamp = max(timestamp))
         gc()
 
         load_single_csv(ark, "proxy.csv") %>%
             prepare() %>%
+            group_by(folder) %>%
+            adjust_timestamps(var_name = "value_raw") %>%
+            mutate(value = value_raw) %>%
             adjust_timestamps() %>%
             rename(function_name = tags) %>%
             extract_function_name_info() %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, req_id) %>%
+            mutate(ran_for = timestamp - value) %>%
+            arrange(timestamp) %>%
+            mutate(in_flight = value - lag(value, default = first(value))) %>%
             group_by(sla_id, folder, metric_group, metric_group_group, function_name) %>%
             summarise(
-                satisfied_count = sum(value <= latency),
-                acceptable_count = sum(value <= latency + 0.001),
-                alt_satisfied_count = sum(value / 2 <= latency),
-                alt_satisfied_count2 = sum(value / 4 <= latency),
-                alt_acceptable_count = sum(value / 2 <= latency + 0.01),
+                satisfied_count = sum(in_flight <= latency),
+                acceptable_count = sum(in_flight <= latency + 0.001),
                 total = n(),
-                measured_latency = mean(value),
-                ran_for = max(timestamp) - min(timestamp),
-                # finished_before_end_expe = max(timestamp) < max_timestamp
+                measured_latency = mean(in_flight),
+                ran_for = max(ran_for),
             ) %>%
             mutate(count.satisfied = satisfied_count / total) %>%
-            mutate(count.acceptable = acceptable_count / total) %>%
-            mutate(count.alt2 = alt_satisfied_count2 / total) %>%
-            mutate(count.alt = alt_satisfied_count / total)
+            mutate(count.acceptable = acceptable_count / total)
+        # mutate(count.alt2 = alt_satisfied_count2 / total) %>%
+        # mutate(count.alt = alt_satisfied_count / total)
     }
 
     respected_sla.header.nb <- bind_rows(respected_sla.header.nb)
@@ -602,8 +609,8 @@ load_respected_sla_plot_data <- memoised(function(respected_sla.header.nb) {
         # left_join(raw.nb_functions.total.ll %>% rename(total_func_ll = total)) %>%
         rowwise() %>%
         # mutate(ratio_func_ll = total_func_ll / total_func) %>%
-        # mutate(satisfied_count = count.acceptable) %>%
-        mutate(satisfied_count = abs(measured_latency - latency) / latency) %>%
+        mutate(satisfied_count = count.acceptable) %>%
+        # mutate(satisfied_count = abs(measured_latency - latency) / latency) %>%
         mutate(measured_latency = abs(measured_latency) / latency) %>%
         # mutate(ratio_func_ll = sprintf("%.1f%% low-latency ƒ", ratio_func_ll *100))  %>%
         correct_names() %>%
@@ -771,6 +778,39 @@ output_respected_data_plot <- function(plots.respected_sla.data) {
     return(plots.respected_sla)
 }
 
+output_respected_data_plot_simple <- function(respected_sla) {
+    # df <- plots.respected_sla.data %>%
+    #     group_by(folder, `Placement method`) %>%
+    #     # summarise(satisfied_count = mean(count.acceptable)) %>%
+    #     ungroup()
+    df <- respected_sla
+
+    print(df)
+    p <- ggplot(data = df, aes(x = folder, y = count.acceptable, color = function_name, alpha = 1)) +
+        #  facet_grid(~var_facet) +
+        theme(legend.background = element_rect(
+            fill = alpha("white", .7),
+            size = 0.2, color = alpha("white", .7)
+        )) +
+        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+        theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
+        theme(legend.position = "none") +
+        scale_color_viridis(discrete = T) +
+        scale_fill_viridis(discrete = T) +
+        scale_y_continuous(labels = scales::percent) +
+        labs(
+            x = "Placement method",
+            y = "Mean satisfaction rate"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+    mean_cb <- function(Letters, mean) {
+        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
+    }
+    return(p)
+}
+
 output_jains_index_plot <- function(earnings.jains.plot.data.raw) {
     df <- earnings.jains.plot.data.raw %>%
         mutate(toto = "toto") %>%
@@ -913,22 +953,25 @@ if (generate_gif) {
 
 node_levels <- load_node_levels()
 earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
-ggsave("jains.png", output_jains(earnings_jains_plot_data))
+# ggsave("jains.png", output_jains(earnings_jains_plot_data))
 
 respected_sla <- load_respected_sla()
+# options(width = 1000)
+
 functions <- load_functions()
 functions_total <- load_functions_total(functions)
 
 
-plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
-# ggsave("anova_nb_deployed.png", output_anova_nb_deployed(plots.nb_deployed.data))
+# plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
+# # ggsave("anova_nb_deployed.png", output_anova_nb_deployed(plots.nb_deployed.data))
 
 plots.respected_sla <- load_respected_sla_plot_data(respected_sla)
-# ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
+# # ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
+ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla))
 
-# ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
-raw_deployment_times <- load_raw_deployment_times()
-# ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
+# # ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
+# raw_deployment_times <- load_raw_deployment_times()
+# # ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
 
-spending_plot_data <- load_spending_plot_data(bids_won_function)
+# spending_plot_data <- load_spending_plot_data(bids_won_function)
 # ggsave("spending.png", output_spending_plot(spending_plot_data))

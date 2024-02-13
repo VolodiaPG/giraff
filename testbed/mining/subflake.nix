@@ -25,7 +25,7 @@
             formattable
             stringr
             viridis
-            geomtextpath
+            # geomtextpath
             scales
             zoo
             gghighlight
