@@ -43,6 +43,7 @@ init <- function() {
     library(intergraph)
     library(network)
     library(ggnetwork)
+    library(treemapify)
 
     library(memoise)
 
@@ -67,8 +68,8 @@ if (cd$exists("metrics")) {
     }
 } else {
     cd$reset()
-    cd$set("metrics", METRICS_ARKS)
 }
+cd$set("metrics", METRICS_ARKS)
 
 memoised <- function(f) {
     memoise(f, cache = cd)
@@ -240,7 +241,7 @@ load_provisioned_sla <- memoised(function() {
     provisioned_sla <- load_csv("function_deployment_duration.csv") %>%
         prepare() %>%
         prepare_convert() %>%
-        select(bid_id, sla_id, folder, metric_group, metric_group_group) %>%
+        select(bid_id, sla_id, folder, metric_group, metric_group_group, function_name) %>%
         distinct() %>%
         {
             .
@@ -254,7 +255,7 @@ load_bids_won_function <- memoised(function(bids_raw, provisioned_sla) {
     bids_won_function <- bids_raw %>%
         select(sla_id, bid_id, instance, function_name, folder, metric_group, metric_group_group, value) %>%
         distinct() %>%
-        inner_join(provisioned_sla, by = c("bid_id", "sla_id", "folder", "metric_group", "metric_group_group")) %>%
+        inner_join(provisioned_sla, by = c("bid_id", "sla_id", "folder", "metric_group", "metric_group_group", "function_name")) %>%
         mutate(winner = instance) %>%
         mutate(cost = value) %>%
         select(sla_id, function_name, folder, metric_group, metric_group_group, winner, cost) %>%
@@ -359,9 +360,11 @@ output_latency <- function(latency) {
         adjust_timestamps() %>%
         rename(source = instance, destination = destination_name, latency_value = value) %>%
         select(timestamp, source, destination, folder, latency_value, diff) %>%
-        ggplot(aes(x = timestamp, y = latency_value, color = interaction(source, destination))) +
+        mutate(sorted_interaction = pmap_chr(list(source, destination), ~ paste(sort(c(...)), collapse = "_"))) %>%
+        ggplot(aes(x = sorted_interaction, y = latency_value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
         facet_grid(cols = vars(folder)) +
-        geom_point() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+        geom_boxplot() +
         theme(legend.position = "none")
 }
 
@@ -567,11 +570,13 @@ load_respected_sla <- memoised(function() {
             adjust_timestamps() %>%
             rename(function_name = tags) %>%
             extract_function_name_info() %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, req_id) %>%
+            extract_functions_pipeline() %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, req_id, pipeline) %>%
             mutate(ran_for = timestamp - value) %>%
-            arrange(timestamp) %>%
-            mutate(in_flight = value - lag(value, default = first(value))) %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name) %>%
+            arrange(first_req_id, timestamp) %>%
+            mutate(in_flight = value - ifelse(first_req_id == TRUE, lag(value), lag(timestamp))) %>%
+            filter(first_req_id == FALSE) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline) %>%
             summarise(
                 satisfied_count = sum(in_flight <= latency),
                 acceptable_count = sum(in_flight <= latency + 0.001),
@@ -581,8 +586,6 @@ load_respected_sla <- memoised(function() {
             ) %>%
             mutate(count.satisfied = satisfied_count / total) %>%
             mutate(count.acceptable = acceptable_count / total)
-        # mutate(count.alt2 = alt_satisfied_count2 / total) %>%
-        # mutate(count.alt = alt_satisfied_count / total)
     }
 
     respected_sla.header.nb <- bind_rows(respected_sla.header.nb)
@@ -788,24 +791,19 @@ output_respected_data_plot <- function(plots.respected_sla.data) {
     return(plots.respected_sla)
 }
 
-output_respected_data_plot_simple <- function(respected_sla) {
-    # df <- plots.respected_sla.data %>%
-    #     group_by(folder, `Placement method`) %>%
-    #     # summarise(satisfied_count = mean(count.acceptable)) %>%
-    #     ungroup()
-    df <- respected_sla
+output_respected_data_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
+    df <- respected_sla %>%
+        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+        left_join(node_levels %>% rename(winner = name)) %>%
+        {
+            .
+        }
 
-    p <- ggplot(data = df, aes(x = folder, y = count.acceptable, color = function_name, alpha = 1)) +
-        #  facet_grid(~var_facet) +
-        theme(legend.background = element_rect(
-            fill = alpha("white", .7),
-            size = 0.2, color = alpha("white", .7)
-        )) +
-        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
-        theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
-        theme(legend.position = "none") +
-        scale_color_viridis(discrete = T) +
-        scale_fill_viridis(discrete = T) +
+    print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
+    p <- ggplot(data = df, aes(x = level_value, y = count.acceptable, color = docker_fn_name, alpha = 1)) +
+        facet_grid(rows = vars(pipeline)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
         scale_y_continuous(labels = scales::percent) +
         labs(
             x = "Placement method",
@@ -820,18 +818,76 @@ output_respected_data_plot_simple <- function(respected_sla) {
     return(p)
 }
 
-output_ran_for_plot_simple <- function(respected_sla) {
-    df <- respected_sla
+output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
+    df <- respected_sla %>%
+        mutate(measured_latency = as.numeric(measured_latency)) %>%
+        select(-sla_id) %>%
+        left_join(bids_won_function %>% ungroup() %>% select(folder, winner, sla_id) %>% distinct()) %>%
+        left_join(node_levels %>% rename(winner = name)) %>%
+        {
+            .
+        }
+    p <- ggplot(data = df, aes(x = level_value, y = measured_latency, color = docker_fn_name, alpha = 1)) +
+        facet_grid(rows = vars(pipeline)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        scale_y_continuous(trans = "log10") +
+        labs(
+            x = "Placement method",
+            y = "measured latency (in_flight) (s)"
+        ) +
+        geom_beeswarm()
 
-    p <- ggplot(data = df, aes(x = docker_fn_name, y = ran_for, color = folder, alpha = 1)) +
+    fig(10, 10)
+    mean_cb <- function(Letters, mean) {
+        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
+    }
+    return(p)
+}
+
+output_ran_for_plot_simple <- function(respected_sla) {
+    df <- respected_sla %>%
+        mutate(ran_for = as.numeric(ran_for))
+
+    p <- ggplot(data = df, aes(x = pipeline, y = ran_for, color = docker_fn_name, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
             fill = alpha("white", .7),
             size = 0.2, color = alpha("white", .7)
         )) +
         theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
-        theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
-        theme(legend.position = "none") +
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+        scale_y_continuous(trans = "log10") +
+        # theme(legend.position = "none") +
+        scale_color_viridis(discrete = T) +
+        scale_fill_viridis(discrete = T) +
+        # scale_y_continuous(labels = scales::percent) +
+        labs(
+            x = "Placement method",
+            y = "mean ran_for (s)"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+    mean_cb <- function(Letters, mean) {
+        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
+    }
+    return(p)
+}
+output_function_latency_plot_simple <- function(respected_sla) {
+    df <- respected_sla %>%
+        mutate(ran_for = as.numeric(ran_for))
+
+    p <- ggplot(data = df, aes(x = pipeline, y = ran_for, color = docker_fn_name, alpha = 1)) +
+        #  facet_grid(~var_facet) +
+        theme(legend.background = element_rect(
+            fill = alpha("white", .7),
+            size = 0.2, color = alpha("white", .7)
+        )) +
+        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+        scale_y_continuous(trans = "log10") +
+        # theme(legend.position = "none") +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
         # scale_y_continuous(labels = scales::percent) +
@@ -927,7 +983,7 @@ output_mean_time_to_deploy <- function(raw.deployment_times) {
 output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
     df <- raw.deployment_times
 
-    p <- ggplot(data = df, aes(x = folder, y = value, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = value, color = folder, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.position = "none") +
         scale_alpha_continuous(guide = "none") +
@@ -942,6 +998,7 @@ output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
             ),
             axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
         ) +
+        scale_y_continuous(trans = "log10") +
         theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
         # theme(legend.position = c(.8, .5)) +
         guides(colour = guide_legend(ncol = 1)) +
@@ -1049,14 +1106,14 @@ if (generate_gif) {
 node_levels <- load_node_levels()
 earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
 # ggsave("jains.png", output_jains(earnings_jains_plot_data))
-
 respected_sla <- load_respected_sla()
 # options(width = 1000)
 
 functions <- load_functions()
 functions_total <- load_functions_total(functions)
 
-ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla))
+ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+ggsave("in_flight_time.png", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
@@ -1072,7 +1129,6 @@ ggsave("mean_time_to_deploy_simple.png", output_mean_time_to_deploy_simple(raw_d
 
 # spending_plot_data <- load_spending_plot_data(bids_won_function)
 # ggsave("spending.png", output_spending_plot(spending_plot_data))
-print(bids_won_function)
 ggsave("spending_simple.png", output_spending_plot_simple(bids_won_function))
 # options(width = 1000)
 # toto <- load_csv("proxy.csv") %>%

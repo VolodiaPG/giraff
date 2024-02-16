@@ -1,4 +1,4 @@
-generate_gif <- T
+generate_gif <- TRUE
 reload_big_data <- TRUE
 parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
@@ -12,8 +12,9 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-    "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-02-02-16-18.tar.xz",
+    # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-02-02-16-18.tar.xz",
     # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-02-02-16-18.tar.xz",
+    "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-02-16-11-09.tar.xz",
     #---
     #---
     #---
@@ -34,3 +35,6 @@ stopifnot(length(METRICS_ARKS) == length(METRICS_GROUP_GROUP))
 # Make the output of the console real wide
 # alt+z on the vscode console to make it not wrap
 options(width = 1000)
+
+# Not scientific notations
+options(scipen = 10000)

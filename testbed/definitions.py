@@ -121,8 +121,6 @@ spec:
           value: "faasfog"
         - name: INFLUX_BUCKET
           value: "faasfog"
-        - name: COLLECTOR_IP
-          value: "{collector_ip}"
         - name: INSTANCE_NAME
           value: "{node_name}"
         - name: PRICING_MEM
@@ -135,6 +133,10 @@ spec:
           value: "{pricing_cpu_initial}"
         - name: PRICING_GEOLOCATION
           value: "{pricing_geolocation}"
+        - name: COLLECTOR_IP
+          value: "{collector_ip}"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
+          value: "http://{collector_ip}:4317"
         ports:
         - containerPort: 30003
         volumeMounts:

@@ -20,9 +20,11 @@ from waitress import serve  # type: ignore
 
 model_path = os.environ["SQUEEZENET_MODEL"]
 
+my_name = os.environ.get("NAME", "dev")
+my_sla_id = os.environ.get("ID", "dev")
 resource = {
     "telemetry.sdk.language": "python",
-    "service.name": os.environ.get("ID", "dev"),
+    "service.name": my_sla_id,
 }
 resource = Resource.create(resource)
 
@@ -55,6 +57,8 @@ def add_headers(response):
         parsed_url = urlparse(NEXT_URL)
         hostname = parsed_url.hostname
         response.headers["GIRAFF-Redirect-Proxy"] = f"http://{hostname}:3128/"
+        response.headers["GIRAFF-Tags"] = my_name
+        response.headers["GIRAFF-SLA-ID"] = my_sla_id
     return response
 
 

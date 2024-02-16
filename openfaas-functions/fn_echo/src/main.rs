@@ -46,6 +46,7 @@ env_var!(INFLUX_TOKEN);
 env_var!(INFLUX_ORG);
 env_var!(INFLUX_BUCKET);
 env_var!(ID);
+env_var!(NAME);
 
 /// timestamp at which the function is fully operational
 #[influx_observation]
@@ -111,10 +112,17 @@ impl Configuration {
 }
 
 #[instrument(level = "trace")]
-async fn handle() -> HttpResponse { 
-    info!("Got it");
-    HttpResponse::Ok().finish()
- }
+async fn handle(
+    my_name: web::Data<String>,
+    sla_id: web::Data<String>,
+) -> HttpResponse {
+    let my_name = (*my_name.into_inner()).clone();
+    let sla_id = (*sla_id.into_inner()).clone();
+    HttpResponse::Ok()
+        .append_header(("GIRAFF-TAGS", my_name))
+        .append_header(("GIRAFF-SLA-ID", sla_id))
+        .finish()
+}
 
 #[instrument(level = "trace", skip(config), fields(next_function_url=payload.0.next_function_url))]
 async fn reconfigure(
@@ -127,9 +135,7 @@ async fn reconfigure(
     HttpResponse::Ok().finish()
 }
 
-async fn health() -> HttpResponse {
-    HttpResponse::Ok().finish()
-}
+async fn health() -> HttpResponse { HttpResponse::Ok().finish() }
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -180,6 +186,9 @@ pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
 async fn main() -> Result<()> {
     let Ok(id) = std::env::var(ID) else {
         panic!("{} env variable not found", ID);
+    };
+    let Ok(my_name) = std::env::var(NAME) else {
+        panic!("{} env variable not found", NAME);
     };
 
     #[cfg(feature = "jaeger")]
@@ -234,6 +243,8 @@ async fn main() -> Result<()> {
     let metrics = web::Data::from(metrics);
     let sla_id = web::Data::from(Arc::new(sla_id_raw.to_string()));
 
+    let my_name = web::Data::from(Arc::new(my_name));
+
     let server = HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
@@ -253,6 +264,7 @@ async fn main() -> Result<()> {
         .app_data(web::Data::clone(&http_client))
         .app_data(web::Data::clone(&metrics))
         .app_data(web::Data::clone(&sla_id))
+        .app_data(web::Data::clone(&my_name))
         .service(
             web::scope("")
                 .route("/", web::post().to(handle))

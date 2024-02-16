@@ -376,6 +376,14 @@ extract_function_name_info <- function(x) {
   )
 }
 
+extract_functions_pipeline <- function(x) {
+  return(x %>%
+    group_by(folder, metric_group, metric_group_group, sla_id, req_id) %>%
+    arrange(timestamp) %>%
+    mutate(pipeline = paste0(docker_fn_name, collapse = ",")) %>%
+    ungroup())
+}
+
 load_csv <- function(filename) {
   all_data <- purrr::map_df(METRICS_ARKS, ~ mutate(vroom(archive_read(paste(METRICS_PATH, .x, sep = "/"), file = filename), progress = FALSE, col_types = cols(), col_names = TRUE, delim = "\t", .name_repair = "unique") %>% distinct(),
     folder = tools::file_path_sans_ext(tools::file_path_sans_ext(.x)),

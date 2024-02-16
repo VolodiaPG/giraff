@@ -75,6 +75,10 @@ impl FaaSBackend {
         env_vars.insert(INFLUX_ORG.to_string(), org.into_inner());
         env_vars.insert(INFLUX_TOKEN.to_string(), token.into_inner());
         env_vars.insert("ID".to_string(), id.to_string());
+        env_vars.insert(
+            "NAME".to_string(),
+            bid.0.sla.function_live_name.to_string(),
+        );
 
         let otel_endpoint_function =
             env::var(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION.to_string());

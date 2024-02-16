@@ -43,6 +43,7 @@ class FunctionPipeline:
     nextFunction: Optional[str] = None
     mem: MiB_int = 256
     cpu: millicpu_int = 100
+    latency: str = "NO_LATENCY"
 
 
 @dataclass
@@ -360,9 +361,9 @@ async def save_file(filename: str):
     for target_node_name in TARGET_NODE_NAMES:
         for ii, fn_desc in enumerate(function_descriptions):
             nb_function = nb_functions[ii]
-            latencies = [
-                max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
-            ]
+            # latencies = [
+            #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
+            # ]
             request_intervals = [
                 math.ceil(abs(1000 * x))
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
@@ -378,19 +379,18 @@ async def save_file(filename: str):
             ]
 
             for index in range(0, nb_function):
-                latency = latencies[index]
+                # latency = latencies[index]
                 arrival = arrivals[index]
                 duration = durations[index]
                 request_interval = request_intervals[index]
 
                 fn_name = list(fn_desc.pipeline.keys())[0]
 
-                # print(fn_name)
-                # print(fn_desc)
-
                 fn_chain = list()
                 while True:
                     fn: FunctionPipeline = fn_desc.pipeline[fn_name]
+                    latency = int(os.getenv(fn_desc.pipeline[fn_name].latency, "-1"))
+                    latency = np.random.normal(latency, latency/2)
                     function_name = (
                         f"{fn_name}"
                         f"-i{index}"
@@ -424,7 +424,7 @@ async def save_file(filename: str):
                     fn_name = fn.nextFunction
                 functions.append(fn_chain)
 
-    # print(functions)
+    print(functions)
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
         dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)

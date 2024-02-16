@@ -7,18 +7,21 @@
             "nextFunction": "classif",
             "image": "giraff:fn_image_processing_pillow",
             "mem": 256,
-            "cpu": 100
+            "cpu": 256,
+            "latency": "LOW_LATENCY"
         },
         "classif": {
             "nextFunction": "echo",
             "image": "giraff:fn_image_classification_squeezenet_cpu",
             "mem": 512,
-            "cpu": 500
+            "cpu": 500,
+            "latency": "HIGH_LATENCY"
         },
         "echo": {
             "image": "giraff:fn_echo",
             "mem": 100,
-            "cpu": 50
+            "cpu": 100,
+            "latency": "NO_LATENCY"
         }
     }
 }

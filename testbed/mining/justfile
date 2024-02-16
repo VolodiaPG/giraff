@@ -1,5 +1,2 @@
-_default:
-    @just --list
-
 run:
     Rscript main.R

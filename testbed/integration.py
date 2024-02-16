@@ -16,6 +16,14 @@ from typing import Any, Optional
 
 import click  # type: ignore
 import enoslib as en  # type: ignore
+
+# Enable rich logging
+from enoslib import enostask  # type: ignore
+from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
+from grid5000 import Grid5000  # type: ignore
+from grid5000.cli import auth  # type: ignore
+from influxdb_client import InfluxDBClient  # type: ignore
+
 from collect import listener, worker
 from definitions import (
     ADJACENCY,
@@ -33,13 +41,6 @@ from definitions import (
     gen_net,
     gen_vm_conf,
 )
-
-# Enable rich logging
-from enoslib import enostask  # type: ignore
-from enoslib.api import STATUS_FAILED, STATUS_OK, actions  # type: ignore
-from grid5000 import Grid5000  # type: ignore
-from grid5000.cli import auth  # type: ignore
-from influxdb_client import InfluxDBClient  # type: ignore
 
 EnosEnv = Optional[dict[str, Any]]
 
@@ -360,7 +361,7 @@ def restart(env: EnosEnv = None):
     netem = env["netem"]
     netem.destroy()
 
-    roles = env["roles"]["master"]
+    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
     # inv_map = {}
     # layers = []
     # for k, v in env["assignations"].items():
@@ -473,6 +474,8 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
                     -p 16686:16686 \
                     -p 14268:14268 \
                     -p 9411:9411 \
+                    -p 4317:4317 \
+                    -p 4318:4318 \
                     jaegertracing/all-in-one:1.51.0
                     """,
             # -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \

@@ -7,6 +7,7 @@
           pkgs = inputs.nixpkgs.legacyPackages.${system};
           R-pkgs = with pkgs.rPackages; [
             languageserver
+            treemapify
             (
               archive.overrideAttrs (old: {
                 buildInputs =
