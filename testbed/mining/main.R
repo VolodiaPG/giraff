@@ -589,6 +589,7 @@ load_respected_sla <- function() {
                 total = n(),
                 measured_latency = mean(in_flight),
                 ran_for = max(ran_for),
+                errored = sum(status != 200)
             ) %>%
             mutate(count.satisfied = satisfied_count / total) %>%
             mutate(count.acceptable = acceptable_count / total) %>%
@@ -804,12 +805,41 @@ output_respected_data_plot_simple <- function(respected_sla, bids_won_function, 
     df <- respected_sla %>%
         left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
         left_join(node_levels %>% rename(winner = name)) %>%
+        mutate(y = count.acceptable) %>%
         {
             .
         }
 
     print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
-    p <- ggplot(data = df, aes(x = level_value, y = count.acceptable, color = docker_fn_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = factor(level_value), y = y, color = docker_fn_name, alpha = 1)) +
+        facet_grid(rows = vars(pipeline)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        scale_y_continuous(labels = scales::percent) +
+        labs(
+            x = "Placement method",
+            y = "Mean satisfaction rate"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+    mean_cb <- function(Letters, mean) {
+        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
+    }
+    return(p)
+}
+
+output_errored_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
+    df <- respected_sla %>%
+        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+        left_join(node_levels %>% rename(winner = name)) %>%
+        mutate(y = errored) %>%
+        {
+            .
+        }
+
+    print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
+    p <- ggplot(data = df, aes(x = factor(level_value), y = y, color = docker_fn_name, alpha = 1)) +
         facet_grid(rows = vars(pipeline)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
@@ -1106,6 +1136,7 @@ provisioned_sla <- load_provisioned_sla()
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
 ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+ggsave("errored.png", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
 ggsave("in_flight_time.png", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
