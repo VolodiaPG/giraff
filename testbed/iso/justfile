@@ -1,6 +1,6 @@
 export SSHPASS:="giraff"
-export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2221"
-export SCP_CMD:="sshpass -e scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -P 2221"
+export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p"
+export SCP_CMD:="sshpass -e scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -P"
 
 # Entrypoint, run deploy and then tunnels
 _default:
@@ -18,10 +18,7 @@ update:
     nix flake update --experimental-features "nix-command flakes"
 
 ssh-in:
-    @$SSH_CMD
-
-scp-in srcfiles destfiles:
-    @$SCP_CMD root@127.0.0.1:{{srcfiles}} {{destfiles}}
+    @$SSH_CMD 2221
 
 upload city="rennes":
     #!/usr/bin/env bash
@@ -37,26 +34,26 @@ upload city="rennes":
         -m 4096 \
         -smp 4 \
         -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
-        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
+        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2223-:22 \
         -enable-kvm \
         -nographic > /dev/null&
     
-    until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null
+    until $SSH_CMD 2223 "k3s kubectl get pods -A" 2> /dev/null
     do
         sleep 10
     done
 
-    until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
+    until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do
         sleep 10
     done
 
-    until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
+    until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
     do
         sleep 10
     done
 
-    $SSH_CMD "nohup bash -c 'sleep 10 && shutdown 0'"
+    $SSH_CMD 2223 "nohup bash -c 'sleep 10 && shutdown 0'"
 
     wait 
 
@@ -83,6 +80,7 @@ _run_vm disk="result/nixos.qcow2":
 
 _openfaas_in_vm:
     #!/usr/bin/env bash
+
     set -e
 
     # Function to clean up background jobs
@@ -97,36 +95,36 @@ _openfaas_in_vm:
 
     rm vm.kubeconfig || true
 
-    until $SSH_CMD "k3s kubectl get pods -A" 2> /dev/null; do sleep 2; done
+    until $SSH_CMD 2221 "k3s kubectl get pods -A" 2> /dev/null; do sleep 2; done
     
-    (until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done \
-    &&  until $SSH_CMD "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done)&
+    (until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done \
+    &&  until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done)&
     
-    ($SSH_CMD "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2)&
+    ($SSH_CMD 2221 "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2)&
 
-    (while ! $SSH_CMD "sh -c 'systemctl is-active --quiet influxdb2'"; do sleep 2; done)&
+    (while ! $SSH_CMD 2221 "sh -c 'systemctl is-active --quiet influxdb2'"; do sleep 2; done)&
     
-    ($SSH_CMD "docker run -d --rm --name jaeger -e COLLECTOR_OTLP_ENABLED=true -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:1.51.0" \
+    ($SSH_CMD 2221 "docker run -d --rm --name jaeger -e COLLECTOR_OTLP_ENABLED=true -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:1.51.0" \
     && sleep 2)&
 
     wait
 
-    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
-    $SSH_CMD "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
+    $SSH_CMD 2221 "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
+    $SSH_CMD 2221 "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
 
-    $SSH_CMD -N -g -L "6443:127.0.0.1:6443"&
-    $SSH_CMD -N -g -L "8080:127.0.0.1:8080"&
-    $SSH_CMD -N -g -L "9090:127.0.0.1:9090"&
-    $SSH_CMD -N -g -L "9086:127.0.0.1:9086"&
-    $SSH_CMD -N -g -L "14268:127.0.0.1:14268"&
-    $SSH_CMD -N -g -L "16686:127.0.0.1:16686"&
-    $SSH_CMD -N -g -L "4317:127.0.0.1:4317"&
-    $SSH_CMD -N -g -L "4318:127.0.0.1:4318"&
-    $SSH_CMD -N -g -L "5775:127.0.0.1:5775"&
-    $SSH_CMD -N -g -L "6831:127.0.0.1:6831"&
-    $SSH_CMD -N -g -L "6832:127.0.0.1:6832"&
-    $SSH_CMD -N -g -L "5778:127.0.0.1:5778"&
-    $SSH_CMD -N -g -L "3128:127.0.0.1:3128"&
+    $SSH_CMD 2221 -N -g -L "6443:127.0.0.1:6443"&
+    $SSH_CMD 2221 -N -g -L "8080:127.0.0.1:8080"&
+    $SSH_CMD 2221 -N -g -L "9090:127.0.0.1:9090"&
+    $SSH_CMD 2221 -N -g -L "9086:127.0.0.1:9086"&
+    $SSH_CMD 2221 -N -g -L "14268:127.0.0.1:14268"&
+    $SSH_CMD 2221 -N -g -L "16686:127.0.0.1:16686"&
+    $SSH_CMD 2221 -N -g -L "4317:127.0.0.1:4317"&
+    $SSH_CMD 2221 -N -g -L "4318:127.0.0.1:4318"&
+    $SSH_CMD 2221 -N -g -L "5775:127.0.0.1:5775"&
+    $SSH_CMD 2221 -N -g -L "6831:127.0.0.1:6831"&
+    $SSH_CMD 2221 -N -g -L "6832:127.0.0.1:6832"&
+    $SSH_CMD 2221 -N -g -L "5778:127.0.0.1:5778"&
+    $SSH_CMD 2221 -N -g -L "3128:127.0.0.1:3128"&
 
     wait
 

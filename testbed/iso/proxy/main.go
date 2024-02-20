@@ -129,10 +129,15 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	proxyTx := time.Now()
 
 	tags := resp.Header.Get("GIRAFF-Tags")
+	resp.Header.Del("GIRAFF-Tags")
 	slaID := resp.Header.Get("GIRAFF-Sla-Id")
+	resp.Header.Del("GIRAFF-Sla-Id")
 	serviceStatus := resp.StatusCode
 	if tags == "" {
 		tags = "<no-tags>"
+	}
+	if slaID == "" {
+		slaID = "<no-sla-id>"
 	}
 	if !firstRequestID {
 		transmitURL := resp.Header.Get("GIRAFF-Redirect")

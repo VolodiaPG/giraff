@@ -37,4 +37,4 @@ docker:
     echo "Doing function $fn_dir"
     stream_docker=$(nix build .#$fn_dir  --print-out-paths --no-link --quiet)
     sh -c $stream_docker 2> /dev/null | {{DOCKER}} load
-    {{DOCKER}} run --rm --name $fn_dir -p 8081:8080 -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true -e OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION=http://10.42.0.1:4317 $fn_dir:latest
+    {{DOCKER}} run --rm --name $fn_dir -p 8081:8080 -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true -e OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION=http://10.42.0.1:4317 -e ID=toto -e NAME=totoname $fn_dir:latest

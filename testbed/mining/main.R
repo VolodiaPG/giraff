@@ -71,6 +71,10 @@ if (cd$exists("metrics")) {
 }
 cd$set("metrics", METRICS_ARKS)
 
+if (no_memoization) {
+    cd$reset()
+}
+
 memoised <- function(f) {
     memoise(f, cache = cd)
 }
@@ -557,7 +561,7 @@ output_jains <- function(earnings.jains.plot.data.raw) {
     return(plots.jains)
 }
 
-load_respected_sla <- memoised(function() {
+load_respected_sla <- function() {
     registerDoParallel(cl = parallel_loading_datasets, cores = parallel_loading_datasets)
     respected_sla.header.nb <- foreach(ark = METRICS_ARKS) %dopar% {
         gc()
@@ -565,18 +569,20 @@ load_respected_sla <- memoised(function() {
         load_single_csv(ark, "proxy.csv") %>%
             prepare() %>%
             group_by(folder) %>%
-            adjust_timestamps(var_name = "value_raw") %>%
+            adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
+            adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
             mutate(value = value_raw) %>%
-            adjust_timestamps() %>%
             rename(function_name = tags) %>%
+            group_by(folder, metric_group, metric_group_group, req_id) %>%
+            arrange(value) %>%
+            mutate(ran_for = timestamp - value) %>%
+            mutate(prev = ifelse(first_req_id == TRUE, value, timestamp)) %>%
+            mutate(in_flight = value - lag(prev)) %>%
+            mutate(total_process_time = first(ran_for)) %>%
+            filter(first_req_id == FALSE) %>%
             extract_function_name_info() %>%
             extract_functions_pipeline() %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, req_id, pipeline) %>%
-            mutate(ran_for = timestamp - value) %>%
-            arrange(first_req_id, timestamp) %>%
-            mutate(in_flight = value - ifelse(first_req_id == TRUE, lag(value), lag(timestamp))) %>%
-            filter(first_req_id == FALSE) %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline, total_process_time) %>%
             summarise(
                 satisfied_count = sum(in_flight <= latency),
                 acceptable_count = sum(in_flight <= latency + 0.001),
@@ -585,14 +591,17 @@ load_respected_sla <- memoised(function() {
                 ran_for = max(ran_for),
             ) %>%
             mutate(count.satisfied = satisfied_count / total) %>%
-            mutate(count.acceptable = acceptable_count / total)
+            mutate(count.acceptable = acceptable_count / total) %>%
+            {
+                .
+            }
     }
 
     respected_sla.header.nb <- bind_rows(respected_sla.header.nb)
 
     gc()
     return(respected_sla.header.nb)
-})
+}
 
 load_nb_deployed_plot_data <- memoised(function(respected_sla.header.nb, functions_total, node_levels) {
     plots.nb_deployed.data <- respected_sla.header.nb %>%
@@ -1090,31 +1099,37 @@ output_spending_plot_simple <- function(plots.spending.data) {
     return(p)
 }
 
+respected_sla <- load_respected_sla()
+node_levels <- load_node_levels()
+bids_raw <- load_bids_raw()
+provisioned_sla <- load_provisioned_sla()
+bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
+
+ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+ggsave("in_flight_time.png", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
+ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
+
+stop()
+
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)
 output_latency(latency)
 ggsave("output_latency.png")
 
 raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node()
-bids_raw <- load_bids_raw()
-provisioned_sla <- load_provisioned_sla()
-bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 if (generate_gif) {
     output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
 }
 
-node_levels <- load_node_levels()
+
 earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
 # ggsave("jains.png", output_jains(earnings_jains_plot_data))
-respected_sla <- load_respected_sla()
-# options(width = 1000)
+
+
 
 functions <- load_functions()
 functions_total <- load_functions_total(functions)
 
-ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
-ggsave("in_flight_time.png", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
-ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
 # # ggsave("anova_nb_deployed.png", output_anova_nb_deployed(plots.nb_deployed.data))

@@ -378,7 +378,7 @@ extract_function_name_info <- function(x) {
 
 extract_functions_pipeline <- function(x) {
   return(x %>%
-    group_by(folder, metric_group, metric_group_group, sla_id, req_id) %>%
+    group_by(folder, metric_group, metric_group_group, req_id) %>%
     arrange(timestamp) %>%
     mutate(pipeline = paste0(docker_fn_name, collapse = ",")) %>%
     ungroup())

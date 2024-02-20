@@ -49,14 +49,16 @@
               ln -s ${./imagenet_classes.txt} imagenet_classes.txt
             '';
             config = {
-              Env = [
-                "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
-                "mode=http"
-                "http_upstream_url=http://127.0.0.1:5000"
-                "SQUEEZENET_MODEL=${squeezenetModel}"
-                "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
-                "ready_path=http://127.0.0.1:3000/health"
-              ];
+              Env =
+                [
+                  "fprocess=${pkgs.myFunction}/bin/python ${./main.py}"
+                  "mode=http"
+                  "http_upstream_url=http://127.0.0.1:5000"
+                  "SQUEEZENET_MODEL=${squeezenetModel}"
+                  "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
+                  "ready_path=http://127.0.0.1:3000/health"
+                ]
+                ++ extra.openfaas_env;
               ExposedPorts = {
                 "8080/tcp" = {};
               };

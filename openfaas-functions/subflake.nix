@@ -1,9 +1,16 @@
 {
   outputs = inputs: extra:
     with inputs; let
+      extra' =
+        extra
+        // {
+          openfaas_env = [
+            "inject_cgi_headers=true"
+          ];
+        };
       currentDir = builtins.readDir ./.;
       dirs = builtins.filter (name: currentDir.${name} == "directory") (builtins.attrNames currentDir);
-      subflakes = builtins.map (dir: (import ./${dir}/subflake.nix).outputs inputs extra) dirs;
+      subflakes = builtins.map (dir: (import ./${dir}/subflake.nix).outputs inputs extra') dirs;
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       ([
@@ -15,6 +22,9 @@
                 version = "giraff-0.1";
                 src = inputs.fwatchdog;
                 vendorHash = null;
+                patches = [
+                  ./of-watchdog-giraff-headers.patch
+                ];
               };
             in {
               packages = {

@@ -191,3 +191,6 @@ ghcr user +images:
 
     export -f run_docker
     parallel --lb --will-cite run_docker ::: {{images}} "market"
+
+collect:
+    cd ../testbed && nix develop .#testbed -c sh -c 'export SAVE_NETWORK_FILE=/dev/null EXPE_LOAD_FILE=./requests INFLUX_ADDRESS=127.0.0.1:9086; just collect'

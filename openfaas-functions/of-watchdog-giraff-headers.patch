@@ -1,0 +1,50 @@
+From cf15f7c85f07efd5a33f086a40a7617f6065c6d8 Mon Sep 17 00:00:00 2001
+From: "Volodia P.-G." <volodia.parol-guarino@proton.me>
+Date: Mon, 19 Feb 2024 09:51:46 +0100
+Subject: [PATCH] feat: add giraff wrapper
+
+---
+ main.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/main.go b/main.go
+index a58631b..f1ea3aa 100644
+--- a/main.go
++++ b/main.go
+@@ -84,7 +84,7 @@ func main() {
+ 	log.Printf("Watchdog mode: %s\tfprocess: %q\n", config.WatchdogMode(watchdogConfig.OperationalMode), watchdogConfig.FunctionProcess)
+ 
+ 	httpMetrics := metrics.NewHttp()
+-	http.HandleFunc("/", metrics.InstrumentHandler(requestHandler, httpMetrics))
++	http.HandleFunc("/", appendGiraff(metrics.InstrumentHandler(requestHandler, httpMetrics)))
+ 	http.HandleFunc("/_/health", makeHealthHandler())
+ 	http.Handle("/_/ready", &readiness{
+ 		// make sure to pass original handler, before it's been wrapped by
+@@ -192,6 +192,24 @@ func listenUntilShutdown(s *http.Server, healthcheckInterval time.Duration, writ
+ 	<-idleConnsClosed
+ }
+ 
++func appendGiraff(handler http.HandlerFunc) http.HandlerFunc {
++	return func(w http.ResponseWriter, r *http.Request) {
++		tags, set := os.LookupEnv("NAME")
++		if !set {
++			tags = "<no-tags>"
++		}
++		slaID, set := os.LookupEnv("ID")
++		if !set {
++			slaID = "<no-sla-id>"
++		}
++
++		w.Header().Set("GIRAFF-TAGS", tags)
++		w.Header().Set("GIRAFF-SLA-ID", slaID)
++
++		handler(w, r)
++	}
++}
++
+ func buildRequestHandler(watchdogConfig config.WatchdogConfig, prefixLogs bool) http.Handler {
+ 	var requestHandler http.HandlerFunc
+ 
+-- 
+2.43.0
+

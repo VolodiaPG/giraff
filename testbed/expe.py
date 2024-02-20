@@ -390,7 +390,7 @@ async def save_file(filename: str):
                 while True:
                     fn: FunctionPipeline = fn_desc.pipeline[fn_name]
                     latency = int(os.getenv(fn_desc.pipeline[fn_name].latency, "-1"))
-                    latency = np.random.normal(latency, latency/2)
+                    latency = math.floor(np.random.normal(latency, latency/2))
                     function_name = (
                         f"{fn_name}"
                         f"-i{index}"

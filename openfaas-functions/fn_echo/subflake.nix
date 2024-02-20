@@ -26,13 +26,15 @@
               name = "fn_echo";
               tag = "latest";
               config = {
-                Env = [
-                  "RUST_LOG=warn,echo=trace"
-                  "fprocess=${echo}/bin/echo"
-                  "mode=http"
-                  "http_upstream_url=http://127.0.0.1:3000"
-                  "ready_path=http://127.0.0.1:3000/health"
-                ];
+                Env =
+                  [
+                    "RUST_LOG=warn,echo=trace"
+                    "fprocess=${echo}/bin/echo"
+                    "mode=http"
+                    "http_upstream_url=http://127.0.0.1:3000"
+                    "ready_path=http://127.0.0.1:3000/health"
+                  ]
+                  ++ extra.openfaas_env;
                 ExposedPorts = {
                   "8080/tcp" = {};
                 };

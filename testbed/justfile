@@ -573,14 +573,14 @@ _master_run:
         -m 4096 \
         -smp 4 \
         -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
-        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
+        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2222-:22 \
         -enable-kvm \
         -nographic&
     
     wait
 
 master_ssh_in:
-    nix develop .#enosvm -c sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2221
+    nix develop .#enosvm -c sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2222
 
 get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash

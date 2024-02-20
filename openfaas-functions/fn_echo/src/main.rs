@@ -119,8 +119,6 @@ async fn handle(
     let my_name = (*my_name.into_inner()).clone();
     let sla_id = (*sla_id.into_inner()).clone();
     HttpResponse::Ok()
-        .append_header(("GIRAFF-TAGS", my_name))
-        .append_header(("GIRAFF-SLA-ID", sla_id))
         .finish()
 }
 
