@@ -1,1 +1,8 @@
 set fallback := true
+
+# -F "file=@toto.jpg" \
+test:
+    curl \
+        -X POST \
+        -F "file=@$PATH_IMAGE/n03417042_29361.JPEG"  \
+        localhost:8081

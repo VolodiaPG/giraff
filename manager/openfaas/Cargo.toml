@@ -8,6 +8,7 @@ edition = "2021"
 jaeger = ["reqwest-tracing"]
 
 [dependencies]
+backoff = { version = "0.4.0", features = ["tokio"] }
 reqwest-middleware = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-middleware" }
 reqwest-tracing = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-tracing", features = [
     "opentelemetry_0_21",

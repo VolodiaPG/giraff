@@ -703,7 +703,7 @@ def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
 LOAD_NETWORK_FILE = "LOAD_NETWORK_FILE"
 SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 
-if os.getenv("DEV") == "true":
+if os.getenv("DEV_NETWORK") == "true":
     NETWORK = {
         "name": "market",
         "flavor": TIER_1_FLAVOR,

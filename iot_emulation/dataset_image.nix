@@ -1,15 +1,14 @@
 {pkgs, ...}:
 pkgs.stdenv.mkDerivation rec {
-  pname = "iamgenet-10";
+  pname = "imagette-10";
   version = "1.0";
-
-  src = pkgs.fetchurl {
-    url = "https://github.com/ultralytics/yolov5/releases/download/v1.0/imagenet10.zip";
-    hash = "sha256-060EaXUQxej3Vzheobp+KFwQ5LyNi4MS7oNJUj5FSJA="; # Replace with the actual hash
+  src = builtins.fetchurl {
+    url = "s3://fast-ai-imageclas/imagenette2-320.tgz";
+    sha256 = "sha256:130miqcg0iyh228gdv9w0lky2prirw4z3l9myclxvdldr6bl96sn"; # Replace with the actual hash
   };
 
   nativeBuildInputs = [pkgs.unzip];
-  unpackPhase = "unzip $src -d folder";
+  unpackPhase = "tar -xzf $src";
 
   installPhase = ''
     mkdir -p $out

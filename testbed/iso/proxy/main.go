@@ -119,13 +119,13 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	} else {
 		resp, err = http.DefaultTransport.RoundTrip(r)
 	}
-
 	if err != nil {
 		http.Error(*ww, fmt.Sprintf("Error sending proxy request; %s", err.Error()), http.StatusInternalServerError)
 		env.log.Error("Error sending proxy request", zap.String("requestID", requestID), zap.Error(err))
 		return
 	}
 	defer resp.Body.Close()
+
 	proxyTx := time.Now()
 
 	tags := resp.Header.Get("GIRAFF-Tags")
@@ -139,11 +139,12 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	if slaID == "" {
 		slaID = "<no-sla-id>"
 	}
+
 	if !firstRequestID {
 		transmitURL := resp.Header.Get("GIRAFF-Redirect")
 		transmitProxyURL := resp.Header.Get("GIRAFF-Redirect-Proxy")
 
-		if resp.StatusCode == 200 {
+		if serviceStatus == 200 {
 			if transmitURL != "" {
 				for key, values := range r.Header {
 					if resp.Header.Get(key) == "" {
@@ -184,17 +185,18 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 		}
 	}
 
+	(*ww).WriteHeader(serviceStatus)
+
 	for key, values := range resp.Header {
 		for _, value := range values {
 			(*ww).Header().Add(key, value)
 		}
 	}
-	// (*ww).WriteHeader(resp.StatusCode)
+
 	_, err = io.Copy(*ww, resp.Body)
 	if err != nil {
 		env.log.Error("Error copying response body", zap.String("requestID", requestID), zap.Error(err))
 		http.Error(*ww, fmt.Sprintf("Error copying response body: %v", err), http.StatusInternalServerError)
-		return
 	}
 
 	p := influxdb2.NewPoint("proxy",

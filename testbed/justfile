@@ -334,17 +334,31 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
         timeout --foreground ${job_duration_seconds} just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
     }
 
-    if [ "$DEV" = "true" ]; then 
-        export LOAD_NETWORK_FILE=$(mktemp)
-        just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
-        exit 0
-    fi
-
-
     # Import all the settings for multiple experiments and load the var as env vars
     set -o allexport
     source {{experiments_dotfile}}
     set +o allexport
+
+    if [ "$DEV" = "true" ]; then 
+        if [ "$DEV_NETWORK" = "true" ]; then 
+            export LOAD_NETWORK_FILE=$(mktemp)
+        else
+            export SAVE_NETWORK_FILE=$(mktemp)
+            set -- $SIZE_MULTIPLIERS
+            export SIZE_MULTIPLIER=$1
+            set -- $MIN_NUMBER_VMS
+            export MIN_NB_VMS=$1
+            set -- $MAX_NUMBER_NODES
+            export MAX_NB_NODES=$1
+            
+            {{RUN}} definitions.py
+            export LOAD_NETWORK_FILE=$SAVE_NETWORK_FILE
+
+            unset SAVE_NETWORK_FILE
+        fi
+        just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
+        exit 0
+    fi
 
     mkdir -p $JOB_DIR
     if [ $TYPE == "first_run" ]; then

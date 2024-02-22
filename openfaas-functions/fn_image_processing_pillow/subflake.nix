@@ -54,6 +54,7 @@
               + (extra.shellHookPython pkgs.myFunction.interpreter);
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
+            PATH_IMAGE = "${outputs.packages.${system}.dataset_image}";
             packages = with pkgs; [
               just
               skopeo
