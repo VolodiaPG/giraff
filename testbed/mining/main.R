@@ -44,6 +44,9 @@ init <- function() {
     library(network)
     library(ggnetwork)
     library(treemapify)
+    library(networkD3)
+    library(plotly)
+    library(htmlwidgets)
 
     library(memoise)
 
@@ -69,11 +72,12 @@ if (cd$exists("metrics")) {
 } else {
     cd$reset()
 }
-cd$set("metrics", METRICS_ARKS)
 
 if (no_memoization) {
     cd$reset()
 }
+
+cd$set("metrics", METRICS_ARKS)
 
 memoised <- function(f) {
     memoise(f, cache = cd)
@@ -561,7 +565,7 @@ output_jains <- function(earnings.jains.plot.data.raw) {
     return(plots.jains)
 }
 
-load_respected_sla <- function() {
+load_respected_sla <- memoised(function() {
     registerDoParallel(cl = parallel_loading_datasets, cores = parallel_loading_datasets)
     respected_sla.header.nb <- foreach(ark = METRICS_ARKS) %dopar% {
         gc()
@@ -582,14 +586,19 @@ load_respected_sla <- function() {
             filter(first_req_id == FALSE) %>%
             extract_function_name_info() %>%
             extract_functions_pipeline() %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline, total_process_time) %>%
+            group_by(folder, metric_group, metric_group_group, req_id) %>%
+            mutate(prev_function = lag(docker_fn_name, default = "<iot_emulation>")) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline, prev_function) %>%
             summarise(
                 satisfied_count = sum(in_flight <= latency),
                 acceptable_count = sum(in_flight <= latency + 0.001),
                 total = n(),
                 measured_latency = mean(in_flight),
                 ran_for = max(ran_for),
-                errored = sum(status != 200)
+                oked = sum((status >= 200 & status < 300)),
+                errored = sum((status >= 400 & status < 500 & status != 404)),
+                not_found = sum((status == 404)),
+                server_errored = sum(status >= 500),
             ) %>%
             mutate(count.satisfied = satisfied_count / total) %>%
             mutate(count.acceptable = acceptable_count / total) %>%
@@ -602,7 +611,7 @@ load_respected_sla <- function() {
 
     gc()
     return(respected_sla.header.nb)
-}
+})
 
 load_nb_deployed_plot_data <- memoised(function(respected_sla.header.nb, functions_total, node_levels) {
     plots.nb_deployed.data <- respected_sla.header.nb %>%
@@ -766,6 +775,102 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
     return(p)
 }
 
+output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
+    df <- respected_sla %>%
+        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+        left_join(node_levels %>% rename(winner = name)) %>%
+        # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
+        ungroup()
+
+    links <- df %>%
+        mutate(source = prev_function) %>%
+        mutate(target = docker_fn_name) %>%
+        mutate(value = oked)
+    links <- df %>%
+        mutate(source = docker_fn_name) %>%
+        mutate(target = "5xx") %>%
+        mutate(value = server_errored) %>%
+        full_join(links)
+    links <- df %>%
+        mutate(source = docker_fn_name) %>%
+        mutate(target = "4xx") %>%
+        mutate(value = errored) %>%
+        full_join(links)
+    links <- df %>%
+        mutate(source = docker_fn_name) %>%
+        mutate(target = "404") %>%
+        mutate(value = not_found) %>%
+        full_join(links)
+
+    # links <- df %>%
+    #     mutate(source = docker_fn_name) %>%
+    #     mutate(target = "respected_SLA") %>%
+    #     mutate(value = acceptable_count) %>%
+    #     full_join(links)
+    # links <- df %>%
+    #     mutate(source = docker_fn_name) %>%
+    #     mutate(target = "not_respected_SLA") %>%
+    #     mutate(value = total - acceptable_count) %>%
+    #     full_join(links)
+
+    df <- links %>%
+        group_by(source, target) %>%
+        summarise(value = sum(value, na.rm = TRUE)) %>%
+        select(source, target, value) %>%
+        ungroup()
+
+    print(df %>% filter(target == "respected_SLA"))
+    nodes <- df %>%
+        ungroup() %>%
+        select(target) %>%
+        distinct() %>%
+        rename(name = target)
+    nodes <- df %>%
+        ungroup() %>%
+        select(source) %>%
+        distinct() %>%
+        rename(name = source) %>%
+        full_join(nodes) %>%
+        distinct() %>%
+        as.data.frame()
+
+    ii <- function(name) {
+        if (is.na(name[1])) {
+            return(which(is.na(nodes))[1] - 1)
+        } else {
+            return(which(nodes$name == name[1])[1] - 1)
+        }
+    }
+
+    df <- df %>%
+        rowwise() %>%
+        mutate(source = ii(source)) %>%
+        mutate(target = ii(target)) %>%
+        as.data.frame()
+
+    # p <- sankeyNetwork(Links = df, Nodes = nodes, Source = "source", Target = "target", Value = "value", NodeID = "name")
+    fig <- plot_ly(
+        type = "sankey",
+        orientation = "h",
+        node = list(
+            label = nodes$name,
+            pad = 15,
+            thickness = 20,
+            line = list(
+                color = "black",
+                width = 0.5
+            )
+        ),
+        link = df
+    )
+    fig <- fig %>% layout(
+        title = "Basic Sankey Diagram",
+        font = list(
+            size = 10
+        )
+    )
+    return(fig)
+}
 output_respected_data_plot <- function(plots.respected_sla.data) {
     df <- plots.respected_sla.data %>%
         group_by(folder, `Placement method`, toto) %>%
@@ -833,22 +938,23 @@ output_errored_plot_simple <- function(respected_sla, bids_won_function, node_le
     df <- respected_sla %>%
         left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
         left_join(node_levels %>% rename(winner = name)) %>%
-        mutate(y = errored) %>%
+        mutate(y = server_errored / total) %>%
+        mutate(pipline = pipeline) %>%
         {
             .
         }
 
-    print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
-    p <- ggplot(data = df, aes(x = factor(level_value), y = y, color = docker_fn_name, alpha = 1)) +
-        facet_grid(rows = vars(pipeline)) +
+    p <- ggplot(data = df, aes(x = factor(pipeline), y = y, color = docker_fn_name, fill = docker_fn_name, alpha = 1)) +
+        # facet_grid(rows = vars(pipeline)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
-        scale_y_continuous(labels = scales::percent) +
+        # scale_y_continuous(l:abels = scales::percent) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
         labs(
             x = "Placement method",
             y = "Mean satisfaction rate"
         ) +
-        geom_beeswarm()
+        geom_violin()
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -888,7 +994,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for))
 
-    p <- ggplot(data = df, aes(x = pipeline, y = ran_for, color = docker_fn_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = pipeline, y = ran_for, fill = docker_fn_name, color = docker_fn_name, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
             fill = alpha("white", .7),
@@ -896,7 +1002,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
         )) +
         theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-        scale_y_continuous(trans = "log10") +
+        # scale_y_continuous(trans = "log10") +
         # theme(legend.position = "none") +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
@@ -905,7 +1011,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_beeswarm()
+        geom_violin()
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -1135,17 +1241,21 @@ bids_raw <- load_bids_raw()
 provisioned_sla <- load_provisioned_sla()
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
-ggsave("respected_sla_simple.png", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
-ggsave("errored.png", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
-ggsave("in_flight_time.png", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
-ggsave("ran_for.png", output_ran_for_plot_simple(respected_sla))
+export_graph_non_ggplot("sla", output_sla_plot(respected_sla, bids_won_function, node_levels))
+
+
+export_graph("errored", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
+export_graph("respected_sla_simple", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
+export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
+
 
 stop()
 
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)
 output_latency(latency)
-ggsave("output_latency.png")
+export_graph("output_latency")
 
 raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node()
 if (generate_gif) {
@@ -1171,11 +1281,10 @@ functions_total <- load_functions_total(functions)
 # ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
 raw_deployment_times <- load_raw_deployment_times()
 # ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
-ggsave("mean_time_to_deploy_simple.png", output_mean_time_to_deploy_simple(raw_deployment_times))
-
+export_graph("mean_time_to_deploy_simple", output_mean_time_to_deploy_simple(raw_deployment_times))
 # spending_plot_data <- load_spending_plot_data(bids_won_function)
 # ggsave("spending.png", output_spending_plot(spending_plot_data))
-ggsave("spending_simple.png", output_spending_plot_simple(bids_won_function))
+export_graph("spending_simple", output_spending_plot_simple(bids_won_function))
 # options(width = 1000)
 # toto <- load_csv("proxy.csv") %>%
 #     # rename(function_name = tags) %>%

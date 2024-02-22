@@ -1,2 +1,7 @@
+# Runs the script
 run:
     Rscript main.R
+
+# Serves the content of the directory so graphs can be opened in a browser
+serve $PORT="9000":
+    python -m http.server $PORT

@@ -4,7 +4,7 @@ parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
 time_interval <- 15 # secs
 
-no_memoization <- TRUE
+no_memoization <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 5
@@ -15,7 +15,11 @@ METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
     # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-02-02-16-18.tar.xz",
     # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-02-02-16-18.tar.xz",
-    "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_1970-01-01-00-00.tar.xz",
+    # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_1970-01-01-00-00.tar.xz",
+    # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-02-20-14-03.tar.xz",
+    # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-21-16-21.tar.xz",
+    # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-22-11-35.tar.xz",
+    "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-22-17-19.tar.xz",
     #---
     #---
     #---

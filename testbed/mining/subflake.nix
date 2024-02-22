@@ -7,6 +7,9 @@
           pkgs = inputs.nixpkgs.legacyPackages.${system};
           R-pkgs = with pkgs.rPackages; [
             languageserver
+            networkD3
+            plotly
+            htmlwidgets
             treemapify
             (
               archive.overrideAttrs (old: {
@@ -77,10 +80,11 @@
             shellHook =
               (extra.shellHook system) "mining";
 
-            buildInputs =
+            packages =
               (with pkgs; [
                 just
                 R
+                python3
               ])
               ++ R-pkgs;
           };
@@ -88,10 +92,11 @@
             shellHook =
               (extra.shellHook system) "mining-export";
 
-            buildInputs =
+            packages =
               (with pkgs; [
                 just
                 R
+                python3
 
                 texliveMinimal
                 pgf3

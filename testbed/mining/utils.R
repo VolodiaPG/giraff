@@ -366,6 +366,7 @@ extract_function_name_info <- function(x) {
     x %>%
       ungroup() %>%
       mutate(docker_fn_name = info %>% .[, 2]) %>%
+      mutate(docker_fn_name = ifelse(is.na(docker_fn_name), function_name, docker_fn_name)) %>%
       mutate(function_index = info %>% .[, 3]) %>%
       mutate(cpu = as.numeric(info %>% .[, 4])) %>%
       mutate(mem = as.numeric(info %>% .[, 5])) %>%
@@ -380,7 +381,7 @@ extract_functions_pipeline <- function(x) {
   return(x %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     arrange(timestamp) %>%
-    mutate(pipeline = paste0(docker_fn_name, collapse = ",")) %>%
+    mutate(pipeline = paste0(docker_fn_name, collapse = "\n")) %>%
     ungroup())
 }
 
@@ -702,4 +703,13 @@ tibble_to_latex_tabular <- function(data, file) {
 
   cat("\\hline\n", file = file, append = TRUE)
   cat("\\end{tabular}", file = file, append = TRUE)
+}
+
+export_graph <- function(name, ggplot_graph) {
+  ggsave(paste0(name, ".png"), ggplot_graph)
+  p <- ggplotly(ggplot_graph)
+  htmlwidgets::saveWidget(p, paste0(name, ".htm"), selfcontained = TRUE)
+}
+export_graph_non_ggplot <- function(name, graph) {
+  htmlwidgets::saveWidget(graph, paste0(name, ".htm"), selfcontained = TRUE)
 }
