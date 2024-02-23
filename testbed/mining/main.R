@@ -577,21 +577,25 @@ load_respected_sla <- memoised(function() {
             adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
             mutate(value = value_raw) %>%
             rename(function_name = tags) %>%
+            # mutate(timestamp = as.numeric(timestamp)) %>%
             group_by(folder, metric_group, metric_group_group, req_id) %>%
             arrange(value) %>%
             mutate(ran_for = timestamp - value) %>%
             mutate(prev = ifelse(first_req_id == TRUE, value, timestamp)) %>%
             mutate(in_flight = value - lag(prev)) %>%
             mutate(total_process_time = first(ran_for)) %>%
-            filter(first_req_id == FALSE) %>%
             extract_function_name_info() %>%
-            extract_functions_pipeline() %>%
             group_by(folder, metric_group, metric_group_group, req_id) %>%
-            mutate(prev_function = lag(docker_fn_name, default = "<iot_emulation>")) %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, pipeline, prev_function) %>%
+            mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
+            filter(first_req_id == FALSE) %>%
+            mutate(acceptable = (status == 200) & (in_flight <= latency)) %>%
+            mutate(acceptable_chained = acceptable) %>%
+            rowwise() %>%
+            mutate(acceptable_chained = lag(acceptable_chained, default = TRUE) & acceptable) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, prev_function) %>%
             summarise(
-                satisfied_count = sum(in_flight <= latency),
-                acceptable_count = sum(in_flight <= latency + 0.001),
+                acceptable = sum(acceptable),
+                acceptable_chained = sum(acceptable_chained),
                 total = n(),
                 measured_latency = mean(in_flight),
                 ran_for = max(ran_for),
@@ -600,8 +604,8 @@ load_respected_sla <- memoised(function() {
                 not_found = sum((status == 404)),
                 server_errored = sum(status >= 500),
             ) %>%
-            mutate(count.satisfied = satisfied_count / total) %>%
-            mutate(count.acceptable = acceptable_count / total) %>%
+            # mutate(count.satisfied = satisfied_count / total) %>%
+            # mutate(count.acceptable = acceptable_count / total) %>%
             {
                 .
             }
@@ -776,101 +780,63 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
 }
 
 output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
-    df <- respected_sla %>%
-        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
-        left_join(node_levels %>% rename(winner = name)) %>%
-        # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
-        ungroup()
+    compute <- function() {
+        df <- respected_sla %>%
+            # left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+            # left_join(node_levels %>% rename(winner = name)) %>%
+            # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
+            ungroup()
 
-    links <- df %>%
-        mutate(source = prev_function) %>%
-        mutate(target = docker_fn_name) %>%
-        mutate(value = oked)
-    links <- df %>%
-        mutate(source = docker_fn_name) %>%
-        mutate(target = "5xx") %>%
-        mutate(value = server_errored) %>%
-        full_join(links)
-    links <- df %>%
-        mutate(source = docker_fn_name) %>%
-        mutate(target = "4xx") %>%
-        mutate(value = errored) %>%
-        full_join(links)
-    links <- df %>%
-        mutate(source = docker_fn_name) %>%
-        mutate(target = "404") %>%
-        mutate(value = not_found) %>%
-        full_join(links)
-
-    # links <- df %>%
-    #     mutate(source = docker_fn_name) %>%
-    #     mutate(target = "respected_SLA") %>%
-    #     mutate(value = acceptable_count) %>%
-    #     full_join(links)
-    # links <- df %>%
-    #     mutate(source = docker_fn_name) %>%
-    #     mutate(target = "not_respected_SLA") %>%
-    #     mutate(value = total - acceptable_count) %>%
-    #     full_join(links)
-
-    df <- links %>%
-        group_by(source, target) %>%
-        summarise(value = sum(value, na.rm = TRUE)) %>%
-        select(source, target, value) %>%
-        ungroup()
-
-    print(df %>% filter(target == "respected_SLA"))
-    nodes <- df %>%
-        ungroup() %>%
-        select(target) %>%
-        distinct() %>%
-        rename(name = target)
-    nodes <- df %>%
-        ungroup() %>%
-        select(source) %>%
-        distinct() %>%
-        rename(name = source) %>%
-        full_join(nodes) %>%
-        distinct() %>%
-        as.data.frame()
-
-    ii <- function(name) {
-        if (is.na(name[1])) {
-            return(which(is.na(nodes))[1] - 1)
-        } else {
-            return(which(nodes$name == name[1])[1] - 1)
-        }
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = docker_fn_name) %>%
+            mutate(value = oked)
+        links <- df %>%
+            mutate(source = docker_fn_name) %>%
+            mutate(target = "5xx") %>%
+            mutate(value = server_errored) %>%
+            full_join(links)
+        links <- df %>%
+            mutate(source = docker_fn_name) %>%
+            mutate(target = "4xx") %>%
+            mutate(value = errored) %>%
+            full_join(links)
+        # 404 = no tag so we need the prev function name
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = "404") %>%
+            mutate(value = not_found) %>%
+            full_join(links)
+        return(links)
     }
 
-    df <- df %>%
-        rowwise() %>%
-        mutate(source = ii(source)) %>%
-        mutate(target = ii(target)) %>%
-        as.data.frame()
-
-    # p <- sankeyNetwork(Links = df, Nodes = nodes, Source = "source", Target = "target", Value = "value", NodeID = "name")
-    fig <- plot_ly(
-        type = "sankey",
-        orientation = "h",
-        node = list(
-            label = nodes$name,
-            pad = 15,
-            thickness = 20,
-            line = list(
-                color = "black",
-                width = 0.5
-            )
-        ),
-        link = df
-    )
-    fig <- fig %>% layout(
-        title = "Basic Sankey Diagram",
-        font = list(
-            size = 10
-        )
-    )
-    return(fig)
+    return(do_sankey(compute))
 }
+
+output_respected_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
+    compute <- function() {
+        df <- respected_sla %>%
+            # left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+            # left_join(node_levels %>% rename(winner = name)) %>%
+            # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
+            ungroup()
+
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = docker_fn_name) %>%
+            mutate(value = acceptable_chained)
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = "rejected") %>%
+            mutate(value = total - acceptable_chained) %>%
+            full_join(links)
+
+        return(links)
+    }
+
+    return(do_sankey(compute))
+}
+
 output_respected_data_plot <- function(plots.respected_sla.data) {
     df <- plots.respected_sla.data %>%
         group_by(folder, `Placement method`, toto) %>%
@@ -972,11 +938,10 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
         {
             .
         }
-    p <- ggplot(data = df, aes(x = level_value, y = measured_latency, color = docker_fn_name, alpha = 1)) +
-        facet_grid(rows = vars(pipeline)) +
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = measured_latency, color = docker_fn_name, alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
-        scale_y_continuous(trans = "log10") +
+        # scale_y_continuous(trans = "log10") +
         labs(
             x = "Placement method",
             y = "measured latency (in_flight) (s)"
@@ -994,7 +959,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for))
 
-    p <- ggplot(data = df, aes(x = pipeline, y = ran_for, fill = docker_fn_name, color = docker_fn_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = ran_for, fill = docker_fn_name, color = docker_fn_name, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
             fill = alpha("white", .7),
@@ -1011,7 +976,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_violin()
+        geom_beeswarm()
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -1242,15 +1207,18 @@ provisioned_sla <- load_provisioned_sla()
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
 export_graph_non_ggplot("sla", output_sla_plot(respected_sla, bids_won_function, node_levels))
+export_graph_non_ggplot("respected_sla", output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
 
 
-export_graph("errored", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
-export_graph("respected_sla_simple", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+# export_graph("errored", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
+# export_graph("respected_sla_simple", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
 export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
 
+# print(load_csv("proxy.csv") %>% rename(function_name = tags) %>% extract_function_name_info())
 
 stop()
+
 
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)

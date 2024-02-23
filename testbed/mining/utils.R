@@ -370,10 +370,10 @@ extract_function_name_info <- function(x) {
       mutate(function_index = info %>% .[, 3]) %>%
       mutate(cpu = as.numeric(info %>% .[, 4])) %>%
       mutate(mem = as.numeric(info %>% .[, 5])) %>%
-      mutate(latency = as.numeric(info %>% .[, 6]) / 1000) %>%
-      mutate(arrival = as.numeric(info %>% .[, 7]) / 1000) %>%
-      mutate(request_interval = as.numeric(info %>% .[, 8]) / 1000) %>%
-      mutate(duration = as.numeric(info %>% .[, 9]) / 1000)
+      mutate(latency = as.difftime(as.numeric(info %>% .[, 6]) / 1000, units = "secs")) %>%
+      mutate(arrival = as.difftime(as.numeric(info %>% .[, 7]) / 1000, units = "secs")) %>%
+      mutate(request_interval = as.difftime(as.numeric(info %>% .[, 8]) / 1000, units = "secs")) %>%
+      mutate(duration = as.difftime(as.numeric(info %>% .[, 9]) / 1000, units = "secs"))
   )
 }
 
@@ -712,4 +712,65 @@ export_graph <- function(name, ggplot_graph) {
 }
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0(name, ".htm"), selfcontained = TRUE)
+}
+
+
+do_sankey <- function(f) {
+  links <- f()
+  df <- links %>%
+    group_by(source, target) %>%
+    summarise(value = sum(value, na.rm = TRUE)) %>%
+    select(source, target, value) %>%
+    ungroup()
+
+  nodes <- df %>%
+    ungroup() %>%
+    select(target) %>%
+    distinct() %>%
+    rename(name = target)
+  nodes <- df %>%
+    ungroup() %>%
+    select(source) %>%
+    distinct() %>%
+    rename(name = source) %>%
+    full_join(nodes) %>%
+    distinct() %>%
+    as.data.frame()
+
+  ii <- function(name) {
+    if (is.na(name[1])) {
+      return(which(is.na(nodes))[1] - 1)
+    } else {
+      return(which(nodes$name == name[1])[1] - 1)
+    }
+  }
+
+  df <- df %>%
+    rowwise() %>%
+    mutate(source = ii(source)) %>%
+    mutate(target = ii(target)) %>%
+    as.data.frame()
+
+  # p <- sankeyNetwork(Links = df, Nodes = nodes, Source = "source", Target = "target", Value = "value", NodeID = "name")
+  fig <- plot_ly(
+    type = "sankey",
+    orientation = "h",
+    node = list(
+      label = nodes$name,
+      pad = 15,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+    link = df
+  )
+  fig <- fig %>% layout(
+    title = "Basic Sankey Diagram",
+    font = list(
+      size = 10
+    )
+  )
+  return(fig)
 }
