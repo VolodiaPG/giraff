@@ -970,6 +970,24 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
     return(p)
 }
 
+output_duration_distribution_plot <- function(provisioned_sla) {
+    df <- provisioned_sla %>%
+        extract_function_name_info()
+
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = as.numeric(duration), color = docker_fn_name, alpha = 1)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        labs(
+            x = "Placement method",
+            y = "measured latency (in_flight) (s)"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+
+    return(p)
+}
+
 output_ran_for_plot_simple <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for))
@@ -1223,6 +1241,7 @@ bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
 export_graph_non_ggplot("sla", output_sla_plot(respected_sla, bids_won_function, node_levels))
 export_graph_non_ggplot("respected_sla", output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+export_graph("duration_distribution", output_duration_distribution_plot(provisioned_sla))
 
 
 # export_graph("errored", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))

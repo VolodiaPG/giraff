@@ -35,6 +35,7 @@ class Function:
     arrival: secs_int
     req_content: str
     cold_start_overhead: ms_int
+    stop_overhead: ms_int
     input_max_size: str
 
 
@@ -180,7 +181,7 @@ async def put_request_fog_node(function: Function):
                     "to": "thisFunction",
                 }
             ],
-            "inputMaxSize": function.input_max_size
+            "inputMaxSize": function.input_max_size,
         },
         "targetNode": f"{function.target_node}",
     }
@@ -197,12 +198,14 @@ async def provision_one_function(function_id: str):
         async with session.post(url) as response:
             http_code = response.status
             response = await response.content.read()
-             
+
     return response, http_code
 
 
 async def post_provision_chain_functions(urls: List[FunctionProvisioned]):
-    return await asyncio.gather(*[provision_one_function(url.function_id) for url in urls])
+    return await asyncio.gather(
+        *[provision_one_function(url.function_id) for url in urls]
+    )
 
 
 async def post_request_chain_functions(urls: List[FunctionProvisioned]):
@@ -260,7 +263,7 @@ async def put_request_iot_emulation(
         "functionId": provisioned.function_id,
         "tags": function.function_name,
         "initialWaitMs": function.cold_start_overhead,
-        "durationMs": function.duration,
+        "durationMs": function.duration - function.stop_overhead,
         "intervalMs": function.request_interval,
         "firstNodeIp": faas_ip,
         "content": function.req_content,
@@ -301,12 +304,15 @@ async def register_new_functions(functions: List[Function]) -> bool:
     print(f"Reserved {','.join([ff.function_name for ff in functions])}")
 
     duration = functions[0].duration
-    if started_at is None or (datetime.now() - started_at).microseconds / 1000 * 2 > duration:
+    if (
+        started_at is None
+        or (datetime.now() - started_at).microseconds / 1000 * 2 > duration
+    ):
         print("Got the reservation, but no time to proceed to use it, stopping there")
         return False
 
     responses_chain = await post_provision_chain_functions(responses)
-    if responses_chain is None: 
+    if responses_chain is None:
         print("Failed to provision: none returned")
         return False
     for response, http_code in responses_chain:
@@ -316,7 +322,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
     print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
 
     responses_chain = await post_request_chain_functions(responses)
-    if responses_chain is None: 
+    if responses_chain is None:
         print("Failed to chain functions: none returned")
         return False
     for response, http_code in responses_chain:
@@ -390,11 +396,10 @@ async def save_file(filename: str):
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
             ]
             # TODO check that thing
-            # durations = [
-            #     math.ceil(1000000 * x)
-            #     for x in np.random.lognormal(-0.38, 2.36, nb_function)
-            # ]
-            durations = [100000 for _ in range(nb_function)]
+            durations = [
+                math.ceil(100000 * x)
+                for x in np.random.lognormal(-0.38, 2.36, nb_function)
+            ]
             arrivals = [
                 math.ceil(x)
                 for x in open_loop_poisson_process(nb_function, EXPERIMENT_DURATION)
@@ -404,7 +409,9 @@ async def save_file(filename: str):
                 # latency = latencies[index]
                 arrival = arrivals[index]
                 duration = durations[index]
-                duration = duration + FUNCTION_COLD_START_OVERHEAD + FUNCTION_STOP_OVERHEAD
+                duration = (
+                    duration + FUNCTION_COLD_START_OVERHEAD + FUNCTION_STOP_OVERHEAD
+                )
                 request_interval = request_intervals[index]
 
                 fn_name = list(fn_desc.pipeline.keys())[0]
@@ -413,7 +420,7 @@ async def save_file(filename: str):
                 while True:
                     fn: FunctionPipeline = fn_desc.pipeline[fn_name]
                     latency = int(os.getenv(fn_desc.pipeline[fn_name].latency, "-1"))
-                    latency = math.floor(np.random.normal(latency, latency/6))
+                    latency = math.floor(np.random.normal(latency, latency / 6))
                     function_name = (
                         f"{fn_name}"
                         f"-i{index}"
@@ -437,8 +444,9 @@ async def save_file(filename: str):
                             first_node_ip=None,
                             arrival=arrival,
                             req_content=fn_desc.content,
-                            cold_start_overhead = FUNCTION_COLD_START_OVERHEAD,
-                            input_max_size=fn.input_max_size
+                            cold_start_overhead=FUNCTION_COLD_START_OVERHEAD,
+                            stop_overhead=FUNCTION_STOP_OVERHEAD,
+                            input_max_size=fn.input_max_size,
                         )
                     )
 
