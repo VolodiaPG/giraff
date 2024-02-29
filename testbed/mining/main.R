@@ -567,7 +567,7 @@ output_jains <- function(earnings.jains.plot.data.raw) {
 
 load_respected_sla <- memoised(function() {
     registerDoParallel(cl = parallel_loading_datasets, cores = parallel_loading_datasets)
-    respected_sla.header.nb <- foreach(ark = METRICS_ARKS) %dopar% {
+    respected_sla <- foreach(ark = METRICS_ARKS) %dopar% {
         gc()
 
         load_single_csv(ark, "proxy.csv") %>%
@@ -577,7 +577,6 @@ load_respected_sla <- memoised(function() {
             adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
             mutate(value = value_raw) %>%
             rename(function_name = tags) %>%
-            # mutate(timestamp = as.numeric(timestamp)) %>%
             group_by(folder, metric_group, metric_group_group, req_id) %>%
             arrange(value) %>%
             mutate(ran_for = timestamp - value) %>%
@@ -588,33 +587,38 @@ load_respected_sla <- memoised(function() {
             group_by(folder, metric_group, metric_group_group, req_id) %>%
             mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
             filter(first_req_id == FALSE) %>%
-            mutate(acceptable = (status == 200) & (in_flight <= latency)) %>%
+            mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
             mutate(acceptable_chained = acceptable) %>%
             rowwise() %>%
             mutate(acceptable_chained = lag(acceptable_chained, default = TRUE) & acceptable) %>%
             group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, prev_function) %>%
             summarise(
                 acceptable = sum(acceptable),
+                all_erors = sum((status != 200) & (service_status != 200)),
                 acceptable_chained = sum(acceptable_chained),
                 total = n(),
                 measured_latency = mean(in_flight),
                 ran_for = max(ran_for),
-                oked = sum((status >= 200 & status < 300)),
-                errored = sum((status >= 400 & status < 500 & status != 404)),
-                not_found = sum((status == 404)),
-                server_errored = sum(status >= 500),
+                service_oked = sum((service_status >= 200) & (service_status < 300)),
+                service_timeouted = sum(service_status == 408),
+                service_not_found = sum((service_status == 404)),
+                service_errored = sum((service_status >= 400) & (service_status < 500)) - service_timeouted - service_not_found,
+                service_server_errored = sum(service_status >= 500),
+                proxy_oked = sum((status >= 200) & (status < 300)),
+                proxy_timeouted = sum(status == 408),
+                proxy_not_found = sum((status == 404)),
+                proxy_errored = sum((status >= 400) & (status < 500)) - proxy_timeouted - proxy_not_found,
+                proxy_server_errored = sum(status >= 500),
             ) %>%
-            # mutate(count.satisfied = satisfied_count / total) %>%
-            # mutate(count.acceptable = acceptable_count / total) %>%
             {
                 .
             }
     }
 
-    respected_sla.header.nb <- bind_rows(respected_sla.header.nb)
+    respected_sla <- bind_rows(respected_sla)
 
     gc()
-    return(respected_sla.header.nb)
+    return(respected_sla)
 })
 
 load_nb_deployed_plot_data <- memoised(function(respected_sla.header.nb, functions_total, node_levels) {
@@ -790,22 +794,27 @@ output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
         links <- df %>%
             mutate(source = prev_function) %>%
             mutate(target = docker_fn_name) %>%
-            mutate(value = oked)
+            mutate(value = service_oked)
         links <- df %>%
             mutate(source = docker_fn_name) %>%
             mutate(target = "5xx") %>%
-            mutate(value = server_errored) %>%
+            mutate(value = service_server_errored) %>%
             full_join(links)
         links <- df %>%
             mutate(source = docker_fn_name) %>%
             mutate(target = "4xx") %>%
-            mutate(value = errored) %>%
+            mutate(value = service_errored) %>%
+            full_join(links)
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = "408") %>%
+            mutate(value = service_timeouted) %>%
             full_join(links)
         # 404 = no tag so we need the prev function name
         links <- df %>%
             mutate(source = prev_function) %>%
             mutate(target = "404") %>%
-            mutate(value = not_found) %>%
+            mutate(value = service_not_found) %>%
             full_join(links)
         return(links)
     }
@@ -828,7 +837,13 @@ output_respected_sla_plot <- function(respected_sla, bids_won_function, node_lev
         links <- df %>%
             mutate(source = prev_function) %>%
             mutate(target = "rejected") %>%
-            mutate(value = total - acceptable_chained) %>%
+            mutate(value = total - acceptable_chained - all_erors) %>%
+            full_join(links)
+
+        links <- df %>%
+            mutate(source = prev_function) %>%
+            mutate(target = "errored") %>%
+            mutate(value = all_erors) %>%
             full_join(links)
 
         return(links)
@@ -1200,8 +1215,8 @@ output_spending_plot_simple <- function(plots.spending.data) {
     return(p)
 }
 
-respected_sla <- load_respected_sla()
 node_levels <- load_node_levels()
+respected_sla <- load_respected_sla()
 bids_raw <- load_bids_raw()
 provisioned_sla <- load_provisioned_sla()
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
@@ -1215,15 +1230,13 @@ export_graph_non_ggplot("respected_sla", output_respected_sla_plot(respected_sla
 export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
 
-# print(load_csv("proxy.csv") %>% rename(function_name = tags) %>% extract_function_name_info())
-
 stop()
 
+# print(load_csv("proxy.csv") %>% rename(function_name = tags) %>% extract_function_name_info())
 
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)
-output_latency(latency)
-export_graph("output_latency")
+export_graph("output_latency", output_latency(latency))
 
 raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node()
 if (generate_gif) {

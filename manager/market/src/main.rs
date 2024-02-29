@@ -152,6 +152,8 @@ async fn main() -> anyhow::Result<()> {
         ),
     );
     let auction_process = Arc::new(crate::repository::auction::Auction::new());
+    let bid_tracking =
+        Arc::new(crate::repository::bid_tracking::BidTracking::new());
 
     // Services
     let faas_service = Arc::new(service::faas::FogNodeFaaS::new(
@@ -164,6 +166,7 @@ async fn main() -> anyhow::Result<()> {
         fog_node_network_service.clone(),
         faas_service.clone(),
         metrics.clone(),
+        bid_tracking.clone(),
     ));
 
     info!("Starting HHTP server on 0.0.0.0:{}", my_port_http);
@@ -187,6 +190,10 @@ async fn main() -> anyhow::Result<()> {
             .service(
                 web::scope("/api")
                     .route("/function", web::put().to(put_function))
+                    .route(
+                        "/function/{id}",
+                        web::post().to(post_provision_function),
+                    )
                     .route("/register", web::post().to(post_register_node))
                     .route("/functions", web::get().to(get_functions))
                     .route("/fog", web::get().to(get_fog))

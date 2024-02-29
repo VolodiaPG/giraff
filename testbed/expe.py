@@ -5,6 +5,7 @@ import os
 import random
 import traceback
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, List, Optional
 
 import aiohttp  # type: ignore
@@ -26,8 +27,6 @@ class Function:
     mem: MiB_int
     cpu: millicpu_int
     latency: ms_int
-    cold_start_overhead: ms_int
-    stop_overhead: ms_int
     duration: ms_int
     docker_fn_name: str
     function_name: str
@@ -35,6 +34,8 @@ class Function:
     request_interval: ms_int
     arrival: secs_int
     req_content: str
+    cold_start_overhead: ms_int
+    input_max_size: str
 
 
 @dataclass
@@ -44,6 +45,7 @@ class FunctionPipeline:
     mem: MiB_int = 256
     cpu: millicpu_int = 100
     latency: str = "NO_LATENCY"
+    input_max_size: str = "1500 B"
 
 
 @dataclass
@@ -163,14 +165,13 @@ class AsyncSession:
 async def put_request_fog_node(function: Function):
     url = f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/function"
     headers = {"Content-Type": "application/json"}
-    duration = function.cold_start_overhead + function.duration + function.stop_overhead
     data = {
         "sla": {
             "memory": f"{function.mem} MB",
             "cpu": f"{function.cpu} millicpu",
             "latencyMax": f"{function.latency} ms",
             "maxReplica": 1,
-            "duration": f"{duration} ms",
+            "duration": f"{function.duration} ms",
             "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}",
             "functionLiveName": f"{function.function_name}",
             "dataFlow": [  # TODO: update because outdated
@@ -179,6 +180,7 @@ async def put_request_fog_node(function: Function):
                     "to": "thisFunction",
                 }
             ],
+            "inputMaxSize": function.input_max_size
         },
         "targetNode": f"{function.target_node}",
     }
@@ -189,6 +191,20 @@ async def put_request_fog_node(function: Function):
             return response, http_code
 
 
+async def provision_one_function(function_id: str):
+    url = f"http://{MARKET_IP}:{MARKET_LOCAL_PORT}/api/function/{function_id}"
+    async with AsyncSession() as session:
+        async with session.post(url) as response:
+            http_code = response.status
+            response = await response.content.read()
+             
+    return response, http_code
+
+
+async def post_provision_chain_functions(urls: List[FunctionProvisioned]):
+    return await asyncio.gather(*[provision_one_function(url.function_id) for url in urls])
+
+
 async def post_request_chain_functions(urls: List[FunctionProvisioned]):
     headers = {"Content-Type": "application/json"}
     last = len(urls) - 1
@@ -197,15 +213,13 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
 
     await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 1000)
 
-    print("urls:", urls)
-
     ret = []
     for ii in range(0, last):
-        faas_ip = urls[ii].faas_ip
+        urls[ii].faas_ip
         if OVERRIDE_FUNCTION_IP is not None:
-            faas_ip = OVERRIDE_FUNCTION_IP
+            pass
         data = {
-            "nextFunctionUrl": f"http://{faas_ip}:{urls[ii+1].faas_port}/function/fogfn-{urls[ii+1].function_id}",
+            "nextFunctionUrl": f"http://{urls[ii+1].faas_ip}:{urls[ii+1].faas_port}/function/fogfn-{urls[ii+1].function_id}",
         }
         # Sync request
         url = f"http://{urls[ii].faas_ip}:{urls[ii].faas_port}/function/fogfn-{urls[ii].function_id}/reconfigure"
@@ -263,12 +277,15 @@ async def register_new_functions(functions: List[Function]) -> bool:
     await asyncio.sleep(functions[0].arrival)
 
     responses = []
+    started_at = None
     for ii in range(0, len(functions)):
         function = functions[ii]
         response, code = await asyncio.ensure_future(put_request_fog_node(function))
         if code != 200:
             print("Fog request somehow failed", code, response)
             return False
+        if started_at is None:
+            started_at = datetime.now()
         response = json.loads(response)
         faas_ip = response["chosen"]["ip"]
         node_id = response["chosen"]["bid"]["nodeId"]
@@ -280,28 +297,32 @@ async def register_new_functions(functions: List[Function]) -> bool:
             functions[ii + 1].target_node = response.node_id
             functions[ii + 1].first_node_ip = response.faas_ip
 
-        print(f"Provisioning... {ii+1}/{len(functions)}")
+        print(f"Reserving... {ii+1}/{len(functions)}")
+    print(f"Reserved {','.join([ff.function_name for ff in functions])}")
 
+    duration = functions[0].duration
+    if started_at is None or (datetime.now() - started_at).microseconds / 1000 * 2 > duration:
+        print("Got the reservation, but no time to proceed to use it, stopping there")
+        return False
+
+    responses_chain = await post_provision_chain_functions(responses)
+    if responses_chain is None: 
+        print("Failed to provision: none returned")
+        return False
+    for response, http_code in responses_chain:
+        if http_code != 200:
+            print("Provisioning failed", http_code, response)
+            return False
     print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
 
-    # tasks = []
-    # tasks.append(asyncio.create_task(post_request_chain_functions(responses)))
-    # tasks.append(
-    #     asyncio.create_task(
-
-    #     )
-    # )
-
     responses_chain = await post_request_chain_functions(responses)
-    # response_list = await asyncio.gather(*tasks)
-    # responses_chain = response_list[-2]
-    # response_iot, code_iot = response_list[-1]
-
-    if responses_chain is not None:
-        for response, http_code in responses_chain:
-            if http_code != 200:
-                print("Request failed", http_code, response)
-                return False
+    if responses_chain is None: 
+        print("Failed to chain functions: none returned")
+        return False
+    for response, http_code in responses_chain:
+        if http_code != 200:
+            print("Request failed", http_code, response)
+            return False
     print(f"Chained {','.join([ff.function_name for ff in functions])}")
 
     response_iot, code_iot = await put_request_iot_emulation(
@@ -369,10 +390,11 @@ async def save_file(filename: str):
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
             ]
             # TODO check that thing
-            durations = [
-                math.ceil(1000000 * x)
-                for x in np.random.lognormal(-0.38, 2.36, nb_function)
-            ]
+            # durations = [
+            #     math.ceil(1000000 * x)
+            #     for x in np.random.lognormal(-0.38, 2.36, nb_function)
+            # ]
+            durations = [100000 for _ in range(nb_function)]
             arrivals = [
                 math.ceil(x)
                 for x in open_loop_poisson_process(nb_function, EXPERIMENT_DURATION)
@@ -382,6 +404,7 @@ async def save_file(filename: str):
                 # latency = latencies[index]
                 arrival = arrivals[index]
                 duration = durations[index]
+                duration = duration + FUNCTION_COLD_START_OVERHEAD + FUNCTION_STOP_OVERHEAD
                 request_interval = request_intervals[index]
 
                 fn_name = list(fn_desc.pipeline.keys())[0]
@@ -390,7 +413,7 @@ async def save_file(filename: str):
                 while True:
                     fn: FunctionPipeline = fn_desc.pipeline[fn_name]
                     latency = int(os.getenv(fn_desc.pipeline[fn_name].latency, "-1"))
-                    latency = math.floor(np.random.normal(latency, latency/2))
+                    latency = math.floor(np.random.normal(latency, latency/6))
                     function_name = (
                         f"{fn_name}"
                         f"-i{index}"
@@ -407,8 +430,6 @@ async def save_file(filename: str):
                             mem=fn.mem,
                             cpu=fn.cpu,
                             latency=latency,
-                            cold_start_overhead=FUNCTION_COLD_START_OVERHEAD,
-                            stop_overhead=FUNCTION_STOP_OVERHEAD,
                             duration=duration,
                             request_interval=request_interval,
                             function_name=function_name,
@@ -416,6 +437,8 @@ async def save_file(filename: str):
                             first_node_ip=None,
                             arrival=arrival,
                             req_content=fn_desc.content,
+                            cold_start_overhead = FUNCTION_COLD_START_OVERHEAD,
+                            input_max_size=fn.input_max_size
                         )
                     )
 

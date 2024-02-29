@@ -99,3 +99,14 @@ struct ProvisionedFunctions {
     #[influxdb(tag)]
     sla_id:        String,
 }
+
+/// Number of paid for functions
+#[influx_observation]
+struct PaidFunctions {
+    #[influxdb(field)]
+    n:             u64,
+    #[influxdb(tag)]
+    function_name: String,
+    #[influxdb(tag)]
+    sla_id:        String,
+}

@@ -49,6 +49,8 @@ impl DefaultApiClient {
             format!("{}/system/functions", self.configuration.base_path);
         trace!("Requesting {}", uri_str);
 
+        // Adding a fast timeout since it is a health route and should not take
+        // long to respond
         let mut builder =
             self.client.post(&uri_str).body(serde_json::to_string(&body)?);
 
@@ -77,7 +79,10 @@ impl DefaultApiClient {
         );
         trace!("Checking liveness of {}", uri_str);
 
-        let mut builder = self.client.get(&uri_str);
+        let mut builder = self
+            .client
+            .get(&uri_str)
+            .timeout(std::time::Duration::from_secs(1));
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());

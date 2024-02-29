@@ -32,6 +32,9 @@ pub struct Sla {
     pub data_flow: Vec<DataFlow>,
 
     pub env_vars: Vec<(String, String)>,
+
+    #[serde_as(as = "information::Helper")]
+    pub input_max_size:Information,
 }
 
 /// A point in the Fog

@@ -8,7 +8,9 @@ use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
-use model::dto::function::{FunctionRecord, Live, Proposed, Provisioned};
+use model::dto::function::{
+    FunctionRecord, Live, Paid, Proposed, Provisioned,
+};
 use model::{BidId, SlaId};
 use nutype::nutype;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
@@ -51,7 +53,7 @@ impl FaaSBackend {
     pub async fn provision_function(
         &self,
         id: SlaId,
-        bid: FunctionRecord<Proposed>,
+        bid: FunctionRecord<Paid>,
     ) -> Result<FunctionRecord<Provisioned>> {
         let function_name = format!("fogfn-{}", id); // Respect DNS-1035 formatting (letter as first char of name)
 

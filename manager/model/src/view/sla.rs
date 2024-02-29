@@ -21,8 +21,8 @@ pub struct SlaRequest {
     #[serde_as(as = "time::Helper")]
     pub latency_max: Time,
 
-    // #[serde_as(as = "information::Helper")]
-    // pub data_input_max_size: Information,
+    #[serde_as(as = "information::Helper")]
+    pub input_max_size: Information,
     // #[serde_as(as = "information::Helper")]
     // pub data_output_max_size: Information,
     // #[serde_as(as = "time::Helper")]
@@ -54,6 +54,7 @@ impl From<SlaRequest> for Sla {
             function_live_name: val.function_live_name,
             data_flow:          val.data_flow,
             env_vars:           val.env_vars.unwrap_or_default(),
+            input_max_size:     val.input_max_size,
         }
     }
 }

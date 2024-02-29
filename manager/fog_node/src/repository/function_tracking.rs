@@ -1,13 +1,14 @@
 use model::dto::function::{
-    Finished, FunctionRecord, Live, Proposed, Provisioned,
+    Finished, FunctionRecord, Live, Paid, Proposed, Provisioned,
 };
-use model::{BidId, SlaId};
+use model::SlaId;
 use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum States {
     Proposed(Arc<FunctionRecord<Proposed>>),
+    Paid(Arc<FunctionRecord<Paid>>),
     Provisioned(Arc<FunctionRecord<Provisioned>>),
     Live(Arc<FunctionRecord<Live>>),
     Finished(Arc<FunctionRecord<Finished>>),
@@ -17,6 +18,9 @@ impl From<Arc<FunctionRecord<Proposed>>> for States {
     fn from(value: Arc<FunctionRecord<Proposed>>) -> Self {
         States::Proposed(value)
     }
+}
+impl From<Arc<FunctionRecord<Paid>>> for States {
+    fn from(value: Arc<FunctionRecord<Paid>>) -> Self { States::Paid(value) }
 }
 impl From<Arc<FunctionRecord<Provisioned>>> for States {
     fn from(value: Arc<FunctionRecord<Provisioned>>) -> Self {
@@ -54,6 +58,23 @@ impl FunctionTracking {
         })
     }
 
+    pub fn get_paid(&self, id: &SlaId) -> Option<Arc<FunctionRecord<Paid>>> {
+        self.database.get(id).and_then(|x| match x.value() {
+            States::Paid(x) => Some(x.clone()),
+            _ => None,
+        })
+    }
+
+    pub fn save_paid(&self, id: &SlaId, record: FunctionRecord<Paid>) {
+        let Some(mut previous_record) = self.database.get_mut(id) else {
+            return;
+        };
+        let value = previous_record.value_mut();
+        if let States::Proposed(_) = value {
+            *value = Arc::new(record).into();
+        };
+    }
+
     pub fn save_provisioned(
         &self,
         id: &SlaId,
@@ -63,7 +84,7 @@ impl FunctionTracking {
             return;
         };
         let value = previous_record.value_mut();
-        if let States::Proposed(_) = value {
+        if let States::Paid(_) = value {
             *value = Arc::new(record).into();
         };
     }

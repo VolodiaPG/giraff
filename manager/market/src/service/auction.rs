@@ -2,6 +2,7 @@ use super::faas::FogNodeFaaS;
 use super::fog_node_network::FogNodeNetwork;
 use crate::monitoring::FunctionDeploymentDuration;
 use crate::repository::auction::Auction as AuctionRepository;
+use crate::repository::bid_tracking::BidTracking;
 use crate::repository::node_communication::NodeCommunication;
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
@@ -11,7 +12,7 @@ use model::domain::sla::Sla;
 use model::dto::function::ChosenBid;
 use model::dto::node::NodeRecord;
 use model::view::auction::{AcceptedBid, BidProposals, InstanciatedBid};
-use model::NodeId;
+use model::{NodeId, SlaId};
 use std::sync::Arc;
 use tokio::time::Instant;
 use tracing::trace;
@@ -22,6 +23,7 @@ pub struct Auction {
     fog_node_network:   Arc<FogNodeNetwork>,
     faas:               Arc<FogNodeFaaS>,
     metrics:            Arc<MetricsExporter>,
+    tracking:           Arc<BidTracking>,
 }
 
 impl Auction {
@@ -31,6 +33,7 @@ impl Auction {
         fog_node_network: Arc<FogNodeNetwork>,
         faas: Arc<FogNodeFaaS>,
         metrics: Arc<MetricsExporter>,
+        tracking: Arc<BidTracking>,
     ) -> Self {
         Self {
             auction_process,
@@ -38,6 +41,7 @@ impl Auction {
             fog_node_network,
             faas,
             metrics,
+            tracking,
         }
     }
 
@@ -66,12 +70,29 @@ impl Auction {
         Ok(AuctionResult { chosen_bid: auction_result })
     }
 
-    async fn process_provisioning_details(
+    pub async fn provision(&self, id: SlaId) -> Result<()> {
+        let node = self.tracking.get(&id).context(format!(
+            "Failed to retrieve the data (node_id) correlated to the sla id \
+             {}",
+            id
+        ))?;
+
+        self.faas
+            .provision_paid_function(id, node)
+            .await
+            .context("Failed to provision function")?;
+
+        Ok(())
+    }
+
+    async fn process_paying_details(
         &self,
         proposals: BidProposals,
         chosen_bid: ChosenBid,
         sla: Sla,
     ) -> Result<AcceptedBid> {
+        let sla_id = sla.id.clone();
+        let node_id = chosen_bid.bid.node_id.clone();
         let NodeRecord { ip, port_faas, .. } = self
             .fog_node_network
             .get_node(&chosen_bid.bid.node_id)
@@ -94,9 +115,11 @@ impl Auction {
         };
 
         self.faas
-            .provision_function(accepted.clone())
+            .pay_for_function(accepted.clone())
             .await
             .context("Failed to provision function")?;
+
+        self.tracking.save(sla_id, node_id);
 
         Ok(accepted)
     }
@@ -123,11 +146,7 @@ impl Auction {
             self.do_auction(&proposals).await.context("Auction failed")?;
 
         let res = self
-            .process_provisioning_details(
-                proposals,
-                chosen_bid.clone(),
-                sla.clone(),
-            )
+            .process_paying_details(proposals, chosen_bid.clone(), sla.clone())
             .await;
 
         let accepted = res

@@ -1,12 +1,14 @@
 use crate::controller;
 use crate::monitoring::{ProvisionedFunctionGauge, RefusedFunctionGauge};
-use actix_web::web::{Data, Json};
+use actix_web::web::{self, Data, Json};
 use actix_web::HttpResponse;
 use anyhow::Context;
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::view::node::RegisterNode;
 use model::view::sla::{PutSla, PutSlaRequest};
+use model::SlaId;
+use serde::Deserialize;
 use tracing::error;
 
 #[derive(Debug)]
@@ -64,6 +66,20 @@ pub async fn put_function(
         }
     }
     Ok(HttpResponse::Ok().json(res?))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostProvisionParams {
+    id: SlaId,
+}
+/// Provision the previously paid function
+pub async fn post_provision_function(
+    params: web::Path<PostProvisionParams>,
+    auction_service: Data<crate::service::auction::Auction>,
+) -> Result<HttpResponse, AnyhowErrorWrapper> {
+    controller::provision_function(params.id.clone(), &auction_service)
+        .await?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 /// Register a new node in the network

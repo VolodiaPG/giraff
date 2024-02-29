@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use model::view::auction::AcceptedBid;
 use model::view::node::{GetFogNodes, RegisterNode};
 use model::view::sla::PutSla;
-use model::NodeId;
+use model::{NodeId, SlaId};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::trace;
@@ -16,6 +16,18 @@ pub async fn start_auction(
 
     auction_service
         .start_auction(payload.target_node, payload.sla)
+        .await
+        .context("Failed the auctioning and provisionning process")
+}
+/// Provision a paid SLA
+pub async fn provision_function(
+    id: SlaId,
+    auction_service: &Arc<crate::service::auction::Auction>,
+) -> Result<()> {
+    trace!("provision sla id: {}", id);
+
+    auction_service
+        .provision(id)
         .await
         .context("Failed the auctioning and provisionning process")
 }

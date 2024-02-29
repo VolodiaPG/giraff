@@ -27,6 +27,7 @@ base64 = { version = "0.13.0", default-features = false, features = [
 ] }
 bytes = "1.2.0"
 chrono = "0.4"
+dashmap = "5.4.0"
 futures = "0.3.28"
 influxdb2 = "0.4.2"
 influxdb2-derive = "0.1.1"

@@ -92,4 +92,33 @@ impl NodeCommunication {
             })?;
         Ok(())
     }
+
+    pub async fn provision_function(
+        &self,
+        to: NodeId,
+        id: &SlaId,
+    ) -> Result<()> {
+        let response = self
+            .send(&to, &format!("provision/{}", id))
+            .await
+            .with_context(|| {
+                format!("Failed to obtained the url to contact {}", to)
+            })?
+            .send()
+            .await
+            .with_context(|| {
+                format!("Failed to send an offering to {}", to)
+            })?;
+
+        helper::reqwest_helper::deserialize_response(response)
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to deserialize the response when trying to take \
+                     the offer of node {}",
+                    to
+                )
+            })?;
+        Ok(())
+    }
 }

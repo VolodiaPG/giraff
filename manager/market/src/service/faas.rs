@@ -3,7 +3,7 @@ use crate::repository::node_communication::NodeCommunication;
 use anyhow::{anyhow, Result};
 use model::dto::node::NodeRecord;
 use model::view::auction::AcceptedBid;
-use model::NodeId;
+use model::{NodeId, SlaId};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -23,8 +23,8 @@ impl FogNodeFaaS {
         Self { fog_node, node_communication }
     }
 
-    pub async fn provision_function(&self, bid: AcceptedBid) -> Result<()> {
-        trace!("Provisioning function...");
+    pub async fn pay_for_function(&self, bid: AcceptedBid) -> Result<()> {
+        trace!("Paying function...");
 
         let node = bid.chosen.bid.node_id.clone();
         self.node_communication.take_offer(node.clone(), &bid.sla.id).await?;
@@ -43,6 +43,18 @@ impl FogNodeFaaS {
         let id = bid.chosen.bid.id.clone();
         record.accepted_bids.insert(id.clone(), bid);
         self.fog_node.update(&node, record).await;
+
+        Ok(())
+    }
+
+    pub async fn provision_paid_function(
+        &self,
+        sla: SlaId,
+        node: NodeId,
+    ) -> Result<()> {
+        trace!("Provisioning function...");
+
+        self.node_communication.provision_function(node, &sla).await?;
 
         Ok(())
     }

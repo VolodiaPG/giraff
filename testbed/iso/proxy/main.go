@@ -132,19 +132,19 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	resp.Header.Del("GIRAFF-Tags")
 	slaID := resp.Header.Get("GIRAFF-Sla-Id")
 	resp.Header.Del("GIRAFF-Sla-Id")
-	serviceStatus := resp.StatusCode
 	if tags == "" {
 		tags = "<no-tags>"
 	}
 	if slaID == "" {
 		slaID = "<no-sla-id>"
 	}
+	serviceStatus := resp.StatusCode
 
 	if !firstRequestID {
 		transmitURL := resp.Header.Get("GIRAFF-Redirect")
 		transmitProxyURL := resp.Header.Get("GIRAFF-Redirect-Proxy")
 
-		if serviceStatus == 200 {
+		if resp.StatusCode == http.StatusOK {
 			if transmitURL != "" {
 				for key, values := range r.Header {
 					if resp.Header.Get(key) == "" {
@@ -153,7 +153,7 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 						}
 					}
 				}
-				outReq, err := http.NewRequest(r.Method, r.URL.String(), resp.Body)
+				outReq, err := http.NewRequest(r.Method, transmitURL, resp.Body)
 				if err != nil {
 					env.log.Error("Failed to create the request", zap.String("requestID", requestID), zap.Error(err))
 					return
@@ -181,11 +181,11 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 			if err == nil {
 				body = string(b)
 			}
-			env.log.Error("Failed to proxy the request to the next node", zap.String("requestID", requestID), zap.String("transmitURL", transmitURL), zap.String("transmitProxyURL", transmitProxyURL), zap.Int("code", resp.StatusCode), zap.String("body", body))
+			env.log.Error("Failed to proxy the request to the next node", zap.String("requestID", requestID), zap.String("transmitURL", transmitURL), zap.String("transmitProxyURL", transmitProxyURL), zap.Int("code", resp.StatusCode), zap.String("body", body), zap.String("url", r.URL.String()))
 		}
 	}
 
-	(*ww).WriteHeader(serviceStatus)
+	(*ww).WriteHeader(resp.StatusCode)
 
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -200,7 +200,7 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	}
 
 	p := influxdb2.NewPoint("proxy",
-		map[string]string{"sla_id": slaID, "req_id": requestID, "tags": tags, "first_req_id": strconv.FormatBool(firstRequestID), "status": strconv.Itoa(serviceStatus)},
+		map[string]string{"sla_id": slaID, "req_id": requestID, "tags": tags, "first_req_id": strconv.FormatBool(firstRequestID), "service_status": strconv.Itoa(serviceStatus), "status": strconv.Itoa(resp.StatusCode)},
 		map[string]interface{}{"value": proxyRx},
 		proxyTx)
 	(*influxAPI).WritePoint(p)

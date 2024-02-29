@@ -42,7 +42,22 @@ pub async fn bid_on(
         .context("Failed to bid on function and transmit it to neighbors")
 }
 
-/// Returns a bid for the SLA.
+/// Reserves the space for the indicated duration to enable the limits
+pub async fn set_paid_from_sla(
+    id: SlaId,
+    function: &Arc<FunctionLife>,
+) -> Result<()> {
+    trace!("Transforming SLA into paid for resource {:?}", id);
+    function.pay_function(id.clone()).await.with_context(|| {
+        format!(
+            "Failed to reserve the paid for resources for function from SLA \
+             {}",
+            id
+        )
+    })?;
+    Ok(())
+}
+
 /// Creates the function on OpenFaaS and use the SLA to enable the limits
 pub async fn provision_from_sla(
     id: SlaId,

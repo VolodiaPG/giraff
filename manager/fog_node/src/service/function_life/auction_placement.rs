@@ -26,11 +26,18 @@ impl FunctionLife {
             return Ok(None);
         };
 
-        if latency.median
+        let single_packet_lat = latency.median
             + accumulated_latency.median
-            + accumulated_latency.median_uncertainty
-            > sla.latency_max
-        {
+            + accumulated_latency.median_uncertainty;
+        let mut would_be_lat = single_packet_lat * sla.input_max_size
+            / uom::si::f64::Information::new::<uom::si::information::byte>(
+                1500.0,
+            );
+        if single_packet_lat > would_be_lat {
+            would_be_lat = single_packet_lat;
+        }
+
+        if would_be_lat > sla.latency_max {
             let latency_outbound = latency.median;
             debug!(
                 "Skipping neighbor {} because latency is too high ({}, a \

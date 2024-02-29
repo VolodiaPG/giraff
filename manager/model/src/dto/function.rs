@@ -12,7 +12,7 @@ pub struct Proposed {
 }
 
 #[derive(Debug, Clone)]
-pub struct Reserved {
+pub struct Paid {
     pub bid:  f64,
     pub sla:  Sla,
     pub node: String,
@@ -44,6 +44,16 @@ impl FunctionRecord<Proposed> {
         Self(Proposed { bid, sla, node })
     }
 
+    pub fn to_paid(self) -> FunctionRecord<Paid> {
+        FunctionRecord(Paid {
+            bid:  self.0.bid,
+            sla:  self.0.sla,
+            node: self.0.node,
+        })
+    }
+}
+
+impl FunctionRecord<Paid> {
     pub fn to_provisioned(
         self,
         function_name: String,
@@ -55,8 +65,11 @@ impl FunctionRecord<Proposed> {
             node: self.0.node,
         })
     }
-}
 
+    pub fn to_finished(self) -> FunctionRecord<Finished> {
+        FunctionRecord(Finished { bid: self.0.bid, sla: self.0.sla })
+    }
+}
 impl FunctionRecord<Provisioned> {
     pub fn to_live(self) -> FunctionRecord<Live> {
         FunctionRecord(Live {

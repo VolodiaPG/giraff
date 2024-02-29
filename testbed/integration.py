@@ -163,7 +163,7 @@ def cli(**kwargs):
     """Experiment with k3s in G5K.
 
     Don't forget to clean with the `clean` verb.
- 
+
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
@@ -270,7 +270,7 @@ def up(
         print("env is None")
         exit(1)
 
-    env["NAME"]=name
+    env["NAME"] = name
 
     env["CLUSTER"] = os.environ["CLUSTER"]
     cluster = env["CLUSTER"]
@@ -320,7 +320,7 @@ def up(
 
     roles, networks = provider.init(force_deploy=force)
 
-    job = provider.g5k_provider.jobs[0] # type: ignore
+    job = provider.g5k_provider.jobs[0]  # type: ignore
 
     ips = [vm.address for vm in roles["ssh"]]
 
@@ -407,14 +407,30 @@ def set_sshx(env: EnosEnv):
     assignations = env["assignations"]
     roles = env["roles"]
 
-    en.run_command(f'rm -rf "/nfs/sshx/{env["NAME"]}" || true', task_name="Clearing sshx folder", roles = roles["market"])
+    en.run_command(
+        f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
+        task_name="Clearing sshx folder",
+        roles=roles["market"],
+    )
 
-    en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "market" > /my_name', task_name="Setting name for market", roles = roles["market"])
-    en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "iot_emulation" > /my_name', task_name="Setting name for iot_emulation", roles = roles["iot_emulation"])
+    en.run_command(
+        f'echo "{env["NAME"]}" > /my_group; echo "market" > /my_name',
+        task_name="Setting name for market",
+        roles=roles["market"],
+    )
+    en.run_command(
+        f'echo "{env["NAME"]}" > /my_group; echo "iot_emulation" > /my_name',
+        task_name="Setting name for iot_emulation",
+        roles=roles["iot_emulation"],
+    )
 
     for vm_name in assignations.keys():
-        en.run_command(f'echo "{env["NAME"]}" > /my_group; echo "{vm_name}" > /my_name', task_name=f"Setting name for {vm_name}", roles = roles[vm_name])
-    
+        en.run_command(
+            f'echo "{env["NAME"]}" > /my_group; echo "{vm_name}" > /my_name',
+            task_name=f"Setting name for {vm_name}",
+            roles=roles[vm_name],
+        )
+
 
 @cli.command()
 @enostask()

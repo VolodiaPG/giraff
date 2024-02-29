@@ -21,6 +21,8 @@ impl Cron {
         Ok(Self { scheduler, periodic_task_period })
     }
 
+    // Add job to be executed at the period configured at the creation of the
+    // instance
     pub async fn add_periodic<T>(&self, callback: T) -> Result<()>
     where
         T: 'static,
@@ -41,6 +43,7 @@ impl Cron {
         Ok(())
     }
 
+    // Add a job to execute in <duration> time
     pub async fn add_oneshot<T>(
         &self,
         duration: Time,

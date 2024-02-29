@@ -5,7 +5,7 @@ use actix_web::HttpResponse;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
-use model::{BidId, SlaId};
+use model::SlaId;
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -45,9 +45,22 @@ pub struct PostBidAcceptParams {
 }
 
 /// Second function called after [post_bid] if the bid is accepted and the
-/// transaction starts. Will then proceed to provision the SLA and thus, the
-/// function.
+/// transaction starts. Will then proceed to reserve the required "space" for
+/// the function for the specified duration by the SLA and thus, the function.
 pub async fn post_bid_accept(
+    params: web::Path<PostBidAcceptParams>,
+    function: Data<FunctionLife>,
+) -> Result<HttpResponse, AnyhowErrorWrapper> {
+    #[allow(clippy::let_unit_value)]
+    let res =
+        controller::auction::set_paid_from_sla(params.id.clone(), &function)
+            .await?;
+    Ok(HttpResponse::Ok().json(res))
+}
+
+// Proceeds to provision the paid for SLA ([post_bid_accept]) and thus, the
+/// function.
+pub async fn post_provision(
     params: web::Path<PostBidAcceptParams>,
     function: Data<FunctionLife>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {

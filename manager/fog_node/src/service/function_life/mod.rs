@@ -11,7 +11,7 @@ use crate::service::auction::Auction;
 ))]
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation, FUNCTION_LIVE_TIMEOUT_MSECS};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
 use backoff::SystemClock;
 use helper::env_load;
@@ -151,6 +151,54 @@ impl FunctionLife {
             cron,
             function_live_timeout,
         })
+    }
+
+    pub async fn pay_function(&self, id: SlaId) -> Result<()> {
+        let function = self.function.lock().await?;
+        function.pay_function(id.clone()).await?;
+        drop(function);
+
+        let paid = self
+            .function_tracking
+            .get_paid(&id)
+            .ok_or(anyhow!("Failed to retrieve paid function {}", id))?;
+        let function = self.function.clone();
+        let id2 = id.clone();
+        self.cron
+            .add_oneshot(paid.0.sla.duration, move || {
+                let id = id.clone();
+                let function = function.clone();
+                Box::pin(async move {
+                    let Ok(function) = function
+                        .lock()
+                        .await
+                        .context(
+                            "Failed to lock when calling cron to unprovision \
+                             function",
+                        )
+                        .map_err(|err| error!("{:?}", err))
+                    else {
+                        return;
+                    };
+
+                    if let Err(err) = function.drop_paid_function(id).await {
+                        warn!(
+                            "Failed to drop paid function as stated in the \
+                             cron job {:?}",
+                            err
+                        );
+                    }
+                })
+            })
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to setup a oneshot cron job to stop paid \
+                     function {} in the future",
+                    id2
+                )
+            })?;
+        Ok(())
     }
 
     pub async fn provision_function(&self, id: SlaId) -> Result<()> {

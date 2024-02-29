@@ -74,6 +74,7 @@ env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
 env_var!(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION);
 env_var!(FUNCTION_LIVE_TIMEOUT_MSECS);
+env_var!(FUNCTION_PAYING_TIMEOUT_MSECS);
 
 const INFLUX_DEFAULT_ADDRESS: &str = "127.0.0.1:9086";
 
@@ -139,7 +140,6 @@ pub fn get_subscriber(
 }
 
 /// Register a subscriber as global default to process span data.
-///
 /// It should only be called once!
 pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
     LogTracer::init().expect("Failed to set logger");
@@ -198,9 +198,13 @@ async fn main() -> anyhow::Result<()> {
 
     #[cfg(feature = "jaeger")]
     let http_client = Arc::new(
-        ClientBuilder::new(reqwest::Client::new())
-            .with(TracingMiddleware::default())
-            .build(),
+        ClientBuilder::new(
+            reqwest::Client::builder()
+                .pool_idle_timeout(Some(Duration::from_secs(90)))
+                .build()?, // keep-alive
+        )
+        .with(TracingMiddleware::default())
+        .build(),
     );
 
     #[cfg(not(feature = "jaeger"))]
@@ -384,6 +388,7 @@ async fn main() -> anyhow::Result<()> {
                 web::scope("/api")
                     .route("/bid", web::post().to(post_bid))
                     .route("/accept/{id}", web::post().to(post_bid_accept))
+                    .route("/provision/{id}", web::post().to(post_provision))
                     .route(
                         "/register",
                         web::post().to(post_register_child_node),

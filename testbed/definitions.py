@@ -137,6 +137,8 @@ spec:
           value: "{collector_ip}"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
           value: "http://{collector_ip}:4317"
+        - name: FUNCTION_LIVE_TIMEOUT_MSECS
+          value: "120000"
         ports:
         - containerPort: 30003
         volumeMounts:

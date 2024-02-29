@@ -546,10 +546,24 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
     username=$({{RUN}} master.py get-username)
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
+    
+    declare -a statuses
 
-    just upload {{experiments_dotfile}} {{skip_vms}}&
-    just build_required_images {{user}}&
-    wait
+    just upload {{experiments_dotfile}} {{skip_vms}}& pid1=$!
+    just build_required_images {{user}}& pid2=$!
+    
+    wait $pid1
+    statuses[0]=$?
+    
+    wait $pid2
+    statuses[1]=$?
+
+    for status in "${statuses[@]}"; do
+      if [ $status -ne 0 ]; then
+        echo "A command I waited for failed"
+        exit $status  
+      fi
+    done
 
     {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
     {{RUN}} master.py run-command

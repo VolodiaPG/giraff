@@ -70,7 +70,7 @@ _run_vm disk="result/nixos.qcow2":
         -cpu max \
         -name nixos \
         -m 8192 \
-        -smp 8 \
+        -smp 3 \
         -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
         -enable-kvm \

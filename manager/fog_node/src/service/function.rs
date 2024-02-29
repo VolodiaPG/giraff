@@ -1,4 +1,4 @@
-use crate::monitoring::ProvisionedFunctions;
+use crate::monitoring::{PaidFunctions, ProvisionedFunctions};
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
@@ -8,7 +8,7 @@ use anyhow::{ensure, Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
-use model::{BidId, SlaId};
+use model::SlaId;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
@@ -127,11 +127,11 @@ impl<State> Drop for Function<State> {
 }
 
 impl Function<Locked> {
-    pub(in crate::service) async fn provision_function(
+    pub(in crate::service) async fn pay_function(
         &self,
         id: SlaId,
     ) -> Result<()> {
-        let proposed =
+        let proposal =
             self.function_tracking.get_proposed(&id).with_context(|| {
                 format!(
                     "Failed to get proposed function {} from the tracking \
@@ -142,24 +142,24 @@ impl Function<Locked> {
 
         let (used_ram, used_cpu) = self
             .resource_tracking
-            .get_used(&proposed.0.node)
+            .get_used(&proposal.0.node)
             .await
             .with_context(|| {
                 format!(
                     "Failed to get used resources from tracking data for \
                      node {}",
-                    &proposed.0.node
+                    &proposal.0.node
                 )
             })?;
         let (available_ram, available_cpu) = self
             .resource_tracking
-            .get_available(&proposed.0.node)
+            .get_available(&proposal.0.node)
             .await
             .with_context(|| {
                 format!(
                     "Failed to get available resources from tracking data \
                      for node {}",
-                    &proposed.0.node
+                    &proposal.0.node
                 )
             })?;
 
@@ -169,19 +169,56 @@ impl Function<Locked> {
                 &used_cpu,
                 &available_ram,
                 &available_cpu,
-                &proposed.0.sla
+                &proposal.0.sla
             ),
             "The SLA cannot be respected because at least a constrainst is \
              not satisfiable (anymore?!)"
         );
 
-        let name = proposed.0.node.clone();
-        let sla_cpu = proposed.0.sla.cpu;
-        let sla_memory = proposed.0.sla.memory;
+        let name = proposal.0.node.clone();
+        let sla_cpu = proposal.0.sla.cpu;
+        let sla_memory = proposal.0.sla.memory;
+
+        let paid = (*proposal).clone().to_paid();
+
+        self.metrics
+            .observe(PaidFunctions {
+                n:             1,
+                function_name: paid.0.sla.function_live_name.clone(),
+                sla_id:        paid.0.sla.id.to_string(),
+                timestamp:     Utc::now(),
+            })
+            .await?;
+        self.function_tracking.save_paid(&id, paid);
+
+        let Ok(()) = self
+            .resource_tracking
+            .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
+            .await
+        else {
+            error!("Could not set updated tracked cpu and memory");
+            return Ok(());
+        };
+
+        Ok(())
+    }
+
+    pub(in crate::service) async fn provision_function(
+        &self,
+        id: SlaId,
+    ) -> Result<()> {
+        let paid_proposal =
+            self.function_tracking.get_paid(&id).with_context(|| {
+                format!(
+                    "Failed to get proposed function {} from the tracking \
+                     data",
+                    id
+                )
+            })?;
 
         let provisioned = self
             .function
-            .provision_function(id.clone(), (*proposed).clone())
+            .provision_function(id.clone(), (*paid_proposal).clone())
             .await
             .with_context(|| {
                 format!("Failed to provision the proposed function {}", id)
@@ -196,16 +233,51 @@ impl Function<Locked> {
             .await?;
         self.function_tracking.save_provisioned(&id, provisioned);
 
-        let Ok(()) = self
-            .resource_tracking
-            .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
-            .await
-        else {
-            error!("Could not set updated tracked cpu and memory");
-            return Ok(());
-        };
-
         Ok(())
+    }
+
+    pub(in crate::service) async fn drop_paid_function(
+        &self,
+        function: SlaId,
+    ) -> Result<()> {
+        let record = self.function_tracking.get_paid(&function);
+        match record {
+            Some(record) => {
+                let name = record.0.node.clone();
+                let sla_cpu = record.0.sla.cpu;
+                let sla_memory = record.0.sla.memory;
+
+                let record = (*record).clone().to_finished();
+
+                self.metrics
+                    .observe(ProvisionedFunctions {
+                        n:             0,
+                        function_name: record.0.sla.function_live_name.clone(),
+                        sla_id:        record.0.sla.id.to_string(),
+                        timestamp:     Utc::now(),
+                    })
+                    .await?;
+                self.function_tracking.save_finished(&function, record);
+
+                let Ok((memory, cpu)) =
+                    self.resource_tracking.get_used(&name).await
+                else {
+                    error!("Could not get tracked cpu and memory");
+                    return Ok(());
+                };
+                let Ok(()) = self
+                    .resource_tracking
+                    .set_used(name, memory - sla_memory, cpu - sla_cpu)
+                    .await
+                else {
+                    error!("Could not set updated tracked cpu and memory");
+                    return Ok(());
+                };
+
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 
     pub(in crate::service) async fn unprovision_function(
