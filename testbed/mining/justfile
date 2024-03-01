@@ -3,5 +3,9 @@ run:
     Rscript main.R
 
 # Serves the content of the directory so graphs can be opened in a browser
-serve $PORT="9000":
-    python -m http.server $PORT
+serve port="9000":
+    mkdir -p out/
+    cd out; live-server --port={{port}}
+
+watch:
+    ls *.R | entr -nr just

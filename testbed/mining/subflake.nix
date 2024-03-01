@@ -84,7 +84,8 @@
               (with pkgs; [
                 just
                 R
-                python3
+                nodePackages_latest.live-server
+                entr
               ])
               ++ R-pkgs;
           };

@@ -586,12 +586,13 @@ load_respected_sla <- memoised(function() {
             extract_function_name_info() %>%
             group_by(folder, metric_group, metric_group_group, req_id) %>%
             mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
+            mutate(prev_sla = lag(ifelse(first_req_id, "<iot_emulation>", sla_id))) %>%
             filter(first_req_id == FALSE) %>%
             mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
             mutate(acceptable_chained = acceptable) %>%
             rowwise() %>%
             mutate(acceptable_chained = lag(acceptable_chained, default = TRUE) & acceptable) %>%
-            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, prev_function) %>%
+            group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, prev_function, prev_sla) %>%
             summarise(
                 acceptable = sum(acceptable),
                 all_erors = sum((status != 200) & (service_status != 200)),
@@ -825,26 +826,37 @@ output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
 output_respected_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
     compute <- function() {
         df <- respected_sla %>%
-            # left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
-            # left_join(node_levels %>% rename(winner = name)) %>%
-            # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
+            left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+            left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id) %>% rename(winner_prev = winner, prev_sla = sla_id)) %>%
+            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep="")) %>% select(name, folder, level) %>% rename(winner = name)) %>%
+            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep ="")) %>% select(name, folder, level) %>% rename(winner_prev = name, level_prev = level)) %>%
+            mutate(level_docker = paste0(level, docker_fn_name, sep = "")) %>%
+            mutate(level_prev_value = level_prev) %>%
+            mutate(level_prev = paste0(level_prev, prev_function, sep = "")) %>%
             ungroup()
 
         links <- df %>%
             mutate(source = prev_function) %>%
-            mutate(target = docker_fn_name) %>%
+            mutate(target = level_docker) %>%
+            mutate(name_target = level) %>%
             mutate(value = acceptable_chained)
         links <- df %>%
-            mutate(source = prev_function) %>%
-            mutate(target = "rejected") %>%
-            mutate(value = total - acceptable_chained - all_erors) %>%
+            mutate(source = level_docker) %>%
+            mutate(target = docker_fn_name) %>%
+            mutate(value = acceptable_chained) %>%
+            mutate(name_source = level) %>%
             full_join(links)
+        links <- df %>%
+           mutate(source = prev_function) %>%
+           mutate(target = "rejected") %>%
+           mutate(value = total - acceptable_chained - all_erors) %>%
+           full_join(links)
 
         links <- df %>%
-            mutate(source = prev_function) %>%
-            mutate(target = "errored") %>%
-            mutate(value = all_erors) %>%
-            full_join(links)
+           mutate(source = prev_function) %>%
+           mutate(target = "errored") %>%
+           mutate(value = all_erors) %>%
+           full_join(links)
 
         return(links)
     }
@@ -973,13 +985,29 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
 output_duration_distribution_plot <- function(provisioned_sla) {
     df <- provisioned_sla %>%
         extract_function_name_info()
-
-    p <- ggplot(data = df, aes(x = docker_fn_name, y = as.numeric(duration), color = docker_fn_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = duration, color = docker_fn_name, alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         labs(
             x = "Placement method",
-            y = "measured latency (in_flight) (s)"
+            y = "function duration (s)"
+        ) +
+        geom_beeswarm()
+
+    fig(10, 10)
+
+    return(p)
+}
+
+output_latency_distribution_plot <- function(provisioned_sla) {
+    df <- provisioned_sla %>%
+        extract_function_name_info()
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = latency, color = docker_fn_name, alpha = 1)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        labs(
+            x = "Placement method",
+            y = "function required latency (s)"
         ) +
         geom_beeswarm()
 
@@ -1241,17 +1269,11 @@ bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
 export_graph_non_ggplot("sla", output_sla_plot(respected_sla, bids_won_function, node_levels))
 export_graph_non_ggplot("respected_sla", output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+
 export_graph("duration_distribution", output_duration_distribution_plot(provisioned_sla))
-
-
-# export_graph("errored", output_errored_plot_simple(respected_sla, bids_won_function, node_levels))
-# export_graph("respected_sla_simple", output_respected_data_plot_simple(respected_sla, bids_won_function, node_levels))
+export_graph("latency_distribution", output_latency_distribution_plot(provisioned_sla))
 export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
-
-stop()
-
-# print(load_csv("proxy.csv") %>% rename(function_name = tags) %>% extract_function_name_info())
 
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)

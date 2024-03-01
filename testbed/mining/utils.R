@@ -535,7 +535,7 @@ create_plot <- function(data) {
 
   # print(pggnetwork[1])
 
-  anim_save(filename = sprintf("%s.gif", name), animation = pggnetwork, renderer = magick_renderer(), nframes = duration, height = 1600, width = 2000)
+  anim_save(filename = sprintf("out/%s.gif", name), animation = pggnetwork, renderer = magick_renderer(), nframes = duration, height = 1600, width = 2000)
 }
 
 jains_index <- function(allocations) {
@@ -706,12 +706,12 @@ tibble_to_latex_tabular <- function(data, file) {
 }
 
 export_graph <- function(name, ggplot_graph) {
-  ggsave(paste0(name, ".png"), ggplot_graph)
+  ggsave(paste0("out/", name, ".png"), ggplot_graph)
   p <- ggplotly(ggplot_graph)
-  htmlwidgets::saveWidget(p, paste0(name, ".htm"), selfcontained = TRUE)
+  htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
 export_graph_non_ggplot <- function(name, graph) {
-  htmlwidgets::saveWidget(graph, paste0(name, ".htm"), selfcontained = TRUE)
+  htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
 
 
@@ -745,18 +745,41 @@ do_sankey <- function(f) {
     }
   }
 
+
+  labels <- links %>%
+        ungroup() %>%
+        rowwise() %>%
+      mutate(name = if("name_source" %in% names(.)) coalesce(.data[["name_source"]], source) else source) %>%
+        rename(original = source) %>%
+        select(original, name) %>% 
+        distinct()
+  labels <- links %>%
+        ungroup() %>%
+        rowwise() %>%
+      mutate(name = if("name_target" %in% names(.)) coalesce(.data[["name_target"]], target) else target) %>%
+        rename(original = target) %>%
+        select(original, name) %>%
+        distinct() %>% 
+        full_join(labels) %>%
+        distinct()
   df <- df %>%
     rowwise() %>%
     mutate(source = ii(source)) %>%
     mutate(target = ii(target)) %>%
     as.data.frame()
 
+    labels <- nodes %>%
+        mutate(row_order = row_number()) %>%
+        rename(original = name) %>%
+        inner_join(labels) %>%
+        arrange(row_order) %>%
+        select(-row_order)
   # p <- sankeyNetwork(Links = df, Nodes = nodes, Source = "source", Target = "target", Value = "value", NodeID = "name")
   fig <- plot_ly(
     type = "sankey",
     orientation = "h",
     node = list(
-      label = nodes$name,
+      label = labels$name,
       pad = 15,
       thickness = 20,
       line = list(

@@ -1,1 +1,1 @@
-ntp.rennes.grid5000.fr
+ntp.nancy.grid5000.fr

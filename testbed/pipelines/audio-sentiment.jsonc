@@ -23,7 +23,7 @@
             "image": "giraff:fn_echo",
             "mem": 100,
             "cpu": 100,
-            "latency": "HIGH_LATENCY"
+            "latency": "NO_LATENCY"
         }
     }
 }
