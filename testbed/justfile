@@ -108,9 +108,31 @@ scenario archive_name +city_name_node_targets:
     sleep 60
 
     MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
+    # Create bg tasks, push their pid in an array and check after waiting for each when one has failed
+    pids=()
     for city in {{city_name_node_targets}}; do
         echo "Checking connection to $city"
-        timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"
+        timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"&
+        pids+=($!)
+    done
+
+    error_occured=0
+
+    for pid in "${pids[@]}"; do
+      wait "$pid"
+      exit_status=$?
+      if [ $exit_status -ne 0 ]; then
+        echo "A connection failed to be checked"
+        error_occured=1
+      fi
+    done
+    if [ $error_occurred -ne 0 ]; then
+      echo "At least one connected failed to be checked failed. Exiting..."
+      exit 1
+    fi
+
+    for city in {{city_name_node_targets}}; do
+        echo "Checking connection to $city"
         NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
 
@@ -187,8 +209,6 @@ scenarii +city_name_node_targets:
     for INDEX in $(seq 1 3); do
         parallel --tty --joblog ./joblog --retry-failed
     done
-
-    just clean || .
 
 collect:
     mkdir -p metrics
