@@ -365,15 +365,15 @@ extract_function_name_info <- function(x) {
   return(
     x %>%
       ungroup() %>%
-      mutate(docker_fn_name = info %>% .[, 2]) %>%
+      mutate(docker_fn_name = info[, 2]) %>%
       mutate(docker_fn_name = ifelse(is.na(docker_fn_name), function_name, docker_fn_name)) %>%
-      mutate(function_index = info %>% .[, 3]) %>%
-      mutate(cpu = as.numeric(info %>% .[, 4])) %>%
-      mutate(mem = as.numeric(info %>% .[, 5])) %>%
-      mutate(latency = as.difftime(as.numeric(info %>% .[, 6]) / 1000, units = "secs")) %>%
-      mutate(arrival = as.difftime(as.numeric(info %>% .[, 7]) / 1000, units = "secs")) %>%
-      mutate(request_interval = as.difftime(as.numeric(info %>% .[, 8]) / 1000, units = "secs")) %>%
-      mutate(duration = as.difftime(as.numeric(info %>% .[, 9]) / 1000, units = "secs"))
+      mutate(function_index = info[, 3]) %>%
+      mutate(cpu = as.numeric(info[, 4])) %>%
+      mutate(mem = as.numeric(info[, 5])) %>%
+      mutate(latency = as.difftime(as.numeric(info[, 6]) / 1000, units = "secs")) %>%
+      mutate(arrival = as.difftime(as.numeric(info[, 7]) / 1000, units = "secs")) %>%
+      mutate(request_interval = as.difftime(as.numeric(info[, 8]) / 1000, units = "secs")) %>%
+      mutate(duration = as.difftime(as.numeric(info[, 9]) / 1000, units = "secs"))
   )
 }
 

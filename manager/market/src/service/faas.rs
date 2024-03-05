@@ -55,7 +55,6 @@ impl FogNodeFaaS {
         trace!("Provisioning function...");
 
         self.node_communication.provision_function(node, &sla).await?;
-
         Ok(())
     }
 

@@ -1,6 +1,7 @@
 # Runs the script
 run:
     Rscript main.R
+    @echo -e "\033[1;32mok\033[0m"
 
 # Serves the content of the directory so graphs can be opened in a browser
 serve port="9000":

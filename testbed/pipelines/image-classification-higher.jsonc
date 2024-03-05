@@ -9,7 +9,7 @@
             "mem": 750,
             "cpu": 500,
             "input_max_size": "100 kB",
-            "latency": "LOW_LATENCY"
+            "latency": "HIGHER_LATENCY"
         },
         "classif": {
             "nextFunction": "echo",
@@ -17,7 +17,7 @@
             "mem": 512,
             "cpu": 500,
             "input_max_size": "25 kB",
-            "latency": "HIGH_LATENCY"
+            "latency": "NO_LATENCY"
         },
         "echo": {
             "image": "giraff:fn_echo",

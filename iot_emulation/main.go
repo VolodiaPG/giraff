@@ -324,37 +324,42 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 
 	env.Logger.Ctx(ctx).Info("Registered cron", zap.String("fn_id", config.FunctionID))
 
-	go func() {
-		proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort + "/proxy")
-		if err != nil {
-			env.Logger.Fatal("Failed to configure proxy:", zap.Error(err))
-			http.Error(*w, "Failed to configure proxy: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		httpClient := &http.Client{Transport: otelhttp.NewTransport(&http.Transport{Proxy: http.ProxyURL(proxyURL)})}
+	proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort + "/proxy")
+	if err != nil {
+		env.Logger.Fatal("Failed to configure proxy:", zap.Error(err))
+		http.Error(*w, "Failed to configure proxy: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-		time.Sleep(time.Duration(config.InitialWaitMs) * time.Millisecond)
+	go sendPings(env, proxyURL, config)
+}
 
-		eventChan := make(chan struct{})
-		go poissonProcess(time.Duration(config.IntervalMs)*time.Millisecond, eventChan, time.Duration(config.DurationMs)*time.Millisecond)
+func sendPings(env *envContext, proxyURL *url.URL, config cronConfig) {
+	httpClient := &http.Client{Transport: otelhttp.NewTransport(&http.Transport{Proxy: http.ProxyURL(proxyURL)})}
 
-		go func() {
-			for range eventChan {
-				ctx, span := otel.Tracer("").Start(context.Background(), "ping_"+config.FunctionID)
-				err := ping(env, &config, httpClient, &ctx)
-				if err != nil {
-					env.Logger.Warn("Ping failed", zap.Error(err))
-					p := influxdb2.NewPoint("proxy_send",
-						map[string]string{"sla_id": config.FunctionID},
-						map[string]interface{}{"value": 1},
-						time.Now())
-					env.InfluxWriter.WritePoint(p)
-				}
-				span.End()
-			}
-			env.Logger.Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
-		}()
-	}()
+	time.Sleep(time.Duration(config.InitialWaitMs) * time.Millisecond)
+
+	eventChan := make(chan struct{})
+	go poissonProcess(time.Duration(config.IntervalMs)*time.Millisecond, eventChan, time.Duration(config.DurationMs)*time.Millisecond)
+
+	for range eventChan {
+		go sendSinglePing(env, config, httpClient)
+	}
+	env.Logger.Info("Unregistered cron", zap.String("fn_id", config.FunctionID))
+}
+
+func sendSinglePing(env *envContext, config cronConfig, httpClient *http.Client) {
+	ctx, span := otel.Tracer("").Start(context.Background(), "ping_"+config.FunctionID)
+	err := ping(env, &config, httpClient, &ctx)
+	if err != nil {
+		env.Logger.Warn("Ping failed", zap.Error(err))
+		p := influxdb2.NewPoint("proxy_send",
+			map[string]string{"sla_id": config.FunctionID},
+			map[string]interface{}{"value": 1},
+			time.Now())
+		env.InfluxWriter.WritePoint(p)
+	}
+	span.End()
 }
 
 func initTracer(env *envContext) (func(context.Context) error, error) {

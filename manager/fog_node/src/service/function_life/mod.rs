@@ -15,8 +15,11 @@ use anyhow::{anyhow, Context, Result};
 use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
 use backoff::SystemClock;
 use helper::env_load;
-use model::{BidId, SlaId};
+use model::view::auction::{AccumulatedLatency, Latency};
+use model::SlaId;
 use std::sync::Arc;
+use uom::si::f64::Information;
+use uom::si::information::byte;
 
 pub struct FunctionLife {
     function:              Arc<Function>,
@@ -77,6 +80,8 @@ mod edge_ward_placement_v3;
 pub use edge_ward_placement_v3::*;
 
 use super::function::Function;
+
+const DEFAULT_MTU: f64 = 1500.0;
 
 impl FunctionLife {
     pub fn new(
@@ -264,5 +269,25 @@ impl FunctionLife {
             .build();
 
         backoff
+    }
+
+    fn compute_latency(
+        &self,
+        accumulated_latency_to_next_node: &AccumulatedLatency,
+        data_size: Information,
+    ) -> AccumulatedLatency {
+        let single_packet_lat = accumulated_latency_to_next_node;
+        let mut multiplier = data_size / Information::new::<byte>(DEFAULT_MTU);
+        let rat =
+            Information::new::<byte>(1.0) / Information::new::<byte>(1.0);
+        if multiplier < rat {
+            multiplier = rat;
+        }
+
+        let median = single_packet_lat.median * multiplier;
+        let median_uncertainty =
+            single_packet_lat.median_uncertainty * multiplier;
+        let average = single_packet_lat.average * multiplier;
+        return AccumulatedLatency { median, average, median_uncertainty };
     }
 }

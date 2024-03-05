@@ -1,7 +1,8 @@
-generate_gif <- TRUE
+generate_gif <- FALSE
 reload_big_data <- TRUE
 parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
+workers <- parallel::detectCores()
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
@@ -13,14 +14,25 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-    #    "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-23-10-48.tar.xz",
-    "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-01-08-24.tar.xz",
-    #---
-    #---
-    #---
-    "last element that is here because last element should not have any comma in the end and that sucks hard time."
+  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-23-10-48.tar.xz",
+  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-01-09-51.tar.xz",
+  #    "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-01-13-52.tar.xz",
+  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-04-08-43.tar.xz",
+
+  # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-04-13-03.tar.xz",
+  # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-13-36.tar.xz",
+  # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-04-13-20.tar.xz",
+
+  "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-04-15-18.tar.xz",
+  # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-15-40.tar.xz",
+  #---
+  #---
+  #---
+  "last element that is here because last element should not have any comma in the end and that sucks hard time."
 )
 METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
+
+library(stringr)
 
 METRICS_GROUP <- str_match(METRICS_ARKS, "metrics_.*-(.*?)_valuation.*\\.tar\\.xz")
 METRICS_GROUP <- METRICS_GROUP[, 2]

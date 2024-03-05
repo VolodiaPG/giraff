@@ -81,7 +81,7 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
 [private]
 clean:
     {{RUN}} integration.py clean || true
-    rm -rf enos_* current cachedir __enos*   
+    rm -rf enos_* current cachedir __enos*
 
 # Refresh the container images hosted by k3s on all deployed nodes
 _deploy fog_node_image market_image:
@@ -89,7 +89,7 @@ _deploy fog_node_image market_image:
     set -e
     {{RUN}} integration.py network
     {{RUN}} integration.py iot-emulation
-    {{RUN}} integration.py k3s-setup 
+    {{RUN}} integration.py k3s-setup
     {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}}
 
 [private]
@@ -104,7 +104,7 @@ scenario archive_name +city_name_node_targets:
     _localstatus=0
 
     NODE_TARGETS=()
-    
+
     sleep 60
 
     MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
@@ -113,7 +113,7 @@ scenario archive_name +city_name_node_targets:
         timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"
         NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
-   
+
     if (( _localstatus > 0 )); then
         printf "Failed to get info on fog nodes (%s)" "$_localstatus"
         exit $_status
@@ -130,7 +130,7 @@ scenario archive_name +city_name_node_targets:
     _localstatus=0
 
     sleep 60
-    
+
     just expe $IOT_IP $MARKET_IP "$joined"
     if (( _localstatus > 0 )); then
         printf "Experiments failed (%s)" "$_localstatus"
@@ -138,7 +138,7 @@ scenario archive_name +city_name_node_targets:
 
     if (( _localstatus == 0 )); then
         sleep $WAIT_TIME
-        
+
         export COLLECT_ARCHIVE_NAME="{{archive_name}}"
         {{RUN}} integration.py collect
 
@@ -150,9 +150,9 @@ scenario archive_name +city_name_node_targets:
 
     sleep 60
 
-    if [ "$DEV" = "true" ]; then 
+    if [ "$DEV" = "true" ]; then
         printf "DEV activated ; waiting indefinitely\n"
-        sleep 9999999999; 
+        sleep 9999999999;
     fi
 
     exit $_status
@@ -167,9 +167,9 @@ scenarii +city_name_node_targets:
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         else
-            # just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
-            # || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
-            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
+            || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            #just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2\" {{city_name_node_targets}}'"
     }
@@ -242,7 +242,7 @@ docker_enos name expe_dir cmd="bash":
             --cgroup-manager=cgroupfs \
             enos_deployment:latest bash -c -E "{{cmd}}"
         fi
-        
+
 
 [private]
 docker_scenarii name expe_dir +city_name_node_targets:
@@ -274,7 +274,7 @@ single_campaign name dotenvfile:
     done
 
     echo "qsdklhjfjqhsjok: $LOAD_NETWORK_FILE"
- 
+
     mkdir -p logs_campaign
     just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
 
@@ -307,7 +307,7 @@ docker_campaign user variation="valuation_rates" experiments_dotfile=".experimen
 _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
     #!/usr/bin/env bash
     set -ex
-    
+
     function expe_command() {
         set -e
         export ii=$1
@@ -339,8 +339,8 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     source {{experiments_dotfile}}
     set +o allexport
 
-    if [ "$DEV" = "true" ]; then 
-        if [ "$DEV_NETWORK" = "true" ]; then 
+    if [ "$DEV" = "true" ]; then
+        if [ "$DEV_NETWORK" = "true" ]; then
             export LOAD_NETWORK_FILE=$(mktemp)
         else
             export SAVE_NETWORK_FILE=$(mktemp)
@@ -350,7 +350,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
             export MIN_NB_VMS=$1
             set -- $MAX_NUMBER_NODES
             export MAX_NB_NODES=$1
-            
+
             {{RUN}} definitions.py
             export LOAD_NETWORK_FILE=$SAVE_NETWORK_FILE
 
@@ -362,7 +362,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
     mkdir -p $JOB_DIR
     if [ $TYPE == "first_run" ]; then
-        rm -rf $JOB_DIR/* 
+        rm -rf $JOB_DIR/*
         parallel --will-cite \
             SAVE_NETWORK_FILE=$JOB_DIR/{1}-{4}.net \
             SIZE_MULTIPLIER={1} \
@@ -396,7 +396,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     set -m
     export -f expe_command
     export -f encapsulated_expe_command
-    
+
     set +e
     if [ ! -f $JOB_LOG ] && [ "$TYPE" != "first_run" ]; then
         >&2 echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
@@ -420,14 +420,14 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
         if [ $TYPE == "resume" ]; then
             parallel --will-cite --resume $cmd
         else
-            rm $JOB_LOG || .
+            rm $JOB_LOG || true
             parallel --will-cite $cmd
         fi
     fi
 
     echo "Here is the JOB_LOG:"
     cat $JOB_LOG
-   
+
 dev:
     nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
 
@@ -495,8 +495,8 @@ _sim $LOAD_NETWORK_FILE:
         JOB_ID=$JOB_INDEX-{#} \
         {{RUN}} simulator.py \
         ::: $methods \
-        ::: $pricing 
-    
+        ::: $pricing
+
     rm $EXPE_SAVE_FILE >&2
 
 simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
@@ -506,7 +506,7 @@ simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
     export cities=()
     inputs=$(SAVE_NETWORK_FILE=./network {{RUN}} integration.py iot-connections)
     for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
-    export EXPE_SAVE_FILE=./requests 
+    export EXPE_SAVE_FILE=./requests
     export TARGET_NODE_NAMES="${cities[@]}"
     export RANDOM_SEED=42
     export LOAD_NETWORK_FILE=./network
@@ -522,7 +522,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     city=$({{RUN}} master.py get-city)
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
     ([ "{{skip_vms}}" = "true" ] || rsync -cazp --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
-    
+
     ([ "{{skip_vms}}" = "true" ] || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
 
     ssh $city.grid5000.fr mkdir -p enosvm
@@ -533,7 +533,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
         ::: *.py .env {{experiments_dotfile}} justfile pipelines/
 
     wait
-    
+
 
 master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
     #!/usr/bin/env bash
@@ -546,22 +546,22 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
     username=$({{RUN}} master.py get-username)
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
-    
+
     declare -a statuses
 
     just upload {{experiments_dotfile}} {{skip_vms}}& pid1=$!
     just build_required_images {{user}}& pid2=$!
-    
+
     wait $pid1
     statuses[0]=$?
-    
+
     wait $pid2
     statuses[1]=$?
 
     for status in "${statuses[@]}"; do
       if [ $status -ne 0 ]; then
         echo "A command I waited for failed"
-        exit $status  
+        exit $status
       fi
     done
 
@@ -584,10 +584,10 @@ master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="fa
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
     just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
 
-master_run:    
+master_run:
     nix develop .#enosvm -c just _master_run
 
-_master_run:    
+_master_run:
     #!/usr/bin/env bash
     set -e
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
@@ -604,7 +604,7 @@ _master_run:
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2222-:22 \
         -enable-kvm \
         -nographic&
-    
+
     wait
 
 master_ssh_in:

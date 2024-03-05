@@ -1,0 +1,29 @@
+{
+    "name": "audioSentiment",
+    "content": "audio",
+    "nbVarName": "NB_AUDIO_FUNCTIONS",
+    "pipeline": {
+        "audioToText": {
+            "nextFunction": "sentimentAnalysis",
+            "image": "giraff:fn_speech_recognition",
+            "mem": 1024,
+            "cpu": 500,
+            "input_max_size": "999 kB",
+            "latency": "HIGHER_LATENCY"
+        },
+        "sentimentAnalysis": {
+            "nextFunction": "echo",
+            "image": "giraff:fn_sentiment_analysis",
+            "mem": 256,
+            "cpu": 200,
+            "latency": "NO_LATENCY",
+            "input_max_size": "3kB"
+        },
+        "echo": {
+            "image": "giraff:fn_echo",
+            "mem": 100,
+            "cpu": 100,
+            "latency": "NO_LATENCY"
+        }
+    }
+}

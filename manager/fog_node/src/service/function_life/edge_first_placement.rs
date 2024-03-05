@@ -28,22 +28,26 @@ impl FunctionLife {
 
         // Get all latencies
         for neighbor in nodes {
-            let Some(latency) = self
-                .neighbor_monitor
-                .get_latency_to(&neighbor)
-                .await
-                else {
-                    warn!("Cannot get Latency of {}", neighbor);
-                    continue;
-                };
+            let Some(latency) =
+                self.neighbor_monitor.get_latency_to(&neighbor).await
+            else {
+                warn!("Cannot get Latency of {}", neighbor);
+                continue;
+            };
 
             let latency = accumulated_latency.accumulate(latency);
 
-            if latency.median > sla.latency_max {
+            let would_be_lat =
+                self.compute_latency(&latency, sla.input_max_size);
+            let worse_lat =
+                would_be_lat.median + would_be_lat.median_uncertainty;
+
+            if worse_lat > sla.latency_max {
                 trace!(
-                    "Skipping neighbor {} because latency is too high ({}).",
+                    "Skipping neighbor {} because latency is too high \
+                     ({})(taking into account sla input size)",
                     neighbor,
-                    latency.median.into_format_args(
+                    worse_lat.into_format_args(
                         uom::si::time::millisecond,
                         Abbreviation
                     )
@@ -62,19 +66,19 @@ impl FunctionLife {
 
         for (neighbor, accumulated_latency) in latencies {
             let Ok(bid) = self
-                    .node_query
-                    .request_neighbor_bid(
-                        &BidRequest {
-                            sla,
-                            node_origin: self.node_situation.get_my_id(),
-                            accumulated_latency: accumulated_latency
-                                .to_owned(),
-                        },
-                        neighbor.clone(),
-                    )
-                    .await else {
-                        continue
-                    };
+                .node_query
+                .request_neighbor_bid(
+                    &BidRequest {
+                        sla,
+                        node_origin: self.node_situation.get_my_id(),
+                        accumulated_latency: accumulated_latency.to_owned(),
+                    },
+                    neighbor.clone(),
+                )
+                .await
+            else {
+                continue;
+            };
             if !bid.bids.is_empty() {
                 return Ok(bid);
             }
@@ -84,9 +88,8 @@ impl FunctionLife {
         Ok(BidProposals { bids: vec![] })
     }
 
-    /// Here the operation will be sequential, first looking to place on a
-    /// bottom node, or a child at least, and only then to consider
-    /// itself as a candidate
+    /// Here the operation will be sequential, first looking to place a bid on
+    /// itself. If that fails it then probes the others sequentally
     pub async fn bid_on_new_function_and_transmit(
         &self,
         sla: &Sla,

@@ -120,7 +120,7 @@ if __name__ == "__main__":
 TARGET_NODES = os.getenv("TARGET_NODES", "").split()
 TARGET_NODE_NAMES = os.getenv(
     "TARGET_NODE_NAMES", ""
-).split()  # Shoud be in the same order than TARGET_NODES
+).split()  # Should be in the same order than TARGET_NODES
 if len(TARGET_NODES) != 0:
     assert len(TARGET_NODES) == len(TARGET_NODE_NAMES)
 
@@ -147,7 +147,7 @@ print(f"OVERRIDE_FIRST_NODE_IP={OVERRIDE_FIRST_NODE_IP}")
 
 FUNCTION_DESCRIPTIONS = os.getenv(
     "FUNCTION_DESCRIPTIONS", ""
-).split()  # Shoud be in the same order than TARGET_NODES
+).split()  # Should be in the same order than TARGET_NODES
 assert len(FUNCTION_DESCRIPTIONS) != 0
 
 
@@ -454,8 +454,6 @@ async def save_file(filename: str):
                         break
                     fn_name = fn.nextFunction
                 functions.append(fn_chain)
-
-    print(functions)
 
     with open(filename, "wb") as outp:  # Overwrites any existing file.
         dill.dump(functions, outp, dill.HIGHEST_PROTOCOL)

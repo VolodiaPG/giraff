@@ -26,22 +26,20 @@ impl FunctionLife {
             return Ok(None);
         };
 
-        let single_packet_lat = latency.median
-            + accumulated_latency.median
-            + accumulated_latency.median_uncertainty;
-        let mut would_be_lat = single_packet_lat * sla.input_max_size
-            / uom::si::f64::Information::new::<uom::si::information::byte>(
-                1500.0,
-            );
-        if single_packet_lat > would_be_lat {
-            would_be_lat = single_packet_lat;
-        }
+        let accumulated_latency_to_next_node =
+            accumulated_latency.accumulate(latency);
 
-        if would_be_lat > sla.latency_max {
-            let latency_outbound = latency.median;
+        let would_be_lat = self.compute_latency(
+            &accumulated_latency_to_next_node,
+            sla.input_max_size,
+        );
+        let worse_lat = would_be_lat.median + would_be_lat.median_uncertainty;
+
+        if worse_lat > sla.latency_max {
+            let latency_outbound = accumulated_latency_to_next_node.median;
             debug!(
                 "Skipping neighbor {} because latency is too high ({}, a \
-                 total of {}).",
+                 total of {}), taking the sla input size into account.",
                 neighbor,
                 latency_outbound.into_format_args(
                     uom::si::time::millisecond,
@@ -58,7 +56,7 @@ impl FunctionLife {
         let request = BidRequest {
             sla,
             node_origin: self.node_situation.get_my_id(),
-            accumulated_latency: accumulated_latency.accumulate(latency),
+            accumulated_latency: accumulated_latency_to_next_node,
         };
 
         let bid = self
