@@ -48,18 +48,13 @@ tunnels +FLAGS='':
 endpoints:
 	{{RUN}} integration.py endpoints
 
-_is_connected city_name_node_target market_port:
+_is_connected city_name_node_target $market_ip market_port:
     #!/usr/bin/env bash
-    market_ip=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
     if [[ $(curl -s "$market_ip:{{market_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
         echo "✅ {{city_name_node_target}}@$market_ip is connected"
     else
         echo "❌ {{city_name_node_target}}@$market_ip"
     fi
-
-[private]
-is_connected city_name_node_target market_local_port:
-    watch --no-title --color --no-wrap just _is_connected {{city_name_node_target}} {{market_local_port}}
 
 [private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
@@ -112,7 +107,7 @@ scenario archive_name +city_name_node_targets:
     pids=()
     for city in {{city_name_node_targets}}; do
         echo "Checking connection to $city"
-        timeout 360 bash -c "until [[ '$(just _is_connected $city $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"&
+        timeout 600 bash -c "until [[ '$(just _is_connected $city $MARKET_IP $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"&
         pids+=($!)
     done
 
@@ -126,7 +121,7 @@ scenario archive_name +city_name_node_targets:
         error_occured=1
       fi
     done
-    if [ $error_occurred -ne 0 ]; then
+    if [ $error_occured -ne 0 ]; then
       echo "At least one connected failed to be checked failed. Exiting..."
       exit 1
     fi
