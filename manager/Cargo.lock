@@ -1715,6 +1715,7 @@ dependencies = [
  "opentelemetry 0.21.0",
  "opentelemetry-jaeger",
  "opentelemetry_sdk",
+ "rand",
  "reqwest",
  "reqwest-middleware 0.2.4 (git+https://github.com/jtescher/reqwest-middleware?rev=2538936)",
  "reqwest-tracing",

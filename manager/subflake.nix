@@ -15,60 +15,84 @@
           in
             extra.buildRustEnv {inherit pkgs src symlinks;};
 
-          dockerImageFogNodeGenerator = {
-            tag,
+          dockerImageGenerator = {
             features, # crate_name/feature
+            name,
+            execName,
+            config,
           }: let
-            fog_node = rust.buildRustPackage "fog_node" features;
+            exec = rust.buildRustPackage execName features;
           in
             pkgs.dockerTools.streamLayeredImage {
-              inherit tag;
-              name = "fog_node";
-              config = {
-                Env = ["FUNCTION_LIVE_TIMEOUT_MSECS=60000"];
-                Cmd = ["${fog_node}/bin/fog_node"];
-              };
+              inherit name;
+              config =
+                config
+                // {
+                  Cmd = ["${nixpkgs.lib.getBin exec}/bin/${execName}"];
+                };
             };
-
-          dockerImageMarket = pkgs.dockerTools.streamLayeredImage {
-            name = "market";
-            tag = "latest";
-            config = {
-              Env = ["SERVER_PORT=3003"];
-              Cmd = ["${rust.buildRustPackage "market" []}/bin/market"];
-            };
-          };
         in rec {
           packages =
-            {
-              market = dockerImageMarket;
-            }
-            // builtins.listToAttrs
-            (
-              builtins.map
+            (builtins.listToAttrs
               (
-                settings: let
-                  tag = "${settings.strategy}_${settings.valuation}_${settings.telemetry}";
-                in {
-                  name = "fog_node_${tag}";
-                  value = dockerImageFogNodeGenerator {
-                    inherit tag;
-                    features =
-                      ["fog_node/${settings.strategy}"]
-                      ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "fog_node/${settings.valuation}"
-                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "fog_node/${settings.telemetry}"
-                      ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "openfaas/${settings.telemetry}";
-                  };
-                }
-              )
+                builtins.map
+                (
+                  settings: let
+                    name = "market_${settings.strategy}_${settings.telemetry}";
+                  in {
+                    inherit name;
+                    value = dockerImageGenerator {
+                      inherit name;
+                      execName = "market";
+                      config = {
+                        Env = ["SERVER_PORT=3003"];
+                      };
+                      features =
+                        nixpkgs.lib.optional (settings.strategy != "default-strategy") "market/${settings.strategy}"
+                        ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "market/${settings.telemetry}";
+                    };
+                  }
+                ) (
+                  nixpkgs.lib.attrsets.cartesianProductOfSets
+                  {
+                    # Do not forget to run cargo2nix at each new features added
+                    strategy = ["default-strategy" "powerrandom"];
+                    telemetry = ["no-telemetry" "jaeger"];
+                  }
+                )
+              ))
+            // (
+              builtins.listToAttrs
               (
-                nixpkgs.lib.attrsets.cartesianProductOfSets
-                {
-                  # Do not forget to run cargo2nix at each new features added
-                  strategy = ["auction" "edge_first" "edge_first_v2" "edge_ward" "edge_ward_v2" "edge_ward_v3" "cloud_only" "cloud_only_v2"];
-                  valuation = ["valuation_resources" "valuation_rates"];
-                  telemetry = ["no-telemetry" "jaeger"];
-                }
+                builtins.map
+                (
+                  settings: let
+                    name = "fog_node_${settings.strategy}_${settings.valuation}_${settings.telemetry}";
+                  in {
+                    inherit name;
+                    value = dockerImageGenerator {
+                      inherit name;
+                      execName = "fog_node";
+                      config = {
+                        Env = ["FUNCTION_LIVE_TIMEOUT_MSECS=120000"];
+                      };
+                      features =
+                        ["fog_node/${settings.strategy}"]
+                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "fog_node/${settings.valuation}"
+                        ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "fog_node/${settings.telemetry}"
+                        ++ nixpkgs.lib.optional (settings.telemetry != "no-telemetry") "openfaas/${settings.telemetry}";
+                    };
+                  }
+                )
+                (
+                  nixpkgs.lib.attrsets.cartesianProductOfSets
+                  {
+                    # Do not forget to run cargo2nix at each new features added
+                    strategy = ["auction" "edge_first" "edge_first_v2" "edge_ward" "edge_ward_v2" "edge_ward_v3" "cloud_only" "cloud_only_v2" "powerrandom"];
+                    valuation = ["valuation_resources" "valuation_rates"];
+                    telemetry = ["no-telemetry" "jaeger"];
+                  }
+                )
               )
             );
           devShells.manager = rust.craneLib.devShell {

@@ -1,5 +1,6 @@
 use crate::NodeSituation;
 use anyhow::{bail, Context, Result};
+use backoff::ExponentialBackoffBuilder;
 use model::dto::node::NodeDescription;
 use model::view::auction::{BidProposals, BidRequest};
 use model::view::node::RegisterNode;
@@ -67,9 +68,14 @@ impl NodeQuery {
         };
 
         trace!("Registering to {}", url);
-        self.post(url.as_str(), &register)
-            .await
-            .with_context(|| format!("Failed to register to {}", url))?;
+        let backoff = ExponentialBackoffBuilder::default().build();
+        backoff::future::retry(backoff, || async {
+            self.post(url.as_str(), &register)
+                .await
+                .with_context(|| format!("Failed to register to {}", url))?;
+            Ok(())
+        })
+        .await?;
 
         Ok(())
     }

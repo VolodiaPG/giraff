@@ -44,6 +44,9 @@ edge_ward = []
 # + Refuse functions if latency is expected not to be respected
 # + Tries to allocate the furthest first
 edge_ward_v3 = []
+# Gather all possible hosts, finding the ones that accept the sla,
+# finding the 2 least cpu-utilized and choosing at random in between those 2
+powerrandom = []
 
 [dependencies]
 actix-web = "4.4.0"

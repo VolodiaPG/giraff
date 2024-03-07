@@ -48,7 +48,7 @@
     };
     # Provides linux on temporary filesystems (wiped at reboot)
     impermanence.url = "github:nix-community/impermanence";
-    # Kubernetes config file definitions striclty defined
+    # Kubernetes config file definitions strictly defined
     kubenix = {
       url = "github:hall/kubenix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -106,10 +106,10 @@
         in ''
           SOURCE_DATE_EPOCH=$(date +%s)
           if [ -d "${venvDir}" ] && [ "${interpreter}" == $(cat "${venvDir}/interpreter.hash") ]; then
-            echo "Skipping venv creation, '${venvDir}' already exists"
+            >&2 echo "Skipping venv creation, '${venvDir}' already exists"
           else
             rm -rf ${venvDir} || true
-            echo "Creating new venv environment in path: '${venvDir}'"
+            >&2 echo "Creating new venv environment in path: '${venvDir}'"
             ${interpreter} -m venv "${venvDir}"
             echo ${interpreter} > "${venvDir}"/interpreter.hash
           fi

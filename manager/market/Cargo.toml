@@ -17,6 +17,8 @@ jaeger = [
     "tracing-opentelemetry",
     "tracing-actix-web",
 ]
+# See the cargo.toml of the fog node for more explanations
+powerrandom = []
 
 [dependencies]
 actix-web = "4.4.0"
@@ -43,6 +45,7 @@ opentelemetry-jaeger = { version = "0.20.0", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
+rand = "0.8.5"
 reqwest = { version = "0.11.22", features = ["json", "gzip"] }
 reqwest-middleware = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-middleware" }
 # reqwest-tracing = { version = "0.4.6", features = [

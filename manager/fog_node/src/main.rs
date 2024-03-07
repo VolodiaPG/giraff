@@ -320,13 +320,6 @@ async fn main() -> anyhow::Result<()> {
         function.clone(),
         auction_service.clone(),
         node_situation.clone(),
-        #[cfg(any(
-            feature = "auction",
-            feature = "edge_first",
-            feature = "edge_first_v2",
-            feature = "edge_ward_v2",
-            feature = "edge_ward_v3",
-        ))]
         neighbor_monitor_service.clone(),
         node_query.clone(),
         function_tracking_repo.clone(),

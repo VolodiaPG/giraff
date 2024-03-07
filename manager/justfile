@@ -15,8 +15,8 @@ build *FLAGS:
     cargo build {{FLAGS}}
 
 pre_commit:
-    @nix develop .#manager -c just check 
-    @nix develop .#manager -c just check "clippy" 
+    @nix develop .#manager -c just check
+    @nix develop .#manager -c just check "clippy"
     nix develop .#manager -c cargo fmt
 
 # Run cargo check
@@ -31,10 +31,11 @@ check subcommand="check":
     just _{{subcommand}} --features edge_ward
     # just _{{subcommand}} --features edge_ward_v2
     just _{{subcommand}} --features edge_ward_v3
-    
+    just _{{subcommand}} --features powerrandom
+
     just _{{subcommand}} --features jaeger,auction
 
-# Check outdated or unused deps (req. cargo-outdated + updeps crate)
+# Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:
 	cargo outdated -R
 	cargo udeps --all-targets
@@ -57,7 +58,7 @@ run_market *FLAGS:
     cargo run --bin market {{FLAGS}}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type MY_IP_ADDRESS debug="false":
+run_fog_node node_type MY_IP_ADDRESS:
     #!.venv/bin/python
     import os
     import base64
@@ -124,10 +125,10 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     )'''
 
     if node_type not in nodes:
-        print(f"Wrong node name, select one of the followings: {','.join(nodes.keys())}")
+        print(f"Wrong node name, select one of the following: {','.join(nodes.keys())}")
         exit(1)
     config = nodes[node_type]
-    
+
     env_vars = {}
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     env_vars['OPENFAAS_USERNAME'] = "admin"
@@ -136,61 +137,59 @@ run_fog_node node_type MY_IP_ADDRESS debug="false":
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
-    env_vars['COLLECTOR_IP'] = "10.42.0.1"
-    env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317" 
+    env_vars['COLLECTOR_IP'] = "127.0.0.1"
+    env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317"
 
     env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
     env_vars['INFLUX_ORG']="faasfog"
-    env_vars['INFLUX_BUCKET']="faasfog" 
-    env_vars['INSTANCE_NAME']="{{node_type}}" 
+    env_vars['INFLUX_BUCKET']="faasfog"
+    env_vars['INSTANCE_NAME']="{{node_type}}"
 
-    env_vars['FUNCTION_LIVE_TIMEOUT_MSECS']="120000" 
-    env_vars['PRICING_CPU']="1.0" 
-    env_vars['PRICING_MEM']="1.0" 
-    env_vars['PRICING_CPU_INITIAL']="1.0" 
-    env_vars['PRICING_MEM_INITIAL']="1.0" 
+    env_vars['FUNCTION_LIVE_TIMEOUT_MSECS']="120000"
+    env_vars['PRICING_CPU']="1.0"
+    env_vars['PRICING_MEM']="1.0"
+    env_vars['PRICING_CPU_INITIAL']="1.0"
+    env_vars['PRICING_MEM_INITIAL']="1.0"
     env_vars['PRICING_GEOLOCATION']="1.0"
 
     if "{{node_type}}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"
 
-    if "{{debug}}" != "false":
-        env_str = "&".join([f'{key}="{value}"' for key, value in env_vars.items()])
-        cmd = f'code --open-url "vscode://vadimcn.vscode-lldb/launch/command?{env_str}&./target/debug/fog_node"'
-    else:
-        env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
-        cmd = f'{env_str} ./target/debug/fog_node'
+    env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
+    cmd = f'{env_str} ./target/debug/fog_node'
 
     print(cmd)
     os.system(cmd)
 
-run MY_IP_ADDRESS debug="false" *FLAGS="--features auction": (build FLAGS)
-    {{ if debug == "false" { "mprocs" } else { "sh -c" } }} "just run_fog_node market {{MY_IP_ADDRESS}} {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_2 {{MY_IP_ADDRESS}} {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_3 {{MY_IP_ADDRESS}} {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_fog_node node_1 {{MY_IP_ADDRESS}} {{debug}}" \
-    {{ if debug == "false" { "" } else { "&& sh -c" } }} "just run_market {{FLAGS}}"
+run MY_IP_ADDRESS *FLAGS="--features auction": (build FLAGS)
+    mprocs "just run_fog_node market {{MY_IP_ADDRESS}}" \
+      "just run_fog_node node_2 {{MY_IP_ADDRESS}}" \
+      "just run_fog_node node_3 {{MY_IP_ADDRESS}}" \
+      "just run_fog_node node_1 {{MY_IP_ADDRESS}}" \
+      "just run_market {{FLAGS}}"
 
 expe localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
     cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
     cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
 
-# Push container images o ghcr.
-ghcr user +images:  
+_ghcr user image:
     #!/usr/bin/env bash
-    set -ex
-    function run_docker() {
-        re="fog_node_(.*)"
-        name=$1
-        if [[ $1 =~ $re  ]]; then
-            name="${BASH_REMATCH[1]}"
-        fi
-        $(nix build ".#$1" --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$name
-    }
+    output=`$(nix build ".#{{image}}" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:{{image}} 2>&1`
+    retVal=$?
+    if [ $retVal -ne 0 ]; then
+      echo -e "[{{file_name(justfile_directory())}}] {{image}} \033[31mFAILED\033[0m"
+      echo -e $output
+      exit $retVal
+    fi
+    echo -e "[{{file_name(justfile_directory())}}] {{image}} \033[32mOK\033[0m"
 
-    export -f run_docker
-    parallel --lb --will-cite run_docker ::: {{images}} "market"
+
+# Push container images o ghcr.
+ghcr user +images:
+    #!/usr/bin/env bash
+    set -e
+    parallel --halt-on-error 2 --will-cite just _ghcr {{user}} {1} ::: {{images}}
 
 collect:
     cd ../testbed && nix develop .#testbed -c sh -c 'export SAVE_NETWORK_FILE=/dev/null EXPE_LOAD_FILE=./requests INFLUX_ADDRESS=127.0.0.1:9086; just collect'

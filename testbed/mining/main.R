@@ -1105,14 +1105,15 @@ output_latency_distribution_plot <- function(provisioned_sla) {
 
 output_request_distribution <- function(respected_sla) {
   df <- respected_sla
-    p <- ggplot(data = df, aes(x = prev_function, y = total, color = docker_fn_name, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = total, y = acceptable, color = docker_fn_name, alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         labs(
             x = "function",
             y = "number of requests"
         ) +
-        geom_violin()
+        geom_point() +
+        geom_line() 
 
     fig(10, 10)
 
@@ -1125,7 +1126,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
         mutate(ran_for = as.numeric(ran_for)) %>%
         mutate(some_not_acceptable = acceptable + all_erors != total)
 
-    p <- ggplot(data = df, aes(x = docker_fn_name, y = ran_for, color = some_not_acceptable, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = interaction(prev_function, docker_fn_name), y = ran_for, color = some_not_acceptable, alpha = 1)) +
         #  facet_grid(~var_facet) +
         theme(legend.background = element_rect(
             fill = alpha("white", .7),
@@ -1142,7 +1143,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_beeswarm()
+        geom_boxplot()
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {

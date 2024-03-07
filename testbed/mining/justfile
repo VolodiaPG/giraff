@@ -6,7 +6,7 @@ run:
 # Serves the content of the directory so graphs can be opened in a browser
 serve port="9000":
     mkdir -p out/
-    cd out; live-server --port={{port}}
+    cd out; live-server --port={{port}} --watch=*.htm,*.png
 
 watch:
     ls *.R | entr -nr just

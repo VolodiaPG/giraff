@@ -8,7 +8,7 @@ use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::{FunctionRecord, Proposed};
 use model::view::auction::AccumulatedLatency;
-use model::{BidId, SlaId};
+use model::BidId;
 use nutype::nutype;
 use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
@@ -140,8 +140,7 @@ impl Auction {
 
     //     Ok(Some((name, price)))
     // }
-
-    // #[cfg(feature = "valuation_rates")]
+    #[cfg(not(feature = "powerrandom"))]
     async fn compute_bid(
         &self,
         sla: &Sla,
@@ -184,6 +183,35 @@ impl Auction {
         //         / 2.0;
 
         trace!("price on {:?} is {:?}", name, price);
+
+        Ok(Some((name, price)))
+    }
+
+    #[cfg(feature = "powerrandom")]
+    async fn compute_bid(
+        &self,
+        sla: &Sla,
+        _accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<(String, f64)>> {
+        use helper::env_load;
+
+        // let pricing_cpu =
+        //     env_load!(PricingRatio, PRICING_CPU, f64).into_inner();
+        let pricing_cpu_initial =
+            env_load!(PricingRatio, PRICING_CPU_INITIAL, f64).into_inner();
+        let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
+            self.get_a_node(sla)
+                .await
+                .context("Failed to found a suitable node for the sla")?
+        else {
+            return Ok(None);
+        };
+
+        // The more the cpu is used the lower the price and the easiest to win
+        let cpu_ratio_sla: f64 = (used_cpu / available_cpu).into();
+        let price: f64 = cpu_ratio_sla * pricing_cpu_initial;
+
+        trace!("(powerrandom) price on {:?} is {:?}", name, price);
 
         Ok(Some((name, price)))
     }

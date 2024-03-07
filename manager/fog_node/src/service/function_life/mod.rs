@@ -2,20 +2,13 @@ use crate::repository::cron::Cron;
 use crate::repository::faas::FunctionTimeout;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
-#[cfg(any(
-    feature = "auction",
-    feature = "edge_first",
-    feature = "edge_first_v2",
-    feature = "edge_ward_v2",
-    feature = "edge_ward_v3",
-))]
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation, FUNCTION_LIVE_TIMEOUT_MSECS};
 use anyhow::{anyhow, Context, Result};
 use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
 use backoff::SystemClock;
 use helper::env_load;
-use model::view::auction::{AccumulatedLatency, Latency};
+use model::view::auction::AccumulatedLatency;
 use model::SlaId;
 use std::sync::Arc;
 use uom::si::f64::Information;
@@ -25,13 +18,6 @@ pub struct FunctionLife {
     function:              Arc<Function>,
     auction:               Arc<Auction>,
     node_situation:        Arc<NodeSituation>,
-    #[cfg(any(
-        feature = "auction",
-        feature = "edge_first",
-        feature = "edge_first_v2",
-        feature = "edge_ward_v2",
-        feature = "edge_ward_v3",
-    ))]
     neighbor_monitor:      Arc<NeighborMonitor>,
     node_query:            Arc<NodeQuery>,
     function_tracking:     Arc<FunctionTracking>,
@@ -43,6 +29,11 @@ pub struct FunctionLife {
 mod auction_placement;
 #[cfg(feature = "auction")]
 pub use auction_placement::*;
+
+#[cfg(feature = "powerrandom")]
+mod powerrandom;
+#[cfg(feature = "powerrandom")]
+pub use powerrandom::*;
 
 // #[cfg(feature = "cloud_only")]
 // mod cloud_only_placement;
@@ -88,13 +79,6 @@ impl FunctionLife {
         function: Arc<Function>,
         auction: Arc<Auction>,
         node_situation: Arc<NodeSituation>,
-        #[cfg(any(
-            feature = "auction",
-            feature = "edge_first",
-            feature = "edge_first_v2",
-            feature = "edge_ward_v2",
-            feature = "edge_ward_v3",
-        ))]
         neighbor_monitor: Arc<NeighborMonitor>,
         node_query: Arc<NodeQuery>,
         function_tracking: Arc<FunctionTracking>,
@@ -132,6 +116,10 @@ impl FunctionLife {
         {
             info!("Using auction placement");
         }
+        #[cfg(feature = "powerrandom")]
+        {
+            info!("Using auction placement");
+        }
 
         let function_live_timeout =
             env_load!(FunctionTimeout, FUNCTION_LIVE_TIMEOUT_MSECS, u64);
@@ -143,13 +131,6 @@ impl FunctionLife {
             function,
             auction,
             node_situation,
-            #[cfg(any(
-                feature = "auction",
-                feature = "edge_first",
-                feature = "edge_first_v2",
-                feature = "edge_ward_v2",
-                feature = "edge_ward_v3",
-            ))]
             neighbor_monitor,
             node_query,
             function_tracking,

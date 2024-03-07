@@ -37,7 +37,7 @@ upload city="rennes":
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2223-:22 \
         -enable-kvm \
         -nographic > /dev/null&
-    
+
     until $SSH_CMD 2223 "k3s kubectl get pods -A" 2> /dev/null
     do
         sleep 10
@@ -55,7 +55,7 @@ upload city="rennes":
 
     $SSH_CMD 2223 "nohup bash -c 'sleep 10 && shutdown 0'"
 
-    wait 
+    wait
 
     rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$temp" {{city}}.grid5000.fr:~/nixos.qcow2
 
@@ -75,7 +75,7 @@ _run_vm disk="result/nixos.qcow2":
         -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
         -enable-kvm \
         -nographic&
-    
+
     wait
 
 _openfaas_in_vm:
@@ -96,14 +96,14 @@ _openfaas_in_vm:
     rm vm.kubeconfig || true
 
     until $SSH_CMD 2221 "k3s kubectl get pods -A" 2> /dev/null; do sleep 2; done
-    
+
     (until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done \
     &&  until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done)&
-    
+
     ($SSH_CMD 2221 "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2)&
 
     (while ! $SSH_CMD 2221 "sh -c 'systemctl is-active --quiet influxdb2'"; do sleep 2; done)&
-    
+
     ($SSH_CMD 2221 "docker run -d --rm --name jaeger -e COLLECTOR_OTLP_ENABLED=true -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:1.51.0" \
     && sleep 2)&
 
@@ -133,7 +133,4 @@ vm: build-vm
 
 vm-nocopy:
     mprocs "just _run_vm ./nixos.qcow2" "just _openfaas_in_vm"
-    
-    
-    
-    
+

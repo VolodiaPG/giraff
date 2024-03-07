@@ -50,11 +50,39 @@ endpoints:
 
 _is_connected city_name_node_target $market_ip market_port:
     #!/usr/bin/env bash
-    if [[ $(curl -s "$market_ip:{{market_port}}/api/fog" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p') ]]; then
-        echo "✅ {{city_name_node_target}}@$market_ip is connected"
-    else
-        echo "❌ {{city_name_node_target}}@$market_ip"
+    set -o pipefail
+    raw_output=`curl -s "$market_ip:{{market_port}}/api/fog"`
+    output=`echo "$raw_output" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p'`
+    status=$?
+    if [ $status -ne 0 ]; then
+        echo $raw_output
     fi
+    if [ "$output" == "" ]; then
+      echo $raw_output
+      exit 1
+    fi
+    exit $status
+
+_until_is_connected city_name_node_target market_ip market_port:
+    #!/usr/bin/env bash
+    status=1
+    while [ $status -ne 0 ]; do
+      just _is_connected {{city_name_node_target}} {{market_ip}} {{market_port}}
+      status=$?
+      if [ $status -ne 0 ]; then
+        sleep 3
+      fi
+    done
+
+_until_is_connected_timeout city_name_node_target market_ip market_port timeout:
+    #!/usr/bin/env bash
+    output=`timeout {{timeout}} bash -c "just _until_is_connected {{city_name_node_target}} {{market_ip}} {{market_port}}" 2>&1`
+    status=$?
+    if [ $status -ne 0 ]; then
+      echo "Failed to check connection to {{city_name_node_target}} w/ output: $output"
+    fi
+    exit $status
+
 
 [private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
@@ -100,14 +128,12 @@ scenario archive_name +city_name_node_targets:
 
     NODE_TARGETS=()
 
-    sleep 60
-
     MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
     # Create bg tasks, push their pid in an array and check after waiting for each when one has failed
     pids=()
+    echo "Checking {{city_name_node_targets}}"
     for city in {{city_name_node_targets}}; do
-        echo "Checking connection to $city"
-        timeout 600 bash -c "until [[ '$(just _is_connected $city $MARKET_IP $MARKET_LOCAL_PORT)' =~ '✅' ]]; do sleep 10 && echo -e '.'; done"&
+        just _until_is_connected_timeout $city $MARKET_IP $MARKET_LOCAL_PORT 300&
         pids+=($!)
     done
 
@@ -117,12 +143,11 @@ scenario archive_name +city_name_node_targets:
       wait "$pid"
       exit_status=$?
       if [ $exit_status -ne 0 ]; then
-        echo "A connection failed to be checked"
         error_occured=1
       fi
     done
     if [ $error_occured -ne 0 ]; then
-      echo "At least one connected failed to be checked failed. Exiting..."
+      echo "At least one connection failed to be checked in time. Exiting..."
       exit 1
     fi
 
@@ -145,8 +170,6 @@ scenario archive_name +city_name_node_targets:
         exit $_status
     fi
     _localstatus=0
-
-    sleep 60
 
     just expe $IOT_IP $MARKET_IP "$joined"
     if (( _localstatus > 0 )); then
@@ -180,15 +203,14 @@ scenarii +city_name_node_targets:
     set -e
 
     function run_scenario() {
-        echo "Using image $IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$MARKET_IMAGE"
+        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3"
         if [ $1 -eq 1 ]; then
-            just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME \
-            || just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
-            #just deploy "$IMAGE_REGISTRY/$FOG_NODE_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$MARKET_IMAGE" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME$3" $DEPLOYMENT_NAME \
+            || just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
-        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2\" {{city_name_node_targets}}'"
+        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{city_name_node_targets}}'"
     }
 
     echo "Deploying..."
@@ -199,7 +221,8 @@ scenarii +city_name_node_targets:
     parallel --tty --shuf \
         --joblog ./joblog \
         run_scenario {#} {} \
-        ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]})
+        ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
+        :::+ $(echo ${MARKET_IMAGE_TAGS[@]})
 
     for INDEX in $(seq 1 3); do
         parallel --tty --joblog ./joblog --retry-failed
@@ -299,18 +322,16 @@ build_required_images user:
     set -e
 
     read -ra tags <<<"$FOG_NODE_IMAGE_TAGS"
-
-    for (( i=0; i<${#tags[@]}; i++ )); do
-        tags[$i]="fog_node_${tags[$i]}"
-    done
+    read -ra market_tags <<<"$MARKET_IMAGE_TAGS"
 
     commands=(
-        "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]})"
+        "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]}) $(echo ${market_tags[@]})"
         "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
         "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
     )
 
-    parallel --will-cite --lb ::: "${commands[@]}"
+    parallel --will-cite --halt-on-error 2 {1} 2> /dev/null ::: "${commands[@]}"
+    echo -e "[{{file_name(justfile_directory())}}] all images uploaded \033[1;32mOK\033[0m"
 
 [private]
 docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)
@@ -535,19 +556,27 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     source {{experiments_dotfile}}
     set +o allexport
     city=$({{RUN}} master.py get-city)
-    vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    ([ "{{skip_vms}}" = "true" ] || rsync -cazp --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2)&
+    if [ {{skip_vms}} != "true" ]; then
+      echo "Building VMs"
+      vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
+      (rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
+        && echo -e "[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m")&
 
-    ([ "{{skip_vms}}" = "true" ] || bash -c "cd iso ; nix develop .#iso -c just upload $city")&
+      cd iso
+      (nix develop .#iso -c just upload $city 2> /dev/null \
+        && echo -e "[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m")&
+    else
+      echo "Not building VMs"
+    fi
 
-    ssh $city.grid5000.fr mkdir -p enosvm
+    ssh $city.grid5000.fr mkdir -p enosvm 2> /dev/null
 
-    echo "Copying whitelisted files for mouting inside the master VM"
-
-    parallel --will-cite rsync -cazp --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
-        ::: *.py .env {{experiments_dotfile}} justfile pipelines/
+    parallel --will-cite rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} 2> /dev/null \
+        ::: *.py .env {{experiments_dotfile}} justfile pipelines
+    echo -e "[{{file_name(justfile_directory())}}] config files uploaded \033[32mOK\033[0m"
 
     wait
+    echo -e "[{{file_name(justfile_directory())}}] all files rsynced \033[1;32mOK\033[0m"
 
 
 master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
@@ -585,15 +614,25 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
 
 master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="false":
     #!/usr/bin/env bash
-    set -e
     set -o allexport
     source {{experiments_dotfile}}
     set +o allexport
 
+    pids=()
     just upload {{experiments_dotfile}} "true"&
+    pids+=($!)
     ([ "{{skip_rebuild}}" = "true" ] || just build_required_images {{user}})&
-    wait
+    pids+=($!)
 
+    for pid in "${pids[@]}"; do
+      wait $pid
+      if [ $? -ne 0 ]; then
+        echo "A command errored"
+        exit 1
+      fi
+    done
+
+    set -e
     {{RUN}} master.py run-command-refresh
 
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
