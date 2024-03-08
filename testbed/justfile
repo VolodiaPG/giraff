@@ -559,11 +559,10 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     if [ {{skip_vms}} != "true" ]; then
       echo "Building VMs"
       vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
-      (rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
+      (rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 2> /dev/null \
         && echo -e "[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m")&
 
-      cd iso
-      (nix develop .#iso -c just upload $city 2> /dev/null \
+      (sh -c "cd iso && nix develop .#iso -c just upload $city 2> /dev/null" \
         && echo -e "[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m")&
     else
       echo "Not building VMs"
