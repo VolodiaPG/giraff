@@ -57,7 +57,7 @@ upload city="rennes":
 
     wait
 
-    rsync -chavzP --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$temp" {{city}}.grid5000.fr:~/nixos.qcow2
+    rsync -chavzq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$temp" {{city}}.grid5000.fr:~/nixos.qcow2
 
 _run_vm disk="result/nixos.qcow2":
     #!/usr/bin/env bash
