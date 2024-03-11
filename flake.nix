@@ -1,8 +1,7 @@
 {
   inputs = {
     # Al packages
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
-    nixpkgs_unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # This defines the ansible dependencies for enoslib as it uses an older version
     nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
@@ -63,7 +62,8 @@
       flake = false;
     };
     openfaas = {
-      url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
+      # Since > v0.17.2 does a check at startup on checkip.amazonaws.com to start
+      url = "github:openfaas/faas-netes";
       flake = false;
     };
   };

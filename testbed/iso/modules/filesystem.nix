@@ -25,7 +25,7 @@ in {
     };
     # Bogus mount to import all tools and kernel extensions
     # However useless this mount is,
-    # it still loads all necesary modules for the mounting to manually be invoked inside a script afterwardss
+    # it still loads all necessary modules for the mounting to manually be invoked inside a script afterwardss
     "/mnt" = {
       device = "nfs:/export";
       fsType = "nfs";
@@ -60,7 +60,7 @@ in {
         "/etc/ssh"
       ];
       files = [
-        # Preserve influxdb login informations as created initially in Nix
+        # Preserve influxdb login information as created initially in Nix
         "/etc/influxdb/influxdb.conf"
         "/var/lib/influxdb2/influxd.bolt"
         "/var/lib/influxdb2/influxd.sqlite"
@@ -87,7 +87,7 @@ in {
       mkdir -p "$dir/sshx/$(cat /my_group)"
       export PATH=/run/current-system/sw/bin:$PATH
       export SHELL="fish"
-      ${pkgs.lib.getExe inputs.nixpkgs_unstable.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
+      ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
     '';
     serviceConfig = {
       Type = "oneshot";

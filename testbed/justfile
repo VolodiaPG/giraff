@@ -554,25 +554,33 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     set -e
     set -o allexport
     source {{experiments_dotfile}}
-    set +o allexport
     city=$({{RUN}} master.py get-city)
-    if [ {{skip_vms}} != "true" ]; then
-      echo "Building VMs"
-      vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
-      (rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 2> /dev/null \
-        && echo -e "[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m")&
 
-      (sh -c "cd iso && nix develop .#iso -c just upload $city 2> /dev/null" \
-        && echo -e "[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m")&
-    else
-      echo "Not building VMs"
-    fi
+    push_vms(){
+      if [ {{skip_vms}} != "true" ]; then
+        # Cannot build multiple VMs at the same time, so we do it sequential
+        vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
+        parallel ::: \
+          "(rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
+          && echo -e '[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m')" \
+          "(cd iso; nix develop .#iso -c just upload $city 2> /dev/null \
+          && echo -e '[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m')"
+      else
+        echo -e '[{{file_name(justfile_directory())}}] skipping VMs \033[34mSKIPPING\033[0m'
+      fi
+    }
+
+    push_files(){
+      parallel --will-cite rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} 2> /dev/null \
+          ::: *.py .env {{experiments_dotfile}} justfile pipelines
+      echo -e "[{{file_name(justfile_directory())}}] config files uploaded \033[32mOK\033[0m"
+    }
 
     ssh $city.grid5000.fr mkdir -p enosvm 2> /dev/null
 
-    parallel --will-cite rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} 2> /dev/null \
-        ::: *.py .env {{experiments_dotfile}} justfile pipelines
-    echo -e "[{{file_name(justfile_directory())}}] config files uploaded \033[32mOK\033[0m"
+    parallel ::: \
+      push_vms \
+      push_files
 
     wait
     echo -e "[{{file_name(justfile_directory())}}] all files rsynced \033[1;32mOK\033[0m"
@@ -590,48 +598,23 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
 
-    declare -a statuses
-
-    just upload {{experiments_dotfile}} {{skip_vms}}& pid1=$!
-    just build_required_images {{user}}& pid2=$!
-
-    wait $pid1
-    statuses[0]=$?
-
-    wait $pid2
-    statuses[1]=$?
-
-    for status in "${statuses[@]}"; do
-      if [ $status -ne 0 ]; then
-        echo "A command I waited for failed"
-        exit $status
-      fi
-    done
+    parallel ::: \
+      'just upload {{experiments_dotfile}} {{skip_vms}}' \
+      'just build_required_images {{user}}'
 
     {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
     {{RUN}} master.py run-command
 
 master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="false":
     #!/usr/bin/env bash
+    set -e
     set -o allexport
     source {{experiments_dotfile}}
     set +o allexport
 
-    pids=()
-    just upload {{experiments_dotfile}} "true"&
-    pids+=($!)
-    ([ "{{skip_rebuild}}" = "true" ] || just build_required_images {{user}})&
-    pids+=($!)
-
-    for pid in "${pids[@]}"; do
-      wait $pid
-      if [ $? -ne 0 ]; then
-        echo "A command errored"
-        exit 1
-      fi
-    done
-
-    set -e
+    parallel ::: \
+      'just upload {{experiments_dotfile}} true' \
+      '([ "{{skip_rebuild}}" = "true" ] || just build_required_images {{user}})'
     {{RUN}} master.py run-command-refresh
 
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":

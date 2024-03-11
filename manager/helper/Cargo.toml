@@ -5,33 +5,33 @@ edition = "2021"
 
 
 [dependencies]
-crossbeam-queue = { version = "0.3.8", default-features = false, features = [
+crossbeam-queue = { version = "0.3", default-features = false, features = [
     "std",
 ] }
-actix-web = "4.4.0"
-anyhow = "1.0.58"
-async-stream = "0.3.5"
-async-trait = "0.1.56"
-bytes = "1.4.0"
+actix-web = "4.4"
+anyhow = "1.0"
+async-stream = "0.3"
+async-trait = "0.1"
+bytes = "1.4"
 chrono = "0.4"
 convert_case = "0.6"
-futures = "0.3.28"
-influxdb2 = "0.4.2"
+futures = "0.3"
+influxdb2 = "0.4"
 influxdb2-structmap = "0.2"
 num-traits = "0.2"
-lazy-regex = "3.1.0"
-regex = "1.8.4"
-lazy_static = "1.4.0"
-nutype = { version = "0.4.0-beta.2", features = ["serde", "regex"] }
-reqwest = { version = "0.11.22", features = ["json", "gzip"] }
-reqwest-middleware = "0.2.4"
-ron = "0.8.0"
-serde = { version = "1.0.140", features = ["derive", "rc"] }
-serde_json = { version = "1.0.82", features = ["raw_value"] }
-serde_with = "3.4.0"
-tokio = { version = "1.28.2", default-features = false, features = ["time"] }
-thiserror = "1.0.31"
-uom = { version = "0.34.0", default-features = false, features = [
+lazy-regex = "3.1"
+regex = "1.8"
+lazy_static = "1.4"
+nutype = { version = "0.4", features = ["serde", "regex"] }
+reqwest = { version = "0.11", features = ["json", "gzip"] }
+reqwest-middleware = "0.2"
+ron = "0.8"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+serde_with = "3.4"
+tokio = { version = "1.28", default-features = false, features = ["time"] }
+thiserror = "1.0"
+uom = { version = "0.34", default-features = false, features = [
     "f64",
     "si",
     "autoconvert",

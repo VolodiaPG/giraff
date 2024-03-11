@@ -12,8 +12,8 @@
           };
 
           overlay = self: _super: {
-            myFunction = self.python311.withPackages (ps:
-              (with ps; [
+            myFunction = self.python311.withPackages (
+              ps: (with ps; [
                 waitress
                 flask
                 pillow
@@ -21,10 +21,9 @@
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
                 opentelemetry-sdk
+                opentelemetry-instrumentation-flask
               ])
-              ++ (with outputs.packages.${system}; [
-                otelFlask
-              ]));
+            );
           };
 
           image = pkgs.dockerTools.streamLayeredImage {

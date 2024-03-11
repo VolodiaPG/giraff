@@ -49,15 +49,6 @@
                   src = inputs.enoslib;
                   version = "${builtins.toString inputs.enoslib.revCount}-${inputs.enoslib.shortRev}";
 
-                  # We do the following because nix cannot yet access the extra builds of poetry
-                  patchPhase = ''
-                    substituteInPlace setup.cfg --replace "importlib_resources>=5,<6" ""
-                    substituteInPlace setup.cfg --replace "importlib_metadata>=6,<7" ""
-                    substituteInPlace setup.cfg --replace "rich[jupyter]~=12.0.0" "rich>=12.0.0"
-                    substituteInPlace setup.cfg --replace "packaging~=21.3" "packaging>=21.3"
-                    substituteInPlace setup.cfg --replace "pytz~=2022.1" "pytz>=2022.1"
-                    substituteInPlace setup.cfg --replace "ansible>=2.9,<7.2" "ansible>=2.9"
-                  '';
                   propagatedBuildInputs = [
                     cryptography
                     sshtunnel

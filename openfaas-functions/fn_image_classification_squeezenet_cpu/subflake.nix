@@ -12,8 +12,8 @@
           };
 
           overlay = self: _super: {
-            myFunction = self.python311.withPackages (ps:
-              (with ps; [
+            myFunction = self.python311.withPackages (
+              ps: (with ps; [
                 torch
                 torchvision
                 waitress
@@ -23,10 +23,9 @@
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
                 opentelemetry-sdk
+                opentelemetry-instrumentation-flask
               ])
-              ++ (with outputs.packages.${system}; [
-                otelFlask
-              ]));
+            );
           };
 
           squeezenetModel = pkgs.stdenv.mkDerivation {

@@ -21,61 +21,58 @@ jaeger = [
 powerrandom = []
 
 [dependencies]
-actix-web = "4.4.0"
-actix-web-opentelemetry = "0.16.0"
-anyhow = "1.0.58"
-base64 = { version = "0.13.0", default-features = false, features = [
+actix-web = "4.4"
+actix-web-opentelemetry = "0.16"
+anyhow = "1.0"
+base64 = { version = "0.13", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config
 ] }
-bytes = "1.2.0"
+bytes = "1.2"
 chrono = "0.4"
-dashmap = "5.4.0"
-futures = "0.3.28"
-influxdb2 = "0.4.2"
-influxdb2-derive = "0.1.1"
+dashmap = "5.4"
+futures = "0.3"
+influxdb2 = "0.4"
+influxdb2-derive = "0.1"
 influxdb2-structmap = "0.2"
 num-traits = "0.2"
-lazy-regex = "3.1.0"
-lazy_static = "1.4.0"
-opentelemetry = { version = "0.21.0", default-features = false, optional = true }
-opentelemetry_sdk = { version = "0.21.1", features = [
+lazy-regex = "3.1"
+lazy_static = "1.4"
+opentelemetry = { version = "0.21", default-features = false, optional = true }
+opentelemetry_sdk = { version = "0.21", features = [
     "rt-tokio",
 ], default-features = false, optional = true }
-opentelemetry-jaeger = { version = "0.20.0", features = [
+opentelemetry-jaeger = { version = "0.20", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
 rand = "0.8.5"
-reqwest = { version = "0.11.22", features = ["json", "gzip"] }
-reqwest-middleware = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-middleware" }
-# reqwest-tracing = { version = "0.4.6", features = [
-#     "opentelemetry_0_20",
-# ], optional = true }
-reqwest-tracing = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-tracing", features = [
+reqwest = { version = "0.11", features = ["json", "gzip"] }
+reqwest-middleware = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-middleware" }
+reqwest-tracing = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-tracing", features = [
     "opentelemetry_0_21",
 ], optional = true }
-ron = "0.8.0"
-serde = { version = "1.0.140", features = ["derive", "rc"] }
-serde_json = { version = "1.0.82", features = ["raw_value"] }
-serde_with = "3.4.0"
-tokio = { version = "1.20.1", features = ["full"] }
-tracing = "0.1.37"
-tracing-actix-web = { version = "0.7.9", features = [
+ron = "0.8"
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+serde_with = "3.4"
+tokio = { version = "1.20", features = ["full"] }
+tracing = "0.1"
+tracing-actix-web = { version = "0.7", features = [
     "opentelemetry_0_21",
 ], optional = true }
 tracing-appender = "0.2"
-tracing-forest = { version = "0.1.5", features = ["tokio"] }
-tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
-tracing-opentelemetry = { version = "0.22.0", optional = true }
-uom = { version = "0.34.0", default-features = false, features = [
+tracing-forest = { version = "0.1", features = ["tokio"] }
+tracing-log = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-opentelemetry = { version = "0.22", optional = true }
+uom = { version = "0.34", default-features = false, features = [
     "f64",
     "si",
     "autoconvert",
 ] }
-uuid = { version = "1.1.2", features = ["v4", "fast-rng", "serde"] }
+uuid = { version = "1.1", features = ["v4", "fast-rng", "serde"] }
 
 helper = { path = "../helper" }
 helper_derive = { path = "../helper_derive" }
 model = { path = "../model" }
-mimalloc = { version = "0.1.32", default-features = false }
+mimalloc = { version = "0.1", default-features = false }

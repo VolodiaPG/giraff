@@ -12,8 +12,8 @@
           };
 
           overlay = self: super: {
-            myFunction = self.python311.withPackages (ps:
-              (with ps; [
+            myFunction = self.python311.withPackages (
+              ps: (with ps; [
                 waitress
                 flask
                 pillow
@@ -24,6 +24,7 @@
                 opentelemetry-exporter-otlp-proto-grpc
                 opentelemetry-api
                 opentelemetry-sdk
+                opentelemetry-instrumentation-flask
                 (buildPythonPackage rec {
                   pname = "vosk";
                   version = "0.3.45";
@@ -63,9 +64,7 @@
                   ];
                 })
               ])
-              ++ (with outputs.packages.${system}; [
-                otelFlask
-              ]));
+            );
           };
 
           voskModel = pkgs.stdenv.mkDerivation rec {

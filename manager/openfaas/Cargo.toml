@@ -9,10 +9,10 @@ jaeger = ["reqwest-tracing"]
 
 [dependencies]
 backoff = { version = "0.4.0", features = ["tokio"] }
-reqwest-middleware = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-middleware" }
-reqwest-tracing = { git = "https://github.com/jtescher/reqwest-middleware", rev = "2538936", package = "reqwest-tracing", features = [
+reqwest-middleware = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-middleware" }
+reqwest-tracing = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-tracing", features = [
     "opentelemetry_0_21",
-], optional = true } # reqwest-tracing = { version = "0.4.6", features = [anyhow = "1.0.58"
+], optional = true }
 bytes = "1.2.0"
 chrono = "0.4"
 lazy-regex = "3.1.0"
