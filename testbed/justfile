@@ -25,19 +25,6 @@ init user *FLAGS:
     {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
 
 
-lab: (_lab ".#jupyterlab")
-
-labExport: (_lab ".#jupyterlabExport")
-
-_lab drv max_memory_gb="20":
-    #!/usr/bin/env bash
-    if [ $(which systemd-run) ]; then
-        systemd-run --scope -p MemoryMax={{max_memory_gb}}G --user nix run {{drv}}
-    else
-        nix run {{drv}}
-    fi
-
-
 # Open SSH tunnels
 [private]
 tunnels +FLAGS='':
@@ -317,28 +304,25 @@ single_campaign name dotenvfile:
     just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
 
 [private]
-build_required_images user:
+build_required_images user skip_rebuild:
     #!/usr/bin/env bash
     set -e
 
-    read -ra tags <<<"$FOG_NODE_IMAGE_TAGS"
-    read -ra market_tags <<<"$MARKET_IMAGE_TAGS"
+    if [ "{{skip_rebuild}}" != "true" ]; then
+      read -ra tags <<<"$FOG_NODE_IMAGE_TAGS"
+      read -ra market_tags <<<"$MARKET_IMAGE_TAGS"
 
-    commands=(
-        "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]}) $(echo ${market_tags[@]})"
-        "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
-        "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
-    )
+      commands=(
+          "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]}) $(echo ${market_tags[@]})"
+          "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
+          "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
+      )
 
-    parallel --will-cite --halt-on-error 2 {1} 2> /dev/null ::: "${commands[@]}"
-    echo -e "[{{file_name(justfile_directory())}}] all images uploaded \033[1;32mOK\033[0m"
-
-[private]
-docker_campaign user variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env": (build_required_images user)
-    #!/usr/bin/env bash
-    image_path=$(nix build --extra-experimentafl-features nix-command --extra-experimental-features flakes .#docker --print-out-paths --no-link --quiet)
-    {{DOCKER}} load < $image_path
-    nix develop --extra-experimental-features "nix-command flakes" -c just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
+      parallel --will-cite --halt-on-error 2 {1} 2> /dev/null ::: "${commands[@]}"
+      echo -e "[{{file_name(justfile_directory())}}] all images uploaded \033[1;32mOK\033[0m"
+    else
+      echo -e "[{{file_name(justfile_directory())}}] all images upload \033[34mSKIPPING\033[0m"
+    fi
 
 _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
     #!/usr/bin/env bash
@@ -464,9 +448,6 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     echo "Here is the JOB_LOG:"
     cat $JOB_LOG
 
-dev:
-    nix develop --extra-experimental-features nix-command --extra-experimental-features flakes
-
 dry-experiment $CLUSTER SIZE_MULTIPLIERS:
     #!/usr/bin/env bash
     parallel --will-cite -k \
@@ -587,7 +568,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     echo -e "[{{file_name(justfile_directory())}}] all files rsynced \033[1;32mOK\033[0m"
 
 
-master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
+master_exec user name experiments_dotfile=".experiments.env" skip_vms="false" skip_rebuild="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
@@ -601,7 +582,7 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false":
 
     parallel ::: \
       'just upload {{experiments_dotfile}} {{skip_vms}}' \
-      'just build_required_images {{user}}'
+      'just build_required_images {{user}} {{skip_rebuild}}'
 
     {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
     {{RUN}} master.py run-command
@@ -615,7 +596,7 @@ master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="fa
 
     parallel ::: \
       'just upload {{experiments_dotfile}} true' \
-      '([ "{{skip_rebuild}}" = "true" ] || just build_required_images {{user}})'
+      'just build_required_images {{user}} {{skip_rebuild}})'
     {{RUN}} master.py run-command-refresh
 
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
