@@ -214,8 +214,6 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
     if last == 0:
         return None
 
-    await asyncio.sleep(FUNCTION_COLD_START_OVERHEAD / 1000)
-
     ret = []
     for ii in range(0, last):
         urls[ii].faas_ip
@@ -392,12 +390,10 @@ async def save_file(filename: str):
             #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
             # ]
             request_intervals = [
-                math.ceil(abs(10000 * x))
-                for x in np.random.lognormal(-0.38, 2.36, nb_function)
+                math.ceil(abs(1000 * x)) for x in np.random.gamma(2.35, 17, nb_function)
             ]
-            # TODO check that thing
             durations = [
-                math.ceil(100000 * x)
+                math.ceil(10000 * x)
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
             ]
             arrivals = [

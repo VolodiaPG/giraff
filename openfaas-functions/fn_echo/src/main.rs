@@ -41,12 +41,7 @@ use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
 const VAR_SLA: &str = "SLA";
-env_var!(INFLUX_ADDRESS);
-env_var!(INFLUX_TOKEN);
-env_var!(INFLUX_ORG);
-env_var!(INFLUX_BUCKET);
 env_var!(ID);
-env_var!(NAME);
 
 /// timestamp at which the function is fully operational
 #[influx_observation]
@@ -112,15 +107,7 @@ impl Configuration {
 }
 
 #[instrument(level = "trace")]
-async fn handle(
-    my_name: web::Data<String>,
-    sla_id: web::Data<String>,
-) -> HttpResponse {
-    let my_name = (*my_name.into_inner()).clone();
-    let sla_id = (*sla_id.into_inner()).clone();
-    HttpResponse::Ok()
-        .finish()
-}
+async fn handle() -> HttpResponse { HttpResponse::Ok().finish() }
 
 #[instrument(level = "trace", skip(config), fields(next_function_url=payload.0.next_function_url))]
 async fn reconfigure(
@@ -142,9 +129,6 @@ pub fn get_subscriber(
 ) -> impl Subscriber + Send + Sync {
     // Env variable LOG_CONFIG_PATH points at the path where
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(env_filter));
-
     #[cfg(feature = "jaeger")]
     let collector_ip = std::env::var("COLLECTOR_IP")
         .unwrap_or_else(|_| "localhost".to_string());
@@ -163,6 +147,8 @@ pub fn get_subscriber(
             .install_batch(opentelemetry_sdk::runtime::Tokio)
             .unwrap(),
     );
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or(EnvFilter::new(env_filter));
 
     let reg = Registry::default().with(env_filter);
 
@@ -185,10 +171,6 @@ async fn main() -> Result<()> {
     let Ok(id) = std::env::var(ID) else {
         panic!("{} env variable not found", ID);
     };
-    let Ok(my_name) = std::env::var(NAME) else {
-        panic!("{} env variable not found", NAME);
-    };
-
     #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
@@ -220,28 +202,9 @@ async fn main() -> Result<()> {
     #[cfg(not(feature = "jaeger"))]
     let http_client = Arc::new(ClientBuilder::new(reqwest_client).build());
 
-    let metrics = Arc::new(
-        MetricsExporter::new(
-            env_load!(InfluxAddress, INFLUX_ADDRESS),
-            env_load!(InfluxOrg, INFLUX_ORG),
-            env_load!(InfluxToken, INFLUX_TOKEN),
-            env_load!(InfluxBucket, INFLUX_BUCKET),
-            InstanceName::new(sla.id.to_string())?,
-        )
-        .await
-        .expect("Cannot build the InfluxDB2 database connection"),
-    );
-
-    let sla_id_raw = sla.id.clone();
-    let metrics_raw = metrics.clone();
-
     let config =
         web::Data::from(Arc::new(RwLock::new(Configuration::new(sla))));
     let http_client = web::Data::from(http_client);
-    let metrics = web::Data::from(metrics);
-    let sla_id = web::Data::from(Arc::new(sla_id_raw.to_string()));
-
-    let my_name = web::Data::from(Arc::new(my_name));
 
     let server = HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
@@ -260,9 +223,6 @@ async fn main() -> Result<()> {
         })
         .app_data(web::Data::clone(&config))
         .app_data(web::Data::clone(&http_client))
-        .app_data(web::Data::clone(&metrics))
-        .app_data(web::Data::clone(&sla_id))
-        .app_data(web::Data::clone(&my_name))
         .service(
             web::scope("")
                 .route("/", web::post().to(handle))
@@ -270,14 +230,6 @@ async fn main() -> Result<()> {
                 .route("/health", web::get().to(health)),
         )
     });
-
-    metrics_raw
-        .observe(FinishedBooting {
-            value:     0.0,
-            sla_id:    sla_id_raw.to_string(),
-            timestamp: Utc::now(),
-        })
-        .await?;
 
     server.bind(("0.0.0.0", 3000))?.run().await?;
 

@@ -1,5 +1,5 @@
 export SSHPASS:="giraff"
-export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p"
+export SSH_CMD:="sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -q -p"
 export SCP_CMD:="sshpass -e scp -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -P"
 
 # Entrypoint, run deploy and then tunnels
@@ -22,19 +22,19 @@ ssh-in:
 
 upload city="rennes":
     #!/usr/bin/env bash
-    set -ex
-    temp=./nixos.qcow2
+    set -e
+    temp=./giraff.fog_node_vm.qcow2
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#vm --print-out-paths --no-link --quiet)/nixos.qcow2
-    cp $vm_path $temp
+    rsync -chavzq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$vm_path" "$temp"
     chmod u+rwx $temp
 
     qemu-kvm \
         -cpu max \
-        -name nixos \
-        -m 4096 \
-        -smp 4 \
-        -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
-        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2223-:22 \
+        -name giraff.fog_node_vm \
+        -m 8000 \
+        -smp 8 \
+        -drive cache=writeback,file="$temp",id=giraff.drive.fog_node_vm,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.fog_node_vm \
+        -net nic,netdev=giraff.fog_node_vm,model=virtio -netdev user,id=giraff.fog_node_vm,hostfwd=tcp::2223-:22 \
         -enable-kvm \
         -nographic > /dev/null&
 
@@ -45,15 +45,15 @@ upload city="rennes":
 
     until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
     do
-        sleep 10
+        sleep 5
     done
 
     until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
     do
-        sleep 10
+        sleep 5
     done
 
-    $SSH_CMD 2223 "nohup bash -c 'sleep 10 && shutdown 0'"
+    $SSH_CMD 2223 "nohup bash -c 'sleep 5 && shutdown 0'"
 
     wait
 
@@ -68,11 +68,12 @@ _run_vm disk="result/nixos.qcow2":
 
     qemu-kvm \
         -cpu max \
-        -name nixos \
-        -m 8192 \
-        -smp 3 \
-        -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
-        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2221-:22 \
+        -name giraff.dev \
+        -m 12000 \
+        -smp 8 \
+        -drive cache=writeback,file="$temp",id=giraff.drive.dev,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.dev \
+        -net nic,netdev=giraff.dev,model=virtio \
+        -netdev user,id=giraff.dev,hostfwd=tcp::2221-:22,hostfwd=tcp::16686-:16686,hostfwd=tcp::14268-:14268,hostfwd=tcp::4317-:4317,hostfwd=tcp::8080-:8080,hostfwd=tcp::31112-:31112,hostfwd=tcp::9086-:9086,hostfwd=tcp::3128-:3128,hostfwd=tcp::6443-:6443\
         -enable-kvm \
         -nographic&
 
@@ -80,51 +81,76 @@ _run_vm disk="result/nixos.qcow2":
 
 _openfaas_in_vm:
     #!/usr/bin/env bash
-
     set -e
 
-    # Function to clean up background jobs
-    cleanup() {
-        echo "Cleaning up background jobs..."
-        kill $(jobs -p)
-        exit
+    (rm vm.kubeconfig || true) 2> /dev/null
+    while ! timeout 5 $SSH_CMD 2221 echo OK > /dev/null 2>&1; do sleep 2; done
+    $SSH_CMD 2221 "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2
+    echo -e "[kubeconfig] copied \033[32mOK\033[0m"
+
+    retry_failed () {
+      while ! sh -c "$1"; do
+        echo "redoing $1"
+        sleep 1
+      done
     }
 
-    # Trap signals to trigger cleanup
-    trap 'cleanup' EXIT HUP INT QUIT TERM
+    open_jaeger () {
+      set +e
+      $SSH_CMD 2221 'docker start jaeger' >/dev/null 2>&1 || $SSH_CMD 2221 'docker run -d --rm --name jaeger -e COLLECTOR_OTLP_ENABLED=true -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:1.51.0' >/dev/null 2>&1
+      status=$?
+      if [ $status -eq 0 ]; then
+        echo -e "[jaeger] jaeger \033[32mOK\033[0m"
+      else
+        echo -e "[jaeger] jaeger \033[31mFAILED\033[0m"
+      fi
+      exit $status
 
-    rm vm.kubeconfig || true
+      #retry_failed "$SSH_CMD 2221 -N -g -L 14268:127.0.0.1:14268"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 16686:127.0.0.1:16686"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 4317:127.0.0.1:4317"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 4318:127.0.0.1:4318"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 5775:127.0.0.1:5775"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 6831:127.0.0.1:6831"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 6832:127.0.0.1:6832"&
+      #retry_failed "$SSH_CMD 2221 -N -g -L 5778:127.0.0.1:5778"&
+    }
 
-    until $SSH_CMD 2221 "k3s kubectl get pods -A" 2> /dev/null; do sleep 2; done
+    open_openfaas () {
+      until $SSH_CMD 2221 "k3s kubectl get pods -A > /dev/null 2>&1" ; do sleep 2; done
 
-    (until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done \
-    &&  until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null; do sleep 2; done)&
+      until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s > /dev/null 2>&1"; do sleep 2; done
+      until $SSH_CMD 2221 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s > /dev/null 2>&1"; do sleep 2; done
 
-    ($SSH_CMD 2221 "cat /etc/rancher/k3s/k3s.yaml>&1" > vm.kubeconfig 2>&2)&
+      (curl localhost:8080 >/dev/null 2>&1 || retry_failed "$SSH_CMD 2221 'k3s kubectl port-forward -n openfaas svc/gateway 8080:8080'")&
+      echo -e "[openfaas] openfaas \033[32mOK\033[0m"
 
-    (while ! $SSH_CMD 2221 "sh -c 'systemctl is-active --quiet influxdb2'"; do sleep 2; done)&
+      wait
 
-    ($SSH_CMD 2221 "docker run -d --rm --name jaeger -e COLLECTOR_OTLP_ENABLED=true -p 5775:5775/udp -p 6831:6831/udp -p 6832:6832/udp -p 5778:5778 -p 16686:16686 -p 14268:14268 -p 4317:4317 -p 4318:4318 jaegertracing/all-in-one:1.51.0" \
-    && sleep 2)&
+      #retry_failed "$SSH_CMD 2221 curl localhost:8080l
+      #retry_failed "$SSH_CMD 2221 -N -g -L 8080:127.0.0.1:8080"&
+    }
 
-    wait
+    open_influx () {
+      retry_failed "$SSH_CMD 2221 sh -c 'systemctl is-active --quiet influxdb2 > /dev/null'"
+      echo -e "[influxdb2] influxdb2 \033[32mOK\033[0m"
+    #  retry_failed "$SSH_CMD 2221 -N -g -L 9090:127.0.0.1:9090"&
+    #  retry_failed "$SSH_CMD 2221 -N -g -L 9086:127.0.0.1:9086"&
+    #  retry_failed "$SSH_CMD 2221 -N -g -L 6443:127.0.0.1:6443"&
+    }
 
-    $SSH_CMD 2221 "k3s kubectl port-forward -n openfaas svc/gateway 8080:8080"&
-    $SSH_CMD 2221 "k3s kubectl port-forward -n openfaas svc/prometheus 9090:9090"&
+    open_proxy () {
+      retry_failed "$SSH_CMD 2221 curl localhost:3128" >/dev/null 2>&1
+      #retry_failed "$SSH_CMD 2221 -N -g -L 3128:127.0.0.1:3128"&
+      echo -e "[proxy] proxy \033[32mOK\033[0m"
+    }
 
-    $SSH_CMD 2221 -N -g -L "6443:127.0.0.1:6443"&
-    $SSH_CMD 2221 -N -g -L "8080:127.0.0.1:8080"&
-    $SSH_CMD 2221 -N -g -L "9090:127.0.0.1:9090"&
-    $SSH_CMD 2221 -N -g -L "9086:127.0.0.1:9086"&
-    $SSH_CMD 2221 -N -g -L "14268:127.0.0.1:14268"&
-    $SSH_CMD 2221 -N -g -L "16686:127.0.0.1:16686"&
-    $SSH_CMD 2221 -N -g -L "4317:127.0.0.1:4317"&
-    $SSH_CMD 2221 -N -g -L "4318:127.0.0.1:4318"&
-    $SSH_CMD 2221 -N -g -L "5775:127.0.0.1:5775"&
-    $SSH_CMD 2221 -N -g -L "6831:127.0.0.1:6831"&
-    $SSH_CMD 2221 -N -g -L "6832:127.0.0.1:6832"&
-    $SSH_CMD 2221 -N -g -L "5778:127.0.0.1:5778"&
-    $SSH_CMD 2221 -N -g -L "3128:127.0.0.1:3128"&
+    open_jaeger&
+    open_openfaas&
+    open_influx&
+    open_proxy&
+
+    while true; do sleep 100; done
 
     wait
 

@@ -101,6 +101,7 @@ export_graph("request_distribution", output_request_distribution(respected_sla))
 export_graph("latency_vs_expected_latency", output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
 export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
 export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
+export_graph("output_arrival", output_arrival(respected_sla))
 
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)

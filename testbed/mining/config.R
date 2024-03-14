@@ -27,8 +27,7 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-15-40.tar.xz",
   # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-05-13-53.tar.xz",
   # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-05-17-56.tar.xz",
-  # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-05-17-19.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node_powerrandom_valuation_rates_no-telemetry-market_powerrandom_no-telemetry_2025-03-07-13-03.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-13-16-28.tar.xz",
   #---
   #---
   #---

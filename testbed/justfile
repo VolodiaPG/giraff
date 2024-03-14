@@ -561,12 +561,13 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
         # Cannot build multiple VMs at the same time, so we do it sequential
         vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
         parallel ::: \
-          "(rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
-          && echo -e '[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m')" \
-          "(cd iso; nix develop .#iso -c just upload $city 2> /dev/null \
+          "rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
+          && echo -e '[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m'" \
+          "(cd iso; nix develop .#iso -c just upload $city > /dev/null 2>&1 \
           && echo -e '[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m')"
       else
-        echo -e '[{{file_name(justfile_directory())}}] skipping VMs \033[34mSKIPPING\033[0m'
+        echo -e '[{{file_name(justfile_directory())}}] fog_node VM upload \033[34mSKIPPING\033[0m'
+        echo -e '[{{file_name(justfile_directory())}}] master VM upload \033[34mSKIPPING\033[0m'
       fi
     }
 
@@ -637,7 +638,7 @@ _master_run:
         -m 4096 \
         -smp 4 \
         -drive cache=writeback,file="$temp",id=drive1,if=none,index=1,werror=report -device virtio-blk-pci,drive=drive1 \
-        -net nic,netdev=user.0,model=virtio -netdev user,id=user.0,hostfwd=tcp::2222-:22 \
+        -net nic,netdev=giraff.master_vm,model=virtio -netdev user,id=giraff.master_vm,hostfwd=tcp::2222-:22 \
         -enable-kvm \
         -nographic&
 
@@ -654,7 +655,7 @@ get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     city=$({{RUN}} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j 4 -v rsync -cazp --progress $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
 
 [private]
 test_expe  experiments_dotfile=".experiments.env":

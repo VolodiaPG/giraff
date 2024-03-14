@@ -134,7 +134,8 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['OPENFAAS_USERNAME'] = "admin"
     env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
     env_vars['KUBECONFIG'] = "{{KUBECONFIG}}"
-    env_vars['OPENFAAS_PORT_EXTERNAL'] = "8080"
+    env_vars['OPENFAAS_PORT_EXTERNAL'] = "31112"
+    env_vars['OPENFAAS_PORT_INTERNAL'] = "31112"
     env_vars['RUST_LOG'] = "{{RUST_LOG}}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
     env_vars['COLLECTOR_IP'] = "127.0.0.1"

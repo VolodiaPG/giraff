@@ -35,6 +35,7 @@ in {
 
   boot = {
     growPartition = true;
+    kernelPackages = pkgs.linuxPackages_latest;
     kernelParams = ["console=ttyS0"]; # "preempt=none"];
     loader.grub = {
       device = "/dev/vda";

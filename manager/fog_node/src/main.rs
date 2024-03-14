@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(stmt_expr_attributes)]
 
 extern crate core;
 #[macro_use]
@@ -9,8 +10,10 @@ use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
     MetricsExporter,
 };
+use kube::client;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use reqwest_retry::RetryTransientMiddleware;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -196,20 +199,23 @@ async fn main() -> anyhow::Result<()> {
         .unwrap();
     info!("Loaded config from CONFIG env variable.");
 
-    #[cfg(feature = "jaeger")]
-    let http_client = Arc::new(
-        ClientBuilder::new(
-            reqwest::Client::builder()
-                .pool_idle_timeout(Some(Duration::from_secs(90)))
-                .build()?, // keep-alive
-        )
-        .with(TracingMiddleware::default())
-        .build(),
+    let mut client_builder = ClientBuilder::new(
+        reqwest::Client::builder()
+            .pool_idle_timeout(Some(Duration::from_secs(90)))
+            .build()?, // keep-alive
     );
 
-    #[cfg(not(feature = "jaeger"))]
-    let http_client =
-        Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
+    #[cfg(feature = "jaeger")]
+    {
+        client_builder = client_builder.with(TracingMiddleware::default());
+    }
+
+    let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
+        .build_with_max_retries(3);
+    client_builder = client_builder
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy));
+
+    let http_client = Arc::new(client_builder.build());
 
     let auth = username.map(|username| (username, password));
 

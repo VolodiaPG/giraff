@@ -49,7 +49,7 @@
     impermanence.url = "github:nix-community/impermanence";
     # Kubernetes config file definitions strictly defined
     kubenix = {
-      url = "github:hall/kubenix";
+      url = "github:hall/kubenix?ref=refs/tags/0.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     # OpenFaaS function software running in the container (like a proxy)
@@ -63,7 +63,8 @@
     };
     openfaas = {
       # Since > v0.17.2 does a check at startup on checkip.amazonaws.com to start
-      url = "github:openfaas/faas-netes";
+      # It seems OFaas sort of just not works without internet, more than 15 functions, more that 60 days... so for now let's stay on 17x
+      url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
       flake = false;
     };
   };

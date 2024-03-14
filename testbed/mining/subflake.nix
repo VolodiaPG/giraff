@@ -84,6 +84,7 @@
               (with pkgs; [
                 just
                 R
+                pandoc
                 nodePackages_latest.live-server
                 entr
               ])
@@ -98,6 +99,7 @@
                 just
                 R
                 python3
+                pandoc
 
                 texliveMinimal
                 pgf3

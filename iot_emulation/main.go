@@ -32,6 +32,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gonum.org/v1/gonum/stat/distuv"
 )
 
 type envContext struct {
@@ -58,9 +59,9 @@ type cronConfig struct {
 	IoTURL        string     `json:"iotUrl"`
 	NodeURL       string     `json:"nodeUrl"`
 	Tags          string     `json:"tags"`
-	InitialWaitMs uint       `json:"intialWaitMs"`
-	IntervalMs    uint       `json:"intervalMs" validate:"min=1"`
-	DurationMs    uint       `json:"durationMs" validate:"min=1"`
+	InitialWaitMs float64    `json:"intialWaitMs"`
+	IntervalMs    float64    `json:"intervalMs" validate:"min=1"`
+	DurationMs    float64    `json:"durationMs" validate:"min=1"`
 	FirstNodeIP   string     `json:"firstNodeIp"`
 	Content       reqContent `json:"content"`
 }
@@ -258,16 +259,14 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	}, nil
 }
 
-// TODO remove arbitrary stuff
-func poissonInterval(lambda time.Duration) time.Duration {
-	return time.Duration(float64(time.Second) * 10 * (-math.Log(1-rand.Float64()) / float64(lambda.Seconds())))
-}
-
-func poissonProcess(lambda time.Duration, eventChan chan struct{}, duration time.Duration) {
+func poissonProcess(interval time.Duration, eventChan chan struct{}, duration time.Duration) {
+	lambda := math.Ceil(float64(duration.Milliseconds()) / float64(interval.Milliseconds()))
+	poisson := distuv.Poisson{Lambda: lambda}
 	startedAt := time.Now()
 	for {
 		eventChan <- struct{}{}
-		time.Sleep(poissonInterval(lambda))
+		rand := poisson.Rand() * float64(interval.Milliseconds())
+		time.Sleep(time.Duration(rand * float64(time.Millisecond)))
 		if time.Since(startedAt) > duration {
 			break
 		}
@@ -293,6 +292,7 @@ func ping(env *envContext, config *cronConfig, client *http.Client, ctx *context
 
 	if resp.StatusCode != http.StatusOK {
 		b, err := io.ReadAll(resp.Body)
+		env.Logger.Error("Errored request", zap.String("fn_id", config.FunctionID), zap.Int("status", resp.StatusCode))
 		if err != nil {
 			env.Logger.Error("Error reading response body", zap.Error(err))
 			return err
@@ -322,7 +322,7 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 	ctx, span := otel.Tracer("").Start(r.Context(), "cron_"+config.FunctionID)
 	defer span.End()
 
-	env.Logger.Ctx(ctx).Info("Registered cron", zap.String("fn_id", config.FunctionID))
+	env.Logger.Ctx(ctx).Info("Registered cron", zap.String("fn_id", config.FunctionID), zap.Float64("intervalMs", config.IntervalMs))
 
 	proxyURL, err := url.Parse("http://" + config.FirstNodeIP + ":" + env.ProxyPort + "/proxy")
 	if err != nil {
@@ -337,10 +337,10 @@ func handleCron(w *http.ResponseWriter, r *http.Request, env *envContext) {
 func sendPings(env *envContext, proxyURL *url.URL, config cronConfig) {
 	httpClient := &http.Client{Transport: otelhttp.NewTransport(&http.Transport{Proxy: http.ProxyURL(proxyURL)})}
 
-	time.Sleep(time.Duration(config.InitialWaitMs) * time.Millisecond)
+	time.Sleep(time.Duration(config.InitialWaitMs * float64(time.Millisecond)))
 
 	eventChan := make(chan struct{})
-	go poissonProcess(time.Duration(config.IntervalMs)*time.Millisecond, eventChan, time.Duration(config.DurationMs)*time.Millisecond)
+	go poissonProcess(time.Duration(config.IntervalMs*float64(time.Millisecond)), eventChan, time.Duration(config.DurationMs*float64(time.Millisecond)))
 
 	for range eventChan {
 		go sendSinglePing(env, config, httpClient)
