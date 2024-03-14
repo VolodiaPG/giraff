@@ -589,6 +589,7 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         # scale_y_continuous(trans = "log10") +
+        geom_abline(slope=1, intercept = 0) + 
         labs(
             x = "Placement method",
             y = "measured latency (in_flight) (s)"
