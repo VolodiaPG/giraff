@@ -794,6 +794,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-jaeger",
  "opentelemetry_sdk",
+ "rand",
  "reqwest",
  "reqwest-middleware 0.2.4 (git+https://github.com/TrueLayer/reqwest-middleware?rev=b53d355)",
  "reqwest-retry",

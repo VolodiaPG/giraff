@@ -29,11 +29,10 @@ impl FunctionLife {
         let accumulated_latency_to_next_node =
             accumulated_latency.accumulate(latency);
 
-        let would_be_lat = self.compute_latency(
+        let worse_lat = self.compute_worse_latency(
             &accumulated_latency_to_next_node,
             sla.input_max_size,
         );
-        let worse_lat = would_be_lat.median + would_be_lat.median_uncertainty;
 
         if worse_lat > sla.latency_max {
             let latency_outbound = accumulated_latency_to_next_node.median;

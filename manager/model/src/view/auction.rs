@@ -3,7 +3,8 @@ use std::net::IpAddr;
 
 use crate::FogNodeFaaSPortExternal;
 use serde::{Deserialize, Serialize};
-use uom::si::f64::Time;
+use uom::si::f64::{Ratio, Time};
+use uom::si::ratio::ratio;
 use uom::si::time::millisecond;
 
 use super::super::domain::sla::Sla;
@@ -14,6 +15,7 @@ pub struct Latency {
     pub median:              Time,
     pub average:             Time,
     pub interquantile_range: Time,
+    pub packet_loss:         Ratio,
 }
 
 #[serde_with::serde_as]
@@ -26,6 +28,8 @@ pub struct AccumulatedLatency {
     pub average:            Time,
     #[serde_as(as = "helper::uom_helper::time::Helper")]
     pub median_uncertainty: Time,
+    #[serde_as(as = "helper::uom_helper::ratio::Helper")]
+    pub packet_loss:        Ratio,
 }
 
 impl Default for AccumulatedLatency {
@@ -34,6 +38,7 @@ impl Default for AccumulatedLatency {
             median:             Time::new::<millisecond>(0.0),
             average:            Time::new::<millisecond>(0.0),
             median_uncertainty: Time::new::<millisecond>(0.0),
+            packet_loss:        Ratio::new::<ratio>(0.0),
         }
     }
 }
@@ -50,7 +55,9 @@ impl AccumulatedLatency {
             (std_deviation.powi(2) + uncertainty.powi(2)).powf(0.5),
         );
 
-        Self { median, average, median_uncertainty }
+        let packet_loss = self.packet_loss * latency.packet_loss;
+
+        Self { median, average, median_uncertainty, packet_loss }
     }
 }
 #[serde_with::serde_as]

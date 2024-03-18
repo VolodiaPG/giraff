@@ -37,10 +37,8 @@ impl FunctionLife {
 
             let latency = accumulated_latency.accumulate(latency);
 
-            let would_be_lat =
-                self.compute_latency(&latency, sla.input_max_size);
             let worse_lat =
-                would_be_lat.median + would_be_lat.median_uncertainty;
+                self.compute_worse_latency(&latency, sla.input_max_size);
 
             if worse_lat > sla.latency_max {
                 trace!(

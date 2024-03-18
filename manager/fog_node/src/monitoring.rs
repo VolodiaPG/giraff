@@ -82,6 +82,10 @@ struct NeighborLatency {
     #[influxdb(field)]
     median:              f64,
     #[influxdb(field)]
+    raw_packet_loss:     f64,
+    #[influxdb(field)]
+    packet_loss:         f64,
+    #[influxdb(field)]
     interquartile_range: f64,
     #[influxdb(tag)]
     instance_to:         String,

@@ -106,7 +106,8 @@ export_graph("output_arrival", output_arrival(respected_sla))
 node_connections <- load_node_connections()
 latency <- load_latency(node_connections)
 export_graph("output_latency", output_latency(latency))
-
+raw_latency <- load_raw_latency()
+export_graph("output_loss", output_loss(raw_latency))
 raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node()
 if (generate_gif) {
   output_gif(raw.cpu.observed_from_fog_node, bids_won_function)

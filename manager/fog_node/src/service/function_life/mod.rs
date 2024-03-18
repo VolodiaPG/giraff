@@ -11,8 +11,10 @@ use helper::env_load;
 use model::view::auction::AccumulatedLatency;
 use model::SlaId;
 use std::sync::Arc;
-use uom::si::f64::Information;
+use uom::si::f64::{Information, Ratio, Time};
 use uom::si::information::byte;
+use uom::si::ratio::ratio;
+use uom::si::time::second;
 
 pub struct FunctionLife {
     function:              Arc<Function>,
@@ -73,6 +75,8 @@ pub use edge_ward_placement_v3::*;
 use super::function::Function;
 
 const DEFAULT_MTU: f64 = 1500.0;
+const TCP_MAX_CONGESTION_WINDOW_SIZE: f64 = 33.0; // In terms of number of MSS
+const TCP_TIMEOUT_SEC: f64 = 0.020;
 
 impl FunctionLife {
     pub fn new(
@@ -252,23 +256,104 @@ impl FunctionLife {
         backoff
     }
 
-    fn compute_latency(
+    fn compute_worse_latency(
         &self,
         accumulated_latency_to_next_node: &AccumulatedLatency,
         data_size: Information,
-    ) -> AccumulatedLatency {
-        let single_packet_lat = accumulated_latency_to_next_node;
-        let mut multiplier = data_size / Information::new::<byte>(DEFAULT_MTU);
-        let rat =
-            Information::new::<byte>(1.0) / Information::new::<byte>(1.0);
-        if multiplier < rat {
-            multiplier = rat;
-        }
+    ) -> Time {
+        let worse = get_tcp_latency(
+            2.0 * (accumulated_latency_to_next_node.median
+                + accumulated_latency_to_next_node.median_uncertainty),
+            accumulated_latency_to_next_node.packet_loss,
+            data_size,
+        );
+        return worse;
+    }
+}
 
-        let median = single_packet_lat.median * multiplier;
-        let median_uncertainty =
-            single_packet_lat.median_uncertainty * multiplier;
-        let average = single_packet_lat.average * multiplier;
-        return AccumulatedLatency { median, average, median_uncertainty };
+fn get_tcp_latency(
+    rtt: Time,
+    packet_loss: Ratio,
+    data_size: Information,
+) -> Time {
+    let mtu = Information::new::<byte>(DEFAULT_MTU);
+    let mss = mtu - Information::new::<byte>(40.0); // mtu - <tcp
+                                                    // protocol overhead>
+                                                    //let data_size = if data_size < mss { mss } else { data_size };
+    let mut tcp_max_congestion_window_size = (data_size / mss).get::<ratio>();
+    tcp_max_congestion_window_size =
+        if tcp_max_congestion_window_size < TCP_MAX_CONGESTION_WINDOW_SIZE {
+            tcp_max_congestion_window_size
+        } else {
+            TCP_MAX_CONGESTION_WINDOW_SIZE
+        };
+    let tcp_timeout = Time::new::<second>(TCP_TIMEOUT_SEC);
+    let packet_loss = packet_loss.get::<ratio>();
+
+    let hand1 = tcp_max_congestion_window_size / rtt;
+
+    let subhand1 = 1.0;
+    let subhand2 = 3.0 * f64::sqrt(6.0 * packet_loss / 8.0);
+    let subhand = if subhand1 < subhand2 { subhand1 } else { subhand2 };
+    let mut hand2 = 1.0
+        / (f64::sqrt(packet_loss * 4.0 / 3.0) * rtt
+            + tcp_timeout
+                * subhand
+                * packet_loss
+                * (1.0 + 32.0 * packet_loss * packet_loss));
+    // going to infity and buffer overflow
+    let tcp_bandwidth = if hand1 < hand2 { hand1 } else { hand2 };
+    let tcp_bandwidth = tcp_bandwidth * mss;
+
+    let transmission_time = data_size / tcp_bandwidth;
+    transmission_time + 0.5 * rtt
+}
+#[cfg(test)]
+mod tests {
+    use uom::si::f64::{Information, Ratio, Time};
+    use uom::si::information::{byte, kilobyte};
+    use uom::si::ratio::ratio;
+    use uom::si::time::millisecond;
+
+    use crate::service::function_life::get_tcp_latency;
+    #[test]
+    fn test_under_mtu_latency() {
+        let rtt = Time::new::<millisecond>(20.0);
+        let data_size = Information::new::<byte>(1000.0);
+        let packet_loss = Ratio::new::<ratio>(1e-7);
+        let lat = get_tcp_latency(rtt, packet_loss, data_size);
+
+        println!("(under)lat: {:?}", lat);
+        assert!(lat == 1.5 * rtt);
+    }
+    #[test]
+    fn test_over_mtu_latency() {
+        let rtt = Time::new::<millisecond>(20.0);
+        let data_size = Information::new::<kilobyte>(100.0);
+        let packet_loss = Ratio::new::<ratio>(0.0);
+        let lat = get_tcp_latency(rtt, packet_loss, data_size);
+        println!("(over)lat: {:?}", lat);
+        assert!(lat > 2.0 * rtt);
+    }
+
+    #[test]
+    fn test_over_mtu_latency_loss() {
+        let rtt = Time::new::<millisecond>(20.0);
+        let data_size = Information::new::<kilobyte>(100.0);
+        let packet_loss = Ratio::new::<ratio>(0.01);
+        let lat = get_tcp_latency(rtt, packet_loss, data_size);
+
+        println!("(over loss)lat: {:?}", lat);
+        assert!(lat > 3.0 * rtt);
+    }
+    #[test]
+    fn test_under_mtu_latency_loss() {
+        let rtt = Time::new::<millisecond>(20.0);
+        let data_size = Information::new::<byte>(100.0);
+        let packet_loss = Ratio::new::<ratio>(0.01);
+        let lat = get_tcp_latency(rtt, packet_loss, data_size);
+
+        println!("(under loss)lat: {:?}", lat);
+        assert!(lat == 1.5 * rtt);
     }
 }

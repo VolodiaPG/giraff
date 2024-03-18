@@ -38,7 +38,7 @@ endpoints:
 _is_connected city_name_node_target $market_ip market_port:
     #!/usr/bin/env bash
     set -o pipefail
-    raw_output=`curl -s "$market_ip:{{market_port}}/api/fog"`
+    raw_output=`curl -m 30 -s "$market_ip:{{market_port}}/api/fog"`
     output=`echo "$raw_output" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p'`
     status=$?
     if [ $status -ne 0 ]; then
@@ -120,7 +120,7 @@ scenario archive_name +city_name_node_targets:
     pids=()
     echo "Checking {{city_name_node_targets}}"
     for city in {{city_name_node_targets}}; do
-        just _until_is_connected_timeout $city $MARKET_IP $MARKET_LOCAL_PORT 300&
+        just _until_is_connected_timeout $city $MARKET_IP $MARKET_LOCAL_PORT 500&
         pids+=($!)
     done
 
@@ -194,7 +194,7 @@ scenarii +city_name_node_targets:
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME$3" $DEPLOYMENT_NAME \
+            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME \
             || just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{city_name_node_targets}}'"
@@ -207,7 +207,7 @@ scenarii +city_name_node_targets:
     export -f run_scenario
     parallel --tty --shuf \
         --joblog ./joblog \
-        run_scenario {#} {} \
+        run_scenario {#} {1} {2} \
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
         :::+ $(echo ${MARKET_IMAGE_TAGS[@]})
 
@@ -268,12 +268,24 @@ docker_enos name expe_dir cmd="bash":
             enos_deployment:latest bash -c -E "{{cmd}}"
         fi
 
+[private]
+_inside_docker_scenearii +city_name_node_targets:
+    #!/usr/bin/env bash
+    echo "Generating requests for all subsequent experiments..."
+    just scenarii {{city_name_node_targets}}
+    res=$?
+    if [ $DEV_SLEEP_AFTER_CRASH = "true" ]; then
+      if [ $res -ne 0 ]; then
+        echo "DEV_SLEEP_AFTER_CRASH enabled, sleeping until infinity"
+        sleep 9999999999
+      fi
+    fi
+    just clean
 
 [private]
 docker_scenarii name expe_dir +city_name_node_targets:
-    echo "Generating requests for all subsequent experiments..."
     EXPE_SAVE_FILE={{expe_dir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{expe_dir}} "just scenarii {{city_name_node_targets}} ; just clean || ."
+    just docker_enos {{name}} {{expe_dir}} "just _inside_docker_scenearii {{city_name_node_targets}}"
 
 _docker_campaign name expe_dir:
     #!/usr/bin/env bash
@@ -554,7 +566,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     push_files(){
       parallel --will-cite rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} 2> /dev/null \
-          ::: *.py .env {{experiments_dotfile}} justfile pipelines
+          ::: *.py .env {{experiments_dotfile}} justfile pipelines/
       echo -e "[{{file_name(justfile_directory())}}] config files uploaded \033[32mOK\033[0m"
     }
 

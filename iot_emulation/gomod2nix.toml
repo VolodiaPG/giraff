@@ -1,12 +1,6 @@
 schema = 3
 
 [mod]
-  [mod."github.com/agoda-com/opentelemetry-go/otelzap"]
-    version = "v0.2.0"
-    hash = "sha256-T7AuSY2oNhyxUhIvGg7vCrPZpmfT3JA4xT9jZThrRqM="
-  [mod."github.com/agoda-com/opentelemetry-logs-go"]
-    version = "v0.3.0"
-    hash = "sha256-AoGAhgEI1CZg3iDv58nKwaChXqSuB8lV4sOxSTDfgh0="
   [mod."github.com/apapsch/go-jsonmerge/v2"]
     version = "v2.0.0"
     hash = "sha256-xp/1B6XUN2EbddBfoUkTV3oTk+34m4kOZP+66HhfLg4="
@@ -94,9 +88,6 @@ schema = 3
   [mod."golang.org/x/crypto"]
     version = "v0.14.0"
     hash = "sha256-UUSt3X/i34r1K0mU+Y5IzljX5HYy07JcHh39Pm1MU+o="
-  [mod."golang.org/x/exp"]
-    version = "v0.0.0-20230321023759-10a507213a29"
-    hash = "sha256-+ffOmn9qW3OSSYvNZExjSOMHjw4CndHOQlavYZnVco4="
   [mod."golang.org/x/net"]
     version = "v0.17.0"
     hash = "sha256-qRawHWLSsJ06QNbLhUWPXGVSO1eaioeC9xZlUEWN8J8="
@@ -106,9 +97,6 @@ schema = 3
   [mod."golang.org/x/text"]
     version = "v0.13.0"
     hash = "sha256-J34dbc8UNVIdRJUZP7jPt11oxuwG8VvrOOylxE7V3oA="
-  [mod."gonum.org/v1/gonum"]
-    version = "v0.14.0"
-    hash = "sha256-RdYp+HTFr7ToCKAWbK1Vvez1CWuH0R/dSQHpXca00ng="
   [mod."google.golang.org/genproto/googleapis/api"]
     version = "v0.0.0-20230822172742-b8732ec3820d"
     hash = "sha256-qd9dJezVHNJZNMkywXapT1rsyD+lb25AU8aG8NJlhm4="

@@ -21,7 +21,6 @@
                 dill
                 click
                 aiohttp
-                numpy
                 influxdb-client
                 marshmallow-dataclass
                 (alive-progress.overridePythonAttrs
@@ -58,6 +57,7 @@
                     packaging
                     pytz
                     importlib-resources
+                    numpy
                     (nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible-core.override {
                       inherit (ps) callPackage buildPythonPackage fetchPypi cryptography jinja2 junit-xml lxml ncclient packaging paramiko pexpect psutil pycrypto pyyaml requests resolvelib scp xmltodict;
                       ansible = nixpkgs-ansible-enoslib.legacyPackages.${system}.python3Packages.ansible.override {

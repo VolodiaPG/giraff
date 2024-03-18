@@ -32,7 +32,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gonum.org/v1/gonum/stat/distuv"
 )
 
 type envContext struct {
@@ -260,12 +259,11 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 }
 
 func poissonProcess(interval time.Duration, eventChan chan struct{}, duration time.Duration) {
-	lambda := math.Ceil(float64(duration.Milliseconds()) / float64(interval.Milliseconds()))
-	poisson := distuv.Poisson{Lambda: lambda}
+	lambda := 1.0 / float64(interval.Milliseconds())
 	startedAt := time.Now()
 	for {
 		eventChan <- struct{}{}
-		rand := poisson.Rand() * float64(interval.Milliseconds())
+		rand := -1.0 * math.Log(rand.Float64()) / lambda
 		time.Sleep(time.Duration(rand * float64(time.Millisecond)))
 		if time.Since(startedAt) > duration {
 			break

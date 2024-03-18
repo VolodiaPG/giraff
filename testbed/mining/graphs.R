@@ -13,6 +13,20 @@ output_latency <- function(latency) {
         theme(legend.position = "none")
 }
 
+output_loss <- function(latency) {
+    latency %>%
+        filter(field == "raw_packet_loss") %>%
+        adjust_timestamps() %>%
+        rename(source = instance, destination = destination_name) %>%
+        select(timestamp, source, destination, folder, value) %>%
+        mutate(sorted_interaction = pmap_chr(list(source, destination), ~ paste(sort(c(...)), collapse = "_"))) %>%
+        ggplot(aes(x = sorted_interaction, y = value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
+        facet_grid(cols = vars(folder)) +
+        theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
+        geom_boxplot() +
+        theme(legend.position = "none")
+}
+
 output_gif <- memoised(function(raw.cpu.observed_from_fog_node, bids_won_function) {
     data <- latency %>%
         filter(field == "raw") %>%
@@ -582,19 +596,20 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
         ungroup() %>%
         extract_function_name_info() %>%
         mutate(some_not_acceptable = acceptable + all_erors != total) %>%
+    mutate(ratio = as.numeric(measured_latency) / as.numeric(latency)) %>%
         {
             .
         }
-    p <- ggplot(data = df, aes(x = latency, y = measured_latency, color = interaction(prev_function, docker_fn_name, some_not_acceptable), alpha = 1)) +
+  p <- ggplot(data = df, aes(x = docker_fn_name, y = ratio, color = interaction(prev_function, docker_fn_name, some_not_acceptable), alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         # scale_y_continuous(trans = "log10") +
-        geom_abline(slope=1, intercept = 0) + 
+        geom_abline(slope=0, intercept = 1) + 
         labs(
-            x = "Placement method",
-            y = "measured latency (in_flight) (s)"
+            x = "Function",
+            y = "measured_latency/latency"
         ) +
-        geom_point()
+        geom_beeswarm()
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -618,7 +633,6 @@ output_duration_distribution_plot <- function(provisioned_sla) {
 
     return(p)
 }
-
 output_latency_distribution_plot <- function(provisioned_sla) {
     df <- provisioned_sla %>%
         extract_function_name_info()

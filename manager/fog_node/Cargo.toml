@@ -79,6 +79,7 @@ opentelemetry-jaeger = { version = "0.20", features = [
     "reqwest_collector_client",
     "rt-tokio",
 ], default-features = false, optional = true }
+rand = "0.8.5"
 reqwest = { version = "0.11", features = ["json", "gzip"] }
 reqwest-middleware = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-middleware" }
 reqwest-retry = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-retry" }

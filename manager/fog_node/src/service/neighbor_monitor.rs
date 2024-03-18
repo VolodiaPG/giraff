@@ -12,6 +12,7 @@ impl From<crate::repository::latency_estimation::Latency>
             median:              val.median,
             average:             val.average,
             interquantile_range: val.interquantile_range,
+            packet_loss:         val.packet_loss,
         }
     }
 }

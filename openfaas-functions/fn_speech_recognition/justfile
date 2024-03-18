@@ -4,7 +4,7 @@ set fallback := true
 test:
     curl \
         -X POST \
-        -F "file=@$PATH_IMAGE/n03417042_29361.JPEG"  \
-        --output tmp.jpeg \
+        -F "file=@$PATH_AUDIO/3536-23268-0023.wav"  \
+        --output tmp.json \
         localhost:8081
 

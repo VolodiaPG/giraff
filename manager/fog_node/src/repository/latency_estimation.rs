@@ -1,6 +1,6 @@
 use crate::monitoring::NeighborLatency;
 use crate::NodeSituation;
-use anyhow::{ensure, Context, Result};
+use anyhow::{bail, ensure, Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::domain::exp_average::ExponentialMovingAverage;
@@ -9,8 +9,15 @@ use model::NodeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
-use uom::si::f64::Time;
+use std::time::Duration;
+use surge_ping::{Client, Config, PingIdentifier, PingSequence};
+use tokio::time::interval;
+use uom::si::f64::{Ratio, Time};
+use uom::si::ratio::ratio;
 use uom::si::time::millisecond;
+
+const NB_ICMP_SENT: u16 = 10;
+const SAMPLING_TIME_MS: u16 = 250;
 
 #[derive(Debug)]
 pub struct IndividualErrorList {
@@ -31,6 +38,42 @@ impl From<Vec<anyhow::Error>> for IndividualErrorList {
 struct Latencies {
     moving_average: ExponentialMovingAverage,
     moving_median:  MovingMedian,
+    packet_loss:    PacketLossRing,
+}
+
+#[derive(Debug)]
+struct PacketLossRing {
+    buffer:      Vec<Ratio>,
+    cursor:      usize,
+    window_size: usize,
+}
+
+impl PacketLossRing {
+    pub fn new(window_size: usize) -> Self {
+        Self {
+            buffer: Vec::with_capacity(window_size),
+            cursor: 0,
+            window_size,
+        }
+    }
+
+    pub fn update(&mut self, value: Ratio) {
+        if self.buffer.len() < self.window_size {
+            self.buffer.push(value);
+        } else {
+            self.buffer[self.cursor] = value;
+        }
+        self.cursor = (self.cursor + 1) % self.window_size;
+    }
+
+    pub fn get(&self) -> Ratio {
+        let mut sum = Ratio::new::<ratio>(0.0);
+        for ii in 0..(self.buffer.len()) {
+            sum += self.buffer[ii];
+        }
+
+        sum / self.buffer.len() as f64
+    }
 }
 
 #[derive(Debug)]
@@ -38,6 +81,7 @@ pub struct Latency {
     pub median:              Time,
     pub average:             Time,
     pub interquantile_range: Time,
+    pub packet_loss:         Ratio,
 }
 
 #[derive(Debug)]
@@ -79,32 +123,61 @@ impl LatencyEstimation {
         let my_ip = self.node_situation.get_my_public_ip();
         let my_port = self.node_situation.get_my_public_port_http();
 
-        let (_, dur) = surge_ping::ping(ip, &[0; 32])
-            .await
-            .with_context(|| format!("Ping to {ip} failed"))?;
+        let client = Client::new(&Config::default())?;
+        let payload = [0; 56];
+        let mut pinger =
+            client.pinger(ip, PingIdentifier(rand::random())).await;
+        pinger.timeout(Duration::from_secs(1));
+        let mut interval =
+            interval(Duration::from_millis(SAMPLING_TIME_MS.into()));
+        let mut durations = Time::new::<millisecond>(0.0);
+        let mut nb_failed: u16 = 0;
+        for idx in 0..NB_ICMP_SENT {
+            interval.tick().await;
+            match pinger.ping(PingSequence(idx), &payload).await {
+                Ok((_, dur)) => {
+                    let raw_latency = Time::new::<uom::si::time::millisecond>(
+                        dur.as_millis() as f64 / 2.0,
+                    );
+                    durations += raw_latency;
+                }
+                Err(_e) => nb_failed += 1,
+            };
+        }
 
-        let raw_latency = Time::new::<uom::si::time::millisecond>(
-            dur.as_millis() as f64 / 2.0,
+        if nb_failed == NB_ICMP_SENT {
+            bail!("All ICMP requests failed");
+        }
+
+        let nb = (NB_ICMP_SENT - nb_failed) as f64;
+        let raw_latency = durations / nb;
+        let raw_packet_loss = (nb_failed / NB_ICMP_SENT) as f64;
+
+        self.update_latency(
+            &self.latency,
+            &node,
+            raw_latency,
+            Ratio::new::<ratio>(raw_packet_loss),
         );
 
-        let latency = self.update_latency(&self.latency, &node, raw_latency);
-
+        let latency = self.get_latency_to(&node).await;
         if let Some(latency) = latency {
             self.metrics
                 .observe(NeighborLatency {
-                    raw:                 raw_latency.get::<millisecond>(),
-                    average:             latency.average.get::<millisecond>(),
-                    median:              latency.median.get::<millisecond>(),
+                    raw_packet_loss,
+                    packet_loss: latency.packet_loss.get::<ratio>(),
+                    raw: raw_latency.get::<millisecond>(),
+                    average: latency.average.get::<millisecond>(),
+                    median: latency.median.get::<millisecond>(),
                     interquartile_range: latency
                         .interquantile_range
                         .get::<millisecond>(),
-                    instance_to:         format!("{}:{}", ip, port),
-                    instance_address:    format!("{}:{}", my_ip, my_port),
-                    timestamp:           Utc::now(),
+                    instance_to: format!("{}:{}", ip, port),
+                    instance_address: format!("{}:{}", my_ip, my_port),
+                    timestamp: Utc::now(),
                 })
                 .await?;
         }
-
         Ok(())
     }
 
@@ -137,10 +210,19 @@ impl LatencyEstimation {
                 latencies.moving_median.median(),
                 latencies.moving_median.interquantile_range(),
                 latencies.moving_average.get(),
+                latencies.packet_loss.get(),
             ) {
-                (Some(median), Some(interquantile_range), average) => {
-                    Some(Latency { median, interquantile_range, average })
-                }
+                (
+                    Some(median),
+                    Some(interquantile_range),
+                    average,
+                    packet_loss,
+                ) => Some(Latency {
+                    median,
+                    interquantile_range,
+                    average,
+                    packet_loss,
+                }),
                 _ => None,
             }
         })
@@ -151,36 +233,35 @@ impl LatencyEstimation {
         map: &dashmap::DashMap<NodeId, Latencies>,
         key: &NodeId,
         value: Time,
-    ) -> Option<Latency> {
-        let Some(mut entry) = map.get_mut(key)
-            else{
-                let moving_average = ExponentialMovingAverage::new(self.alpha.clone(), value);
-                let mut moving_median = MovingMedian::new(self.moving_median_window_size.clone());
+        packet_loss: Ratio,
+    ) {
+        match map.get_mut(key) {
+            Some(mut entry) => {
+                entry.value_mut().moving_average.update(value);
+                entry.value_mut().moving_median.update(value);
+                entry.value_mut().packet_loss.update(packet_loss);
+            }
+            None => {
+                let moving_average =
+                    ExponentialMovingAverage::new(self.alpha.clone(), value);
+                let mut moving_median =
+                    MovingMedian::new(self.moving_median_window_size.clone());
                 moving_median.update(value);
+
+                let mut packet_loss_ring = PacketLossRing::new(
+                    self.moving_median_window_size.clone().into_inner(),
+                );
+                packet_loss_ring.update(packet_loss);
 
                 map.insert(
                     key.clone(),
-                    Latencies{
+                    Latencies {
                         moving_average,
                         moving_median,
-                    }
+                        packet_loss: packet_loss_ring,
+                    },
                 );
-
-                return None;
-            };
-
-        entry.value_mut().moving_average.update(value);
-        entry.value_mut().moving_median.update(value);
-
-        match (
-            entry.value().moving_median.median(),
-            entry.value().moving_median.interquantile_range(),
-            entry.value().moving_average.get(),
-        ) {
-            (Some(median), Some(interquantile_range), average) => {
-                Some(Latency { average, median, interquantile_range })
             }
-            _ => None,
-        }
+        };
     }
 }

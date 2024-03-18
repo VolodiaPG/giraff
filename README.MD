@@ -7,7 +7,7 @@
 
 <div align="center">
   <h1>
-    GIRAFF: Reverse auction-based placement for fog functions 
+    GIRAFF: Reverse auction-based placement for fog functions
   </h1>
   <h3>
   Using FaaS functions and auctions for a sustainable fog model
@@ -127,7 +127,7 @@ Usually, `nix develop` gets you started. I code using VS Code, thus the extensio
 
 ### VMs
 
-VMs detail are located in `testbed/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `testbed/flake.nix` you can also see the VM used to deploy the code in grid’5000. 
+VMs detail are located in `testbed/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `testbed/flake.nix` you can also see the VM used to deploy the code in grid’5000.
 
 To start the same vm as in the experiments, one should go to `testbed/iso` and enter a `nix develop`. Then starting the VM is a matter of `just vm`. Once the VM is started, connection can be made with `just ssh-in`.
 > This process is used to start the VM used to develop the fog node software programs
@@ -151,7 +151,7 @@ In the end, experimental results will be available on the cluster in `metric-ark
 Azure FaaS traces have been released in 2020. Those traces have been characterized by probabilistic laws [[Hernod](https://doi.org/10.1145/3542929.3563468)]. Those laws are described in the following:
 
 - Execution times follow a highly-variable Log-normal law;
-- functions live in the range of milliseconds to minutes; 
+- functions live in the range of milliseconds to minutes;
 - ~~Functions are billed with a millisecond granularity;~~
 - the median execution time if 600ms;
 - the 99%th execution time is more than 140 seconds;
@@ -177,11 +177,11 @@ Functions are 256MB of RAM.
 ### Included functions
 
 Our own functions are:
-  
+
   - `echo` simply register to Influx the arrival time of the functions. It can transfer the request to a next function. (Rust)
 
 We borrowed functions from [EdgeFaaSBench](https://github.com/kaustubhrajput46/EdgeFaaSBench)
-  
+
   - `speech-to-text` (Python)
 
 ### Processing the results
@@ -223,3 +223,5 @@ Thanks for these awesome resources that were used during the development of this
 - [GNU Parallel](https://www.gnu.org/software/parallel/)
 - [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/index.html)
 - [Grid’5000](https://www.grid5000.fr/w/Grid5000:Home)
+- TCP latency/throughput estimation: [1] T. J. Hacker, B. D. Athey, et B. Noble, « The end-to-end performance effects of parallel TCP sockets on a lossy wide-area network », dans Proceedings 16th International Parallel and Distributed Processing Symposium, Ft. Lauderdale, FL: IEEE, 2002, p. 10 pp. doi: 10.1109/IPDPS.2002.1015527. and Bolliger, J., Gross, T. and Hengartner, U., Bandwidth modeling for network-aware applications. In INFOCOM '99, March 1999.
+

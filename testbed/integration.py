@@ -386,7 +386,7 @@ def restart(env: EnosEnv = None):
     ) as p:
         p.wait_for(retries=5)
         p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
-        p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
+        p.shell('nohup sh -c "sleep 1; reboot -f"', task_name="Rebooting")
 
     sleep(10)
     en.wait_for(roles=roles, retries=15)

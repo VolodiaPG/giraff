@@ -9,20 +9,20 @@ pkgs.stdenv.mkDerivation rec {
   };
 
   nativeBuildInputs = with pkgs; [
-    flac
+    ffmpeg
   ];
 
   unpackPhase = "tar -xzf $src";
-
+  # find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; ffmpeg -i $f -codec:a libmp3lame -qscale:a 2 "''${f%.flac}.mp3"'
   # find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; flac --decode "$f" "''${f%.flac}.wav"'
   buildPhase = ''
-    echo "Converting from FLAC to WAV"
-    find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; flac --no-keep-foreign-metadata --decode "$f"'
+      echo "Converting from FLAC to WAV"
+    find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; ffmpeg -i $f -ar 8000 -ac 1 -c:a pcm_s16le "''${f%.flac}.wav"'
   '';
 
   installPhase = ''
     mkdir -p $out
-    find -name '*.wav' -type f -print0 | xargs -0 -r -- cp -t "$out/" --
+    find -name '*.wav' -type f -size "-200k" -print0 | xargs -0 -r -- cp -t "$out/" --
   '';
 
   meta = with pkgs.lib; {

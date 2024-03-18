@@ -435,9 +435,9 @@ def set_cloud(dd: Dict, *_):
     dd["is_cloud"] = True
 
 
-def set_iot_connected(keep_one_in: int):
+def set_iot_connected(drop_one_in: int):
     def set_connected(dd: Dict, first: bool):
-        if first or random.randint(1, keep_one_in) == 1:
+        if first or random.randint(1, drop_one_in) != 1:
             dd["iot_connected"] = 0
 
     return set_connected
@@ -486,7 +486,7 @@ def network_generation():
         "flavor": TIER_1_FLAVOR,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, int(4 * SIZE_MULTIPLIER)),
+            nb_nodes=(1, int(2 * SIZE_MULTIPLIER)),
             latencies=(2, 3),
             modifiers=[set_cloud, drop_children(drop_one_in=2)],
             next_lvl=generate_level(
@@ -500,18 +500,20 @@ def network_generation():
                 ],
                 next_lvl=generate_level(
                     TIER_3_FLAVOR,
-                    nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
+                    nb_nodes=(2, int(6 * SIZE_MULTIPLIER)),
                     latencies=(3, 20),
                     modifiers=[
+                        drop_children(drop_one_in=4),
                         flavor_randomizer_cpu([0, 2]),
                         flavor_randomizer_mem([0, 2, 4]),
                     ],
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
-                        nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
-                        latencies=(1, 5),
+                        nb_nodes=(1, int(8 * SIZE_MULTIPLIER)),
+                        latencies=(1, 3),
                         modifiers=[
-                            set_iot_connected(keep_one_in=3),
+                            drop_children(drop_one_in=5),
+                            set_iot_connected(drop_one_in=4),
                             flavor_randomizer_mem([0, 2]),
                         ],
                     ),

@@ -1,4 +1,4 @@
-generate_gif <- FALSE
+generate_gif <- TRUE
 reload_big_data <- TRUE
 parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
@@ -26,8 +26,10 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-04-15-18.tar.xz",
   # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-15-40.tar.xz",
   # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-05-13-53.tar.xz",
-  # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-05-17-56.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node_powerrandom_valuation_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-14-10-55.tar.xz",
+  # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-05-17-56.tar.xz","metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-16-09-43.tar.xz",:
+  # "metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-16-11-46.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-17-10-15.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_powerrandom_valuation_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-18-10-29.tar.xz",
   #---
   #---
   #---
