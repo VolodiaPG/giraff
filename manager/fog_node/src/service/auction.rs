@@ -87,60 +87,7 @@ impl Auction {
         Ok(None)
     }
 
-    #[cfg(not(feature = "valuation_rates"))]
-    fn sigmoid(x: f32) -> f32 {
-        let x = if x < 0.0 {
-            0.0
-        } else if x > 1.0 {
-            1.0
-        } else {
-            x
-        };
-
-        1.0 / (1.0 + fast_math::exp_raw(-4.0 * (x - 0.5)))
-    }
-
-    /// Compute the bid value from the node environment
-    // #[cfg(not(feature = "valuation_rates"))]
-    // async fn compute_bid(
-    //     &self,
-    //     sla: &Sla,
-    //     accumulated_latency: &AccumulatedLatency,
-    // ) -> Result<Option<(String, f64)>> {
-    //     use helper::env_load;
-
-    //     let pricing_cpu = env_load!(PricingRatio, PRICING_CPU, f64);
-    //     let pricing_mem = env_load!(PricingRatio, PRICING_MEM, f64);
-    //     let pricing_geolocation =
-    //         env_load!(PricingRatio, PRICING_GEOLOCATION, f64);
-
-    //     let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
-    //         self.get_a_node(sla)
-    //             .await
-    //             .context("Failed to found a suitable node for the sla")?
-    // else{                 return Ok(None);
-    //             };
-
-    //     let ram_ratio_sla: f64 = (sla.memory / available_ram).into();
-    //     let cpu_ratio_sla: f64 = (sla.cpu / available_cpu).into();
-    //     let ram_ratio: f64 = (used_ram / available_ram).into();
-    //     let cpu_ratio: f64 = (used_cpu / available_cpu).into();
-    //     let latency_ratio: f64 = (sla.latency_max
-    //         / (accumulated_latency.median
-    //             - accumulated_latency.median_uncertainty))
-    //         .into();
-    //     let price = pricing_mem.into_inner() * ram_ratio_sla
-    //         + pricing_cpu.into_inner() * cpu_ratio_sla
-    //         + pricing_geolocation.into_inner()
-    //             * (Auction::sigmoid(ram_ratio as f32) as f64 +
-    //               Auction::sigmoid(cpu_ratio as f32) as f64 +
-    //               Auction::sigmoid(latency_ratio as f32) as f64);
-
-    //     trace!("price on {:?} is {:?}", name, price);
-
-    //     Ok(Some((name, price)))
-    // }
-    #[cfg(not(feature = "powerrandom"))]
+    #[cfg(feature = "valuation_rates")]
     async fn compute_bid(
         &self,
         sla: &Sla,
@@ -173,21 +120,12 @@ impl Auction {
         let price: f64 = ram_ratio_sla * pricing_mem_initial
             + cpu_ratio_sla * pricing_cpu_initial;
 
-        // let price = (ram_ratio - ram_ratio_sla)
-        //     * (pricing_mem * (ram_ratio_sla + ram_ratio) + 2.0 *
-        //       pricing_mem_initial)
-        //     / 2.0
-        //     + (cpu_ratio - cpu_ratio_sla)
-        //         * (pricing_cpu * (cpu_ratio_sla + cpu_ratio) + 2.0 *
-        //           pricing_cpu_initial)
-        //         / 2.0;
-
         trace!("price on {:?} is {:?}", name, price);
 
         Ok(Some((name, price)))
     }
 
-    #[cfg(feature = "powerrandom")]
+    #[cfg(feature = "powerrandom_rates")]
     async fn compute_bid(
         &self,
         sla: &Sla,

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use serde::{self, Deserialize};
+use serde::Deserialize;
 
 pub use self::configuration::Configuration;
 pub use self::default_api::DefaultApiClient;

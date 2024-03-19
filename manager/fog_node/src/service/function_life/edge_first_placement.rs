@@ -1,9 +1,7 @@
 use super::*;
-use anyhow::{anyhow, Context, Result};
+use anyhow::anyhow;
 use model::domain::sla::Sla;
-use model::view::auction::{
-    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
-};
+use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
 impl FunctionLife {

@@ -12,7 +12,6 @@ struct BidGauge {
     #[influxdb(tag)]
     sla_id:        String,
 }
-
 /// SLA that passed here
 #[influx_observation]
 struct SlaSeen {

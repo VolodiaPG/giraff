@@ -20,6 +20,7 @@ pub struct FunctionLife {
     function:              Arc<Function>,
     auction:               Arc<Auction>,
     node_situation:        Arc<NodeSituation>,
+    #[allow(dead_code)]
     neighbor_monitor:      Arc<NeighborMonitor>,
     node_query:            Arc<NodeQuery>,
     function_tracking:     Arc<FunctionTracking>,
@@ -29,14 +30,9 @@ pub struct FunctionLife {
 
 #[cfg(feature = "auction")]
 mod auction_placement;
-#[cfg(feature = "auction")]
-pub use auction_placement::*;
 
 #[cfg(feature = "powerrandom")]
 mod powerrandom;
-#[cfg(feature = "powerrandom")]
-pub use powerrandom::*;
-
 // #[cfg(feature = "cloud_only")]
 // mod cloud_only_placement;
 // #[cfg(feature = "cloud_only")]
@@ -49,33 +45,24 @@ pub use powerrandom::*;
 
 #[cfg(feature = "edge_first")]
 mod edge_first_placement;
-#[cfg(feature = "edge_first")]
-pub use edge_first_placement::*;
 
 #[cfg(feature = "edge_first_v2")]
 mod edge_first_placement_v2;
-#[cfg(feature = "edge_first_v2")]
-pub use edge_first_placement_v2::*;
 
 #[cfg(feature = "edge_ward")]
 mod edge_ward_placement;
-#[cfg(feature = "edge_ward")]
-pub use edge_ward_placement::*;
 
 #[cfg(feature = "edge_ward_v2")]
 mod edge_ward_placement_v2;
-#[cfg(feature = "edge_ward_v2")]
-pub use edge_ward_placement_v2::*;
 
 #[cfg(feature = "edge_ward_v3")]
 mod edge_ward_placement_v3;
-#[cfg(feature = "edge_ward_v3")]
-pub use edge_ward_placement_v3::*;
-
 use super::function::Function;
-
+#[allow(dead_code)]
 const DEFAULT_MTU: f64 = 1500.0;
 const TCP_MAX_CONGESTION_WINDOW_SIZE: f64 = 33.0; // In terms of number of MSS
+#[allow(dead_code)]
+#[allow(dead_code)]
 const TCP_TIMEOUT_SEC: f64 = 0.020;
 
 impl FunctionLife {
@@ -122,7 +109,7 @@ impl FunctionLife {
         }
         #[cfg(feature = "powerrandom")]
         {
-            info!("Using auction placement");
+            info!("Using powerrandom placement");
         }
 
         let function_live_timeout =
@@ -256,6 +243,7 @@ impl FunctionLife {
         backoff
     }
 
+    #[allow(dead_code)]
     fn compute_worse_latency(
         &self,
         accumulated_latency_to_next_node: &AccumulatedLatency,
@@ -271,6 +259,7 @@ impl FunctionLife {
     }
 }
 
+#[allow(dead_code)]
 fn get_tcp_latency(
     rtt: Time,
     packet_loss: Ratio,
@@ -295,7 +284,7 @@ fn get_tcp_latency(
     let subhand1 = 1.0;
     let subhand2 = 3.0 * f64::sqrt(6.0 * packet_loss / 8.0);
     let subhand = if subhand1 < subhand2 { subhand1 } else { subhand2 };
-    let mut hand2 = 1.0
+    let hand2 = 1.0
         / (f64::sqrt(packet_loss * 4.0 / 3.0) * rtt
             + tcp_timeout
                 * subhand

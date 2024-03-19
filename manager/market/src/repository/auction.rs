@@ -1,6 +1,5 @@
 use model::dto::function::ChosenBid;
 use model::view::auction::BidProposal;
-use rand::thread_rng;
 
 pub struct Auction;
 
@@ -18,7 +17,7 @@ impl Auction {
         let second = bids.get(1).cloned().cloned();
         match (first, second) {
             (Some(first), Some(second)) => {
-                let rand_choice = thread_rng().gen_range(0..2);
+                let rand_choice = rand::thread_rng().gen_range(0..2);
                 if rand_choice == 0 {
                     Some(ChosenBid { price: first.bid, bid: first })
                 } else {

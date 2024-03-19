@@ -8,10 +8,8 @@ use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
-use model::dto::function::{
-    FunctionRecord, Live, Paid, Proposed, Provisioned,
-};
-use model::{BidId, SlaId};
+use model::dto::function::{FunctionRecord, Live, Paid, Provisioned};
+use model::SlaId;
 use nutype::nutype;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
 use openfaas::models::{FunctionDefinition, Limits, Requests};

@@ -1,3 +1,4 @@
+#[allow(refining_impl_trait)]
 use helper::monitoring::InfluxName;
 use proc_macro::TokenStream;
 use quote::quote;
@@ -81,7 +82,7 @@ pub fn influx_observation(
         #[measurement = #influx_name]
         #item_struct_to_db
         impl helper::monitoring::InfluxData for #name {
-            fn export(self, instance: String) -> #exported_struct_name {
+            fn export(self, instance: String) -> impl influxdb2::models::WriteDataPoint + Sync + Send + 'static {
                 #exported_struct_name {
                     #(#builder_fields: self.#builder_fields,)*
                     instance,

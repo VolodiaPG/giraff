@@ -2,9 +2,7 @@ use crate::service::fog_node_network::FogNodeNetwork;
 use anyhow::{bail, Context, Result};
 use model::domain::sla::Sla;
 use model::dto::node::NodeRecord;
-use model::view::auction::{
-    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
-};
+use model::view::auction::{AccumulatedLatency, BidProposals, BidRequest};
 use model::{NodeId, SlaId};
 use std::fmt::Debug;
 use std::sync::Arc;

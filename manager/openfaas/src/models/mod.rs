@@ -1,6 +1,5 @@
 pub use self::function_list_entry::FunctionListEntry;
 pub use function_definition::{FunctionDefinition, Limits, Requests};
-use helper;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information;
 

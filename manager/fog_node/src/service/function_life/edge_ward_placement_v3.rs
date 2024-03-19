@@ -1,9 +1,7 @@
 use super::*;
-use anyhow::{anyhow, Context, Result};
+use anyhow::anyhow;
 use model::domain::sla::Sla;
-use model::view::auction::{
-    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
-};
+use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
 
 impl FunctionLife {
@@ -14,14 +12,9 @@ impl FunctionLife {
         sla: &'a Sla,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<BidProposals> {
-        let Some(parent) = self
-            .node_situation
-            .get_parent_id()
-            else{
-                return Ok(BidProposals {
-                    bids: vec!()
-                });
-            };
+        let Some(parent) = self.node_situation.get_parent_id() else {
+            return Ok(BidProposals { bids: vec![] });
+        };
 
         let latency = self
             .neighbor_monitor

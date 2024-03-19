@@ -21,19 +21,20 @@ pre_commit:
 
 # Run cargo check
 check subcommand="check":
-    just _{{subcommand}} --features auction
+    #!/usr/bin/env bash
+    set -e
     just _{{subcommand}} --features valuation_rates,auction
 
-    just _{{subcommand}} --features edge_first
-    just _{{subcommand}} --features edge_first_v2
+    just _{{subcommand}} --features valuation_rates,edge_first
+    just _{{subcommand}} --features valuation_rates,edge_first_v2
     # just _{{subcommand}} --features cloud_only
     # just _{{subcommand}} --features cloud_only_v2
-    just _{{subcommand}} --features edge_ward
+    just _{{subcommand}} --features valuation_rates,edge_ward
     # just _{{subcommand}} --features edge_ward_v2
-    just _{{subcommand}} --features edge_ward_v3
-    just _{{subcommand}} --features powerrandom
+    just _{{subcommand}} --features valuation_rates,edge_ward_v3
+    just _{{subcommand}} --features powerrandom,powerrandom_rates
 
-    just _{{subcommand}} --features jaeger,auction
+    just _{{subcommand}} --features valuation_rates,jaeger,auction
 
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:

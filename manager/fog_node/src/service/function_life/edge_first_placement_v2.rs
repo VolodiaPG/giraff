@@ -1,9 +1,6 @@
 use super::*;
-use anyhow::Result;
 use model::domain::sla::Sla;
-use model::view::auction::{
-    AccumulatedLatency, BidProposal, BidProposals, BidRequest,
-};
+use model::view::auction::{BidProposal, BidProposals, BidRequest};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
 

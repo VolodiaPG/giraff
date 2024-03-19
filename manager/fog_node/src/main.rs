@@ -10,7 +10,6 @@ use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
     MetricsExporter,
 };
-use kube::client;
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
 use reqwest_retry::RetryTransientMiddleware;

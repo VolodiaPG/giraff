@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::{BidProposals, BidRequestOwned};
-use model::{BidId, SlaId};
+use model::SlaId;
 use std::sync::Arc;
 use uom::si::time::second;
 
