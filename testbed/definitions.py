@@ -1,5 +1,4 @@
 import copy
-import functools
 import heapq
 import math
 import os
@@ -123,22 +122,13 @@ spec:
           value: "faasfog"
         - name: INSTANCE_NAME
           value: "{node_name}"
-        - name: PRICING_MEM
-          value: "{pricing_mem}"
-        - name: PRICING_CPU
-          value: "{pricing_cpu}"
-        - name: PRICING_MEM_INITIAL
-          value: "{pricing_mem_initial}"
-        - name: PRICING_CPU_INITIAL
-          value: "{pricing_cpu_initial}"
-        - name: PRICING_GEOLOCATION
-          value: "{pricing_geolocation}"
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
           value: "http://{collector_ip}:4317"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
           value: "120000"
+{additional_env_vars}
         ports:
         - containerPort: 30003
         volumeMounts:
@@ -274,34 +264,6 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
-# TIER_3_FLAVOR = {
-#     "core": 2,
-#     "mem": 1024 * 4,
-#     "reserved_core": 1.75,
-#     "reserved_mem": 1024 * 3,
-#     "pricing_cpu": 1.0,  # for the function
-#     "pricing_mem": 0.8,  # for the function
-#     "pricing_geolocation": 1.0,  # for already used mem and cpu
-# }
-# TIER_2_FLAVOR = {
-#     "core": 6,
-#     "mem": 1024 * 16,
-#     "reserved_core": 5,
-#     "reserved_mem": 1024 * 14,
-#     "pricing_cpu": 0.9,  # for the function
-#     "pricing_mem": 0.9 * 0.8,  # for the function
-#     "pricing_geolocation": 0.90,  # for already used mem and cpu
-# }
-# TIER_1_FLAVOR = {
-#     "is_cloud": True,
-#     "core": 15,
-#     "mem": 1024 * 46,
-#     "reserved_core": 16,
-#     "reserved_mem": 1024 * 60,
-#     "pricing_cpu": 0.7,  # for the function
-#     "pricing_mem": 1.0 * 0.7,  # for the function
-#     "pricing_geolocation": 0.70,  # for already used mem and cpu
-# }
 MAX_LOCATION = 3
 MAX_INITIAL_PRICE = 4
 SLOPE = 8
@@ -319,8 +281,21 @@ def pricing(
     return price
 
 
-def generate_initial_pricing(location):
-    return functools.partial(pricing, location)
+def additional_env_vars(level):
+    def inner():
+        return {
+            "PRICING_CPU": SLOPE,  # for the function
+            "PRICING_MEM": SLOPE,  # for the function
+            "PRICING_CPU_INITIAL": pricing(level),
+            "PRICING_MEM_INITIAL": pricing(level) / 2,
+            "PRICING_GEOLOCATION": SLOPE,  # for already used mem and cpu
+            "RATIO_AA": 1.0,
+            "RATIO_BB": 1.0,
+            "RATIO_CC": 1.0,
+            "ELECTRICITY_PRICE": 1.0,
+        }
+
+    return inner
 
 
 TIER_4_FLAVOR = {
@@ -328,33 +303,21 @@ TIER_4_FLAVOR = {
     "mem": 1024 * 6,
     "reserved_core": 1.75,
     "reserved_mem": 1024 * 5,
-    "pricing_cpu": SLOPE,  # for the function
-    "pricing_mem": SLOPE,  # for the function
-    "pricing_cpu_initial": generate_initial_pricing(3),
-    "pricing_mem_initial": lambda: generate_initial_pricing(3)() / 2,
-    "pricing_geolocation": SLOPE,  # for already used mem and cpu
+    "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 4,
     "mem": 1024 * 8,
     "reserved_core": 3.5,
     "reserved_mem": 1024 * 7,
-    "pricing_cpu": SLOPE,  # for the function
-    "pricing_mem": SLOPE,  # for the function
-    "pricing_cpu_initial": generate_initial_pricing(2),
-    "pricing_mem_initial": lambda: generate_initial_pricing(2)() / 2,
-    "pricing_geolocation": SLOPE,  # for already used mem and cpu
+    "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
     "reserved_core": 7,
     "reserved_mem": 1024 * 15,
-    "pricing_cpu": SLOPE,  # for the function
-    "pricing_mem": SLOPE,  # for the function
-    "pricing_cpu_initial": generate_initial_pricing(1),
-    "pricing_mem_initial": lambda: generate_initial_pricing(1)() / 2,
-    "pricing_geolocation": SLOPE,  # for already used mem and cpu
+    "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
@@ -362,25 +325,8 @@ TIER_1_FLAVOR = {
     "mem": 1024 * 46,
     "reserved_core": 15,
     "reserved_mem": 1024 * 44,
-    "pricing_cpu": SLOPE,  # for the function
-    "pricing_mem": SLOPE,  # for the function
-    "pricing_cpu_initial": generate_initial_pricing(0),
-    "pricing_mem_initial": lambda: generate_initial_pricing(0)() / 2,
-    "pricing_geolocation": SLOPE,  # for already used mem and cpu
+    "additional_env_vars": additional_env_vars(0),
 }
-# TIER_CLOUD_FLAVOR = {
-#     "is_cloud": True,
-#     "core": 1024,
-#     "mem": 1024 * 1024,
-#     "reserved_core": 2014,
-#     "reserved_mem": 1024 * 1024,
-#     "pricing_cpu": SLOPE,  # for the function
-#     "pricing_mem": SLOPE,  # for the function
-#     "pricing_cpu_initial": generate_initial_pricing(0),
-#     "pricing_mem_initial": generate_initial_pricing(0),
-#     "pricing_geolocation": SLOPE,  # for already used mem and cpu
-# }
-
 
 uuid = 0
 

@@ -608,7 +608,7 @@ master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="fa
 
     parallel ::: \
       'just upload {{experiments_dotfile}} true' \
-      'just build_required_images {{user}} {{skip_rebuild}})'
+      'just build_required_images {{user}} {{skip_rebuild}}'
     {{RUN}} master.py run-command-refresh
 
 master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
@@ -659,3 +659,14 @@ test_expe  experiments_dotfile=".experiments.env":
     export TARGET_NODE_NAMES=toto
     export TARGET_NODES=toto
     EXPE_SAVE_FILE=toto.txt python expe.py
+
+[private]
+test_definitions experiments_dotfile=".experiments.env":
+    #!/usr/bin/env bash
+    set -o allexport
+    source {{experiments_dotfile}}
+    set +o allexport
+    export SAVE_NETWORK_FILE=/dev/null
+    python definitions.py
+
+

@@ -25,6 +25,10 @@ env_var!(PRICING_CPU_INITIAL);
 env_var!(PRICING_MEM);
 env_var!(PRICING_MEM_INITIAL);
 env_var!(PRICING_GEOLOCATION);
+env_var!(RATIO_AA);
+env_var!(RATIO_BB);
+env_var!(RATIO_CC);
+env_var!(ELECTRICITY_PRICE);
 
 pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
@@ -121,6 +125,45 @@ impl Auction {
             + cpu_ratio_sla * pricing_cpu_initial;
 
         trace!("price on {:?} is {:?}", name, price);
+
+        Ok(Some((name, price)))
+    }
+
+    #[cfg(feature = "quadratic_rates")]
+    async fn compute_bid(
+        &self,
+        sla: &Sla,
+        _accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<(String, f64)>> {
+        use helper::env_load;
+        let aa = env_load!(PricingRatio, RATIO_AA, f64).into_inner();
+        let bb = env_load!(PricingRatio, RATIO_BB, f64).into_inner();
+        let cc = env_load!(PricingRatio, RATIO_CC, f64).into_inner();
+        let electricity_price =
+            env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();
+        let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
+            self.get_a_node(sla)
+                .await
+                .context("Failed to found a suitable node for the sla")?
+        else {
+            return Ok(None);
+        };
+
+        // The more the cpu is used the lower the price and the easiest to win
+        let usage_without_func: f64 = (used_cpu / available_cpu).into();
+        let usage_with_func: f64 =
+            ((used_cpu + sla.cpu) / available_cpu).into();
+        let power = aa / 3.0
+            * (f64::powi(usage_with_func, 3)
+                - f64::powi(usage_without_func, 3))
+            + bb / 2.0
+                * (f64::powi(usage_with_func, 2)
+                    - f64::powi(usage_without_func, 2))
+            + cc * (usage_with_func - usage_without_func);
+        let sla_duration: f64 = sla.duration.get::<uom::si::time::second>();
+        let price: f64 = power * sla_duration * electricity_price;
+
+        trace!("(quadratic) price on {:?} is {:?}", name, price);
 
         Ok(Some((name, price)))
     }

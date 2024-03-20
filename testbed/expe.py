@@ -394,7 +394,6 @@ async def save_file(filename: str):
                 for x in np.random.gamma(2.35, 17, nb_function)
                 # math.ceil(abs(1000 * x)) for x in np.random.gamma(0.75, 47, nb_function)
             ]
-            print(request_intervals)
             durations = [
                 math.ceil(10000 * x)
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)

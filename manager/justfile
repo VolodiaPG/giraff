@@ -23,6 +23,7 @@ pre_commit:
 check subcommand="check":
     #!/usr/bin/env bash
     set -e
+    just _{{subcommand}} --features quadratic_rates,auction
     just _{{subcommand}} --features valuation_rates,auction
 
     just _{{subcommand}} --features valuation_rates,edge_first
@@ -154,6 +155,11 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['PRICING_CPU_INITIAL']="1.0"
     env_vars['PRICING_MEM_INITIAL']="1.0"
     env_vars['PRICING_GEOLOCATION']="1.0"
+
+    env_vars['RATIO_AA']="1.0"
+    env_vars['RATIO_BB']="1.0"
+    env_vars['RATIO_CC']="1.0"
+    env_vars['ELECTRICITY_PRICE']="1.0"
 
     if "{{node_type}}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"

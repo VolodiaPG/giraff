@@ -587,18 +587,6 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
 
     roles = env["roles"]
 
-    # en.run_command(
-    #     "k3s kubectl delete -f /tmp/node_conf.yaml || true",
-    #     roles=roles["master"],
-    #     task_name="Removing existing fog_node software",
-    # )
-
-    # en.run_command(
-    #     "(k3s kubectl delete -f /tmp/market.yaml || true) && sleep 30",
-    #     roles=roles["master"],
-    #     task_name="Removing existing market software",
-    # )
-
     ids = {
         node_name: (uuid.uuid4(), roles[node_name][0].address)
         for node_name in FOG_NODES
@@ -632,37 +620,24 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     )
 
     for name, conf, tier_flavor in confs:
-        pricing_cpu_initial = tier_flavor["pricing_cpu_initial"]
-        pricing_cpu_initial = (
-            pricing_cpu_initial()
-            if callable(pricing_cpu_initial)
-            else pricing_cpu_initial
-        )
-        pricing_mem_initial = tier_flavor["pricing_mem_initial"]
-        pricing_mem_initial = (
-            pricing_mem_initial()
-            if callable(pricing_mem_initial)
-            else pricing_mem_initial
-        )
+        additional_env_vars = ""
+        for varname, value in tier_flavor["additional_env_vars"]().items():
+            value = value() if callable(value) else value
+            additional_env_vars += f"        - name: {varname}\n"
+            additional_env_vars += f'          value: "{value}"\n'
 
         deployment = FOG_NODE_DEPLOYMENT.format(
             conf=base64.b64encode(bytes(conf, "utf-8")).decode("utf-8"),
-            # influx_ip=roles["prom_master"][0].address,
             influx_ip="10.42.0.1",
             node_name=name,
             fog_node_image=fog_node_image,
-            pricing_cpu=tier_flavor["pricing_cpu"],
-            pricing_mem=tier_flavor["pricing_mem"],
-            pricing_cpu_initial=pricing_cpu_initial,
-            pricing_mem_initial=pricing_mem_initial,
-            pricing_geolocation=tier_flavor["pricing_geolocation"],
             collector_ip=roles["iot_emulation"][0].address,
             is_cloud="is_cloud"
             if tier_flavor.get("is_cloud") is not None
             and tier_flavor.get("is_cloud") is True
             else "no_cloud",
+            additional_env_vars=additional_env_vars,
         )
-        # print(f"Doing name {name}")
         roles[name][0].set_extra(fog_node_deployment=deployment)
 
     roles[NETWORK["name"]][0].set_extra(
