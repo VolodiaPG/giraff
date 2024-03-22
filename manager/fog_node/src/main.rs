@@ -320,6 +320,7 @@ async fn main() -> anyhow::Result<()> {
         resource_tracking_repo.clone(),
         function_tracking_repo.clone(),
         metrics.clone(),
+        cron_repo.clone(),
     ));
     let function_life_service = Arc::new(FunctionLife::new(
         function.clone(),

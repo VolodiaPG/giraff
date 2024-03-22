@@ -100,23 +100,28 @@
               ((extra.shellHook system) "manager")
               + (extra.shellHookPython pkgs.python3.interpreter);
 
-            packages = with pkgs; [
-              docker
-              just
-              pkg-config
-              jq
-              mprocs
-              openssl
-              rust-analyzer-nightly
-              cargo-outdated
-              cargo-udeps
-              cargo-expand
-              lldb
-              kubectl
-              (rustfmt.override {asNightly = true;})
-              parallel
-              skopeo
-            ];
+            packages = with pkgs;
+              [
+                docker
+                just
+                pkg-config
+                jq
+                mprocs
+                openssl
+                rust-analyzer-nightly
+                cargo-outdated
+                cargo-udeps
+                cargo-expand
+                lldb
+                kubectl
+                (rustfmt.override {asNightly = true;})
+                parallel
+                skopeo
+              ]
+              ++ lib.optionals pkgs.stdenv.isDarwin [
+                pkgs.libiconv
+                darwin.apple_sdk.frameworks.SystemConfiguration
+              ];
           };
         }
       );

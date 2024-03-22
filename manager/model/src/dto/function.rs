@@ -2,9 +2,6 @@ use crate::domain::sla::Sla;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
-pub struct FunctionRecord<State>(pub State);
-
-#[derive(Debug, Clone)]
 pub struct Proposed {
     pub bid:  f64,
     pub sla:  Sla,
@@ -35,55 +32,72 @@ pub struct Live {
 
 #[derive(Debug, Clone)]
 pub struct Finished {
-    pub bid: f64,
-    pub sla: Sla,
+    pub bid:  f64,
+    pub sla:  Sla,
+    pub node: String,
 }
 
-impl FunctionRecord<Proposed> {
+pub trait Finishable {
+    fn to_finished(&self) -> Finished;
+}
+
+impl Proposed {
     pub fn new(bid: f64, sla: Sla, node: String) -> Self {
-        Self(Proposed { bid, sla, node })
+        Self { bid, sla, node }
     }
 
-    pub fn to_paid(self) -> FunctionRecord<Paid> {
-        FunctionRecord(Paid {
-            bid:  self.0.bid,
-            sla:  self.0.sla,
-            node: self.0.node,
-        })
+    pub fn to_paid(self) -> Paid {
+        Paid { bid: self.bid, sla: self.sla, node: self.node }
     }
 }
 
-impl FunctionRecord<Paid> {
-    pub fn to_provisioned(
-        self,
-        function_name: String,
-    ) -> FunctionRecord<Provisioned> {
-        FunctionRecord(Provisioned {
+impl Paid {
+    pub fn to_provisioned(self, function_name: String) -> Provisioned {
+        Provisioned {
             function_name,
-            bid: self.0.bid,
-            sla: self.0.sla,
-            node: self.0.node,
-        })
-    }
-
-    pub fn to_finished(self) -> FunctionRecord<Finished> {
-        FunctionRecord(Finished { bid: self.0.bid, sla: self.0.sla })
+            bid: self.bid,
+            sla: self.sla,
+            node: self.node,
+        }
     }
 }
-impl FunctionRecord<Provisioned> {
-    pub fn to_live(self) -> FunctionRecord<Live> {
-        FunctionRecord(Live {
-            function_name: self.0.function_name,
-            bid:           self.0.bid,
-            sla:           self.0.sla,
-            node:          self.0.node,
-        })
+impl Finishable for Paid {
+    fn to_finished(&self) -> Finished {
+        Finished {
+            bid:  self.bid.clone(),
+            sla:  self.sla.clone(),
+            node: self.node.clone(),
+        }
+    }
+}
+impl Provisioned {
+    pub fn to_live(self) -> Live {
+        Live {
+            function_name: self.function_name,
+            bid:           self.bid,
+            sla:           self.sla,
+            node:          self.node,
+        }
     }
 }
 
-impl FunctionRecord<Live> {
-    pub fn to_finished(self) -> FunctionRecord<Finished> {
-        FunctionRecord(Finished { bid: self.0.bid, sla: self.0.sla })
+impl Finishable for Provisioned {
+    fn to_finished(&self) -> Finished {
+        Finished {
+            bid:  self.bid.clone(),
+            sla:  self.sla.clone(),
+            node: self.node.clone(),
+        }
+    }
+}
+
+impl Finishable for Live {
+    fn to_finished(&self) -> Finished {
+        Finished {
+            bid:  self.bid.clone(),
+            sla:  self.sla.clone(),
+            node: self.node.clone(),
+        }
     }
 }
 

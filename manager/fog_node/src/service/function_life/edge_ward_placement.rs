@@ -51,7 +51,7 @@ impl FunctionLife {
             BidProposal {
                 node_id: self.node_situation.get_my_id(),
                 id,
-                bid: record.0.bid,
+                bid: record.bid,
             }
         } else {
             trace!("Transmitting bid to other node...");

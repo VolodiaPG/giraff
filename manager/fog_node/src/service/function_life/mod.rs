@@ -1,4 +1,6 @@
-use crate::repository::cron::Cron;
+use std::sync::Arc;
+
+use crate::repository::cron::{Cron, Task, UnprovisionFunction};
 use crate::repository::faas::FunctionTimeout;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
@@ -10,7 +12,6 @@ use backoff::SystemClock;
 use helper::env_load;
 use model::view::auction::AccumulatedLatency;
 use model::SlaId;
-use std::sync::Arc;
 use uom::si::f64::{Information, Ratio, Time};
 use uom::si::information::byte;
 use uom::si::ratio::ratio;
@@ -140,9 +141,13 @@ impl FunctionLife {
             .get_paid(&id)
             .ok_or(anyhow!("Failed to retrieve paid function {}", id))?;
         let function = self.function.clone();
+        let task =
+            Task::UnprovisionFunction(UnprovisionFunction { sla: id.clone() });
         let id2 = id.clone();
+        let function_tracking = self.function_tracking.clone();
+
         self.cron
-            .add_oneshot(paid.0.sla.duration, move || {
+            .add_oneshot(paid.sla.duration, task, move || {
                 let id = id.clone();
                 let function = function.clone();
                 Box::pin(async move {
@@ -158,7 +163,7 @@ impl FunctionLife {
                         return;
                     };
 
-                    if let Err(err) = function.drop_paid_function(id).await {
+                    if let Err(err) = function.finish_function(id).await {
                         warn!(
                             "Failed to drop paid function as stated in the \
                              cron job {:?}",
@@ -181,7 +186,6 @@ impl FunctionLife {
     pub async fn provision_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
         function.provision_function(id.clone()).await?;
-
         drop(function);
 
         backoff::future::retry(self.get_backoff(), || async {
@@ -190,48 +194,6 @@ impl FunctionLife {
             Ok(())
         })
         .await?;
-
-        let live =
-            self.function_tracking.get_live(&id).with_context(|| {
-                format!("Failed to get data about the live function {}", id)
-            })?;
-
-        let function = self.function.clone();
-        let id2 = id.clone();
-        self.cron
-            .add_oneshot(live.0.sla.duration, move || {
-                let id = id.clone();
-                let function = function.clone();
-                Box::pin(async move {
-                    let Ok(function) = function
-                        .lock()
-                        .await
-                        .context(
-                            "Failed to lock when calling cron to unprovision \
-                             function",
-                        )
-                        .map_err(|err| error!("{:?}", err))
-                    else {
-                        return;
-                    };
-
-                    if let Err(err) = function.unprovision_function(id).await {
-                        warn!(
-                            "Failed to unprovision function as stated in the \
-                             cron job {:?}",
-                            err
-                        );
-                    }
-                })
-            })
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to setup a oneshot cron job to stop function {} \
-                     in the future",
-                    id2
-                )
-            })?;
         Ok(())
     }
 

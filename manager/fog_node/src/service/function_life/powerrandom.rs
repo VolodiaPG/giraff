@@ -121,7 +121,7 @@ impl FunctionLife {
             proposals.bids.push(BidProposal {
                 node_id: my_id,
                 id:      bid,
-                bid:     bid_record.0.bid,
+                bid:     bid_record.bid,
             });
         } else {
             warn!("Bid unsatisfiable, passing on...");

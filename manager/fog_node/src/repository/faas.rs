@@ -8,7 +8,7 @@ use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
-use model::dto::function::{FunctionRecord, Live, Paid, Provisioned};
+use model::dto::function::{Live, Paid, Provisioned};
 use model::SlaId;
 use nutype::nutype;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
@@ -33,15 +33,15 @@ pub struct RemovableFunctionRecord {
     function_name: String,
 }
 
-impl From<FunctionRecord<Provisioned>> for RemovableFunctionRecord {
-    fn from(value: FunctionRecord<Provisioned>) -> Self {
-        Self { function_name: value.0.function_name }
+impl From<Provisioned> for RemovableFunctionRecord {
+    fn from(value: Provisioned) -> Self {
+        Self { function_name: value.function_name }
     }
 }
 
-impl From<FunctionRecord<Live>> for RemovableFunctionRecord {
-    fn from(value: FunctionRecord<Live>) -> Self {
-        Self { function_name: value.0.function_name }
+impl From<Live> for RemovableFunctionRecord {
+    fn from(value: Live) -> Self {
+        Self { function_name: value.function_name }
     }
 }
 
@@ -51,19 +51,19 @@ impl FaaSBackend {
     pub async fn provision_function(
         &self,
         id: SlaId,
-        bid: FunctionRecord<Paid>,
-    ) -> Result<FunctionRecord<Provisioned>> {
+        bid: Paid,
+    ) -> Result<Provisioned> {
         let function_name = format!("fogfn-{}", id); // Respect DNS-1035 formatting (letter as first char of name)
 
         let mut env_vars = HashMap::new();
         env_vars.insert(
             ENV_VAR_SLA.to_string(),
-            serde_json::to_string(&bid.0.sla).with_context(|| {
+            serde_json::to_string(&bid.sla).with_context(|| {
                 format!("Failed to serialize the sla of function {}", id)
             })?,
         );
 
-        env_vars.extend(bid.0.sla.env_vars.iter().cloned());
+        env_vars.extend(bid.sla.env_vars.iter().cloned());
 
         let bucket = env_load!(InfluxBucket, INFLUX_BUCKET);
         let address = env_load!(InfluxAddress, INFLUX_ADDRESS);
@@ -77,7 +77,7 @@ impl FaaSBackend {
         env_vars.insert("ID".to_string(), id.to_string());
         env_vars.insert(
             "NAME".to_string(),
-            bid.0.sla.function_live_name.to_string(),
+            bid.sla.function_live_name.to_string(),
         );
 
         let otel_endpoint_function =
@@ -102,20 +102,20 @@ impl FaaSBackend {
         }
 
         let definition = FunctionDefinition {
-            image: bid.0.sla.function_image.to_owned(),
+            image: bid.sla.function_image.to_owned(),
             service: function_name.to_owned(),
             limits: Some(Limits {
-                memory: bid.0.sla.memory,
-                cpu:    bid.0.sla.cpu,
+                memory: bid.sla.memory,
+                cpu:    bid.sla.cpu,
             }),
             requests: Some(Requests {
-                memory: bid.0.sla.memory,
-                cpu:    bid.0.sla.cpu,
+                memory: bid.sla.memory,
+                cpu:    bid.sla.cpu,
             }),
             env_vars: Some(env_vars),
             labels: Some(HashMap::from([(
                 "com.openfaas.scale.max".to_string(),
-                bid.0.sla.max_replica.to_string(),
+                bid.sla.max_replica.to_string(),
             )])),
             ..Default::default()
         };
@@ -126,11 +126,8 @@ impl FaaSBackend {
         Ok(bid)
     }
 
-    pub async fn check_is_live(
-        &self,
-        function: &FunctionRecord<Provisioned>,
-    ) -> Result<()> {
-        self.client.check_is_live(function.0.function_name.clone()).await?;
+    pub async fn check_is_live(&self, function: &Provisioned) -> Result<()> {
+        self.client.check_is_live(function.function_name.clone()).await?;
         Ok(())
     }
 

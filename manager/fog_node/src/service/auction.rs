@@ -6,7 +6,7 @@ use chrono::Utc;
 use helper::env_var;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
-use model::dto::function::{FunctionRecord, Proposed};
+use model::dto::function::Proposed;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
@@ -138,7 +138,6 @@ impl Auction {
         use helper::env_load;
         let aa = env_load!(PricingRatio, RATIO_AA, f64).into_inner();
         let bb = env_load!(PricingRatio, RATIO_BB, f64).into_inner();
-        let cc = env_load!(PricingRatio, RATIO_CC, f64).into_inner();
         let electricity_price =
             env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();
         let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
@@ -158,8 +157,7 @@ impl Auction {
                 - f64::powi(usage_without_func, 3))
             + bb / 2.0
                 * (f64::powi(usage_with_func, 2)
-                    - f64::powi(usage_without_func, 2))
-            + cc * (usage_with_func - usage_without_func);
+                    - f64::powi(usage_without_func, 2));
         let sla_duration: f64 = sla.duration.get::<uom::si::time::second>();
         let price: f64 = power * sla_duration * electricity_price;
 
@@ -201,7 +199,7 @@ impl Auction {
         &self,
         sla: Sla,
         accumulated_latency: &AccumulatedLatency,
-    ) -> Result<Option<(BidId, FunctionRecord<Proposed>)>> {
+    ) -> Result<Option<(BidId, Proposed)>> {
         let Some((node, bid)) = self
             .compute_bid(&sla, accumulated_latency)
             .await
@@ -209,15 +207,15 @@ impl Auction {
         else {
             return Ok(None);
         };
-        let record = FunctionRecord::new(bid, sla, node);
+        let record = Proposed::new(bid, sla, node);
         self.db.insert(record.clone());
         let id = Uuid::new_v4();
         let id = BidId::from(id);
         self.metrics
             .observe(BidGauge {
                 bid,
-                function_name: record.0.sla.function_live_name.clone(),
-                sla_id: record.0.sla.id.to_string(),
+                function_name: record.sla.function_live_name.clone(),
+                sla_id: record.sla.id.to_string(),
                 bid_id: id.to_string(),
                 timestamp: Utc::now(),
             })

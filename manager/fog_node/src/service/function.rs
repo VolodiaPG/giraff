@@ -1,11 +1,12 @@
 use crate::monitoring::{PaidFunctions, ProvisionedFunctions};
+use crate::repository::cron::Cron;
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
-use anyhow::{ensure, Context, Result};
-use chrono::Utc;
+use anyhow::{bail, ensure, Context, Result};
+use chrono::{DateTime, Utc};
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::SlaId;
@@ -13,6 +14,11 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use uom::si::f64::{Information, Ratio};
+
+pub struct UnprovisionEvent {
+    timestamp: DateTime<Utc>,
+    sla:       SlaId,
+}
 
 pub struct Locked {}
 
@@ -26,6 +32,7 @@ pub struct Function<State = Unlocked> {
     resource_tracking: Arc<ResourceTracking>,
     function_tracking: Arc<FunctionTracking>,
     metrics:           Arc<MetricsExporter>,
+    cron:              Arc<Cron>,
     lock_state:        PhantomData<State>,
     lock:              Arc<Semaphore>,
     permit:            Option<OwnedSemaphorePermit>,
@@ -55,6 +62,7 @@ impl Function {
         resource_tracking: Arc<ResourceTracking>,
         function_tracking: Arc<FunctionTracking>,
         metrics: Arc<MetricsExporter>,
+        cron: Arc<Cron>,
     ) -> Self {
         Self {
             function,
@@ -64,6 +72,7 @@ impl Function {
             resource_tracking,
             function_tracking,
             metrics,
+            cron,
             lock_state: PhantomData,
             lock: Arc::new(Semaphore::new(1)),
             permit: None,
@@ -87,6 +96,7 @@ impl Function {
             resource_tracking: self.resource_tracking.clone(),
             function_tracking: self.function_tracking.clone(),
             metrics: self.metrics.clone(),
+            cron: self.cron.clone(),
             lock_state: PhantomData,
             lock: self.lock.clone(),
             permit,
@@ -109,10 +119,26 @@ impl Function {
             })?;
         self.function.check_is_live(&function).await?;
 
-        let live = (*function).clone().to_live();
+        let live = function.to_live();
         self.function_tracking.save_live(&id, live);
         Ok(())
     }
+
+    //pub async fn get_utilisation_variations(
+    //    &self,
+    //    function: SlaId,
+    //) -> Vec<UnprovisionEvent> {
+    //    let ret = Vec::new();
+    //    for elem in self.cron.tasks.lock().await.iter() {
+    //        let created_at = elem.created_at;
+    //        if let Task::UnprovisionFunction(elem) = elem {
+    //            //let sla = self.function_tracking.get(&sla);
+    //            let timestamp = created_at + elem.sla.duration;
+    //            ret.push(UnprovisionEvent { timestamp, sla: });
+    //        }
+    //    }
+    //    ret
+    //}
 }
 
 impl<State> Drop for Function<State> {
@@ -142,24 +168,24 @@ impl Function<Locked> {
 
         let (used_ram, used_cpu) = self
             .resource_tracking
-            .get_used(&proposal.0.node)
+            .get_used(&proposal.node)
             .await
             .with_context(|| {
                 format!(
                     "Failed to get used resources from tracking data for \
                      node {}",
-                    &proposal.0.node
+                    &proposal.node
                 )
             })?;
         let (available_ram, available_cpu) = self
             .resource_tracking
-            .get_available(&proposal.0.node)
+            .get_available(&proposal.node)
             .await
             .with_context(|| {
                 format!(
                     "Failed to get available resources from tracking data \
                      for node {}",
-                    &proposal.0.node
+                    &proposal.node
                 )
             })?;
 
@@ -169,23 +195,23 @@ impl Function<Locked> {
                 &used_cpu,
                 &available_ram,
                 &available_cpu,
-                &proposal.0.sla
+                &proposal.sla
             ),
             "The SLA cannot be respected because at least a constrainst is \
              not satisfiable (anymore?!)"
         );
 
-        let name = proposal.0.node.clone();
-        let sla_cpu = proposal.0.sla.cpu;
-        let sla_memory = proposal.0.sla.memory;
+        let name = proposal.node.clone();
+        let sla_cpu = proposal.sla.cpu;
+        let sla_memory = proposal.sla.memory;
 
-        let paid = (*proposal).clone().to_paid();
+        let paid = proposal.to_paid();
 
         self.metrics
             .observe(PaidFunctions {
                 n:             1,
-                function_name: paid.0.sla.function_live_name.clone(),
-                sla_id:        paid.0.sla.id.to_string(),
+                function_name: paid.sla.function_live_name.clone(),
+                sla_id:        paid.sla.id.to_string(),
                 timestamp:     Utc::now(),
             })
             .await?;
@@ -218,7 +244,7 @@ impl Function<Locked> {
 
         let provisioned = self
             .function
-            .provision_function(id.clone(), (*paid_proposal).clone())
+            .provision_function(id.clone(), paid_proposal)
             .await
             .with_context(|| {
                 format!("Failed to provision the proposed function {}", id)
@@ -226,8 +252,8 @@ impl Function<Locked> {
         self.metrics
             .observe(ProvisionedFunctions {
                 n:             1,
-                function_name: provisioned.0.sla.function_live_name.clone(),
-                sla_id:        provisioned.0.sla.id.to_string(),
+                function_name: provisioned.sla.function_live_name.clone(),
+                sla_id:        provisioned.sla.id.to_string(),
                 timestamp:     Utc::now(),
             })
             .await?;
@@ -236,101 +262,58 @@ impl Function<Locked> {
         Ok(())
     }
 
-    pub(in crate::service) async fn drop_paid_function(
+    pub(in crate::service) async fn finish_function(
         &self,
         function: SlaId,
     ) -> Result<()> {
-        let record = self.function_tracking.get_paid(&function);
-        match record {
-            Some(record) => {
-                let name = record.0.node.clone();
-                let sla_cpu = record.0.sla.cpu;
-                let sla_memory = record.0.sla.memory;
-
-                let record = (*record).clone().to_finished();
-
-                self.metrics
-                    .observe(ProvisionedFunctions {
-                        n:             0,
-                        function_name: record.0.sla.function_live_name.clone(),
-                        sla_id:        record.0.sla.id.to_string(),
-                        timestamp:     Utc::now(),
-                    })
-                    .await?;
-                self.function_tracking.save_finished(&function, record);
-
-                let Ok((memory, cpu)) =
-                    self.resource_tracking.get_used(&name).await
-                else {
-                    error!("Could not get tracked cpu and memory");
-                    return Ok(());
-                };
-                let Ok(()) = self
-                    .resource_tracking
-                    .set_used(name, memory - sla_memory, cpu - sla_cpu)
-                    .await
-                else {
-                    error!("Could not set updated tracked cpu and memory");
-                    return Ok(());
-                };
-
-                Ok(())
-            }
-            None => Ok(()),
-        }
-    }
-
-    pub(in crate::service) async fn unprovision_function(
-        &self,
-        function: SlaId,
-    ) -> Result<()> {
-        let record =
-            self.function_tracking.get_live(&function).with_context(|| {
-                format!(
-                    "Failed to get provisioned function {} from the tracking \
-                     data",
-                    function
-                )
-            })?;
-        if self
-            .function
-            .remove_function((*record).clone().into())
-            .await
-            .is_err()
+        if let Some(boxed_record) =
+            self.function_tracking.get_finishable(&function)
         {
-            warn!("Failed to delete function {}", function);
+            let record = boxed_record.to_finished().clone();
+
+            if let Some(removable) =
+                self.function_tracking.get_removable(&function)
+            {
+                if self.function.remove_function(removable).await.is_err() {
+                    warn!("Failed to delete function {}", function);
+                }
+            }
+
+            let name = record.node.clone();
+            let sla_cpu = record.sla.cpu;
+            let sla_memory = record.sla.memory;
+
+            self.metrics
+                .observe(ProvisionedFunctions {
+                    n:             0,
+                    function_name: record.sla.function_live_name.clone(),
+                    sla_id:        record.sla.id.to_string(),
+                    timestamp:     Utc::now(),
+                })
+                .await?;
+            self.function_tracking.save_finished(&function, record);
+
+            let Ok((memory, cpu)) =
+                self.resource_tracking.get_used(&name).await
+            else {
+                error!("Could not get tracked cpu and memory");
+                return Ok(());
+            };
+            let Ok(()) = self
+                .resource_tracking
+                .set_used(name, memory - sla_memory, cpu - sla_cpu)
+                .await
+            else {
+                error!("Could not set updated tracked cpu and memory");
+                return Ok(());
+            };
+
+            Ok(())
+        } else {
+            bail!(
+                "Current function is not in a state where it can be dropped \
+                 from the active pool of functions running on a node"
+            );
         }
-
-        let name = record.0.node.clone();
-        let sla_cpu = record.0.sla.cpu;
-        let sla_memory = record.0.sla.memory;
-
-        let record = (*record).clone().to_finished();
-
-        self.metrics
-            .observe(ProvisionedFunctions {
-                n:             0,
-                function_name: record.0.sla.function_live_name.clone(),
-                sla_id:        record.0.sla.id.to_string(),
-                timestamp:     Utc::now(),
-            })
-            .await?;
-        self.function_tracking.save_finished(&function, record);
-
-        let Ok((memory, cpu)) = self.resource_tracking.get_used(&name).await
-        else {
-            error!("Could not get tracked cpu and memory");
-            return Ok(());
-        };
-        let Ok(()) = self
-            .resource_tracking
-            .set_used(name, memory - sla_memory, cpu - sla_cpu)
-            .await
-        else {
-            error!("Could not set updated tracked cpu and memory");
-            return Ok(());
-        };
-
-        Ok(())
     }
 }
