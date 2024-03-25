@@ -302,16 +302,9 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Services
-    let auction_service = Arc::new(Auction::new(
-        resource_tracking_repo.clone(),
-        function_tracking_repo.clone(),
-        metrics.clone(),
-    ));
-    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
-    let node_life_service =
-        Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let neighbor_monitor_service =
         Arc::new(NeighborMonitor::new(latency_estimation_repo));
+    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
     let function = Arc::new(Function::new(
         faas_service.clone(),
         node_situation.clone(),
@@ -322,6 +315,14 @@ async fn main() -> anyhow::Result<()> {
         metrics.clone(),
         cron_repo.clone(),
     ));
+    let auction_service = Arc::new(Auction::new(
+        resource_tracking_repo.clone(),
+        function_tracking_repo.clone(),
+        metrics.clone(),
+        function.clone(),
+    ));
+    let node_life_service =
+        Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let function_life_service = Arc::new(FunctionLife::new(
         function.clone(),
         auction_service.clone(),

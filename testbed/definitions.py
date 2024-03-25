@@ -283,17 +283,36 @@ def pricing(
 
 def additional_env_vars(level):
     def inner():
-        return {
+        ret = {
             "PRICING_CPU": SLOPE,  # for the function
             "PRICING_MEM": SLOPE,  # for the function
             "PRICING_CPU_INITIAL": pricing(level),
             "PRICING_MEM_INITIAL": pricing(level) / 2,
             "PRICING_GEOLOCATION": SLOPE,  # for already used mem and cpu
-            "RATIO_AA": 1.0,
-            "RATIO_BB": 1.0,
-            "RATIO_CC": 1.0,
             "ELECTRICITY_PRICE": 1.0,
         }
+        if level >= 3:
+            ret.update(
+                {
+                    "RATIO_AA": random.uniform(1.1, 1.5),
+                    "RATIO_BB": random.uniform(1.0, 1.2),
+                }
+            )
+        elif level == 2:
+            ret.update(
+                {
+                    "RATIO_AA": random.uniform(1.1, 1.2),
+                    "RATIO_BB": random.uniform(1.0, 1.1),
+                }
+            )
+        elif level <= 1:
+            ret.update(
+                {
+                    "RATIO_AA": 0.0,
+                    "RATIO_BB": 0.9,
+                }
+            )
+        return ret
 
     return inner
 
@@ -434,7 +453,7 @@ def network_generation():
             TIER_1_FLAVOR,
             nb_nodes=(1, int(2 * SIZE_MULTIPLIER)),
             latencies=(2, 3),
-            modifiers=[set_cloud, drop_children(drop_one_in=2)],
+            modifiers=[set_cloud, drop_children(drop_one_in=3)],
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
@@ -446,20 +465,19 @@ def network_generation():
                 ],
                 next_lvl=generate_level(
                     TIER_3_FLAVOR,
-                    nb_nodes=(2, int(6 * SIZE_MULTIPLIER)),
+                    nb_nodes=(3, int(6 * SIZE_MULTIPLIER)),
                     latencies=(3, 20),
                     modifiers=[
-                        drop_children(drop_one_in=4),
+                        drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
                         flavor_randomizer_mem([0, 2, 4]),
                     ],
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
-                        nb_nodes=(1, int(8 * SIZE_MULTIPLIER)),
+                        nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 3),
                         modifiers=[
-                            drop_children(drop_one_in=5),
-                            set_iot_connected(drop_one_in=4),
+                            set_iot_connected(drop_one_in=6),
                             flavor_randomizer_mem([0, 2]),
                         ],
                     ),

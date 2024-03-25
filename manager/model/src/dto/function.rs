@@ -22,6 +22,7 @@ pub struct Provisioned {
     pub node:          String,
     pub function_name: String,
 }
+
 #[derive(Debug, Clone)]
 pub struct Live {
     pub bid:           f64,

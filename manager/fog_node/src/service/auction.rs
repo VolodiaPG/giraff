@@ -14,6 +14,8 @@ use std::sync::Arc;
 use uom::si::f64::{Information, Ratio};
 use uuid::Uuid;
 
+use super::function::Function;
+
 #[nutype(
     derive(PartialEq, PartialOrd),
     validate(finite, greater_or_equal = 0.0)
@@ -34,6 +36,8 @@ pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
     db:                Arc<FunctionTracking>,
     metrics:           Arc<MetricsExporter>,
+    #[allow(dead_code)]
+    function:          Arc<Function>,
 }
 
 impl Auction {
@@ -41,8 +45,9 @@ impl Auction {
         resource_tracking: Arc<ResourceTracking>,
         db: Arc<FunctionTracking>,
         metrics: Arc<MetricsExporter>,
+        function: Arc<Function>,
     ) -> Self {
-        Self { resource_tracking, db, metrics }
+        Self { resource_tracking, db, metrics, function }
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
@@ -135,12 +140,12 @@ impl Auction {
         sla: &Sla,
         _accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
+        use crate::service::function::UnprovisionEvent;
         use helper::env_load;
-        let aa = env_load!(PricingRatio, RATIO_AA, f64).into_inner();
-        let bb = env_load!(PricingRatio, RATIO_BB, f64).into_inner();
-        let electricity_price =
-            env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();
-        let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
+        use helper::uom_helper::cpu_ratio::cpu;
+        use uom::si::time::second;
+
+        let Some((name, _used_ram, _used_cpu, _available_ram, _available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")?
@@ -148,20 +153,26 @@ impl Auction {
             return Ok(None);
         };
 
-        // The more the cpu is used the lower the price and the easiest to win
-        let usage_without_func: f64 = (used_cpu / available_cpu).into();
-        let usage_with_func: f64 =
-            ((used_cpu + sla.cpu) / available_cpu).into();
-        let power = aa / 3.0
-            * (f64::powi(usage_with_func, 3)
-                - f64::powi(usage_without_func, 3))
-            + bb / 2.0
-                * (f64::powi(usage_with_func, 2)
-                    - f64::powi(usage_without_func, 2));
-        let sla_duration: f64 = sla.duration.get::<uom::si::time::second>();
-        let price: f64 = power * sla_duration * electricity_price;
+        let aa = env_load!(PricingRatio, RATIO_AA, f64).into_inner();
+        let bb = env_load!(PricingRatio, RATIO_BB, f64).into_inner();
+        let now = Utc::now();
+        let mut utilisation = 0.0;
+        for UnprovisionEvent { timestamp, sla } in
+            self.function.get_utilisation_variations().await.iter()
+        {
+            let duration = *timestamp - now;
+            let duration = duration.num_seconds() as f64;
+            utilisation += sla.cpu.get::<cpu>() * duration;
+        }
+        let sla_cpu = sla.cpu.get::<cpu>();
+        let sla_duration = sla.duration.get::<second>();
+        let electricity_price =
+            env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();
+        let price = electricity_price
+            * sla_cpu
+            * (2.0 * aa * utilisation + (aa * sla_cpu + bb) * sla_duration);
 
-        trace!("(quadratic) price on {:?} is {:?}", name, price);
+        trace!("(quadratic) price on is {:?}", price);
 
         Ok(Some((name, price)))
     }

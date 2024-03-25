@@ -1,12 +1,12 @@
 use crate::monitoring::{PaidFunctions, ProvisionedFunctions};
-use crate::repository::cron::Cron;
+use crate::repository::cron::{Cron, Task, TaskEntry, UnprovisionFunction};
 use crate::repository::faas::FaaSBackend;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
 use anyhow::{bail, ensure, Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::SlaId;
@@ -14,10 +14,11 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use uom::si::f64::{Information, Ratio};
+use uom::si::time::millisecond;
 
 pub struct UnprovisionEvent {
-    timestamp: DateTime<Utc>,
-    sla:       SlaId,
+    pub timestamp: DateTime<Utc>,
+    pub sla:       Sla,
 }
 
 pub struct Locked {}
@@ -124,21 +125,27 @@ impl Function {
         Ok(())
     }
 
-    //pub async fn get_utilisation_variations(
-    //    &self,
-    //    function: SlaId,
-    //) -> Vec<UnprovisionEvent> {
-    //    let ret = Vec::new();
-    //    for elem in self.cron.tasks.lock().await.iter() {
-    //        let created_at = elem.created_at;
-    //        if let Task::UnprovisionFunction(elem) = elem {
-    //            //let sla = self.function_tracking.get(&sla);
-    //            let timestamp = created_at + elem.sla.duration;
-    //            ret.push(UnprovisionEvent { timestamp, sla: });
-    //        }
-    //    }
-    //    ret
-    //}
+    #[allow(dead_code)]
+    pub async fn get_utilisation_variations(&self) -> Vec<UnprovisionEvent> {
+        let mut ret = Vec::new();
+        for elem in self.cron.tasks.lock().await.iter() {
+            let TaskEntry {
+                task:
+                    Task::UnprovisionFunction(UnprovisionFunction { sla, .. }),
+                created_at,
+            } = elem;
+            if let Some(sla) = self.function_tracking.get_finishable_sla(&sla)
+            {
+                let timestamp = *created_at
+                    + Duration::try_milliseconds(
+                        sla.duration.get::<millisecond>() as i64,
+                    )
+                    .unwrap();
+                ret.push(UnprovisionEvent { timestamp, sla });
+            }
+        }
+        ret
+    }
 }
 
 impl<State> Drop for Function<State> {
@@ -269,7 +276,7 @@ impl Function<Locked> {
         if let Some(boxed_record) =
             self.function_tracking.get_finishable(&function)
         {
-            let record = boxed_record.to_finished().clone();
+            let record = boxed_record.to_finished();
 
             if let Some(removable) =
                 self.function_tracking.get_removable(&function)

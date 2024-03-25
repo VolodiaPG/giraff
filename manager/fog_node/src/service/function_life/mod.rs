@@ -144,7 +144,6 @@ impl FunctionLife {
         let task =
             Task::UnprovisionFunction(UnprovisionFunction { sla: id.clone() });
         let id2 = id.clone();
-        let function_tracking = self.function_tracking.clone();
 
         self.cron
             .add_oneshot(paid.sla.duration, task, move || {

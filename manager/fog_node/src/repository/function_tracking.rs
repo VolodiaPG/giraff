@@ -1,3 +1,4 @@
+use model::domain::sla::Sla;
 use model::dto::function::{
     Finishable, Finished, Live, Paid, Proposed, Provisioned,
 };
@@ -111,6 +112,17 @@ impl FunctionTracking {
         self.database.get(id).and_then(|x| match x.value() {
             States::Live(x) => Some(x.clone().into()),
             States::Provisioned(x) => Some(x.clone().into()),
+            _ => None,
+        })
+    }
+
+    pub fn get_finishable_sla(&self, id: &SlaId) -> Option<Sla> {
+        self.database.get(id).and_then(|x| match x.value() {
+            States::Live(Live { sla, .. })
+            | States::Paid(Paid { sla, .. })
+            | States::Provisioned(Provisioned { sla, .. }) => {
+                Some(sla.clone())
+            }
             _ => None,
         })
     }

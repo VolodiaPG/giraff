@@ -874,7 +874,7 @@ output_spending_plot_simple <- function(plots.spending.data) {
     df <- plots.spending.data %>%
         extract_function_name_info()
 
-    p <- ggplot(data = df, aes(x = docker_fn_name, y = cost, color = folder, alpha = 1)) +
+    p <- ggplot(data = df, aes(x = winner, y = cost,  color = docker_fn_name, alpha = 1)) +
         theme(legend.position = "none") +
         scale_alpha_continuous(guide = "none") +
         labs(
@@ -891,12 +891,10 @@ output_spending_plot_simple <- function(plots.spending.data) {
             legend.box.margin = margin(-10, -10, -10, -10),
             axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
         ) +
-        # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
-        # theme(legend.position = c(.5, .93)) +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
         guides(colour = guide_legend(nrow = 1)) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     return(p)
 }
