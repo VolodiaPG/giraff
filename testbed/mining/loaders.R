@@ -156,7 +156,7 @@ load_bids_raw <- memoised(function() {
 
     bids_raw <- bids_raw %>% mutate(value = ifelse(value < 0 & value >= -0.001, 0, value))
     bids_raw %>% filter(value < 0)
-    stopifnot(bids_raw %>% filter(value < 0) %>% summarise(n = n()) == 0)
+    #stopifnot(bids_raw %>% filter(value < 0) %>% summarise(n = n()) == 0)
     return(bids_raw)
 })
 

@@ -9,7 +9,7 @@ output_latency <- function(latency) {
         ggplot(aes(x = sorted_interaction, y = latency_value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
         facet_grid(cols = vars(folder)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-        geom_boxplot() +
+        geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
 }
 
@@ -23,7 +23,7 @@ output_loss <- function(latency) {
         ggplot(aes(x = sorted_interaction, y = value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
         facet_grid(cols = vars(folder)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-        geom_boxplot() +
+        geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
 }
 
@@ -495,7 +495,7 @@ output_arrival <- function(respected_sla) {
             x = "function",
             y = "Inter-arrival of requests (s)"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -524,7 +524,7 @@ output_respected_data_plot_simple <- function(respected_sla, bids_won_function, 
             x = "Placement method",
             y = "Mean satisfaction rate"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -580,7 +580,7 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
             x = "Placement method",
             y = "measured latency (in_flight) (s)"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -609,7 +609,7 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
             x = "Function",
             y = "measured_latency/latency"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -627,7 +627,7 @@ output_duration_distribution_plot <- function(provisioned_sla) {
             x = "Placement method",
             y = "function duration (s)"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
 
@@ -643,7 +643,7 @@ output_latency_distribution_plot <- function(provisioned_sla) {
             x = "Placement method",
             y = "function required latency (s)"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
 
@@ -690,7 +690,7 @@ output_ran_for_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_boxplot()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -719,7 +719,7 @@ output_function_latency_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
 
     fig(10, 10)
     mean_cb <- function(Letters, mean) {
@@ -828,7 +828,7 @@ output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
         guides(colour = guide_legend(ncol = 1)) +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
-        geom_beeswarm()
+        geom_quasirandom(method='tukey',alpha=.2)
     return(p)
 }
 

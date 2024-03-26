@@ -14,23 +14,9 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-02-23-10-48.tar.xz",
-  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-01-09-51.tar.xz",
-  #    "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-01-13-52.tar.xz",
-  # "metrics_valuation_rates.env_DEV-auction_valuation_rates_no-telemetry_2024-03-04-08-43.tar.xz",
-
-  # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-04-13-03.tar.xz",
-  # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-13-36.tar.xz",
-  # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-04-13-20.tar.xz",
-
-  # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-04-15-18.tar.xz",
-  # "metrics_valuation_rates.env_1-edge_first_valuation_rates_no-telemetry_2024-03-04-15-40.tar.xz",
-  # "metrics_valuation_rates.env_1-edge_ward_valuation_rates_no-telemetry_2024-03-05-13-53.tar.xz",
-  # "metrics_valuation_rates.env_1-auction_valuation_rates_no-telemetry_2024-03-05-17-56.tar.xz","metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-16-09-43.tar.xz",:
-  # "metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-16-11-46.tar.xz",
-  # "metrics_valuation_rates.env_1-fog_node_auction_valuation_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-17-10-15.tar.xz",
-  # "metrics_valuation_rates.env_1-fog_node_powerrandom_valuation_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-18-10-29.tar.xz",
-  "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-25-11-04.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-09-18.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-26-09-33.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_edge_first_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-11-20.tar.xz",
   #---
   #---
   #---
