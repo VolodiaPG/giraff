@@ -141,6 +141,7 @@ impl Auction {
         _accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
         use crate::service::function::UnprovisionEvent;
+        use chrono::Duration;
         use helper::env_load;
         use helper::uom_helper::cpu_ratio::cpu;
         use uom::si::time::second;
@@ -160,7 +161,12 @@ impl Auction {
         for UnprovisionEvent { timestamp, sla } in
             self.function.get_utilisation_variations().await.iter()
         {
-            let duration = *timestamp - now;
+            let duration = if *timestamp > now {
+                *timestamp - now
+            } else {
+                Duration::microseconds(0)
+            };
+
             let duration = duration.num_seconds() as f64;
             utilisation += sla.cpu.get::<cpu>() * duration;
         }
