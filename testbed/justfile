@@ -640,7 +640,7 @@ _master_run:
 master_ssh_in:
     nix develop .#enosvm -c sshpass -e ssh -t -oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no root@127.0.0.1 -p 2222
 
-get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
+get_metrics_back grep="" folder="metrics-arks" experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport
     source {{experiments_dotfile}}
@@ -648,7 +648,11 @@ get_metrics_back folder="metrics-arks" experiments_dotfile=".experiments.env":
     city=$({{RUN}} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    ssh $city.grid5000.fr ls {{folder}} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+    output1=$(ls ./metrics-arks | grep {{grep}})
+    ssh $city.grid5000.fr ls {{folder}} | grep {{grep}} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
+    output2=$(ls ./metrics-arks | grep {{grep}})
+    diff_output=$(diff <(echo "$output1") <(echo "$output2"))
+    echo -e "$diff_output"
 
 [private]
 test_expe  experiments_dotfile=".experiments.env":
