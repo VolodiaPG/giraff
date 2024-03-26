@@ -27,7 +27,7 @@ check subcommand="check":
     just _{{subcommand}} --features valuation_rates,auction
 
     just _{{subcommand}} --features valuation_rates,edge_first
-    just _{{subcommand}} --features valuation_rates,edge_first_v2
+    just _{{subcommand}} --features valuation_rates,edge_furthest
     # just _{{subcommand}} --features cloud_only
     # just _{{subcommand}} --features cloud_only_v2
     just _{{subcommand}} --features valuation_rates,edge_ward

@@ -33,7 +33,7 @@ auction = []
 edge_first = []
 # Enable the bottom up placement method (placing at Edge first)
 # While putting function the furthest possible first
-edge_first_v2 = []
+edge_furthest = []
 # # Cloud only allocation
 # cloud_only = []
 # # Cloud only allocation v2 (with more chatter between cloud nodes)

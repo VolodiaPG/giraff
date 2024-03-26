@@ -47,8 +47,8 @@ mod powerrandom;
 #[cfg(feature = "edge_first")]
 mod edge_first_placement;
 
-#[cfg(feature = "edge_first_v2")]
-mod edge_first_placement_v2;
+#[cfg(feature = "edge_furthest")]
+mod edge_furthest_placement;
 
 #[cfg(feature = "edge_ward")]
 mod edge_ward_placement;
@@ -80,9 +80,9 @@ impl FunctionLife {
         {
             info!("Using edge-first placement");
         }
-        #[cfg(feature = "edge_first_v2")]
+        #[cfg(feature = "edge_furthest")]
         {
-            info!("Using edge-first v2 placement");
+            info!("Using edge furthest placement");
         }
         #[cfg(feature = "cloud_only")]
         {
