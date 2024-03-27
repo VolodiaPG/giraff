@@ -14,9 +14,9 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  # "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-09-18.tar.xz",
-  # "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-26-09-33.tar.xz",
-  "metrics_valuation_rates.env_1-fog_node_edge_first_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-11-20.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-47.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_edge_furthest_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-33.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-26-15-02.tar.xz",
   #---
   #---
   #---

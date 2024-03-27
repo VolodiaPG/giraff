@@ -1,5 +1,4 @@
 output_latency <- function(latency) {
-    fig(15, 15)
     latency %>%
         filter(field == "raw") %>%
         adjust_timestamps() %>%
@@ -151,12 +150,10 @@ output_jains <- function(earnings.jains.plot.data.raw) {
     plots.jains.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.jains.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.jains.caption <- "Jain's index at different ratio of low level latencies"
-    fig(plots.jains.w, plots.jains.h)
 
     my_comparisons <- combn(unique(earnings.jains.plot.data.raw$`Placement method`), 2)
     my_comparisons <- apply(my_comparisons, 2, list)
     my_comparisons <- lapply(my_comparisons, unlist)
-    fig(10, 10)
     plots.jains <- earnings.jains.plot.data.raw %>%
         ggplot(aes(alpha = 1, x = `Placement method`, y = score, fill = `Placement method`, color = `Placement method`)) +
         # facet_grid(cols = vars(sprintf("%.1f%% low-latency ƒ", ratio_func_ll * 100))) +
@@ -191,7 +188,6 @@ output_jains <- function(earnings.jains.plot.data.raw) {
 output_anova_nb_deployed <- function(plots.nb_deployed.data) {
     df <- plots.nb_deployed.data %>% ungroup()
 
-    fig(10, 10)
 
     plots.nb_deployed.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.nb_deployed.w <- GRAPH_ONE_COLUMN_WIDTH
@@ -466,7 +462,6 @@ output_respected_data_plot <- function(plots.respected_sla.data) {
             y = "Mean satisfaction rate"
         )
 
-    fig(10, 10)
     plots.respected_sla.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.respected_sla.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.respected_sla.caption <- "Mean satisfaction rate"
@@ -497,7 +492,6 @@ output_arrival <- function(respected_sla) {
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -526,7 +520,6 @@ output_respected_data_plot_simple <- function(respected_sla, bids_won_function, 
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -555,7 +548,6 @@ output_errored_plot_simple <- function(respected_sla, bids_won_function, node_le
         ) +
         geom_violin()
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -582,7 +574,6 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -611,7 +602,6 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -629,7 +619,6 @@ output_duration_distribution_plot <- function(provisioned_sla) {
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
 
     return(p)
 }
@@ -645,7 +634,6 @@ output_latency_distribution_plot <- function(provisioned_sla) {
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
 
     return(p)
 }
@@ -662,7 +650,6 @@ output_request_distribution <- function(respected_sla) {
         geom_point() +
         geom_line() 
 
-    fig(10, 10)
 
     return(p)
 }
@@ -692,7 +679,6 @@ output_ran_for_plot_simple <- function(respected_sla) {
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -721,7 +707,6 @@ output_function_latency_plot_simple <- function(respected_sla) {
         ) +
         geom_quasirandom(method='tukey',alpha=.2)
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
@@ -752,7 +737,6 @@ output_jains_index_plot <- function(earnings.jains.plot.data.raw) {
         scale_fill_viridis(discrete = T) +
         theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(0, -10, -10, -10), )
 
-    fig(10, 10)
     plots.jains.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.jains.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.jains.caption <- "Jain's index at different ratio of low level latencies"
@@ -792,7 +776,6 @@ output_mean_time_to_deploy <- function(raw.deployment_times) {
         guides(colour = guide_legend(ncol = 1)) +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T)
-    fig(10, 10)
     plots.deploymenttimes.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.deploymenttimes.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.deploymenttimes.caption <- "Time to find a fog node for a function"
@@ -861,7 +844,6 @@ output_spending_plot <- function(plots.spending.data) {
         scale_fill_viridis(discrete = T) +
         guides(colour = guide_legend(nrow = 1))
 
-    fig(10, 10)
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f$}", Letters, mean))
     }

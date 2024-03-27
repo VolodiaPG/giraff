@@ -1,5 +1,5 @@
-load_names_raw <- memoised(function() {
-    names_raw <- load_csv("names.csv") %>%
+load_names_raw <- memoised(function(loader) {
+    names_raw <- loader("names.csv") %>%
         rename(instance_address = instance, instance = name) %>%
         select(instance, instance_address, folder) %>%
         distinct()
@@ -9,32 +9,25 @@ load_names_raw <- memoised(function() {
     return(names_raw)
 })
 
-load_raw_latency <- memoised(function() {
-    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-    raw.latency <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
-        load_single_csv(ark, "neighbor_latency.csv") %>%
+load_raw_latency <- memoised(function(loader) {
+return(        loader("neighbor_latency.csv") %>%
             prepare() %>%
             prepare_convert() %>%
-            inner_join(load_names_raw() %>% rename(instance_to = instance_address, destination_name = instance), c("instance_to", "folder")) %>%
+            inner_join(load_names_raw(loader) %>% rename(instance_to = instance_address, destination_name = instance), c("instance_to", "folder")) %>%
             mutate(destination_name = to_snake_case(destination_name))
-    })
-
-    gc()
-
-    colnames(raw.latency)
-    return(raw.latency)
+                             )
 })
 
-load_node_connections <- memoised(function() {
-    node_connections <- load_csv("network_shape.csv") %>%
+load_node_connections <- memoised(function(loader) {
+    node_connections <- loader("network_shape.csv") %>%
         mutate(latency = as.numeric(latency)) %>%
         mutate(source = to_snake_case(source), destination = to_snake_case(destination))
 
     return(node_connections)
 })
 
-load_node_levels <- memoised(function() {
-    node_levels <- load_csv("node_levels.csv") %>%
+load_node_levels <- memoised(function(loader) {
+    node_levels <- loader("node_levels.csv") %>%
         rename(name = source, level_value = level) %>%
         mutate(
             name = to_snake_case(name),
@@ -49,11 +42,11 @@ load_node_levels <- memoised(function() {
     return(node_levels)
 })
 
-load_latency <- memoised(function(node_connections) {
+load_latency <- memoised(function(loader, node_connections) {
     node_connections_renamed <- node_connections %>%
         rename(instance = source, destination_name = destination, goal = latency)
 
-    latency <- load_raw_latency() %>%
+    latency <- load_raw_latency(loader) %>%
         select(destination_name, field, value, instance, timestamp, folder, metric_group, metric_group_group) %>%
         inner_join(node_connections_renamed %>%
             full_join(node_connections_renamed %>%
@@ -62,106 +55,106 @@ load_latency <- memoised(function(node_connections) {
     return(latency)
 })
 
-load_functions <- memoised(function() {
-    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-    functions.refused <- foreach(ark = METRICS_ARKS) %dopar% {
-        tryCatch(
-            {
-                df <- load_single_csv(ark, "refused_function_gauge.csv") %>%
-                    prepare() %>%
-                    prepare_convert() %>%
-                    extract_function_name_info() %>%
-                    select(instance, sla_id, folder, metric_group, metric_group_group, load_type, latency_type) %>%
-                    # distinct() %>%
-                    mutate(status = "refused") %>%
-                    group_by(instance, folder, metric_group, metric_group_group, load_type, latency_type, status) %>%
-                    summarise(n = n())
-                return(df)
-            },
-            error = function(cond) {
-                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), load_type = character(0), latency_type = character(0), status = character(0), n = numeric(0))
-                return(df)
-            }
-        )
-    }
-    functions.refused <- bind_rows(functions.refused)
+#load_functions <- memoised(function() {
+#    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
+#    functions.refused <- foreach(ark = METRICS_ARKS) %dopar% {
+#        tryCatch(
+#            {
+#                df <- load_single_csv(ark, "refused_function_gauge.csv") %>%
+#                    prepare() %>%
+#                    prepare_convert() %>%
+#                    extract_function_name_info() %>%
+#                    select(instance, sla_id, folder, metric_group, metric_group_group, load_type, latency_type) %>%
+#                    # distinct() %>%
+#                    mutate(status = "refused") %>%
+#                    group_by(instance, folder, metric_group, metric_group_group, load_type, latency_type, status) %>%
+#                    summarise(n = n())
+#                return(df)
+#            },
+#            error = function(cond) {
+#                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), load_type = character(0), latency_type = character(0), status = character(0), n = numeric(0))
+#                return(df)
+#            }
+#        )
+#    }
+#    functions.refused <- bind_rows(functions.refused)
+#
+#    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
+#    functions.failed <- foreach(ark = METRICS_ARKS) %dopar% {
+#        tryCatch(
+#            {
+#                df <- load_single_csv(ark, "send_fails.csv") %>%
+#                    prepare() %>%
+#                    prepare_convert() %>%
+#                    rename(function_name = tag) %>%
+#                    extract_function_name_info() %>%
+#                    select(instance, folder, metric_group, metric_group_group) %>%
+#                    # distinct() %>%
+#                    mutate(status = "failed") %>%
+#                    group_by(instance, folder, metric_group, metric_group_group, status) %>%
+#                    summarise(n = n())
+#                return(df)
+#            },
+#            error = function(cond) {
+#                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
+#                return(df)
+#            }
+#        )
+#    }
+#
+#    functions.failed <- bind_rows(functions.failed)
+#
+#    functions <- load_csv("provisioned_function_gauge.csv") %>%
+#        prepare() %>%
+#        prepare_convert() %>%
+#        extract_function_name_info() %>%
+#        select(instance, sla_id, folder, metric_group, metric_group_group) %>%
+#        # distinct() %>%
+#        mutate(status = "provisioned") %>%
+#        group_by(instance, folder, metric_group, metric_group_group, status) %>%
+#        summarise(n = n()) %>%
+#        full_join(functions.refused) %>%
+#        full_join(functions.failed) %>%
+#        {
+#            .
+#        }
+#
+#
+#    return(functions)
+#})
 
-    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-    functions.failed <- foreach(ark = METRICS_ARKS) %dopar% {
-        tryCatch(
-            {
-                df <- load_single_csv(ark, "send_fails.csv") %>%
-                    prepare() %>%
-                    prepare_convert() %>%
-                    rename(function_name = tag) %>%
-                    extract_function_name_info() %>%
-                    select(instance, folder, metric_group, metric_group_group) %>%
-                    # distinct() %>%
-                    mutate(status = "failed") %>%
-                    group_by(instance, folder, metric_group, metric_group_group, status) %>%
-                    summarise(n = n())
-                return(df)
-            },
-            error = function(cond) {
-                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
-                return(df)
-            }
-        )
-    }
+#load_functions_total <- memoised(function(functions) {
+#    total <- functions %>%
+#        group_by(folder, instance, metric_group, metric_group_group, load_type, latency_type) %>%
+#        summarise(total = sum(n))
+#
+#    functions_total <- functions %>%
+#        inner_join(total, by = c("instance", "folder", "metric_group", "metric_group_group", "load_type", "latency_type")) %>%
+#        # inner_join(node_levels %>% mutate(instance = name) %>% select(-name), by = c("instance")) %>%
+#        group_by(folder, status, metric_group, metric_group_group, load_type, latency_type) %>%
+#        summarise(total = sum(total), n = sum(n)) %>%
+#        mutate(ratio = n / total) %>%
+#        {
+#            .
+#        }
+#
+#    return(functions_total)
+#})
 
-    functions.failed <- bind_rows(functions.failed)
-
-    functions <- load_csv("provisioned_function_gauge.csv") %>%
-        prepare() %>%
-        prepare_convert() %>%
-        extract_function_name_info() %>%
-        select(instance, sla_id, folder, metric_group, metric_group_group) %>%
-        # distinct() %>%
-        mutate(status = "provisioned") %>%
-        group_by(instance, folder, metric_group, metric_group_group, status) %>%
-        summarise(n = n()) %>%
-        full_join(functions.refused) %>%
-        full_join(functions.failed) %>%
-        {
-            .
-        }
-
-
-    return(functions)
-})
-
-load_functions_total <- memoised(function(functions) {
-    total <- functions %>%
-        group_by(folder, instance, metric_group, metric_group_group, load_type, latency_type) %>%
-        summarise(total = sum(n))
-
-    functions_total <- functions %>%
-        inner_join(total, by = c("instance", "folder", "metric_group", "metric_group_group", "load_type", "latency_type")) %>%
-        # inner_join(node_levels %>% mutate(instance = name) %>% select(-name), by = c("instance")) %>%
-        group_by(folder, status, metric_group, metric_group_group, load_type, latency_type) %>%
-        summarise(total = sum(total), n = sum(n)) %>%
-        mutate(ratio = n / total) %>%
-        {
-            .
-        }
-
-    return(functions_total)
-})
-
-load_bids_raw <- memoised(function() {
-    bids_raw <- load_csv("bid_gauge.csv") %>%
+load_bids_raw <- memoised(function(loader) {
+    bids_raw <- loader("bid_gauge.csv") %>%
         prepare() %>%
         prepare_convert()
     # bids_raw %>% filter(value <= 0) %>% select(folder) %>% distinct()
 
     bids_raw <- bids_raw %>% mutate(value = ifelse(value < 0 & value >= -0.001, 0, value))
     bids_raw %>% filter(value < 0)
-    #stopifnot(bids_raw %>% filter(value < 0) %>% summarise(n = n()) == 0)
+    stopifnot(bids_raw %>% filter(value < 0) %>% summarise(n = n()) == 0)
     return(bids_raw)
 })
 
-load_provisioned_sla <- memoised(function() {
-    provisioned_sla <- load_csv("function_deployment_duration.csv") %>%
+load_provisioned_sla <- memoised(function(loader) {
+    provisioned_sla <- loader("function_deployment_duration.csv") %>%
         prepare() %>%
         prepare_convert() %>%
         select(bid_id, sla_id, folder, metric_group, metric_group_group, function_name) %>%
@@ -189,23 +182,18 @@ load_bids_won_function <- memoised(function(bids_raw, provisioned_sla) {
     return(bids_won_function)
 })
 
-load_raw_cpu_observed_from_fog_node <- memoised(function() {
-    registerDoParallel(parallel_loading_datasets_small)
-    raw_cpu_observed_from_fog_node <- foreach(ark = METRICS_ARKS) %dopar% {
-        cpu <- load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
-            prepare() %>%
-            prepare_convert()
-        cpu %>%
-            filter(field == "initial_allocatable") %>%
-            rename(initial_allocatable = value) %>%
-            inner_join(cpu %>%
-                filter(field == "used") %>%
-                rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
-            mutate(usage = used / initial_allocatable) %>%
-            select(instance, timestamp, usage, folder, metric_group, metric_group_group)
-    }
-    raw_cpu_observed_from_fog_node <- bind_rows(raw_cpu_observed_from_fog_node)
-    return(raw_cpu_observed_from_fog_node)
+load_raw_cpu_observed_from_fog_node <- memoised(function(loader) {
+  cpu <-  loader("cpu_observed_from_fog_node.csv") %>%
+        prepare() %>%
+        prepare_convert()
+
+       return(cpu %>% filter(field == "initial_allocatable") %>%
+        rename(initial_allocatable = value) %>%
+        inner_join(cpu %>%
+            filter(field == "used") %>%
+            rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
+        mutate(usage = used / initial_allocatable) %>%
+        select(instance, timestamp, usage, folder, metric_group, metric_group_group))
 })
 
 load_auc_usage_cpu <- memoised(function() {
@@ -221,17 +209,17 @@ load_auc_usage_cpu <- memoised(function() {
     return(raw_auc_usage_cpu)
 })
 
-load_auc_usage_mem <- memoised(function() {
-    raw_auc_usage_mem <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
-        load_single_csv(ark, "memory_observed_from_fog_node.csv") %>%
-            prepare() %>%
-            prepare_convert() %>%
-            get_usage()
-    })
-
-    gc()
-    return(raw_auc_usage_mem)
-})
+#load_auc_usage_mem <- memoised(function() {
+#    raw_auc_usage_mem <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
+#        load_single_csv(ark, "memory_observed_from_fog_node.csv") %>%
+#            prepare() %>%
+#            prepare_convert() %>%
+#            get_usage()
+#    })
+#
+#    gc()
+#    return(raw_auc_usage_mem)
+#})
 
 load_total_gains <- memoised(function(bids_won_function) {
     total_gains <- bids_won_function %>%
@@ -250,34 +238,34 @@ load_grand_total_gains <- memoised(function(bids_won_function) {
     return(grand_total_gains)
 })
 
-load_errors <- memoised(function() {
-    errors <- tryCatch(
-        {
-            load_csv("iot_emulation_http_request_to_processing_echo_fails.csv") %>%
-                prepare() %>%
-                prepare_convert() %>%
-                extract_function_name_info() %>%
-                distinct()
-        },
-        error = function(cond) {
-            columns <- c("instance", "job", "timestamp", "tag", "period", "folder", "metric_group", "latency", "value")
-            df <- data.frame(
-                instance = character(0),
-                job = character(0),
-                period = numeric(0),
-                folder = character(0),
-                metric_group = character(0),
-                latency = character(0),
-                value = numeric(0)
-            )
-            return(df)
-        }
-    )
-    return(errors)
-})
+#load_errors <- memoised(function() {
+#    errors <- tryCatch(
+#        {
+#            load_csv("iot_emulation_http_request_to_processing_echo_fails.csv") %>%
+#                prepare() %>%
+#                prepare_convert() %>%
+#                extract_function_name_info() %>%
+#                distinct()
+#        },
+#        error = function(cond) {
+#            columns <- c("instance", "job", "timestamp", "tag", "period", "folder", "metric_group", "latency", "value")
+#            df <- data.frame(
+#                instance = character(0),
+#                job = character(0),
+#                period = numeric(0),
+#                folder = character(0),
+#                metric_group = character(0),
+#                latency = character(0),
+#                value = numeric(0)
+#            )
+#            return(df)
+#        }
+#    )
+#    return(errors)
+#})
 
-load_raw_deployment_times <- memoised(function() {
-    raw.deployment_times <- load_csv("function_deployment_duration.csv") %>%
+load_raw_deployment_times <- memoised(function(loader) {
+    raw.deployment_times <- loader("function_deployment_duration.csv") %>%
         prepare() %>%
         prepare_convert() %>%
         extract_function_name_info()
@@ -308,17 +296,13 @@ acceptable_chain_cumulative <- function(prev, current) {
   return(prev & current)
 }
 
-load_respected_sla <- memoised(function() {
-    registerDoParallel(cl = parallel_loading_datasets, cores = parallel_loading_datasets)
-    respected_sla <- foreach(ark = METRICS_ARKS) %dopar% {
-        gc()
-
+load_respected_sla <- memoised(function(loader) {
        cluster <- multidplyr::new_cluster(workers)
         cluster_library(cluster, "purrr")
         cluster_library(cluster, "dplyr")
         cluster_copy(cluster, "acceptable_chain_cumulative")
 
-        load_single_csv(ark, "proxy.csv") %>%
+        respected_sla <- loader("proxy.csv") %>%
             prepare() %>%
             group_by(folder) %>%
             adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
@@ -361,11 +345,6 @@ load_respected_sla <- memoised(function() {
                 proxy_server_errored = sum(status >= 500),
             ) %>%
       collect()
-        }
-
-    respected_sla <- bind_rows(respected_sla)
-
-    gc()
     return(respected_sla)
 })
 

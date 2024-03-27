@@ -10,6 +10,7 @@
             networkD3
             plotly
             htmlwidgets
+            htmltools
             treemapify
             (
               archive.overrideAttrs (old: {

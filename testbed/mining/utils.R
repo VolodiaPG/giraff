@@ -705,15 +705,53 @@ tibble_to_latex_tabular <- function(data, file) {
   cat("\\end{tabular}", file = file, append = TRUE)
 }
 
+graph <- function(name, graphs, graph) {
+  df <- data.frame(name = name, type = "ggplot", graph = I(list(graph)))
+  return(bind_rows(graphs, df))
+}
+
+graph_non_ggplot <- function(name, graphs, graph) {
+  df <- data.frame(name = name, type = "noggplot", graph = I(list(graph)))
+  return(bind_rows(graphs, df))
+}
+
+write_multigraphs <- function(graphs) {
+  data <- graphs %>%
+    ungroup() %>%
+    group_by(name) %>%
+    group_split()
+
+  lapply(data, function(subgroup) {
+    name <- unique(subgroup$name)
+
+    content <- subgroup %>%
+      group_by(tag) %>%
+      group_split()
+
+    widget <- browsable(tagList(h1(name), lapply(content, function(subgroup) {
+      tag <- unique(subgroup$tag)
+      graph <- subgroup$graph[[1]]
+      if (subgroup$type == "ggplot") {
+        graph <- ggplotly(graph)
+      }
+      graph$height <- "50vh"
+      ret <- div(graph)
+      title <- div(h4(tag))
+      return(list(title, ret))
+    })))
+    save_html(widget, paste0("out/", name, ".htm"))
+  })
+}
+
 export_graph <- function(name, ggplot_graph) {
-  ggsave(paste0("out/", name, ".png"), ggplot_graph)
+  # ggsave(paste0("out/", name, ".png"), ggplot_graph)
   p <- ggplotly(ggplot_graph)
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
+
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
-
 
 do_sankey <- function(f) {
   links <- f()
@@ -747,33 +785,33 @@ do_sankey <- function(f) {
 
 
   labels <- links %>%
-        ungroup() %>%
-        rowwise() %>%
-      mutate(name = if("name_source" %in% names(.)) coalesce(.data[["name_source"]], source) else source) %>%
-        rename(original = source) %>%
-        select(original, name) %>% 
-        distinct()
+    ungroup() %>%
+    rowwise() %>%
+    mutate(name = if ("name_source" %in% names(.)) coalesce(.data[["name_source"]], source) else source) %>%
+    rename(original = source) %>%
+    select(original, name) %>%
+    distinct()
   labels <- links %>%
-        ungroup() %>%
-        rowwise() %>%
-      mutate(name = if("name_target" %in% names(.)) coalesce(.data[["name_target"]], target) else target) %>%
-        rename(original = target) %>%
-        select(original, name) %>%
-        distinct() %>% 
-        full_join(labels) %>%
-        distinct()
+    ungroup() %>%
+    rowwise() %>%
+    mutate(name = if ("name_target" %in% names(.)) coalesce(.data[["name_target"]], target) else target) %>%
+    rename(original = target) %>%
+    select(original, name) %>%
+    distinct() %>%
+    full_join(labels) %>%
+    distinct()
   df <- df %>%
     rowwise() %>%
     mutate(source = ii(source)) %>%
     mutate(target = ii(target)) %>%
     as.data.frame()
 
-    labels <- nodes %>%
-        mutate(row_order = row_number()) %>%
-        rename(original = name) %>%
-        inner_join(labels) %>%
-        arrange(row_order) %>%
-        select(-row_order)
+  labels <- nodes %>%
+    mutate(row_order = row_number()) %>%
+    rename(original = name) %>%
+    inner_join(labels) %>%
+    arrange(row_order) %>%
+    select(-row_order)
   # p <- sankeyNetwork(Links = df, Nodes = nodes, Source = "source", Target = "target", Value = "value", NodeID = "name")
   fig <- plot_ly(
     type = "sankey",

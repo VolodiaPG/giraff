@@ -47,6 +47,7 @@ init <- function() {
   library(networkD3)
   library(plotly)
   library(htmlwidgets)
+  library(htmltools)
 
   library(memoise)
 
@@ -86,41 +87,53 @@ memoised <- function(f) {
 source("loaders.R")
 source("graphs.R")
 
-node_levels <- load_node_levels()
-provisioned_sla <- load_provisioned_sla()
-respected_sla <- load_respected_sla()
-bids_raw <- load_bids_raw()
-bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
+# functions <- load_functions()
+# functions_total <- load_functions_total(functions)
 
-export_graph_non_ggplot("sla", output_sla_plot(respected_sla, bids_won_function, node_levels))
-export_graph_non_ggplot("respected_sla", output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+registerDoParallel(cl = workers, cores = workers)
+graphs <- foreach(ark = METRICS_ARKS) %dopar% {
+  loader <- function(file) {
+    return(load_single_csv(ark, file))
+  }
 
-export_graph("duration_distribution", output_duration_distribution_plot(provisioned_sla))
-export_graph("latency_distribution", output_latency_distribution_plot(provisioned_sla))
-export_graph("request_distribution", output_request_distribution(respected_sla))
-export_graph("latency_vs_expected_latency", output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
-export_graph("in_flight_time", output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
-export_graph("ran_for", output_ran_for_plot_simple(respected_sla))
-export_graph("output_arrival", output_arrival(respected_sla))
+  node_levels <- load_node_levels(loader)
+  provisioned_sla <- load_provisioned_sla(loader)
+  respected_sla <- load_respected_sla(loader)
+  bids_raw <- load_bids_raw(loader)
+  bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 
-node_connections <- load_node_connections()
-latency <- load_latency(node_connections)
-export_graph("output_latency", output_latency(latency))
-raw_latency <- load_raw_latency()
-export_graph("output_loss", output_loss(raw_latency))
-raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node()
-if (generate_gif) {
-  output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
+  node_connections <- load_node_connections(loader)
+  latency <- load_latency(loader, node_connections)
+  raw_latency <- load_raw_latency(loader)
+  raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(loader)
+  earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
+  raw_deployment_times <- load_raw_deployment_times(loader)
+
+  graphs <- NULL
+  graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+  graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
+
+  graphs <- graph("duration_distribution", graphs, output_duration_distribution_plot(provisioned_sla))
+  graphs <- graph("latency_distribution", graphs, output_latency_distribution_plot(provisioned_sla))
+  graphs <- graph("request_distribution", graphs, output_request_distribution(respected_sla))
+  graphs <- graph("latency_vs_expected_latency", graphs, output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
+  graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
+  graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla))
+  graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
+  graphs <- graph("output_latency", graphs, output_latency(latency))
+  graphs <- graph("output_loss", graphs, output_loss(raw_latency))
+
+  if (generate_gif) {
+    output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
+  }
+
+  return(
+    graphs %>%
+      mutate(tag = ark)
+  )
 }
-
-
-earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
-# ggsave("jains.png", output_jains(earnings_jains_plot_data))
-
-
-
-functions <- load_functions()
-functions_total <- load_functions_total(functions)
+graphs <- bind_rows(graphs)
+write_multigraphs(graphs)
 
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
@@ -130,12 +143,11 @@ functions_total <- load_functions_total(functions)
 # # ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
 
 # ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
-raw_deployment_times <- load_raw_deployment_times()
 # ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
-export_graph("mean_time_to_deploy_simple", output_mean_time_to_deploy_simple(raw_deployment_times))
+# export_graph("mean_time_to_deploy_simple", output_mean_time_to_deploy_simple(raw_deployment_times))
 # spending_plot_data <- load_spending_plot_data(bids_won_function)
 # ggsave("spending.png", output_spending_plot(spending_plot_data))
-export_graph("spending_simple", output_spending_plot_simple(bids_won_function))
+# export_graph("spending_simple", output_spending_plot_simple(bids_won_function))
 # options(width = 1000)
 # toto <- load_csv("proxy.csv") %>%
 #     # rename(function_name = tags) %>%
