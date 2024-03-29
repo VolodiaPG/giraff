@@ -75,38 +75,34 @@
             memoise
             cachem
           ];
-          # ++ pkgs.lib.optional export tikzDevice;
+          my-R = pkgs.rWrapper.override {packages = R-pkgs;};
         in {
           devShells.mining = pkgs.mkShell {
             shellHook =
               (extra.shellHook system) "mining";
 
-            packages =
-              (with pkgs; [
-                just
-                R
-                pandoc
-                nodePackages_latest.live-server
-                entr
-              ])
-              ++ R-pkgs;
+            packages = with pkgs; [
+              just
+              my-R
+              pandoc
+              nodePackages_latest.live-server
+              entr
+            ];
           };
           devShells.mining-export = pkgs.mkShell {
             shellHook =
               (extra.shellHook system) "mining-export";
 
-            packages =
-              (with pkgs; [
-                just
-                R
-                python3
-                pandoc
+            packages = with pkgs; [
+              just
+              my-R
+              python3
+              pandoc
 
-                texliveMinimal
-                pgf3
-                rPackages.tikzDevice
-              ])
-              ++ R-pkgs;
+              texliveMinimal
+              pgf3
+              rPackages.tikzDevice
+            ];
           };
         }))
       ];

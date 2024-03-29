@@ -63,7 +63,7 @@ source("config.R")
 suppressMessages(init())
 source("utils.R")
 
-cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-giraff"), max_size = 5 * 1024^3)
+cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-giraff"), max_size = 20 * 1024^3)
 
 if (cd$exists("metrics")) {
   cached <- cd$get("metrics")
@@ -88,25 +88,27 @@ source("loaders.R")
 source("graphs.R")
 
 # functions <- load_functions()
-# functions_total <- load_functions_total(functions)
-
-registerDoParallel(cl = workers, cores = workers)
-graphs <- foreach(ark = METRICS_ARKS) %dopar% {
+loader_factory <- function(ark) {
   loader <- function(file) {
     return(load_single_csv(ark, file))
   }
+  return(loader)
+}
 
+registerDoParallel(cl = workers, cores = workers)
+graphs <- foreach(ark = METRICS_ARKS) %dopar% {
+  loader <- loader_factory(ark)
   node_levels <- load_node_levels(loader)
   provisioned_sla <- load_provisioned_sla(loader)
   respected_sla <- load_respected_sla(loader)
   bids_raw <- load_bids_raw(loader)
   bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
+  functions <- load_functions(loader)
+  # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
 
   node_connections <- load_node_connections(loader)
   latency <- load_latency(loader, node_connections)
   raw_latency <- load_raw_latency(loader)
-  raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(loader)
-  earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
   raw_deployment_times <- load_raw_deployment_times(loader)
 
   graphs <- NULL
@@ -124,6 +126,7 @@ graphs <- foreach(ark = METRICS_ARKS) %dopar% {
   graphs <- graph("output_loss", graphs, output_loss(raw_latency))
 
   if (generate_gif) {
+    raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(loader)
     output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
   }
 
@@ -134,6 +137,20 @@ graphs <- foreach(ark = METRICS_ARKS) %dopar% {
 }
 graphs <- bind_rows(graphs)
 write_multigraphs(graphs)
+
+combine <- function(cb) {
+  return(combine_all_loaded(METRICS_ARKS, loader_factory, cb))
+}
+node_levels <- combine(load_node_levels)
+bids_raw <- combine(load_bids_raw)
+provisioned_sla <- combine(load_provisioned_sla)
+functions <- combine(load_functions)
+
+functions_total <- load_functions_total(functions)
+bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
+earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
+export_graph("provisioned", output_provisioned_simple(functions_total))
+export_graph("jains", output_jains_simple(earnings_jains_plot_data))
 
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)

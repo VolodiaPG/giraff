@@ -14,9 +14,17 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-47.tar.xz",
-  "metrics_valuation_rates.env_1-fog_node_edge_furthest_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-33.tar.xz",
-  "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-26-15-02.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-47.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_edge_furthest_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-33.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-26-15-02.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_edge_first_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-26-14-18.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-27-19-36.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_edge_first_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-27-20-45.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_edge_furthest_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-27-20-10.tar.xz",
+  # "metrics_valuation_rates.env_1-fog_node_powerrandom_powerrandom_rates_no-telemetry-market_powerrandom_no-telemetry_2024-03-27-21-20.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_auction_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-28-14-16.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_edge_first_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-28-14-57.tar.xz",
+  "metrics_valuation_rates.env_1-fog_node_edge_furthest_quadratic_rates_no-telemetry-market_default-strategy_no-telemetry_2024-03-28-13-39.tar.xz",
   #---
   #---
   #---
@@ -26,7 +34,7 @@ METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
 
 library(stringr)
 
-METRICS_GROUP <- str_match(METRICS_ARKS, "metrics_.*-(.*?)_valuation.*\\.tar\\.xz")
+METRICS_GROUP <- str_match(METRICS_ARKS, "metrics_.*-fog_node_(.*)-market.*\\.tar\\.xz")
 METRICS_GROUP <- METRICS_GROUP[, 2]
 METRICS_GROUP_GROUP <- as.character(rep(list("toto"), length(METRICS_ARKS)))
 

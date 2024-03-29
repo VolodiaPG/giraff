@@ -308,7 +308,7 @@ correct_names <- function(x) {
         metric_group == "edge_first_v2" ~ "\\footnotesize{Edge\\dash{}furthest}",
         TRUE ~ metric_group
       )) %>%
-      mutate(metric_group = factor(metric_group, levels = c("edge_ward", "edge_ward_furthest", "edge_first", "edge_first_v2", "auction"), ordered = TRUE)) %>%
+      #mutate(metric_group = factor(metric_group, levels = c("edge_ward", "edge_ward_furthest", "edge_first", "edge_first_v2", "auction"), ordered = TRUE)) %>%
       # mutate(metric_group_rich = factor(metric_group_rich, levels = unique(metric_group), ordered = TRUE)) %>%
       rename(`Placement method` = metric_group_rich)
     # mutate(`Placement method` = factor(`Placement method`, levels = factor(unique(metric_group), ordered = TRUE), ordered = TRUE))
@@ -751,6 +751,14 @@ export_graph <- function(name, ggplot_graph) {
 
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
+}
+
+combine_all_loaded <- function(arks, loader_factory, cb) {
+  registerDoParallel(cl = workers, cores = workers)
+  return(bind_rows(foreach(ark = arks) %dopar% {
+    loader <- loader_factory(ark)
+      return(cb(loader))
+  }))
 }
 
 do_sankey <- function(f) {

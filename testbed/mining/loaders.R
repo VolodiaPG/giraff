@@ -4,8 +4,6 @@ load_names_raw <- memoised(function(loader) {
         select(instance, instance_address, folder) %>%
         distinct()
 
-    print(colnames(names_raw))
-
     return(names_raw)
 })
 
@@ -55,91 +53,80 @@ load_latency <- memoised(function(loader, node_connections) {
     return(latency)
 })
 
-#load_functions <- memoised(function() {
-#    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-#    functions.refused <- foreach(ark = METRICS_ARKS) %dopar% {
-#        tryCatch(
-#            {
-#                df <- load_single_csv(ark, "refused_function_gauge.csv") %>%
-#                    prepare() %>%
-#                    prepare_convert() %>%
-#                    extract_function_name_info() %>%
-#                    select(instance, sla_id, folder, metric_group, metric_group_group, load_type, latency_type) %>%
-#                    # distinct() %>%
-#                    mutate(status = "refused") %>%
-#                    group_by(instance, folder, metric_group, metric_group_group, load_type, latency_type, status) %>%
-#                    summarise(n = n())
-#                return(df)
-#            },
-#            error = function(cond) {
-#                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), load_type = character(0), latency_type = character(0), status = character(0), n = numeric(0))
-#                return(df)
-#            }
-#        )
-#    }
-#    functions.refused <- bind_rows(functions.refused)
-#
-#    registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-#    functions.failed <- foreach(ark = METRICS_ARKS) %dopar% {
-#        tryCatch(
-#            {
-#                df <- load_single_csv(ark, "send_fails.csv") %>%
-#                    prepare() %>%
-#                    prepare_convert() %>%
-#                    rename(function_name = tag) %>%
-#                    extract_function_name_info() %>%
-#                    select(instance, folder, metric_group, metric_group_group) %>%
-#                    # distinct() %>%
-#                    mutate(status = "failed") %>%
-#                    group_by(instance, folder, metric_group, metric_group_group, status) %>%
-#                    summarise(n = n())
-#                return(df)
-#            },
-#            error = function(cond) {
-#                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
-#                return(df)
-#            }
-#        )
-#    }
-#
-#    functions.failed <- bind_rows(functions.failed)
-#
-#    functions <- load_csv("provisioned_function_gauge.csv") %>%
-#        prepare() %>%
-#        prepare_convert() %>%
-#        extract_function_name_info() %>%
-#        select(instance, sla_id, folder, metric_group, metric_group_group) %>%
-#        # distinct() %>%
-#        mutate(status = "provisioned") %>%
-#        group_by(instance, folder, metric_group, metric_group_group, status) %>%
-#        summarise(n = n()) %>%
-#        full_join(functions.refused) %>%
-#        full_join(functions.failed) %>%
-#        {
-#            .
-#        }
-#
-#
-#    return(functions)
-#})
+load_functions <- memoised(function(loader) {
+    refused <- tryCatch(
+            {
+                loader("refused_function_gauge.csv") %>%
+                    prepare() %>%
+                    prepare_convert() %>%
+                    extract_function_name_info() %>%
+                    select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
+                    # distinct() %>%
+                    mutate(status = "refused") %>%
+                    group_by(instance, folder, docker_fn_name, metric_group, metric_group_group, status) %>%
+                    summarise(n = n())
+            },
+            error = function(cond) {
+                df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), docker_fn_name=character(0), status = character(0), n = numeric(0))
+                print("cannot get refused gauge functions")
+                return(df)
+            }
+        )
 
-#load_functions_total <- memoised(function(functions) {
-#    total <- functions %>%
-#        group_by(folder, instance, metric_group, metric_group_group, load_type, latency_type) %>%
-#        summarise(total = sum(n))
-#
-#    functions_total <- functions %>%
-#        inner_join(total, by = c("instance", "folder", "metric_group", "metric_group_group", "load_type", "latency_type")) %>%
-#        # inner_join(node_levels %>% mutate(instance = name) %>% select(-name), by = c("instance")) %>%
-#        group_by(folder, status, metric_group, metric_group_group, load_type, latency_type) %>%
-#        summarise(total = sum(total), n = sum(n)) %>%
-#        mutate(ratio = n / total) %>%
-#        {
-#            .
-#        }
-#
-#    return(functions_total)
-#})
+    failed <- tryCatch(
+            {
+                loader("send_fails.csv") %>%
+                    prepare() %>%
+                    prepare_convert() %>%
+                    rename(function_name = tag) %>%
+                    extract_function_name_info() %>%
+                    select(instance, folder, metric_group, metric_group_group, docker_fn_name) %>%
+                    # distinct() %>%
+                    mutate(status = "failed") %>%
+                    group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
+                    summarise(n = n())
+            },
+            error = function(cond) {
+                df <- data.frame(instance = character(0),docker_fn_name= character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
+                print("cannot get failed gauge functions")
+                return(df)
+            }
+        )
+
+    functions <- loader("provisioned_function_gauge.csv") %>%
+        prepare() %>%
+        prepare_convert() %>%
+        extract_function_name_info() %>%
+        select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
+        # distinct() %>%
+        mutate(status = "provisioned") %>%
+        group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
+        summarise(n = n()) %>%
+        full_join(refused) %>%
+        full_join(failed) %>%
+        {
+            .
+        }
+
+    return(functions)
+})
+
+load_functions_total <- memoised(function(functions) {
+    total <- functions %>%
+        group_by(folder, instance, metric_group, metric_group_group, docker_fn_name) %>%
+        summarise(total = sum(n))
+    functions_total <- functions %>%
+        inner_join(total, by = c("instance", "folder", "metric_group", "metric_group_group", "docker_fn_name")) %>%
+        group_by(folder, status, metric_group, docker_fn_name, metric_group_group, total) %>%
+        summarise(n = sum(n)) %>%
+        mutate(ratio = n / total) %>%
+        {
+            .
+        }
+
+    print(functions_total %>% filter(docker_fn_name == "echo"))
+    return(functions_total)
+})
 
 load_bids_raw <- memoised(function(loader) {
     bids_raw <- loader("bid_gauge.csv") %>%
@@ -159,11 +146,8 @@ load_provisioned_sla <- memoised(function(loader) {
         prepare_convert() %>%
         select(bid_id, sla_id, folder, metric_group, metric_group_group, function_name) %>%
         distinct() %>%
-        {
-            .
-        }
-    colnames(provisioned_sla)
-    # slice_sample(provisioned_sla, n=5)
+        extract_function_name_info() %>%
+
     return(provisioned_sla)
 })
 
@@ -275,21 +259,16 @@ load_raw_deployment_times <- memoised(function(loader) {
 })
 
 load_earnings_jains_plot_data <- memoised(function(node_levels, bids_won_function) {
-    earnings.jains.plot.data.raw <- node_levels %>%
+    earnings <- node_levels %>%
         rename(winner = name) %>%
         full_join(bids_won_function %>% group_by(folder, winner, metric_group) %>% summarise(earnings = sum(cost))) %>%
         mutate(earnings = ifelse(is.na(earnings), 0, earnings)) %>%
         group_by(metric_group, folder) %>%
         summarise(jains_index = jains_index(earnings), worst_case = round(1 / n(), 2), n = n()) %>%
         rename(score = jains_index) %>%
-        # left_join(raw.nb_functions) %>%
-        # left_join(raw.nb_functions.total.full %>% rename(total_func = total)) %>%
-        # left_join(raw.nb_functions.total.ll %>% rename(total_func_ll = total)) %>%
-        # rowwise() %>%
-        # mutate(ratio_func_ll = total_func_ll / total_func) %>%
         correct_names()
 
-    return(earnings.jains.plot.data.raw)
+    return(earnings)
 })
 
 acceptable_chain_cumulative <- function(prev, current) {
