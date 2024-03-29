@@ -473,38 +473,27 @@ output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function,
     return(do_sankey(compute))
 })
 
-output_respected_data_plot <- memoised(function(plots.respected_sla.data) {
-    df <- plots.respected_sla.data %>%
-        group_by(folder, `Placement method`, toto) %>%
-        summarise(satisfied_count = mean(count.acceptable)) %>%
+output_respected_data_plot <- memoised(function(respected_sla) {
+    df <- respected_sla %>%
+        mutate(satisfied_ratio = acceptable_chained / total) %>%
+        #group_by(folder, docker_fn_name, metric_group) %>%
+        #summarise(satisfied_ratio = mean(satisfied_ratio) %>%
         ungroup()
 
-    p <- ggplot(data = df, aes(alpha = 1)) +
-        #  facet_grid(~var_facet) +
-        theme(legend.background = element_rect(
-            fill = alpha("white", .7),
-            size = 0.2, color = alpha("white", .7)
-        )) +
-        theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
-        theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
+    p <- ggplot(data = df, aes(alpha = 1, x=satisfied_ratio, color = docker_fn_name)) +
+        facet_grid(rows = vars(metric_group)) +
         theme(legend.position = "none") +
-        scale_color_viridis(discrete = T) +
-        scale_fill_viridis(discrete = T) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
         scale_y_continuous(labels = scales::percent) +
+        #geom_quasirandom(method='tukey',alpha=.2) +
+        #geom_boxplot() +
+       stat_ecdf() +
         labs(
-            x = "Placement method",
-            y = "Mean satisfaction rate"
+            x = "Satisfaction rate",
+            y = "ecdf"
         )
-
-    plots.respected_sla.w <- GRAPH_ONE_COLUMN_WIDTH
-    plots.respected_sla.h <- GRAPH_ONE_COLUMN_HEIGHT
-    plots.respected_sla.caption <- "Mean satisfaction rate"
-    mean_cb <- function(Letters, mean) {
-        return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
-    }
-    plots.respected_sla <- anova_boxplot(p, df, "Placement method", "satisfied_count", "toto", mean_cb, c(11))
-    plots.respected_sla + labs(title = plots.respected_sla.caption)
-    return(plots.respected_sla)
+    return(p)
 })
 
 output_arrival <- memoised(function(respected_sla) {
@@ -548,6 +537,7 @@ output_respected_data_plot_simple <- memoised(function(respected_sla, bids_won_f
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         scale_y_continuous(labels = scales::percent) +
+        scale_x_continuous(labels = scales::percent) +
         labs(
             x = "Placement method",
             y = "Mean satisfaction rate"

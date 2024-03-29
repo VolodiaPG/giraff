@@ -145,12 +145,14 @@ node_levels <- combine(load_node_levels)
 bids_raw <- combine(load_bids_raw)
 provisioned_sla <- combine(load_provisioned_sla)
 functions <- combine(load_functions)
+respected_sla <- combine(load_respected_sla)
 
 functions_total <- load_functions_total(functions)
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
 export_graph("provisioned", output_provisioned_simple(functions_total))
 export_graph("jains", output_jains_simple(earnings_jains_plot_data))
+export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
 
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
