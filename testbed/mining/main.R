@@ -84,62 +84,73 @@ memoised <- function(f) {
   memoise(f, cache = cd)
 }
 
+combine_all_loaded <- memoised(function(arks, cb) {
+  return(bind_rows(foreach(ark = arks) %do% {
+    return(cb(ark))
+  }))
+})
+
+graph <- memoised(function(name, graphs, graph) {
+  df <- data.frame(name = name, type = "ggplot", graph = I(list(graph)))
+  return(bind_rows(graphs, df))
+})
+
+graph_non_ggplot <- memoised(function(name, graphs, graph) {
+  df <- data.frame(name = name, type = "noggplot", graph = I(list(graph)))
+  return(bind_rows(graphs, df))
+})
+
 source("loaders.R")
 source("graphs.R")
+source("commongraphs.R")
 
 # functions <- load_functions()
-loader_factory <- function(ark) {
-  loader <- function(file) {
-    return(load_single_csv(ark, file))
+if (single_graphs) {
+  registerDoParallel(cl = workers, cores = workers)
+  graphs <- foreach(ark = METRICS_ARKS) %dopar% {
+    node_levels <- load_node_levels(ark)
+    provisioned_sla <- load_provisioned_sla(ark)
+    respected_sla <- load_respected_sla(ark)
+    bids_raw <- load_bids_raw(ark)
+    bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
+    functions <- load_functions(ark)
+    # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
+
+    node_connections <- load_node_connections(ark)
+    latency <- load_latency(ark, node_connections)
+    raw_latency <- load_raw_latency(ark)
+    raw_deployment_times <- load_raw_deployment_times(ark)
+
+    graphs <- NULL
+    graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+    graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
+
+    graphs <- graph("duration_distribution", graphs, output_duration_distribution_plot(provisioned_sla))
+    graphs <- graph("latency_distribution", graphs, output_latency_distribution_plot(provisioned_sla))
+    graphs <- graph("request_distribution", graphs, output_request_distribution(respected_sla))
+    graphs <- graph("latency_vs_expected_latency", graphs, output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
+    graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
+    graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla))
+    graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
+    graphs <- graph("output_latency", graphs, output_latency(latency))
+    graphs <- graph("output_loss", graphs, output_loss(raw_latency))
+
+    if (generate_gif) {
+      raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
+      output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
+    }
+
+    return(
+      graphs %>%
+        mutate(tag = ark)
+    )
   }
-  return(loader)
+  graphs <- bind_rows(graphs)
+  write_multigraphs(graphs)
 }
-
-registerDoParallel(cl = workers, cores = workers)
-graphs <- foreach(ark = METRICS_ARKS) %dopar% {
-  loader <- loader_factory(ark)
-  node_levels <- load_node_levels(loader)
-  provisioned_sla <- load_provisioned_sla(loader)
-  respected_sla <- load_respected_sla(loader)
-  bids_raw <- load_bids_raw(loader)
-  bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
-  functions <- load_functions(loader)
-  # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
-
-  node_connections <- load_node_connections(loader)
-  latency <- load_latency(loader, node_connections)
-  raw_latency <- load_raw_latency(loader)
-  raw_deployment_times <- load_raw_deployment_times(loader)
-
-  graphs <- NULL
-  graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
-  graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
-
-  graphs <- graph("duration_distribution", graphs, output_duration_distribution_plot(provisioned_sla))
-  graphs <- graph("latency_distribution", graphs, output_latency_distribution_plot(provisioned_sla))
-  graphs <- graph("request_distribution", graphs, output_request_distribution(respected_sla))
-  graphs <- graph("latency_vs_expected_latency", graphs, output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
-  graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
-  graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla))
-  graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
-  graphs <- graph("output_latency", graphs, output_latency(latency))
-  graphs <- graph("output_loss", graphs, output_loss(raw_latency))
-
-  if (generate_gif) {
-    raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(loader)
-    output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
-  }
-
-  return(
-    graphs %>%
-      mutate(tag = ark)
-  )
-}
-graphs <- bind_rows(graphs)
-write_multigraphs(graphs)
 
 combine <- function(cb) {
-  return(combine_all_loaded(METRICS_ARKS, loader_factory, cb))
+  return(combine_all_loaded(METRICS_ARKS, cb))
 }
 node_levels <- combine(load_node_levels)
 bids_raw <- combine(load_bids_raw)
@@ -151,8 +162,12 @@ functions_total <- load_functions_total(functions)
 bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
 export_graph("provisioned", output_provisioned_simple(functions_total))
+export_graph("provisioned_total", output_provisioned_simple_total(functions_total))
 export_graph("jains", output_jains_simple(earnings_jains_plot_data))
 export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
+export_graph("respected_sla_plot_total", output_respected_data_plot_total(respected_sla))
+export_graph("total_requests_served", output_number_requests(respected_sla))
+export_graph("total_requests_served_total", output_number_requests_total(respected_sla))
 
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)

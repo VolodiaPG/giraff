@@ -1,5 +1,5 @@
-load_names_raw <- memoised(function(loader) {
-    names_raw <- loader("names.csv") %>%
+load_names_raw <- memoised(function(ark) {
+    names_raw <- load_single_csv(ark, "names.csv") %>%
         rename(instance_address = instance, instance = name) %>%
         select(instance, instance_address, folder) %>%
         distinct()
@@ -7,25 +7,25 @@ load_names_raw <- memoised(function(loader) {
     return(names_raw)
 })
 
-load_raw_latency <- memoised(function(loader) {
-return(        loader("neighbor_latency.csv") %>%
+load_raw_latency <- memoised(function(ark) {
+return(        load_single_csv(ark,"neighbor_latency.csv") %>%
             prepare() %>%
             prepare_convert() %>%
-            inner_join(load_names_raw(loader) %>% rename(instance_to = instance_address, destination_name = instance), c("instance_to", "folder")) %>%
+            inner_join(load_names_raw(ark) %>% rename(instance_to = instance_address, destination_name = instance), c("instance_to", "folder")) %>%
             mutate(destination_name = to_snake_case(destination_name))
                              )
 })
 
-load_node_connections <- memoised(function(loader) {
-    node_connections <- loader("network_shape.csv") %>%
+load_node_connections <- memoised(function(ark) {
+    node_connections <- load_single_csv(ark,"network_shape.csv") %>%
         mutate(latency = as.numeric(latency)) %>%
         mutate(source = to_snake_case(source), destination = to_snake_case(destination))
 
     return(node_connections)
 })
 
-load_node_levels <- memoised(function(loader) {
-    node_levels <- loader("node_levels.csv") %>%
+load_node_levels <- memoised(function(ark) {
+    node_levels <- load_single_csv(ark,"node_levels.csv") %>%
         rename(name = source, level_value = level) %>%
         mutate(
             name = to_snake_case(name),
@@ -40,11 +40,11 @@ load_node_levels <- memoised(function(loader) {
     return(node_levels)
 })
 
-load_latency <- memoised(function(loader, node_connections) {
+load_latency <- memoised(function(ark, node_connections) {
     node_connections_renamed <- node_connections %>%
         rename(instance = source, destination_name = destination, goal = latency)
 
-    latency <- load_raw_latency(loader) %>%
+    latency <- load_raw_latency(ark) %>%
         select(destination_name, field, value, instance, timestamp, folder, metric_group, metric_group_group) %>%
         inner_join(node_connections_renamed %>%
             full_join(node_connections_renamed %>%
@@ -53,10 +53,10 @@ load_latency <- memoised(function(loader, node_connections) {
     return(latency)
 })
 
-load_functions <- memoised(function(loader) {
+load_functions <- memoised(function(ark) {
     refused <- tryCatch(
             {
-                loader("refused_function_gauge.csv") %>%
+                load_single_csv(ark,"refused_function_gauge.csv") %>%
                     prepare() %>%
                     prepare_convert() %>%
                     extract_function_name_info() %>%
@@ -75,7 +75,7 @@ load_functions <- memoised(function(loader) {
 
     failed <- tryCatch(
             {
-                loader("send_fails.csv") %>%
+                load_single_csv(ark,"send_fails.csv") %>%
                     prepare() %>%
                     prepare_convert() %>%
                     rename(function_name = tag) %>%
@@ -93,7 +93,7 @@ load_functions <- memoised(function(loader) {
             }
         )
 
-    functions <- loader("provisioned_function_gauge.csv") %>%
+    functions <- load_single_csv(ark,"provisioned_function_gauge.csv") %>%
         prepare() %>%
         prepare_convert() %>%
         extract_function_name_info() %>%
@@ -124,12 +124,11 @@ load_functions_total <- memoised(function(functions) {
             .
         }
 
-    print(functions_total %>% filter(docker_fn_name == "echo"))
     return(functions_total)
 })
 
-load_bids_raw <- memoised(function(loader) {
-    bids_raw <- loader("bid_gauge.csv") %>%
+load_bids_raw <- memoised(function(ark) {
+    bids_raw <- load_single_csv(ark,"bid_gauge.csv") %>%
         prepare() %>%
         prepare_convert()
     # bids_raw %>% filter(value <= 0) %>% select(folder) %>% distinct()
@@ -140,8 +139,8 @@ load_bids_raw <- memoised(function(loader) {
     return(bids_raw)
 })
 
-load_provisioned_sla <- memoised(function(loader) {
-    provisioned_sla <- loader("function_deployment_duration.csv") %>%
+load_provisioned_sla <- memoised(function(ark) {
+    provisioned_sla <- load_single_csv(ark,"function_deployment_duration.csv") %>%
         prepare() %>%
         prepare_convert() %>%
         select(bid_id, sla_id, folder, metric_group, metric_group_group, function_name) %>%
@@ -166,8 +165,8 @@ load_bids_won_function <- memoised(function(bids_raw, provisioned_sla) {
     return(bids_won_function)
 })
 
-load_raw_cpu_observed_from_fog_node <- memoised(function(loader) {
-  cpu <-  loader("cpu_observed_from_fog_node.csv") %>%
+load_raw_cpu_observed_from_fog_node <- memoised(function(ark) {
+  cpu <-  load_single_csv(ark,"cpu_observed_from_fog_node.csv") %>%
         prepare() %>%
         prepare_convert()
 
@@ -248,8 +247,8 @@ load_grand_total_gains <- memoised(function(bids_won_function) {
 #    return(errors)
 #})
 
-load_raw_deployment_times <- memoised(function(loader) {
-    raw.deployment_times <- loader("function_deployment_duration.csv") %>%
+load_raw_deployment_times <- memoised(function(ark) {
+    raw.deployment_times <- load_single_csv(ark,"function_deployment_duration.csv") %>%
         prepare() %>%
         prepare_convert() %>%
         extract_function_name_info()
@@ -261,9 +260,9 @@ load_raw_deployment_times <- memoised(function(loader) {
 load_earnings_jains_plot_data <- memoised(function(node_levels, bids_won_function) {
     earnings <- node_levels %>%
         rename(winner = name) %>%
-        full_join(bids_won_function %>% group_by(folder, winner, metric_group) %>% summarise(earnings = sum(cost))) %>%
+        full_join(bids_won_function %>% group_by(folder, winner, metric_group_group, metric_group) %>% summarise(earnings = sum(cost))) %>%
         mutate(earnings = ifelse(is.na(earnings), 0, earnings)) %>%
-        group_by(metric_group, folder) %>%
+        group_by(metric_group, metric_group_group, folder) %>%
         summarise(jains_index = jains_index(earnings), worst_case = round(1 / n(), 2), n = n()) %>%
         rename(score = jains_index) %>%
         correct_names()
@@ -275,13 +274,13 @@ acceptable_chain_cumulative <- function(prev, current) {
   return(prev & current)
 }
 
-load_respected_sla <- memoised(function(loader) {
+load_respected_sla <- memoised(function(ark) {
        cluster <- multidplyr::new_cluster(workers)
         cluster_library(cluster, "purrr")
         cluster_library(cluster, "dplyr")
         cluster_copy(cluster, "acceptable_chain_cumulative")
 
-        respected_sla <- loader("proxy.csv") %>%
+        respected_sla <- load_single_csv(ark,"proxy.csv") %>%
             prepare() %>%
             group_by(folder) %>%
             adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
@@ -340,7 +339,7 @@ load_nb_deployed_plot_data <- memoised(function(respected_sla.header.nb, functio
         #     TRUE ~ "Danger zone 3",
         # )) %>%
         rename(nb_nodes_group = nb_nodes) %>%
-        group_by(folder, metric_group, nb_nodes_group, nb_functions_requested_total) %>%
+        group_by(folder, metric_group_group, metric_group, nb_nodes_group, nb_functions_requested_total) %>%
         summarise(funcs = n()) %>%
         mutate(nb_functions = funcs / nb_functions_requested_total) %>%
         correct_names()
@@ -372,7 +371,7 @@ load_spending_plot_data <- memoised(function(bids_won_function) {
         # left_join(raw.nb_functions) %>%
         # mutate(ratio_func_ll = total_func_ll / total_func) %>%
         # mutate(ratio_func_ll = sprintf("%.1f%% ll ƒ", ratio_func_ll *100)) %>%
-        group_by(folder, metric_group) %>%
+        group_by(folder, metric_group_group, metric_group) %>%
         summarise(spending = mean(cost)) %>%
         # mutate(fn_category = sprintf("%s\n%s", latency_type, load_type)) %>%
         correct_names()

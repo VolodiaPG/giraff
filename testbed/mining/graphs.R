@@ -146,42 +146,6 @@ output_gif <- memoised(function(raw.cpu.observed_from_fog_node, bids_won_functio
     return(animations)
 })
 
-output_provisioned_simple <- memoised(function(functions_total) {
-  df <- functions_total %>% filter(status == "provisioned")
-   plots.jains <- df %>%
-        ggplot(aes(x = docker_fn_name, y = ratio, fill = metric_group, color = metric_group)) +
-        geom_quasirandom(method='tukey',alpha=.2)+
-        labs(
-            x = "Function",
-            y = "Number function provisioned"
-        ) +
-        scale_alpha_continuous(guide = "none") +
-        guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
-        scale_color_viridis(discrete = T) +
-        scale_fill_viridis(discrete = T) 
-
-    return(plots.jains)
-})
-
-output_jains_simple <- memoised(function(earnings) {
-   plots.jains <- earnings %>%
-        ggplot(aes(alpha = 1, x = metric_group, y = score, fill = metric_group, color = metric_group)) +
-        geom_hline(yintercept = max(earnings$worst_case), color = "black") +
-        #geom_quasirandom(method='tukey',alpha=.2)+
-        geom_point()+
-        geom_line()+
-        labs(
-            x = "Placement method",
-            y = "Jain's index"
-        ) +
-        scale_alpha_continuous(guide = "none") +
-        guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
-        scale_color_viridis(discrete = T) +
-        scale_fill_viridis(discrete = T) 
-
-    return(plots.jains)
-})
-
 output_jains <- memoised(function(earnings.jains.plot.data.raw) {
     plots.jains.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.jains.h <- GRAPH_ONE_COLUMN_HEIGHT
@@ -466,7 +430,7 @@ output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function,
            mutate(name_source = prev_function) %>%
            mutate(value = all_erors) %>%
            full_join(links)
-        
+
         return(links)
     }
 
@@ -619,7 +583,7 @@ output_latency_vs_expected_latency_plot <- memoised(function(respected_sla, bids
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         # scale_y_continuous(trans = "log10") +
-        geom_abline(slope=0, intercept = 1) + 
+        geom_abline(slope=0, intercept = 1) +
         labs(
             x = "Function",
             y = "measured_latency/latency"
@@ -673,7 +637,7 @@ output_request_distribution <- memoised(function(respected_sla) {
             y = "number of requests"
         ) +
         geom_point() +
-        geom_line() 
+        geom_line()
 
 
     return(p)
@@ -878,31 +842,4 @@ output_spending_plot <- memoised(function(plots.spending.data) {
     return(plots.spending)
 })
 
-output_spending_plot_simple <- memoised(function(plots.spending.data) {
-    df <- plots.spending.data %>%
-        extract_function_name_info()
 
-    p <- ggplot(data = df, aes(x = winner, y = cost,  color = docker_fn_name, alpha = 1)) +
-        theme(legend.position = "none") +
-        scale_alpha_continuous(guide = "none") +
-        labs(
-            y = "Function cost",
-            x = "Placement method",
-        ) +
-        theme(legend.background = element_rect(
-            fill = alpha("white", .7),
-            size = 0.2, color = alpha("white", .7)
-        )) +
-        theme(
-            legend.spacing.y = unit(0, "cm"),
-            legend.margin = margin(0, 0, 0, 0),
-            legend.box.margin = margin(-10, -10, -10, -10),
-            axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
-        ) +
-        scale_color_viridis(discrete = T) +
-        scale_fill_viridis(discrete = T) +
-        guides(colour = guide_legend(nrow = 1)) +
-        geom_quasirandom(method='tukey',alpha=.2)
-
-    return(p)
-})
