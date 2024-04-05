@@ -362,7 +362,7 @@ output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function,
 
         df2 <- df %>%
             ungroup() %>%
-            filter(acceptable_chained != total - all_erors)
+            filter(acceptable_chained != total - all_errors)
         df3 <- df2 %>%
             select(sla_id)
         df2 <- df2 %>%
@@ -416,19 +416,19 @@ output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function,
             mutate(source = prev_sla) %>%
             mutate(target = "rejected") %>%
             mutate(name_source = prev_function) %>%
-            mutate(value = total - acceptable_chained - all_erors) %>%
+            mutate(value = total - acceptable_chained - all_errors) %>%
             full_join(links)
         links <- df3 %>%
            mutate(source = prev_sla) %>%
            mutate(target = "errored") %>%
            mutate(name_source = prev_function) %>%
-           mutate(value = all_erors) %>%
+           mutate(value = all_errors) %>%
            full_join(links)
         links <- df1 %>%
            mutate(source = prev_function) %>%
            mutate(target = "errored") %>%
            mutate(name_source = prev_function) %>%
-           mutate(value = all_erors) %>%
+           mutate(value = all_errors) %>%
            full_join(links)
 
         return(links)
@@ -519,7 +519,7 @@ output_errored_plot_simple <- memoised(function(respected_sla, bids_won_function
         left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
         left_join(node_levels %>% rename(winner = name)) %>%
         mutate(y = server_errored / total) %>%
-        mutate(pipline = pipeline) %>%
+        mutate(pipeline = pipeline) %>%
         {
             .
         }
@@ -548,7 +548,7 @@ output_in_flight_time_plot_simple <- memoised(function(respected_sla, bids_won_f
         select(-sla_id) %>%
         #left_join(bids_won_function %>% ungroup() %>% select(folder, winner, sla_id) %>% distinct()) %>%
         #left_join(node_levels %>% rename(winner = name)) %>%
-        mutate(some_not_acceptable = acceptable + all_erors != total) %>%
+        mutate(some_not_acceptable = acceptable + all_errors != total) %>%
         {
             .
         }
@@ -574,7 +574,7 @@ output_latency_vs_expected_latency_plot <- memoised(function(respected_sla, bids
         #left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
         ungroup() %>%
         extract_function_name_info() %>%
-        mutate(some_not_acceptable = acceptable + all_erors != total) %>%
+        mutate(some_not_acceptable = acceptable + all_errors != total) %>%
     mutate(ratio = as.numeric(measured_latency) / as.numeric(latency)) %>%
         {
             .
@@ -647,7 +647,7 @@ output_request_distribution <- memoised(function(respected_sla) {
 output_ran_for_plot_simple <- memoised(function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for)) %>%
-        mutate(some_not_acceptable = acceptable + all_erors != total)
+        mutate(some_not_acceptable = acceptable + all_errors != total)
 
     p <- ggplot(data = df, aes(x = interaction(prev_function, docker_fn_name), y = ran_for, color = some_not_acceptable, alpha = 1)) +
         #  facet_grid(~var_facet) +

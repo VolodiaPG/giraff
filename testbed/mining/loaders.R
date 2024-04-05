@@ -306,7 +306,7 @@ load_respected_sla <- memoised(function(ark) {
             partition(cluster) %>%
             summarise(
                 acceptable = sum(acceptable),
-                all_erors = sum((status != 200) & (service_status != 200)),
+                all_errors = sum((status != 200) & (service_status != 200)),
                 acceptable_chained = sum(acceptable_chained),
                 total = dplyr::n(),
                 measured_latency = mean(in_flight),

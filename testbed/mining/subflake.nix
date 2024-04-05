@@ -87,6 +87,7 @@
               pandoc
               nodePackages_latest.live-server
               entr
+              rPackages.styler
             ];
           };
           devShells.mining-export = pkgs.mkShell {
