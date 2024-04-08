@@ -294,15 +294,15 @@ def additional_env_vars(level):
         if level >= 3:
             ret.update(
                 {
-                    "RATIO_AA": random.uniform(1.1, 1.5),
+                    "RATIO_AA": random.uniform(0.6, 0.9),
                     "RATIO_BB": random.uniform(1.0, 1.2),
                 }
             )
         elif level == 2:
             ret.update(
                 {
-                    "RATIO_AA": random.uniform(1.1, 1.2),
-                    "RATIO_BB": random.uniform(1.0, 1.1),
+                    "RATIO_AA": random.uniform(0.4, 0.8),
+                    "RATIO_BB": random.uniform(0.9, 1.1),
                 }
             )
         elif level <= 1:

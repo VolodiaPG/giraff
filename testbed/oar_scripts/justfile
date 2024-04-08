@@ -1,0 +1,36 @@
+_default: oar
+
+oar: (ssh "oar.sh")
+
+watchoar: (watch "oar.sh")
+
+add hours: (ssh "add.sh" hours)
+
+# log job_id: (ssh "log.sh" job_id)
+log: (ssh "log.sh")
+    #!/usr/bin/env bash
+    just ssh log.sh | xargs -I {} sc -c "echo tail -f {}" | xargs mprocs
+
+devlog: (ssh "devlog.sh")
+
+del: (ssh "del.sh")
+
+clean: (ssh "clean.sh")
+
+[private]
+ssh script args="":
+    #!/usr/bin/env bash
+    set +x
+    source ../.env
+    city=`cd ..; just city`
+    rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
+    ssh -o LogLevel=ERROR $city.grid5000.fr ./{{ script }} {{ args }}
+
+[private]
+watch script args="":
+    #!/usr/bin/env bash
+    set +x
+    source ../.env
+    city=`cd ..; just city`
+    rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
+    ssh -t -o LogLevel=ERROR $city.grid5000.fr watch -n 10 ./{{ script }} {{ args }}

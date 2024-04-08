@@ -108,6 +108,7 @@
                 bc
                 tmux
                 ansible
+                mprocs
               ];
             };
           }

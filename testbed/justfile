@@ -1,8 +1,8 @@
-set dotenv-load
+set dotenv-load := true
 
 RUN := env_var_or_default("RUN", "python")
 DOCKER := env_var_or_default("DOCKER", "podman")
-export SSHPASS:="giraff"
+export SSHPASS := "giraff"
 export MANAGER_PATH := "../manager"
 export IOT_EMULATION_PATH := "../iot_emulation"
 export FUNCTIONS_PATH := "../openfaas-functions"
@@ -15,31 +15,30 @@ init user *FLAGS:
     #!/usr/bin/env bash
     cat <<EOF > ~/.ssh/config
     Host !access.grid5000.fr *.grid5000.fr
-    User {{user}}
-    ProxyJump {{user}}@access.grid5000.fr
+    User {{ user }}
+    ProxyJump {{ user }}@access.grid5000.fr
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
     ForwardAgent yes
     EOF
 
-    {{RUN}} integration.py init --g5k_user={{user}} {{FLAGS}}
-
+    {{ RUN }} integration.py init --g5k_user={{ user }} {{ FLAGS }}
 
 # Open SSH tunnels
 [private]
 tunnels +FLAGS='':
-    {{RUN}} integration.py tunnels {{FLAGS}}
+    {{ RUN }} integration.py tunnels {{ FLAGS }}
 
 # List end nodes of the Fog network
 [private]
 endpoints:
-	{{RUN}} integration.py endpoints
+    {{ RUN }} integration.py endpoints
 
 _is_connected city_name_node_target $market_ip market_port:
     #!/usr/bin/env bash
     set -o pipefail
-    raw_output=`curl -m 30 -s "$market_ip:{{market_port}}/api/fog"`
-    output=`echo "$raw_output" | jq '.[] | select(.tags[] == "{{city_name_node_target}}") | .id' | sed -nE 's/"(.*)"/\1/p'`
+    raw_output=`curl -m 30 -s "$market_ip:{{ market_port }}/api/fog"`
+    output=`echo "$raw_output" | jq '.[] | select(.tags[] == "{{ city_name_node_target }}") | .id' | sed -nE 's/"(.*)"/\1/p'`
     status=$?
     if [ $status -ne 0 ]; then
         echo $raw_output
@@ -54,7 +53,7 @@ _until_is_connected city_name_node_target market_ip market_port:
     #!/usr/bin/env bash
     status=1
     while [ $status -ne 0 ]; do
-      just _is_connected {{city_name_node_target}} {{market_ip}} {{market_port}}
+      just _is_connected {{ city_name_node_target }} {{ market_ip }} {{ market_port }}
       status=$?
       if [ $status -ne 0 ]; then
         sleep 3
@@ -63,48 +62,47 @@ _until_is_connected city_name_node_target market_ip market_port:
 
 _until_is_connected_timeout city_name_node_target market_ip market_port timeout:
     #!/usr/bin/env bash
-    output=`timeout {{timeout}} bash -c "just _until_is_connected {{city_name_node_target}} {{market_ip}} {{market_port}}" 2>&1`
+    output=`timeout {{ timeout }} bash -c "just _until_is_connected {{ city_name_node_target }} {{ market_ip }} {{ market_port }}" 2>&1`
     status=$?
     if [ $status -ne 0 ]; then
-      echo "Failed to check connection to {{city_name_node_target}} w/ output: $output"
+      echo "Failed to check connection to {{ city_name_node_target }} w/ output: $output"
     fi
     exit $status
-
 
 [private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash
     echo "REFRESH?: $REFRESH"
     if [ "$REFRESH" = "true" ] ; then
-        {{RUN}} integration.py restart
+        {{ RUN }} integration.py restart
     else
-        {{RUN}} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+        {{ RUN }} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
     fi
-    just _deploy {{fog_node_image}} {{market_image}}
+    just _deploy {{ fog_node_image }} {{ market_image }}
 
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
-    {{RUN}} integration.py restart
-    just _deploy {{fog_node_image}} {{market_image}}
+    {{ RUN }} integration.py restart
+    just _deploy {{ fog_node_image }} {{ market_image }}
 
 # Delete the Job on grid'5000 and local EnosLib files
 [private]
 clean:
-    {{RUN}} integration.py clean || true
+    {{ RUN }} integration.py clean || true
     rm -rf enos_* current cachedir __enos*
 
 # Refresh the container images hosted by k3s on all deployed nodes
 _deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
-    {{RUN}} integration.py network
-    {{RUN}} integration.py iot-emulation
-    {{RUN}} integration.py k3s-setup
-    {{RUN}} integration.py k3s-deploy --fog_node_image={{fog_node_image}} --market_image={{market_image}}
+    {{ RUN }} integration.py network
+    {{ RUN }} integration.py iot-emulation
+    {{ RUN }} integration.py k3s-setup
+    {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
 expe $IOT_IP $MARKET_IP $TARGET_NODES:
-    {{RUN}} expe.py
+    {{ RUN }} expe.py
 
 [private]
 scenario archive_name +city_name_node_targets:
@@ -115,30 +113,30 @@ scenario archive_name +city_name_node_targets:
 
     NODE_TARGETS=()
 
-    MARKET_IP=$({{RUN}} integration.py market-ip | grep address | sed 's/address: //')
+    MARKET_IP=$({{ RUN }} integration.py market-ip | grep address | sed 's/address: //')
     # Create bg tasks, push their pid in an array and check after waiting for each when one has failed
     pids=()
-    echo "Checking {{city_name_node_targets}}"
-    for city in {{city_name_node_targets}}; do
+    echo "Checking {{ city_name_node_targets }}"
+    for city in {{ city_name_node_targets }}; do
         just _until_is_connected_timeout $city $MARKET_IP $MARKET_LOCAL_PORT 500&
         pids+=($!)
     done
 
-    error_occured=0
+    error_occurred=0
 
     for pid in "${pids[@]}"; do
       wait "$pid"
       exit_status=$?
       if [ $exit_status -ne 0 ]; then
-        error_occured=1
+        error_occurred=1
       fi
     done
-    if [ $error_occured -ne 0 ]; then
+    if [ $error_occurred -ne 0 ]; then
       echo "At least one connection failed to be checked in time. Exiting..."
       exit 1
     fi
 
-    for city in {{city_name_node_targets}}; do
+    for city in {{ city_name_node_targets }}; do
         echo "Checking connection to $city"
         NODE_TARGETS+=($(curl "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" | jq ".[] | select(.tags[] == \"$city\") | .id" | sed -nE 's/"(.*)"/\1/p'))
     done
@@ -151,7 +149,7 @@ scenario archive_name +city_name_node_targets:
 
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
-    export TARGET_NODE_NAMES="{{city_name_node_targets}}"
+    export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
     if (( _localstatus > 0 )); then
         printf "Failed to get endpoints (%s)" "$_localstatus"
         exit $_status
@@ -166,8 +164,8 @@ scenario archive_name +city_name_node_targets:
     if (( _localstatus == 0 )); then
         sleep $WAIT_TIME
 
-        export COLLECT_ARCHIVE_NAME="{{archive_name}}"
-        {{RUN}} integration.py collect
+        export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
+        {{ RUN }} integration.py collect
 
         if (( _localstatus > 0 )); then
             printf "Failed to collect metrics (%s)" "$_localstatus"
@@ -197,7 +195,7 @@ scenarii +city_name_node_targets:
             just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME \
             || just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
-        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{city_name_node_targets}}'"
+        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{ city_name_node_targets }}'"
     }
 
     echo "Deploying..."
@@ -217,37 +215,37 @@ scenarii +city_name_node_targets:
 
 collect:
     mkdir -p metrics
-    {{RUN}} integration.py collect --address $INFLUX_ADDRESS
+    {{ RUN }} integration.py collect --address $INFLUX_ADDRESS
 
 _collect:
     mkdir -p metrics
-    {{RUN}} integration.py collect
+    {{ RUN }} integration.py collect
 
 logs *FLAGS:
-    {{RUN}} integration.py logs {{FLAGS}}
+    {{ RUN }} integration.py logs {{ FLAGS }}
 
 [private]
 docker_enos name expe_dir cmd="bash":
     #!/usr/bin/env bash
     set -ex
     eval $(ssh-agent -s)
-    rsync -rL {{justfile_directory()}}/* {{expe_dir}}
+    rsync -rL {{ justfile_directory() }}/* {{ expe_dir }}
 
     echo "LOAD_NET: $LOAD_NETWORK_FILE"
 
     export REFRESH="false"
-    if {{DOCKER}} ps -a --format '{{{{.Names}}}}' | grep -wq "{{name}}"; then
+    if {{ DOCKER }} ps -a --format '{{{{.Names}}}}' | grep -wq "{{ name }}"; then
         export REFRESH="true"
-        {{DOCKER}} exec "{{name}}" bash -c -E "export REFRESH=$REFRESH; {{cmd}}"
+        {{ DOCKER }} exec "{{ name }}" bash -c -E "export REFRESH=$REFRESH; {{ cmd }}"
     else
-        {{DOCKER}} run -it --rm \
+        {{ DOCKER }} run -it --rm \
             --privileged \
             --cap-add=ALL \
             --workdir /home/enos \
             -v /lib/modules:/lib/modules \
-            -v {{expe_dir}}:/home/enos \
-            -v {{justfile_directory()}}/metrics-arks:/home/enos/metrics-arks \
-            -v {{justfile_directory()}}/logs:/home/enos/logs \
+            -v {{ expe_dir }}:/home/enos \
+            -v {{ justfile_directory() }}/metrics-arks:/home/enos/metrics-arks \
+            -v {{ justfile_directory() }}/logs:/home/enos/logs \
             -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
             -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
@@ -255,24 +253,20 @@ docker_enos name expe_dir cmd="bash":
             -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
             -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
             -e SSH_AUTH_SOCK=/ssh-agent \
-            -e DEPLOYMENT_NAME="{{name}}" \
+            -e DEPLOYMENT_NAME="{{ name }}" \
             -e EXPE_LOAD_FILE=/home/enos/requests \
-            -e NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
-            -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
-            -e NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
-            -e NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
             -e LOAD_NETWORK_FILE=/home/enos/net \
             -e REFRESH="false" \
-            --name "{{name}}" \
+            --name "{{ name }}" \
             --cgroup-manager=cgroupfs \
-            enos_deployment:latest bash -c -E "{{cmd}}"
+            enos_deployment:latest bash -c -E "{{ cmd }}"
         fi
 
 [private]
 _inside_docker_scenearii +city_name_node_targets:
     #!/usr/bin/env bash
     echo "Generating requests for all subsequent experiments..."
-    just scenarii {{city_name_node_targets}}
+    just scenarii {{ city_name_node_targets }}
     res=$?
     if [ $DEV_SLEEP_AFTER_CRASH = "true" ]; then
       if [ $res -ne 0 ]; then
@@ -284,56 +278,59 @@ _inside_docker_scenearii +city_name_node_targets:
 
 [private]
 docker_scenarii name expe_dir +city_name_node_targets:
-    EXPE_SAVE_FILE={{expe_dir}}/requests TARGET_NODE_NAMES="{{city_name_node_targets}}" {{RUN}} expe.py
-    just docker_enos {{name}} {{expe_dir}} "just _inside_docker_scenearii {{city_name_node_targets}}"
+    EXPE_SAVE_FILE={{ expe_dir }}/requests TARGET_NODE_NAMES="{{ city_name_node_targets }}" {{ RUN }} expe.py
+    just docker_enos {{ name }} {{ expe_dir }} "just _inside_docker_scenearii {{ city_name_node_targets }}"
 
 _docker_campaign name expe_dir:
     #!/usr/bin/env bash
     set -e
     cities=()
-    for input in $({{RUN}} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
-    just docker_scenarii {{name}} {{expe_dir}} ${cities[@]}
+    for input in $({{ RUN }} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
+    just docker_scenarii {{ name }} {{ expe_dir }} ${cities[@]}
 
-single_campaign name dotenvfile:
+single_campaign name dotenvfile_default dotenvfile_variation:
     #!/usr/bin/env bash
     set -ex
-    expe_dir="/tmp/{{name}}"
+    expe_dir="/tmp/{{ name }}"
     mkdir -p $expe_dir
-    cp {{dotenvfile}} $expe_dir/.env
+
+    cp {{ dotenvfile_default }} $expe_dir/.env
+    cat {{ dotenvfile_variation }} >> $expe_dir/.env
+
     cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs
 
     today=$( date +%Y%m%d )
     number=0
-    fname={{name}}-$today.log
+    fname={{ name }}-$today.log
     while [ -e "$fname" ]; do
-        printf -v fname '%s-%02d.log' "{{name}}-$today" "$(( ++number ))"
+        printf -v fname '%s-%02d.log' "{{ name }}-$today" "$(( ++number ))"
     done
 
     echo "qsdklhjfjqhsjok: $LOAD_NETWORK_FILE"
 
     mkdir -p logs_campaign
-    just _docker_campaign {{name}} $expe_dir |& tee -a logs_campaign/$fname
+    just _docker_campaign {{ name }} $expe_dir |& tee -a logs_campaign/$fname
 
 [private]
 build_required_images user skip_rebuild:
     #!/usr/bin/env bash
     set -e
 
-    if [ "{{skip_rebuild}}" != "true" ]; then
+    if [ "{{ skip_rebuild }}" != "true" ]; then
       read -ra tags <<<"$FOG_NODE_IMAGE_TAGS"
       read -ra market_tags <<<"$MARKET_IMAGE_TAGS"
 
       commands=(
-          "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{user}} $(echo ${tags[@]}) $(echo ${market_tags[@]})"
-          "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{user}}"
-          "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{user}}"
+          "cd $MANAGER_PATH && nix develop .#manager -c just ghcr {{ user }} $(echo ${tags[@]}) $(echo ${market_tags[@]})"
+          "cd $IOT_EMULATION_PATH && nix develop .#iot_emulation -c just ghcr {{ user }}"
+          "cd $FUNCTIONS_PATH && nix develop .#openfaas-functions -c just ghcr_all {{ user }}"
       )
 
       parallel --will-cite --halt-on-error 2 {1} 2> /dev/null ::: "${commands[@]}"
-      echo -e "[{{file_name(justfile_directory())}}] all images uploaded \033[1;32mOK\033[0m"
+      echo -e "[{{ file_name(justfile_directory()) }}] all images uploaded \033[1;32mOK\033[0m"
     else
-      echo -e "[{{file_name(justfile_directory())}}] all images upload \033[34mSKIPPING\033[0m"
+      echo -e "[{{ file_name(justfile_directory()) }}] all images upload \033[34mSKIPPING\033[0m"
     fi
 
 _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
@@ -363,12 +360,13 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
             exit 127
         fi
 
-        timeout --foreground ${job_duration_seconds} just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_$ii" {{single_experiment_dotenvfile}}
+        suffix=`echo "$ii""$current_time"`
+        timeout --foreground ${job_duration_seconds} just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_$suffix" {{ single_experiment_dotenvfile }} $ENV_VARIATION
     }
 
     # Import all the settings for multiple experiments and load the var as env vars
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
 
     if [ "$DEV" = "true" ]; then
@@ -383,12 +381,12 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
             set -- $MAX_NUMBER_NODES
             export MAX_NB_NODES=$1
 
-            {{RUN}} definitions.py
+            {{ RUN }} definitions.py
             export LOAD_NETWORK_FILE=$SAVE_NETWORK_FILE
 
             unset SAVE_NETWORK_FILE
         fi
-        just single_campaign "{{variation}}{{single_experiment_dotenvfile}}_DEV" {{single_experiment_dotenvfile}}
+        just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_DEV" {{ single_experiment_dotenvfile }}
         exit 0
     fi
 
@@ -400,7 +398,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
             SIZE_MULTIPLIER={1} \
             MIN_NB_VMS={2} \
             MAX_NB_NODES={3} \
-            {{RUN}} definitions.py \
+            {{ RUN }} definitions.py \
             ::: $SIZE_MULTIPLIERS \
             :::+ $MIN_NUMBER_VMS \
             :::+ $MAX_NUMBER_NODES \
@@ -415,13 +413,10 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
     function encapsulated_expe_command() {
         set -ex
-        export NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY=$1
-        export NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY=$2
-        export NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY=$3
-        export NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY=$4
-        export LOAD_NETWORK_FILE=$6
+        export ENV_VARIATION=$1
+        export LOAD_NETWORK_FILE=$3
         echo "Running the expe command with LOAD_NETWORK_FILE=$LOAD_NETWORK_FILE"
-        expe_command $5
+        expe_command $2
     }
 
     # Enable job control
@@ -437,14 +432,15 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     if [ $TYPE == "retry" ]; then
         (parallel --will-cite --retry-failed --joblog $JOB_LOG)
     else
+        env_variations=`ls -a | grep ^.env.[0-9]*$`
+        if [ "$DEV" = "true" ]; then
+          env_variations=".env.dev"
+        fi
         cmd=$(cat <<EOF
         --joblog $JOB_LOG \
         -j $NB_IN_PARALLEL \
-        encapsulated_expe_command {1} {2} {3} {4} {#} '$JOB_DIR/'{5}-{6}.net \
-        ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY \
-        :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY \
-        ::: $NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY \
-        :::+ $NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY \
+        encapsulated_expe_command {1} {#} '$JOB_DIR/'{2}-{3}.net \
+        ::: $env_variations
         ::: $SIZE_MULTIPLIERS \
         ::: $(seq 1 $NB_REPETITIONS)
     EOF
@@ -464,110 +460,43 @@ dry-experiment $CLUSTER SIZE_MULTIPLIERS:
     #!/usr/bin/env bash
     parallel --will-cite -k \
         export SIZE_MULTIPLIER={1} FILE='$(mktemp)' \
-        ";" SAVE_NETWORK_FILE='$FILE' {{RUN}} definitions.py ">" /dev/null \
-        "&&" LOAD_NETWORK_FILE='$FILE' {{RUN}} integration.py up --dry-run \
+        ";" SAVE_NETWORK_FILE='$FILE' {{ RUN }} definitions.py ">" /dev/null \
+        "&&" LOAD_NETWORK_FILE='$FILE' {{ RUN }} integration.py up --dry-run \
         ";" rm '$FILE' \
-        ::: {{SIZE_MULTIPLIERS}}
+        ::: {{ SIZE_MULTIPLIERS }}
 
-sim filename="sim" nb_iter="1" $methods="" $pricing="" $RANDOM_SEED_INIT="" NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY="5" NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY="100" NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY="100" SIZE_MULTIPLIERS="1":
+city experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
-    export cities=()
-    export pricing=${pricing:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PRICING_STRATEGY not in \[\(.*\)\].*/\1/p')}
-    export methods=${methods:=$({{RUN}} simulator.py 2>/dev/null | sed -n 's/PLACEMENT_STRATEGY not in \[\(.*\)\].*/\1/p')}
-    export CSV_OUT_DIR=$(mktemp -d)
-
-    parallel --will-cite SAVE_NETWORK_FILE=$CSV_OUT_DIR/{1}-{2}.net SIZE_MULTIPLIER={1} {{RUN}} definitions.py > /dev/null ::: {{SIZE_MULTIPLIERS}} ::: $(seq 1 {{nb_iter}})
-
-    time parallel --will-cite --keep-order  \
-        --memsuspend 3G \
-        JOB_INDEX={#} \
-        NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY={1} \
-        NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY={2} \
-        NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY={3} \
-        NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY={4} \
-        RANDOM_SEED='$(shuf -i 0-2560000 -n 1)' \
-        just _sim $CSV_OUT_DIR/{5}-{6}.net \
-        ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_LOW_LATENCY}} \
-        :::+ {{NB_FUNCTIONS_HIGH_REQ_INTERVAL_LOW_LATENCY}} \
-        ::: {{NB_FUNCTIONS_LOW_REQ_INTERVAL_REST_LATENCY}} \
-        :::+ {{NB_FUNCTIONS_HIGH_REQ_INTERVAL_REST_LATENCY}} \
-        ::: {{SIZE_MULTIPLIERS}} \
-        ::: $(seq 1 {{nb_iter}})
-
-    rm ./{{filename}}.data.csv || .
-    touch ./{{filename}}.data.csv
-    readarray -d '' entries < <(printf '%s\0' $CSV_OUT_DIR/*.data.csv | sort -zV)
-    for file in "${entries[@]}"; do
-        cat $file >> ./{{filename}}.data.csv
-    done
-    rm ./{{filename}}.levels.csv || .
-    touch ./{{filename}}.levels.csv
-    readarray -d '' entries < <(printf '%s\0' $CSV_OUT_DIR/*.levels.csv | sort -zV)
-    for file in "${entries[@]}"; do
-        cat $file >> ./{{filename}}.levels.csv
-    done
-
-    rm -r $CSV_OUT_DIR
-
-_sim $LOAD_NETWORK_FILE:
-    #!/usr/bin/env bash
-    export EXPE_SAVE_FILE=$(mktemp)
-
-    inputs=$({{RUN}} integration.py iot-connections)
-    for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
-    export TARGET_NODE_NAMES="${cities[@]}"
-    {{RUN}} expe.py >&2
-    parallel --will-cite --memsuspend 3G \
-        PLACEMENT_STRATEGY={1} \
-        PRICING_STRATEGY={2} \
-        JOB_INDEX=$JOB_INDEX{#} \
-        JOB_ID=$JOB_INDEX-{#} \
-        {{RUN}} simulator.py \
-        ::: $methods \
-        ::: $pricing
-
-    rm $EXPE_SAVE_FILE >&2
-
-simple_sim $PLACEMENT_STRATEGY $PRICING_STRATEGY:
-    #!/usr/bin/env bash
-    set -e
-    export SIZE_MULTIPLIER=1
-    export cities=()
-    inputs=$(SAVE_NETWORK_FILE=./network {{RUN}} integration.py iot-connections)
-    for input in $inputs; do cities[${#cities[@]}]="'$input'"; done
-    export EXPE_SAVE_FILE=./requests
-    export TARGET_NODE_NAMES="${cities[@]}"
-    export RANDOM_SEED=42
-    export LOAD_NETWORK_FILE=./network
-    [[ -f $EXPE_SAVE_FILE ]] || {{RUN}} expe.py
-    {{RUN}} simulator.py > sim.simple.dump.csv
+    set -o allexport
+    source {{ experiments_dotfile }}
+    {{ RUN }} master.py get-city
 
 upload experiments_dotfile=".experiments.env" skip_vms="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
-    source {{experiments_dotfile}}
-    city=$({{RUN}} master.py get-city)
+    source {{ experiments_dotfile }}
+    city=$({{ RUN }} master.py get-city)
 
     push_vms(){
-      if [ {{skip_vms}} != "true" ]; then
+      if [ {{ skip_vms }} != "true" ]; then
         # Cannot build multiple VMs at the same time, so we do it sequential
         vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet 2> /dev/null)/nixos.qcow2
         parallel ::: \
           "rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2 \
-          && echo -e '[{{file_name(justfile_directory())}}] master VM uploaded \033[32mOK\033[0m'" \
+          && echo -e '[{{ file_name(justfile_directory()) }}] master VM uploaded \033[32mOK\033[0m'" \
           "(cd iso; nix develop .#iso -c just upload $city > /dev/null 2>&1 \
-          && echo -e '[{{file_name(justfile_directory())}}] fog_node VM uploaded \033[32mOK\033[0m')"
+          && echo -e '[{{ file_name(justfile_directory()) }}] fog_node VM uploaded \033[32mOK\033[0m')"
       else
-        echo -e '[{{file_name(justfile_directory())}}] fog_node VM upload \033[34mSKIPPING\033[0m'
-        echo -e '[{{file_name(justfile_directory())}}] master VM upload \033[34mSKIPPING\033[0m'
+        echo -e '[{{ file_name(justfile_directory()) }}] fog_node VM upload \033[34mSKIPPING\033[0m'
+        echo -e '[{{ file_name(justfile_directory()) }}] master VM upload \033[34mSKIPPING\033[0m'
       fi
     }
 
     push_files(){
       parallel --will-cite rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} 2> /dev/null \
-          ::: *.py .env {{experiments_dotfile}} justfile pipelines/
-      echo -e "[{{file_name(justfile_directory())}}] config files uploaded \033[32mOK\033[0m"
+          ::: *.py .env* {{ experiments_dotfile }} justfile pipelines/
+      echo -e "[{{ file_name(justfile_directory()) }}] config files uploaded \033[32mOK\033[0m"
     }
 
     ssh $city.grid5000.fr mkdir -p enosvm 2> /dev/null
@@ -577,42 +506,41 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
       push_files
 
     wait
-    echo -e "[{{file_name(justfile_directory())}}] all files rsynced \033[1;32mOK\033[0m"
-
+    echo -e "[{{ file_name(justfile_directory()) }}] all files rsynced \033[1;32mOK\033[0m"
 
 master_exec user name experiments_dotfile=".experiments.env" skip_vms="false" skip_rebuild="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
 
-    city=$({{RUN}} master.py get-city)
-    username=$({{RUN}} master.py get-username)
+    city=$({{ RUN }} master.py get-city)
+    username=$({{ RUN }} master.py get-username)
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
 
     parallel ::: \
-      'just upload {{experiments_dotfile}} {{skip_vms}}' \
-      'just build_required_images {{user}} {{skip_rebuild}}'
+      'just upload {{ experiments_dotfile }} {{ skip_vms }}' \
+      'just build_required_images {{ user }} {{ skip_rebuild }}'
 
-    {{RUN}} master.py up --name {{name}} --walltime $MASTER_WALLTIME --force
-    {{RUN}} master.py run-command
+    {{ RUN }} master.py up --name {{ name }} --walltime $MASTER_WALLTIME --force
+    {{ RUN }} master.py run-command
 
 master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
 
     parallel ::: \
-      'just upload {{experiments_dotfile}} true' \
-      'just build_required_images {{user}} {{skip_rebuild}}'
-    {{RUN}} master.py run-command-refresh
+      'just upload {{ experiments_dotfile }} true' \
+      'just build_required_images {{ user }} {{ skip_rebuild }}'
+    {{ RUN }} master.py run-command-refresh
 
-master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env"  single_experiment_dotenvfile=".env":
-    just _docker_campaign_in_env {{variation}} {{experiments_dotfile}} {{single_experiment_dotenvfile}}
+master_docker_campaign variation="valuation_rates" experiments_dotfile=".experiments.env" single_experiment_dotenvfile=".env":
+    just _docker_campaign_in_env {{ variation }} {{ experiments_dotfile }} {{ single_experiment_dotenvfile }}
 
 master_run:
     nix develop .#enosvm -c just _master_run
@@ -621,7 +549,7 @@ _master_run:
     #!/usr/bin/env bash
     set -e
     vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
-    temp=nixos.env.qcow2
+    temp=nixos.qcow2
     cp $vm_path $temp
     chmod u+rwx $temp
 
@@ -643,22 +571,22 @@ master_ssh_in:
 get_metrics_back grep="" folder="metrics-arks" experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
-    city=$({{RUN}} master.py get-city)
+    city=$({{ RUN }} master.py get-city)
     echo $city
     mkdir -p metrics-arks
-    output1=$(ls ./metrics-arks | grep {{grep}})
-    ssh $city.grid5000.fr ls {{folder}} | grep {{grep}} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{folder}}/{} ./metrics-arks/{}
-    output2=$(ls ./metrics-arks | grep {{grep}})
+    output1=$(ls ./metrics-arks | grep {{ grep }})
+    ssh $city.grid5000.fr ls {{ folder }} | grep {{ grep }} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{ folder }}/{} ./metrics-arks/{}
+    output2=$(ls ./metrics-arks | grep {{ grep }})
     diff_output=$(diff <(echo "$output1") <(echo "$output2"))
     echo -e "$diff_output"
 
 [private]
-test_expe  experiments_dotfile=".experiments.env":
+test_expe experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
     export TARGET_NODE_NAMES=toto
     export TARGET_NODES=toto
@@ -668,9 +596,7 @@ test_expe  experiments_dotfile=".experiments.env":
 test_definitions experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport
-    source {{experiments_dotfile}}
+    source {{ experiments_dotfile }}
     set +o allexport
     export SAVE_NETWORK_FILE=/dev/null
     python definitions.py
-
-
