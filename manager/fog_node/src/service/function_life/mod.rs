@@ -141,8 +141,11 @@ impl FunctionLife {
             .get_paid(&id)
             .ok_or(anyhow!("Failed to retrieve paid function {}", id))?;
         let function = self.function.clone();
-        let task =
-            Task::UnprovisionFunction(UnprovisionFunction { sla: id.clone() });
+        let node = paid.node;
+        let task = Task::UnprovisionFunction(UnprovisionFunction {
+            sla: id.clone(),
+            node,
+        });
         let id2 = id.clone();
 
         self.cron

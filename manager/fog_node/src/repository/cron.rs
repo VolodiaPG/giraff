@@ -17,7 +17,8 @@ pub struct Cron {
     pub tasks:            Arc<Mutex<VecDeque<TaskEntry>>>,
 }
 pub struct UnprovisionFunction {
-    pub sla: SlaId,
+    pub sla:  SlaId,
+    pub node: String, // k8s node
 }
 pub enum Task {
     UnprovisionFunction(UnprovisionFunction),

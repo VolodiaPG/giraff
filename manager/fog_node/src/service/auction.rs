@@ -146,7 +146,7 @@ impl Auction {
         use helper::uom_helper::cpu_ratio::cpu;
         use uom::si::time::second;
 
-        let Some((name, _used_ram, _used_cpu, _available_ram, _available_cpu)) =
+        let Some((name, _used_ram, _used_cpu, _available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")?
@@ -158,7 +158,7 @@ impl Auction {
         let bb = env_load!(PricingRatio, RATIO_BB, f64).into_inner();
         let now = Utc::now();
         let mut utilisation = 0.0;
-        for UnprovisionEvent { timestamp, sla } in
+        for UnprovisionEvent { timestamp, sla, node, .. } in
             self.function.get_utilisation_variations().await.iter()
         {
             let duration = if *timestamp > now {
@@ -166,11 +166,22 @@ impl Auction {
             } else {
                 Duration::microseconds(0)
             };
+            let (_available_ram, available_cpu) = self
+                .resource_tracking
+                .get_available(node)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to get available resources from tracking \
+                         data for node {}",
+                        node
+                    )
+                })?;
 
             let duration = duration.num_seconds() as f64;
-            utilisation += sla.cpu.get::<cpu>() * duration;
+            utilisation += (sla.cpu / available_cpu).get::<cpu>() * duration;
         }
-        let sla_cpu = sla.cpu.get::<cpu>();
+        let sla_cpu = (sla.cpu / available_cpu).get::<cpu>();
         let sla_duration = sla.duration.get::<second>();
         let electricity_price =
             env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();

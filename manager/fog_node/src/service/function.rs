@@ -19,6 +19,7 @@ use uom::si::time::millisecond;
 pub struct UnprovisionEvent {
     pub timestamp: DateTime<Utc>,
     pub sla:       Sla,
+    pub node:      String,
 }
 
 pub struct Locked {}
@@ -131,7 +132,11 @@ impl Function {
         for elem in self.cron.tasks.lock().await.iter() {
             let TaskEntry {
                 task:
-                    Task::UnprovisionFunction(UnprovisionFunction { sla, .. }),
+                    Task::UnprovisionFunction(UnprovisionFunction {
+                        sla,
+                        node,
+                        ..
+                    }),
                 created_at,
             } = elem;
             if let Some(sla) = self.function_tracking.get_finishable_sla(&sla)
@@ -141,7 +146,8 @@ impl Function {
                         sla.duration.get::<millisecond>() as i64,
                     )
                     .unwrap();
-                ret.push(UnprovisionEvent { timestamp, sla });
+                let node = node.to_string();
+                ret.push(UnprovisionEvent { timestamp, sla, node });
             }
         }
         ret
