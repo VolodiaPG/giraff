@@ -129,6 +129,7 @@ impl FunctionLife {
 
         // Here we take the 2 most interesting ones (the ones that have the
         // most CPU used?)
+        // notice the b cmp to a and not the a to b
         proposals.bids.sort_by(|a, b| b.bid.partial_cmp(&a.bid).unwrap());
         proposals.bids.truncate(2);
         Ok(proposals)
