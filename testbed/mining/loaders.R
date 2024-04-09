@@ -112,6 +112,7 @@ load_functions <- memoised(function(ark) {
 })
 
 load_functions_total <- memoised(function(functions) {
+  print(functions %>% filter(docker_fn_name == "echo"),n=100)
     total <- functions %>%
         group_by(folder, instance, metric_group, metric_group_group, docker_fn_name) %>%
         summarise(total = sum(n))

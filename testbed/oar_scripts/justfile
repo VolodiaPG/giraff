@@ -7,15 +7,56 @@ watchoar: (watch "oar.sh")
 add hours: (ssh "add.sh" hours)
 
 # log job_id: (ssh "log.sh" job_id)
-log: (ssh "log.sh")
+log:
     #!/usr/bin/env bash
-    just ssh log.sh | xargs -I {} sc -c "echo tail -f {}" | xargs mprocs
+    # Initialize previous output as empty
+    prev_output=""
+    highestid=0
+    first=0
+    index=0
+
+    function dothenasty {
+      name=`echo $@ | base64 --decode | jq -r .name`
+      start_time=`echo $oarjob | base64 --decode | jq -r .start_time`
+      start_time=`date -d @"$start_time" +%Y%m%d`
+      file="./logs_campaign/$name-$start_time.log"
+      index=$(( index + 1 ))
+      mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; just ssh log.sh $file'}, {c: select-proc, index: $index}]}"
+    }
+
+    mprocs --server 127.0.0.1:4500&
+    name=root
+    cmd="just _ssh tail -f ./logs_campaign/out.logs"
+    (sleep 2 && mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; $cmd'}, {c: select-proc, index: 0}]}")&
+    while true; do
+      highest=0
+      for oarjob in `just _ssh oarstat -u -f -J | jq -r ".[] | @base64"`; do
+        id=`echo $oarjob | base64 --decode | jq -r .id`
+        if (( id > highestid )); then
+          dothenasty $oarjob
+          if (( id > highest )); then
+            highest=$id
+          fi
+        fi
+      done
+      if (( highest > highestid )); then
+        highestid=$highest
+      fi
+      sleep 2
+    done
 
 devlog: (ssh "devlog.sh")
 
 del: (ssh "del.sh")
 
 clean: (ssh "clean.sh")
+
+_ssh +cmd:
+    #!/usr/bin/env bash
+    set +x
+    source ../.env
+    city=`cd ..; just city`
+    ssh -t -o LogLevel=ERROR $city.grid5000.fr {{ cmd }}
 
 [private]
 ssh script args="":

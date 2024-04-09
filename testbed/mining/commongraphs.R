@@ -1,7 +1,7 @@
 output_provisioned_simple <- memoised(function(functions_total) {
   df <- functions_total %>% filter(status == "provisioned")
   provisioned <- df %>%
-    ggplot(aes(x = metric_group, y = ratio)) +
+    ggplot(aes(x = metric_group, y = n)) +
     # geom_quasirandom(method = "tukey", alpha = .2) +$
     facet_grid(rows = vars(docker_fn_name)) +
     labs(
@@ -66,7 +66,7 @@ output_jains_simple <- memoised(function(earnings) {
 })
 
 
-output_spending_plot_simple <- memoised(function(bids_won, node_levels) {
+output_spending_plot_simple_total <- memoised(function(bids_won, node_levels) {
   df <- bids_won %>%
     extract_function_name_info() %>%
     left_join(node_levels %>% rename(winner = name)) %>%

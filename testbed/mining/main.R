@@ -85,7 +85,8 @@ memoised <- function(f) {
 }
 
 combine_all_loaded <- memoised(function(arks, cb) {
-  return(bind_rows(foreach(ark = arks) %do% {
+  registerDoParallel(cl = workers, cores = workers)
+  return(bind_rows(foreach(ark = arks) %dopar% {
     return(cb(ark))
   }))
 })
@@ -134,6 +135,7 @@ if (single_graphs) {
     graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
     graphs <- graph("output_latency", graphs, output_latency(latency))
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
+    graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
 
     if (generate_gif) {
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
@@ -165,7 +167,7 @@ earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_
 export_graph("provisioned", output_provisioned_simple(functions_total))
 export_graph("provisioned_total", output_provisioned_simple_total(functions_total))
 export_graph("jains", output_jains_simple(earnings_jains_plot_data))
-export_graph("spending_total", output_spending_plot_simple(bids_won_function, node_levels))
+export_graph("spending_total", output_spending_plot_simple_total(bids_won_function, node_levels))
 export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
 export_graph("respected_sla_plot_total", output_respected_data_plot_total(respected_sla))
 export_graph("total_requests_served", output_number_requests(respected_sla))
