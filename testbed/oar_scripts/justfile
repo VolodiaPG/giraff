@@ -2,7 +2,9 @@ _default: oar
 
 oar: (ssh "oar.sh")
 
-watchoar: (watch "oar.sh")
+watchoar:
+    #!/usr/bin/env bash
+    until just watch "oar.sh"; do sleep 5; done
 
 add hours: (ssh "add.sh" hours)
 
@@ -16,24 +18,24 @@ log:
     index=0
 
     function dothenasty {
-      name=`echo $@ | base64 --decode | jq -r .name`
-      start_time=`echo $oarjob | base64 --decode | jq -r .start_time`
-      start_time=`date -d @"$start_time" +%Y%m%d`
-      file="./logs_campaign/$name-$start_time.log"
-      index=$(( index + 1 ))
-      mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; just ssh log.sh $file'}, {c: select-proc, index: $index}]}"
+      name=`echo $1 | base64 --decode | jq -r .name`
+      id=$2
+      if echo $name | grep -q "env"; then
+        index=$(( index + 1 ))
+        mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; until just ssh log.sh "$id"; do sleep 2; done'}, {c: select-proc, index: $index}]}"
+      fi
     }
 
     mprocs --server 127.0.0.1:4500&
     name=root
-    cmd="just _ssh tail -f ./logs_campaign/out.logs"
+    cmd="until just _ssh tail -f ./logs_campaign/out.logs; do sleep 2; done"
     (sleep 2 && mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; $cmd'}, {c: select-proc, index: 0}]}")&
     while true; do
       highest=0
       for oarjob in `just _ssh oarstat -u -f -J | jq -r ".[] | @base64"`; do
         id=`echo $oarjob | base64 --decode | jq -r .id`
         if (( id > highestid )); then
-          dothenasty $oarjob
+          dothenasty $oarjob $id
           if (( id > highest )); then
             highest=$id
           fi
@@ -53,7 +55,6 @@ clean: (ssh "clean.sh")
 
 _ssh +cmd:
     #!/usr/bin/env bash
-    set +x
     source ../.env
     city=`cd ..; just city`
     ssh -t -o LogLevel=ERROR $city.grid5000.fr {{ cmd }}
@@ -61,7 +62,7 @@ _ssh +cmd:
 [private]
 ssh script args="":
     #!/usr/bin/env bash
-    set +x
+    set -e
     source ../.env
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
@@ -70,7 +71,6 @@ ssh script args="":
 [private]
 watch script args="":
     #!/usr/bin/env bash
-    set +x
     source ../.env
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1

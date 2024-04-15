@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import click  # type: ignore
+from enoslib import set_config  # type: ignore
+from enoslib import sync_info  # type: ignore
 from enoslib import (  # type: ignore
     VMonG5k,
     VMonG5kConf,
@@ -14,7 +16,6 @@ from enoslib import (  # type: ignore
     init_logging,
 )
 from enoslib import run_command as enos_run_command  # type: ignore
-from enoslib import set_config, sync_info  # type: ignore
 from enoslib.infra.enos_g5k.g5k_api_utils import (  # type: ignore
     get_cluster_site,
     get_threads,
@@ -36,9 +37,10 @@ def cli(**kwargs):
     """
     init_logging(level=logging.INFO)
     set_config(g5k_auto_jump=False)
+    set_config(ansible_stdout="noop")
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--force", is_flag=True, help="destroy and up")
 @click.option("--name", help="The name of the job")
 @click.option("--walltime", help="The wallime: hh:mm:ss")
@@ -139,19 +141,19 @@ EOF
         a.shell("chmod 600 /root/.python-grid5000.yaml")
 
 
-@cli.command()
+@cli.command()# type: ignore
 def get_city():
     city = get_cluster_site(os.environ["MASTER_CLUSTER"])
     print(city)
 
 
-@cli.command()
+@cli.command()# type: ignore
 def get_username():
     username = g5k_api_utils.get_api_username()
     print(username)
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--variations", help="Docker variation tags", required=False)
 @enostask()
 def run_command(env: EnosEnv = None, variations: str | None = None, **kwargs):
@@ -177,7 +179,7 @@ def run_command(env: EnosEnv = None, variations: str | None = None, **kwargs):
     )
 
     
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--variations", help="Docker variation tags", required=False)
 @enostask()
 def run_command_refresh(env: EnosEnv = None, variations: str | None = None, **kwargs):
@@ -203,7 +205,7 @@ def run_command_refresh(env: EnosEnv = None, variations: str | None = None, **kw
     )
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def clean(env: EnosEnv = None, **kwargs):
     """Destroy the provided environment"""

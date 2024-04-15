@@ -8,30 +8,20 @@ impl Auction {
 }
 
 impl Auction {
-    #[cfg(feature = "powerrandom")]
+    #[cfg(feature = "random")]
     pub fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid> {
         use rand::Rng;
 
         let bids = bids.iter().collect::<Vec<_>>();
-        let first = bids.get(0).cloned().cloned();
-        let second = bids.get(1).cloned().cloned();
-        match (first, second) {
-            (Some(first), Some(second)) => {
-                let rand_choice = rand::thread_rng().gen_range(0..2);
-                if rand_choice == 0 {
-                    Some(ChosenBid { price: first.bid, bid: first })
-                } else {
-                    Some(ChosenBid { price: second.bid, bid: second })
-                }
-            }
-            (Some(first), None) => {
-                Some(ChosenBid { price: first.bid, bid: first })
-            }
-            _ => None,
+        if bids.len() == 0 {
+            return None;
         }
+        let random_index = rand::thread_rng().gen_range(0..bids.len());
+        let chosen = bids.get(random_index).cloned().cloned().unwrap();
+        Some(ChosenBid { price: chosen.bid, bid: chosen })
     }
 
-    #[cfg(not(feature = "powerrandom"))]
+    #[cfg(not(feature = "random"))]
     pub fn auction(&self, bids: &[BidProposal]) -> Option<ChosenBid> {
         let mut bids = bids.iter().collect::<Vec<_>>();
         bids.sort_unstable_by(|a, b| a.bid.partial_cmp(&b.bid).unwrap()); // Sort asc

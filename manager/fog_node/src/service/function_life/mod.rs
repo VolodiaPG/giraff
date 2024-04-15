@@ -32,8 +32,8 @@ pub struct FunctionLife {
 #[cfg(feature = "auction")]
 mod auction_placement;
 
-#[cfg(feature = "powerrandom")]
-mod powerrandom;
+#[cfg(feature = "maxcpu")]
+mod maxcpu;
 // #[cfg(feature = "cloud_only")]
 // mod cloud_only_placement;
 // #[cfg(feature = "cloud_only")]
@@ -108,9 +108,9 @@ impl FunctionLife {
         {
             info!("Using auction placement");
         }
-        #[cfg(feature = "powerrandom")]
+        #[cfg(feature = "maxcpu")]
         {
-            info!("Using powerrandom placement");
+            info!("Using maxcpu placement");
         }
 
         let function_live_timeout =

@@ -168,8 +168,10 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
+    en.set_config(ansible_stdout="noop")
+    en.set_config(g5k_auto_jump=False)
     # en.set_config(ansible_forks=200)
-    en.config._config["ansible_forks"] = 200  # type: ignore
+    #en.config._config["ansible_forks"] = 200  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
 
@@ -233,7 +235,7 @@ def attributes_roles(vm_attributions, roles):
         count[instance_id] += 1
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--g5k_user", required=True, help="G5K username")
 @click.option("--force", is_flag=True, help="force overwrite")
 def init(g5k_user, force):
@@ -251,7 +253,7 @@ def init(g5k_user, force):
     en.check()
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--force", is_flag=True, help="destroy and up")
 @click.option("--name", help="The name of the job")
 @click.option("--walltime", help="The wallime: hh:mm:ss")
@@ -340,18 +342,18 @@ def up(
     env["roles"] = roles
     env["networks"] = networks
 
-    set_sshx(env)
+   # set_sshx(env)
 
-
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def restart(env: EnosEnv = None):
     """
+    (needs followup with restart2)
     Restarts the VMs, because they are Stateless NixOS instances, rebooting will umount all tmpfs (aka /) and will reset everything, except some stuff
 
     Because of some random shit, it looks like once in a while an instance reboots and then refuses to join back the network,
     the problem seems to be inside the VM itself
-    To mitigate, it is adviced to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
+    To mitigate, it is advised to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
     However, precautions have been taken in this function to only reboot one VM at a time per host
     (though only waiting a small amount of time before passing to the next)
     """
@@ -362,50 +364,89 @@ def restart(env: EnosEnv = None):
     netem.destroy()
 
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
-    # inv_map = {}
-    # layers = []
-    # for k, v in env["assignations"].items():
-    #     inv_map[v] = inv_map.get(v, []) + [k]
-    # for k, v in inv_map.items():
-    #     for ii, el in enumerate(env["roles"][k]):
-    #         if ii >= len(layers):
-    #             layers.append([el])
-    #         else:
-    #             layers[ii] = layers[ii] + [el]
 
-    # for hosts in layers:
-    #     with actions(
-    #         roles=hosts, gather_facts=False, strategy="free", background=True
-    #     ) as p:
-    #         p.wait_for(retries=5)
-    #         p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
-    #         p.shell('nohup sh -c "sleep 1; shutdown 0 -r"', task_name="Rebooting")
-    #         sleep(10)
     with actions(
         roles=roles, gather_facts=False, strategy="free", background=True
     ) as p:
         p.wait_for(retries=5)
-        p.shell("touch /iwasthere", task_name="Create iwasthere checkfile")
-        p.shell('nohup sh -c "sleep 1; reboot -f"', task_name="Rebooting")
+        p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
 
-    sleep(10)
-    en.wait_for(roles=roles, retries=15)
-
-    with actions(roles=roles, gather_facts=False, strategy="free") as p:
+@cli.command()# type: ignore
+@enostask()
+def restart2(env: EnosEnv = None):
+    """
+    (followup of restart; final step is restart3)
+    It is here because of shenanigans withat ansible when something is restarted.
+    The idea is that when the first action is executed, then the ssh connections are closed.
+    Then the python is stopped (as well as enos).
+    The context goes back to the bash script that then executes the next steps.
+    Those steps are simply to wait for all machines to come back online.
+    Then restart3 is executed with the rest of the actions to run on all the nodes.
+    """
+    if env is None:
+        print("env is None")
+        exit(1)
+    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    
+    with actions(
+        roles=roles, gather_facts=False, strategy="free", background=True
+    ) as p:
+        p.wait_for(retries=5)
         p.shell(
-            'bash -c "[ ! -f /iwasthere ]"',
+            'bash -c "[ ! -e /iwasthere ]"',
             task_name="Checking if reboot took effect, aka is iwasthere is no more",
         )
 
-    set_sshx(env)
+
+@cli.command()# type: ignore
+@enostask()
+def restart3(env: EnosEnv = None):
+    """
+    (followup of restart2; final step
+    """
+    if env is None:
+        print("env is None")
+        exit(1)
+
+    networks = env["networks"]
+    roles = env["roles"]
+    roles = en.sync_info(roles, networks)
+    env["roles"] = roles
+
+    roles = roles["master"] + roles["iot_emulation"]
+
+    with actions(
+        roles=roles, gather_facts=False, strategy="free", background=True
+    ) as p:
+        p.wait_for(retries=5)
+        p.shell(
+            'bash -c "[ ! -e /iwasthere ]"',
+            task_name="Checking if reboot took effect, aka is iwasthere is no more",
+        )
+
+    #set_sshx(env)
 
 
 def set_sshx(env: EnosEnv):
     if env is None:
         print("env is None")
         exit(1)
+
     assignations = env["assignations"]
     roles = env["roles"]
+
+    for role in roles["market"]:
+        role.set_extra(my_name="market")
+    concerned_roles = roles["market"]
+
+    for role in roles["iot_emulation"]:
+        role.set_extra(my_name="iot_emulation")
+    concerned_roles += roles["iot_emulation"]
+
+    for vm_name in assignations.keys():
+        for role in roles[vm_name]:
+            role.set_extra(my_name=vm_name)
+        concerned_roles += roles[vm_name]
 
     en.run_command(
         f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
@@ -414,25 +455,16 @@ def set_sshx(env: EnosEnv):
     )
 
     en.run_command(
-        f'echo "{env["NAME"]}" > /my_group; echo "market" > /my_name',
-        task_name="Setting name for market",
-        roles=roles["market"],
-    )
-    en.run_command(
-        f'echo "{env["NAME"]}" > /my_group; echo "iot_emulation" > /my_name',
-        task_name="Setting name for iot_emulation",
-        roles=roles["iot_emulation"],
+        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
+        task_name="Setting names",
+        roles=concerned_roles,
     )
 
-    for vm_name in assignations.keys():
-        en.run_command(
-            f'echo "{env["NAME"]}" > /my_group; echo "{vm_name}" > /my_name',
-            task_name=f"Setting name for {vm_name}",
-            roles=roles[vm_name],
-        )
+    #for role in concerned_roles:
+    #    role.reset_extra()
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def k3s_setup(env: EnosEnv = None):
     if env is None:
@@ -451,7 +483,7 @@ def k3s_setup(env: EnosEnv = None):
         )
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def iot_emulation(env: EnosEnv = None, **kwargs):
     if env is None:
@@ -500,7 +532,7 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         )
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def network(env: EnosEnv = None):
     if env is None:
@@ -526,7 +558,7 @@ def network(env: EnosEnv = None):
     netem.validate()
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def k3s_config(env: EnosEnv = None, **kwargs):
     """SCP the remote kubeconfig files"""
@@ -567,7 +599,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
     ]
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option(
     "--fog_node_image",
     help="The container image URL. eg. ghcr.io/volodiapg/giraff::fog_node",
@@ -618,7 +650,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             ]
         )
     )
-
+    fog_node_roles = []
     for name, conf, tier_flavor in confs:
         additional_env_vars = ""
         for varname, value in tier_flavor["additional_env_vars"]().items():
@@ -638,23 +670,27 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             else "no_cloud",
             additional_env_vars=additional_env_vars,
         )
-        roles[name][0].set_extra(fog_node_deployment=deployment)
+        for role in roles[name]:
+            role.set_extra(fog_node_deployment=deployment)
 
-    roles[NETWORK["name"]][0].set_extra(
-        market_deployment=MARKET_DEPLOYMENT.format(
-            # influx_ip=roles["prom_master"][0].address,
-            influx_ip="10.42.0.1",
-            collector_ip=roles["iot_emulation"][0].address,
-            market_image=market_image,
-        )
+        fog_node_roles += roles[name]
+
+    market_deployment = MARKET_DEPLOYMENT.format(
+        # influx_ip=roles["prom_master"][0].address,
+        influx_ip="10.42.0.1",
+        collector_ip=roles["iot_emulation"][0].address,
+        market_image=market_image,
     )
+    for role in roles[NETWORK["name"]]:
+        role.set_extra(market_deployment=market_deployment)
 
     en.run_command(
         "cat << EOF > /tmp/node_conf.yaml\n"
         "{{ fog_node_deployment }}\n"
         "EOF\n"
         "k3s kubectl create -f /tmp/node_conf.yaml",
-        roles=roles["master"],
+        #roles=roles["master"],
+        roles=fog_node_roles,
         task_name="Deploying fog_node software",
     )
     en.run_command(
@@ -667,7 +703,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     )
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
 def health(env: EnosEnv = None, all=False, **kwargs):
@@ -727,7 +763,7 @@ def _collect(env: EnosEnv, **kwargs):
     return env["agent_tunnels"]
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--address", help="A particular address to look at")
 def collect(address=None, **kwargs):
     if address is None:
@@ -793,7 +829,7 @@ def collect(address=None, **kwargs):
     os.symlink(archive, "latest_metrics.tar.xz")
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
 def logs(env: EnosEnv = None, all=False, **kwargs):
@@ -850,7 +886,7 @@ def do_open_tunnels(env: EnosEnv = None, **kwargs):
         env["agent_tunnels"].append(f"{prom_agent.address}:9086")
 
 
-@cli.command()
+@cli.command()# type: ignore
 @click.option(
     "--command",
     required=False,
@@ -880,7 +916,7 @@ def tunnels(command=None, **kwargs):
     #         )  # Send the signal to all the process groups
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def endpoints(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
@@ -897,7 +933,7 @@ def endpoints(env: EnosEnv = None, **kwargs):
     print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def market_ip(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
@@ -909,14 +945,14 @@ def market_ip(env: EnosEnv = None, **kwargs):
     print(f"address: {address}")
 
 
-@cli.command()
+@cli.command()# type: ignore
 def iot_connections(env: EnosEnv = None, **kwargs):
     """List the endpoints name where IoT Emulation is connected to"""
     for name, _ in IOT_CONNECTION:
         print(f"{name}")
 
 
-@cli.command()
+@cli.command()# type: ignore
 @enostask()
 def clean(env: EnosEnv = None, **kwargs):
     """Destroy the provided environment"""

@@ -24,7 +24,7 @@ jaeger = [
 valuation_rates = []
 # Use quadratic rates from the ENV variables
 quadratic_rates = []
-powerrandom_rates = ["powerrandom"]
+cpu_ratio_rates = []
 
 # Placement methods
 # Default placement
@@ -49,7 +49,7 @@ edge_ward = []
 edge_ward_v3 = []
 # Gather all possible hosts, finding the ones that accept the sla,
 # finding the 2 least cpu-utilized and choosing at random in between those 2
-powerrandom = ["powerrandom_rates"]
+maxcpu = ["cpu_ratio_rates"]
 
 [dependencies]
 actix-web = "4.4"

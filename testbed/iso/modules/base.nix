@@ -13,13 +13,14 @@
     extraGroups = ["networkmanager" "wheel"];
     password = "giraff";
     # hashedPassword = "$6$qi8XAsi7E.eVCsQK$7xIDTcn0g3h9iRGU3IMBBq7e53oTC5dDSa3qn/2EmIjO.nvNvfDq2OiEBiw8aDWLxkAiuuo.BcBdCtAK6p6Y71"; # faas
-    # openssh.authorizedKeys.keys = readLines ../config/id_rsa.pub;# Acutally mounted by enos
+    # openssh.authorizedKeys.keys = readLines ../config/id_rsa.pub;# Actually mounted by enos
   };
   programs.vim.defaultEditor = false;
   security.sudo.enable = false;
   services = {
     openssh = {
       enable = true;
+      allowSFTP = true;
       settings = {
         PermitRootLogin = "yes";
         X11Forwarding = false;
@@ -75,6 +76,12 @@
 
   # systemd.services.NetworkManager-wait-online.enable = true;
   # systemd.network.wait-online.enable = true;
+  boot.kernel.sysctl = {
+    "kernel.threads-max" = 2000000;
+    "kernel.pid-max" = 2000000;
+    "fs.file-max" = 204708;
+    "vm.max_map_count" = 6000000;
+  };
 
   system.stateVersion = "22.05"; # Do not change
 }

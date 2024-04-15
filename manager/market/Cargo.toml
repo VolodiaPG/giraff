@@ -18,7 +18,7 @@ jaeger = [
     "tracing-actix-web",
 ]
 # See the cargo.toml of the fog node for more explanations
-powerrandom = []
+random = []
 
 [dependencies]
 actix-web = "4.4"

@@ -194,18 +194,12 @@ impl Auction {
         Ok(Some((name, price)))
     }
 
-    #[cfg(feature = "powerrandom_rates")]
+    #[cfg(feature = "cpu_ratio_rates")]
     async fn compute_bid(
         &self,
         sla: &Sla,
         _accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(String, f64)>> {
-        use helper::env_load;
-
-        // let pricing_cpu =
-        //     env_load!(PricingRatio, PRICING_CPU, f64).into_inner();
-        let pricing_cpu_initial =
-            env_load!(PricingRatio, PRICING_CPU_INITIAL, f64).into_inner();
         let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
@@ -213,12 +207,11 @@ impl Auction {
         else {
             return Ok(None);
         };
-
         // The more the cpu is used the lower the price and the easiest to win
         let cpu_ratio_sla: f64 = (used_cpu / available_cpu).into();
-        let price: f64 = cpu_ratio_sla * pricing_cpu_initial;
+        let price: f64 = cpu_ratio_sla;
 
-        trace!("(powerrandom) price on {:?} is {:?}", name, price);
+        trace!("(random) price on {:?} is {:?}", name, price);
 
         Ok(Some((name, price)))
     }

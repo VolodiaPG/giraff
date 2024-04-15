@@ -1,5 +1,6 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
-KUBECONFIG :=  ".." / "testbed" / "iso" / "vm.kubeconfig"
+
+KUBECONFIG := ".." / "testbed" / "iso" / "vm.kubeconfig"
 RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace,market=trace,actix=debug"
 DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
@@ -12,7 +13,7 @@ _default:
 
 # Build a target (market or fog_node)
 build *FLAGS:
-    cargo build {{FLAGS}}
+    cargo build {{ FLAGS }}
 
 pre_commit:
     @nix develop .#manager -c just check
@@ -23,41 +24,41 @@ pre_commit:
 check subcommand="check":
     #!/usr/bin/env bash
     set -e
-    just _{{subcommand}} --features quadratic_rates,auction
-    just _{{subcommand}} --features valuation_rates,auction
+    just _{{ subcommand }} --features quadratic_rates,auction
+    just _{{ subcommand }} --features valuation_rates,auction
 
-    just _{{subcommand}} --features valuation_rates,edge_first
-    just _{{subcommand}} --features valuation_rates,edge_furthest
-    # just _{{subcommand}} --features cloud_only
-    # just _{{subcommand}} --features cloud_only_v2
-    just _{{subcommand}} --features valuation_rates,edge_ward
-    # just _{{subcommand}} --features edge_ward_v2
-    just _{{subcommand}} --features valuation_rates,edge_ward_v3
-    just _{{subcommand}} --features powerrandom,powerrandom_rates
+    just _{{ subcommand }} --features valuation_rates,edge_first
+    just _{{ subcommand }} --features valuation_rates,edge_furthest
+    # just _{{ subcommand }} --features cloud_only
+    # just _{{ subcommand }} --features cloud_only_v2
+    just _{{ subcommand }} --features valuation_rates,edge_ward
+    # just _{{ subcommand }} --features edge_ward_v2
+    just _{{ subcommand }} --features valuation_rates,edge_ward_v3
+    just _{{ subcommand }} --features random,cpu_ratio_rates,maxcpu
 
-    just _{{subcommand}} --features valuation_rates,jaeger,auction
+    just _{{ subcommand }} --features valuation_rates,jaeger,auction
 
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:
-	cargo outdated -R
-	cargo udeps --all-targets
+    cargo outdated -R
+    cargo udeps --all-targets
 
 _check *FLAGS:
-    cargo check {{FLAGS}}
+    cargo check {{ FLAGS }}
 
 _clippy *FLAGS:
-    cargo clippy --fix --allow-staged --allow-dirty {{FLAGS}}  -- -A clippy::let_unit_value -D warnings
+    cargo clippy --fix --allow-staged --allow-dirty {{ FLAGS }}  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
 run_market *FLAGS:
-   SERVER_PORT={{MARKET_PORT}} \
-    RUST_LOG={{RUST_LOG}} \
-    INFLUX_ADDRESS="127.0.0.1:9086" \
-    INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
-    INFLUX_ORG="faasfog" \
-    INFLUX_BUCKET="faasfog" \
-    INSTANCE_NAME="marketplace" \
-    cargo run --bin market {{FLAGS}}
+    SERVER_PORT={{ MARKET_PORT }} \
+     RUST_LOG={{ RUST_LOG }} \
+     INFLUX_ADDRESS="127.0.0.1:9086" \
+     INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+     INFLUX_ORG="faasfog" \
+     INFLUX_BUCKET="faasfog" \
+     INSTANCE_NAME="marketplace" \
+     cargo run --bin market {{ FLAGS }}
 
 # Run the node, type is market or else (generic fog_node)
 run_fog_node node_type MY_IP_ADDRESS:
@@ -66,14 +67,14 @@ run_fog_node node_type MY_IP_ADDRESS:
     import base64
     import subprocess
 
-    node_type = "{{node_type}}"
+    node_type = "{{ node_type }}"
 
     nodes = {}
 
     nodes["market"] = '''(
         situation: MarketConnected (
             market_ip: "127.0.0.1",
-            market_port: "{{MARKET_PORT}}",
+            market_port: "{{ MARKET_PORT }}",
         ),
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "127.0.0.1",
@@ -134,12 +135,12 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars = {}
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     env_vars['OPENFAAS_USERNAME'] = "admin"
-    env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{KUBECONFIG}} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
-    env_vars['KUBECONFIG'] = "{{KUBECONFIG}}"
+    env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{ KUBECONFIG }} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
+    env_vars['KUBECONFIG'] = "{{ KUBECONFIG }}"
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "31112"
     env_vars['OPENFAAS_PORT_INTERNAL'] = "31112"
-    env_vars['RUST_LOG'] = "{{RUST_LOG}}"
-    env_vars['LOG_CONFIG_FILENAME'] = "{{node_type}}.log"
+    env_vars['RUST_LOG'] = "{{ RUST_LOG }}"
+    env_vars['LOG_CONFIG_FILENAME'] = "{{ node_type }}.log"
     env_vars['COLLECTOR_IP'] = "127.0.0.1"
     env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317"
 
@@ -147,7 +148,7 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
     env_vars['INFLUX_ORG']="faasfog"
     env_vars['INFLUX_BUCKET']="faasfog"
-    env_vars['INSTANCE_NAME']="{{node_type}}"
+    env_vars['INSTANCE_NAME']="{{ node_type }}"
 
     env_vars['FUNCTION_LIVE_TIMEOUT_MSECS']="120000"
     env_vars['PRICING_CPU']="1.0"
@@ -161,7 +162,7 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['RATIO_CC']="1.0"
     env_vars['ELECTRICITY_PRICE']="1.0"
 
-    if "{{node_type}}" in ["node_1", "node_2"]:
+    if "{{ node_type }}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"
 
     env_str = " ".join([f'{key}="{value}"' for key, value in env_vars.items()])
@@ -171,33 +172,32 @@ run_fog_node node_type MY_IP_ADDRESS:
     os.system(cmd)
 
 run MY_IP_ADDRESS *FLAGS="--features auction": (build FLAGS)
-    mprocs "just run_fog_node market {{MY_IP_ADDRESS}}" \
-      "just run_fog_node node_2 {{MY_IP_ADDRESS}}" \
-      "just run_fog_node node_3 {{MY_IP_ADDRESS}}" \
-      "just run_fog_node node_1 {{MY_IP_ADDRESS}}" \
-      "just run_market {{FLAGS}}"
+    mprocs "just run_fog_node market {{ MY_IP_ADDRESS }}" \
+      "just run_fog_node node_2 {{ MY_IP_ADDRESS }}" \
+      "just run_fog_node node_3 {{ MY_IP_ADDRESS }}" \
+      "just run_fog_node node_1 {{ MY_IP_ADDRESS }}" \
+      "just run_market {{ FLAGS }}"
 
 expe localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
-    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
-    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{IOT_LOCAL_PORT}} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{localhost_ip}} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{ IOT_LOCAL_PORT }} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
+    cd ../testbed && nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{ IOT_LOCAL_PORT }} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc'
 
 _ghcr user image:
     #!/usr/bin/env bash
-    output=`$(nix build ".#{{image}}" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:{{image}} 2>&1`
+    output=`$(nix build ".#{{ image }}" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/giraff:{{ image }} 2>&1`
     retVal=$?
     if [ $retVal -ne 0 ]; then
-      echo -e "[{{file_name(justfile_directory())}}] {{image}} \033[31mFAILED\033[0m"
+      echo -e "[{{ file_name(justfile_directory()) }}] {{ image }} \033[31mFAILED\033[0m"
       echo -e $output
       exit $retVal
     fi
-    echo -e "[{{file_name(justfile_directory())}}] {{image}} \033[32mOK\033[0m"
-
+    echo -e "[{{ file_name(justfile_directory()) }}] {{ image }} \033[32mOK\033[0m"
 
 # Push container images o ghcr.
 ghcr user +images:
     #!/usr/bin/env bash
     set -e
-    parallel --halt-on-error 2 --will-cite just _ghcr {{user}} {1} ::: {{images}}
+    parallel --halt-on-error 2 --will-cite just _ghcr {{ user }} {1} ::: {{ images }}
 
 collect:
     cd ../testbed && nix develop .#testbed -c sh -c 'export SAVE_NETWORK_FILE=/dev/null EXPE_LOAD_FILE=./requests INFLUX_ADDRESS=127.0.0.1:9086; just collect'

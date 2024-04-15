@@ -631,8 +631,10 @@ def gen_net(nodes, callback):
             print(f"{node_name} -> {destination} = {latency}")
             callback(node_name, destination, latency)
 
-
 def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
+    """
+    Returns the number of hosts required to run the number of nodes
+    """
     total_vm_required = 1  # the market is the first
     vms = gen_vm_conf(node)
     # add the market
@@ -751,9 +753,9 @@ if os.getenv(SAVE_NETWORK_FILE) and MIN_NUMBER_VMS:
         print(f"Got nb_vms {nb_vms} > {min_number_vms}", file=sys.stderr)
         exit(122)
 
-MAX_NUMBER_NODES = os.getenv("MAX_NB_NODES")
-if os.getenv(SAVE_NETWORK_FILE) and MAX_NUMBER_NODES:
-    max_number_nodes = int(MAX_NUMBER_NODES)
+MAX_NUMBER_VMS = os.getenv("MAX_NB_VMS")
+if os.getenv(SAVE_NETWORK_FILE) and MAX_NUMBER_VMS:
+    max_number_nodes = int(MAX_NUMBER_VMS)
     failed = True
     cluster = os.getenv("CLUSTER") or ""
     nb_cpu_per_machine = NB_CPU_PER_MACHINE_PER_CLUSTER[cluster]["core"]

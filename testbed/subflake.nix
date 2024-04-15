@@ -20,6 +20,7 @@
               experiments = prev.python311.withPackages (ps: (with ps; [
                 dill
                 click
+                types-click
                 aiohttp
                 influxdb-client
                 marshmallow-dataclass

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-for oarjob in `oarstat -u -f -J | jq -r ".[] | @base64"` ; do
+for oarjob in `oarstat -u -J | jq -r "to_entries | sort_by(.key | tonumber) | from_entries | .[] | @base64"` ; do
 	echo -n `echo $oarjob | base64 --decode | jq .id`
 	echo -n "   "
 	echo -n `echo $oarjob | base64 --decode | jq .name`
