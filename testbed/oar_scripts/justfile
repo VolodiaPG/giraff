@@ -22,7 +22,7 @@ log:
       id=$2
       if echo $name | grep -q "env"; then
         index=$(( index + 1 ))
-        mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; until just ssh log.sh "$id"; do sleep 2; done'}, {c: select-proc, index: $index}]}"
+    mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; until just ssh log.sh "$id" 2>/dev/null; do sleep 2; done'}, {c: select-proc, index: $index}]}"
       fi
     }
 
@@ -32,7 +32,7 @@ log:
     (sleep 2 && mprocs --server 127.0.0.1:4500 --ctl "{c: batch, cmds: [{c: add-proc, cmd: '$name; $cmd'}, {c: select-proc, index: 0}]}")&
     while true; do
       highest=0
-      for oarjob in `just _ssh oarstat -u -f -J | jq -r ".[] | @base64"`; do
+      for oarjob in `just _ssh oarstat -u -f -J 2>/dev/null | jq -r ".[] | @base64"`; do
         id=`echo $oarjob | base64 --decode | jq -r .id`
         if (( id > highestid )); then
           dothenasty $oarjob $id
@@ -44,7 +44,7 @@ log:
       if (( highest > highestid )); then
         highestid=$highest
       fi
-      sleep 2
+      sleep 10
     done
 
 devlog: (ssh "devlog.sh")
