@@ -5,6 +5,8 @@ use helper_derive::influx_observation;
 struct BidGauge {
     #[influxdb(field)]
     bid:           f64,
+    #[influxdb(field)]
+    price:         f64,
     #[influxdb(tag)]
     function_name: String,
     #[influxdb(tag)]

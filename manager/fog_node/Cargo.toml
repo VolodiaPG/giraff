@@ -21,10 +21,9 @@ jaeger = [
 
 # Bid Computation methods
 # Valuation made from a constant rate, give by an ENV variable
-valuation_rates = []
+linear_rates = []
 # Use quadratic rates from the ENV variables
 quadratic_rates = []
-cpu_ratio_rates = []
 
 # Placement methods
 # Default placement
@@ -49,7 +48,7 @@ edge_ward = []
 edge_ward_v3 = []
 # Gather all possible hosts, finding the ones that accept the sla,
 # finding the 2 least cpu-utilized and choosing at random in between those 2
-maxcpu = ["cpu_ratio_rates"]
+maxcpu = []
 
 [dependencies]
 actix-web = "4.4"

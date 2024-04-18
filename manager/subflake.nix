@@ -89,7 +89,7 @@
                   {
                     # Do not forget to run cargo2nix at each new features added
                     strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu"];
-                    valuation = ["valuation_rates" "quadratic_rates" "cpu_ratio_rates"];
+                    valuation = ["linear_rates" "quadratic_rates"];
                     telemetry = ["no_telemetry" "jaeger"];
                   }
                 )

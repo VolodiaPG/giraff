@@ -25,18 +25,18 @@ check subcommand="check":
     #!/usr/bin/env bash
     set -e
     just _{{ subcommand }} --features quadratic_rates,auction
-    just _{{ subcommand }} --features valuation_rates,auction
+    just _{{ subcommand }} --features linear_rates,auction
 
-    just _{{ subcommand }} --features valuation_rates,edge_first
-    just _{{ subcommand }} --features valuation_rates,edge_furthest
+    just _{{ subcommand }} --features linear_rates,edge_first
+    just _{{ subcommand }} --features linear_rates,edge_furthest
     # just _{{ subcommand }} --features cloud_only
     # just _{{ subcommand }} --features cloud_only_v2
-    just _{{ subcommand }} --features valuation_rates,edge_ward
+    just _{{ subcommand }} --features linear_rates,edge_ward
     # just _{{ subcommand }} --features edge_ward_v2
-    just _{{ subcommand }} --features valuation_rates,edge_ward_v3
-    just _{{ subcommand }} --features random,cpu_ratio_rates,maxcpu
+    just _{{ subcommand }} --features linear_rates,edge_ward_v3
+    just _{{ subcommand }} --features random,quadratic_rates,maxcpu
 
-    just _{{ subcommand }} --features valuation_rates,jaeger,auction
+    just _{{ subcommand }} --features linear_rates,jaeger,auction
 
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:

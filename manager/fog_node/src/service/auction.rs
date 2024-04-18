@@ -32,6 +32,19 @@ env_var!(RATIO_BB);
 env_var!(RATIO_CC);
 env_var!(ELECTRICITY_PRICE);
 
+struct ComputedBid {
+    pub(crate) name:          String,
+    #[allow(dead_code)]
+    pub(crate) available_ram: Information,
+    #[allow(dead_code)]
+    pub(crate) available_cpu: Ratio,
+    #[allow(dead_code)]
+    pub(crate) used_ram:      Information,
+    #[allow(dead_code)]
+    pub(crate) used_cpu:      Ratio,
+    pub(crate) bid:           f64,
+}
+
 pub struct Auction {
     resource_tracking: Arc<ResourceTracking>,
     db:                Arc<FunctionTracking>,
@@ -96,12 +109,12 @@ impl Auction {
         Ok(None)
     }
 
-    #[cfg(feature = "valuation_rates")]
+    #[cfg(feature = "linear_rates")]
     async fn compute_bid(
         &self,
         sla: &Sla,
         _accumulated_latency: &AccumulatedLatency,
-    ) -> Result<Option<(String, f64)>> {
+    ) -> Result<Option<ComputedBid>> {
         use helper::env_load;
 
         // let pricing_cpu =
@@ -113,7 +126,7 @@ impl Auction {
         let pricing_mem_initial =
             env_load!(PricingRatio, PRICING_MEM_INITIAL, f64).into_inner();
 
-        let Some((name, _used_ram, _used_cpu, available_ram, available_cpu)) =
+        let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")?
@@ -126,12 +139,19 @@ impl Auction {
         // let ram_ratio: f64 = ((used_ram + sla.memory) /
         // available_ram).into(); let cpu_ratio: f64 = ((used_cpu +
         // sla.cpu) / available_cpu).into();
-        let price: f64 = ram_ratio_sla * pricing_mem_initial
+        let bid: f64 = ram_ratio_sla * pricing_mem_initial
             + cpu_ratio_sla * pricing_cpu_initial;
 
-        trace!("price on {:?} is {:?}", name, price);
+        trace!("price on {:?} is {:?}", name, bid);
 
-        Ok(Some((name, price)))
+        Ok(Some(ComputedBid {
+            name,
+            bid,
+            available_cpu,
+            available_ram,
+            used_cpu,
+            used_ram,
+        }))
     }
 
     #[cfg(feature = "quadratic_rates")]
@@ -139,14 +159,14 @@ impl Auction {
         &self,
         sla: &Sla,
         _accumulated_latency: &AccumulatedLatency,
-    ) -> Result<Option<(String, f64)>> {
+    ) -> Result<Option<ComputedBid>> {
         use crate::service::function::UnprovisionEvent;
         use chrono::Duration;
         use helper::env_load;
         use helper::uom_helper::cpu_ratio::cpu;
         use uom::si::time::second;
 
-        let Some((name, _used_ram, _used_cpu, _available_ram, available_cpu)) =
+        let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
             self.get_a_node(sla)
                 .await
                 .context("Failed to found a suitable node for the sla")?
@@ -185,35 +205,44 @@ impl Auction {
         let sla_duration = sla.duration.get::<second>();
         let electricity_price =
             env_load!(PricingRatio, ELECTRICITY_PRICE, f64).into_inner();
-        let price = electricity_price
+        let bid = electricity_price
             * sla_cpu
             * (2.0 * aa * utilisation + (aa * sla_cpu + bb) * sla_duration);
 
-        trace!("(quadratic) price on is {:?}", price);
+        trace!("(quadratic) price on is {:?}", bid);
 
-        Ok(Some((name, price)))
+        Ok(Some(ComputedBid {
+            name,
+            bid,
+            available_cpu,
+            available_ram,
+            used_cpu,
+            used_ram,
+        }))
     }
 
-    #[cfg(feature = "cpu_ratio_rates")]
-    async fn compute_bid(
+    #[cfg(feature = "maxcpu")]
+    async fn compute_bid_maxcpu(
         &self,
         sla: &Sla,
-        _accumulated_latency: &AccumulatedLatency,
-    ) -> Result<Option<(String, f64)>> {
-        let Some((name, _used_ram, used_cpu, _available_ram, available_cpu)) =
-            self.get_a_node(sla)
-                .await
-                .context("Failed to found a suitable node for the sla")?
-        else {
-            return Ok(None);
-        };
-        // The more the cpu is used the lower the price and the easiest to win
-        let cpu_ratio_sla: f64 = (used_cpu / available_cpu).into();
-        let price: f64 = cpu_ratio_sla;
+        accumulated_latency: &AccumulatedLatency,
+    ) -> Result<Option<(String, f64, f64)>> {
+        match self.compute_bid(sla, accumulated_latency).await? {
+            Some(computed) => {
+                // The more the cpu is used the lower the price and the easiest
+                // to win
+                let cpu_ratio_sla: f64 =
+                    (computed.used_cpu / computed.available_cpu).into();
+                let bid: f64 = cpu_ratio_sla;
+                // The normal "bid" is also the price usually, but not in that
+                // valuation method
+                let price = computed.bid;
 
-        trace!("(random) price on {:?} is {:?}", name, price);
-
-        Ok(Some((name, price)))
+                trace!("(random) price on {:?} is {:?}", computed.name, bid);
+                Ok(Some((computed.name, bid, price)))
+            }
+            None => Ok(None),
+        }
     }
 
     pub async fn bid_on(
@@ -221,13 +250,26 @@ impl Auction {
         sla: Sla,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(BidId, Proposed)>> {
-        let Some((node, bid)) = self
+        #[cfg(not(feature = "maxcpu"))]
+        let Some(ComputedBid { name, bid, .. }) = self
             .compute_bid(&sla, accumulated_latency)
             .await
             .context("Failed to compute bid for sla")?
         else {
             return Ok(None);
         };
+        #[cfg(not(feature = "maxcpu"))]
+        let price = bid;
+
+        #[cfg(feature = "maxcpu")]
+        let Some((name, bid, price)) = self
+            .compute_bid_maxcpu(&sla, accumulated_latency)
+            .await
+            .context("Failed to compute bid for sla")?
+        else {
+            return Ok(None);
+        };
+        let node = name;
         let record = Proposed::new(bid, sla, node);
         self.db.insert(record.clone());
         let id = Uuid::new_v4();
@@ -235,6 +277,7 @@ impl Auction {
         self.metrics
             .observe(BidGauge {
                 bid,
+                price,
                 function_name: record.sla.function_live_name.clone(),
                 sla_id: record.sla.id.to_string(),
                 bid_id: id.to_string(),
