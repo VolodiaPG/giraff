@@ -110,7 +110,9 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
-expe $IOT_IP $MARKET_IP $TARGET_NODES:
+expe $IOT_IP $MARKET_IP $TARGET_NODES env_variation="/dev/null":
+    #!/usr/bin/env bash
+    source ./{{ env_variation }}
     {{ RUN }} expe.py
 
 [private]
@@ -419,10 +421,10 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     EOF
     )
         if [ $TYPE == "resume" ]; then
-            parallel --will-cite --resume $cmd
+            parallel --will-cite --shuf --resume $cmd
         else
             rm $JOB_LOG || true
-            parallel --will-cite $cmd
+            parallel --will-cite --shuf $cmd
         fi
     fi
 
