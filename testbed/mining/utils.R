@@ -8,6 +8,7 @@
 #' @param new_aes character with the aesthetic for which new scales will be
 #' created
 #'
+
 new_scale <- function(new_aes) {
   structure(ggplot2::standardise_aes_names(new_aes), class = "new_aes")
 }
@@ -69,7 +70,7 @@ bump_aes.Layer <- function(layer, new_aes) {
 
   old_geom <- layer$geom
 
-  old_setup <- old_geom$handle_na
+  old_setup <- old_geom$handle_n
   new_setup <- function(self, data, params) {
     colnames(data)[colnames(data) %in% new_aes] <- original_aes
     old_setup(data, params)
@@ -359,6 +360,22 @@ prepare_convert <- function(x) {
   )
 }
 
+extract_context <- function(x) {
+  # The first element is the input string
+  info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
+  info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+)_.*_\\.env\\.([0-9]+)-.+")
+  return(
+    x %>%
+      ungroup() %>%
+      mutate(placement_method = info[, 2]) %>%
+      mutate(economic_method = info[, 3]) %>%
+      mutate(telemetry = info[, 4]) %>%
+      mutate(run = info2[, 2]) %>%
+      mutate(env = info2[, 3])
+  )
+}
+
+
 extract_function_name_info <- function(x) {
   # The first element is the input string
   info <- stringr::str_match(x$function_name, "(.+)-i([0-9]+)-c([0-9]+)-m([0-9]+)-l([0-9]+)-a([0-9]+)-r([0-9]+)-d([0-9]+)")
@@ -395,13 +412,28 @@ load_csv <- function(filename) {
 }
 
 load_single_csv <- function(arkfile, filename) {
-  all_data <- vroom(archive_read(paste(METRICS_PATH, arkfile, sep = "/"), file = filename), progress = FALSE, col_types = cols(), col_names = TRUE, delim = "\t", .name_repair = "unique") %>%
-    distinct() %>%
-    mutate(
-      folder = tools::file_path_sans_ext(tools::file_path_sans_ext(arkfile)),
-      metric_group = METRICS_GROUP[which(METRICS_ARKS == arkfile)],
-      metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == arkfile)]
-    )
+  archive <- paste(METRICS_PATH, arkfile, sep = "/")
+
+  if (!file.exists(archive)) {
+    stop(paste0("archive doesn't exist ", archive))
+  }
+
+  connection <- archive_read(archive, file = filename)
+  tryCatch(
+    {
+      all_data <- vroom(connection, progress = FALSE, col_types = cols(), col_names = TRUE, delim = "\t", .name_repair = "unique") %>%
+        distinct() %>%
+        mutate(
+          folder = tools::file_path_sans_ext(tools::file_path_sans_ext(arkfile)),
+          metric_group = METRICS_GROUP[which(METRICS_ARKS == arkfile)],
+          metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == arkfile)]
+        )
+    },
+    error = function(e) {
+      stop(paste("file doesn't exist in archive", filename, archive, sep = " "))
+    }
+  )
+
   return(all_data)
 }
 
@@ -733,17 +765,17 @@ write_multigraphs <- function(graphs) {
   })
 }
 
-export_graph <- function(name, ggplot_graph) {
+export_graph <- mem(function(name, ggplot_graph) {
+  callback_name <- deparse(substitute(ggplot_graph))
+  Log(paste0("Graphing ", callback_name))
   # ggsave(paste0("out/", name, ".png"), ggplot_graph)
   p <- ggplotly(ggplot_graph)
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
-}
+})
 
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
-
-
 
 do_sankey <- function(f) {
   links <- f()
@@ -826,4 +858,47 @@ do_sankey <- function(f) {
     )
   )
   return(fig)
+}
+
+# https://github.com/r-lib/memoise/issues/79
+memoise2 <- function(f, ..., expr_vars = character(0)) {
+  f_wrapper <- function(args) {
+    return(eval_tidy(expr(f(!!!args))))
+  }
+  f_wrapper_m <- memoise(f_wrapper, ...)
+
+  function(...) {
+    # Capture args as (unevaluated) quosures
+    dot_args <- rlang::dots_list(...)
+    # print(dot_args)
+
+    # For each arg, if it's in our set of `expr_vars`, extract the expression
+    # (and discard the environment); if it's not in that set, then evaluate the
+    # quosure.
+    dot_args <- mapply(
+      dot_args,
+      names(dot_args),
+      FUN = function(quo, name) {
+        if (name %in% expr_vars) {
+          get_expr(quo)
+        } else {
+          eval_tidy(quo)
+        }
+      },
+      SIMPLIFY = FALSE
+    )
+
+    # Print out the captured items
+    # print(str(dot_args))
+
+    # Call the memoized wrapper function.
+    return(f_wrapper_m(dot_args))
+  }
+}
+
+Log <- function(text, ...) {
+  captured_output <- capture.output(print(toString(text)))
+  msg <- sprintf(paste0(as.character(Sys.time()), ": ", captured_output, "\n"), ...)
+  cat(msg)
+  write.socket(log.socket, msg)
 }

@@ -1,4 +1,4 @@
-output_latency <- memoised(function(latency) {
+output_latency <- function(latency) {
     latency %>%
         filter(field == "raw") %>%
         adjust_timestamps() %>%
@@ -10,9 +10,9 @@ output_latency <- memoised(function(latency) {
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
         geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
-})
+}
 
-output_loss <- memoised(function(latency) {
+output_loss <- function(latency) {
     latency %>%
         filter(field == "raw_packet_loss") %>%
         adjust_timestamps() %>%
@@ -24,9 +24,9 @@ output_loss <- memoised(function(latency) {
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
         geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
-})
+}
 
-output_gif <- memoised(function(raw.cpu.observed_from_fog_node, bids_won_function) {
+output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
     data <- latency %>%
         filter(field == "raw") %>%
         adjust_timestamps() %>%
@@ -144,9 +144,9 @@ output_gif <- memoised(function(raw.cpu.observed_from_fog_node, bids_won_functio
 
     animations <- lapply(data_grouped, FUN = create_plot)
     return(animations)
-})
+}
 
-output_jains <- memoised(function(earnings.jains.plot.data.raw) {
+output_jains <- function(earnings.jains.plot.data.raw) {
     plots.jains.w <- GRAPH_ONE_COLUMN_WIDTH
     plots.jains.h <- GRAPH_ONE_COLUMN_HEIGHT
     plots.jains.caption <- "Jain's index at different ratio of low level latencies"
@@ -181,9 +181,9 @@ output_jains <- memoised(function(earnings.jains.plot.data.raw) {
 
     plots.jains + labs(title = plots.jains.caption)
     return(plots.jains)
-})
+}
 
-output_anova_nb_deployed <- memoised(function(plots.nb_deployed.data) {
+output_anova_nb_deployed <- function(plots.nb_deployed.data) {
     df <- plots.nb_deployed.data %>% ungroup()
 
 
@@ -303,9 +303,9 @@ output_anova_nb_deployed <- memoised(function(plots.nb_deployed.data) {
         geom_text(data = final.text[2, ] %>% mutate(value_y = max_yvalue), aes(x = class_x, y = value_y), color = "black", label = sprintf("\\footnotesize{Anova $F=%.1f$, %s}", sumup.F, sumup.p))
 
     return(p)
-})
+}
 
-output_sla_plot <- memoised(function(respected_sla, bids_won_function, node_levels) {
+output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
     compute <- function() {
         df <- respected_sla %>%
             #left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
@@ -344,9 +344,9 @@ output_sla_plot <- memoised(function(respected_sla, bids_won_function, node_leve
     }
 
     return(do_sankey(compute))
-})
+}
 
-output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function, node_levels) {
+output_respected_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
     compute <- function() {
         df <- respected_sla %>%
             left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
@@ -435,9 +435,9 @@ output_respected_sla_plot <- memoised(function(respected_sla, bids_won_function,
     }
 
     return(do_sankey(compute))
-})
+}
 
-output_respected_data_plot <- memoised(function(respected_sla) {
+output_respected_data_plot <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(satisfied_ratio = acceptable_chained / total) %>%
         #group_by(folder, docker_fn_name, metric_group) %>%
@@ -458,9 +458,9 @@ output_respected_data_plot <- memoised(function(respected_sla) {
             y = "ecdf"
         )
     return(p)
-})
+}
 
-output_arrival <- memoised(function(respected_sla) {
+output_arrival <- function(respected_sla) {
     df <- respected_sla %>%
       extract_function_name_info() %>%
 #        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
@@ -483,10 +483,10 @@ output_arrival <- memoised(function(respected_sla) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
 
-output_respected_data_plot_simple <- memoised(function(respected_sla, bids_won_function, node_levels) {
+output_respected_data_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
     df <- respected_sla %>%
         left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
         left_join(node_levels %>% rename(winner = name)) %>%
@@ -512,9 +512,9 @@ output_respected_data_plot_simple <- memoised(function(respected_sla, bids_won_f
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
-output_errored_plot_simple <- memoised(function(respected_sla, bids_won_function, node_levels) {
+output_errored_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
     df <- respected_sla %>%
         left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
         left_join(node_levels %>% rename(winner = name)) %>%
@@ -540,9 +540,9 @@ output_errored_plot_simple <- memoised(function(respected_sla, bids_won_function
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
-output_in_flight_time_plot_simple <- memoised(function(respected_sla, bids_won_function, node_levels) {
+output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
     df <- respected_sla %>%
         mutate(measured_latency = as.numeric(measured_latency)) %>%
         select(-sla_id) %>%
@@ -566,9 +566,9 @@ output_in_flight_time_plot_simple <- memoised(function(respected_sla, bids_won_f
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
-output_latency_vs_expected_latency_plot <- memoised(function(respected_sla, bids_won_function) {
+output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_function) {
     df <- respected_sla %>%
         mutate(measured_latency = as.numeric(measured_latency)) %>%
         #left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
@@ -594,8 +594,9 @@ output_latency_vs_expected_latency_plot <- memoised(function(respected_sla, bids
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
-output_duration_distribution_plot <- memoised(function(provisioned_sla) {
+}
+
+output_duration_distribution_plot <- function(provisioned_sla) {
     df <- provisioned_sla %>%
         extract_function_name_info()
     p <- ggplot(data = df, aes(x = docker_fn_name, y = duration, color = docker_fn_name, alpha = 1)) +
@@ -609,9 +610,9 @@ output_duration_distribution_plot <- memoised(function(provisioned_sla) {
 
 
     return(p)
-})
+}
 
-output_latency_distribution_plot <- memoised(function(provisioned_sla) {
+output_latency_distribution_plot <- function(provisioned_sla) {
     df <- provisioned_sla %>%
         extract_function_name_info()
     p <- ggplot(data = df, aes(x = docker_fn_name, y = latency, color = docker_fn_name, alpha = 1)) +
@@ -625,9 +626,9 @@ output_latency_distribution_plot <- memoised(function(provisioned_sla) {
 
 
     return(p)
-})
+}
 
-output_request_distribution <- memoised(function(respected_sla) {
+output_request_distribution <- function(respected_sla) {
   df <- respected_sla
     p <- ggplot(data = df, aes(x = total, y = acceptable, color = docker_fn_name, alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
@@ -641,10 +642,10 @@ output_request_distribution <- memoised(function(respected_sla) {
 
 
     return(p)
-})
+}
 
 
-output_ran_for_plot_simple <- memoised(function(respected_sla) {
+output_ran_for_plot_simple <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for)) %>%
         mutate(some_not_acceptable = acceptable + all_errors != total)
@@ -672,9 +673,9 @@ output_ran_for_plot_simple <- memoised(function(respected_sla) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
-output_function_latency_plot_simple <- memoised(function(respected_sla) {
+output_function_latency_plot_simple <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for))
 
@@ -701,9 +702,9 @@ output_function_latency_plot_simple <- memoised(function(respected_sla) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
     }
     return(p)
-})
+}
 
-output_jains_index_plot <- memoised(function(earnings.jains.plot.data.raw) {
+output_jains_index_plot <- function(earnings.jains.plot.data.raw) {
     df <- earnings.jains.plot.data.raw %>%
         mutate(toto = "toto") %>%
         ungroup()
@@ -736,9 +737,9 @@ output_jains_index_plot <- memoised(function(earnings.jains.plot.data.raw) {
     plots.jains <- anova_boxplot(p, df, "Placement method", "score", "toto", mean_cb)
     plots.jains + labs(title = plots.jains.caption)
     return(plots.jains)
-})
+}
 
-output_mean_time_to_deploy <- memoised(function(raw.deployment_times) {
+output_mean_time_to_deploy <- function(raw.deployment_times) {
     df <- raw.deployment_times %>%
         group_by(folder, metric_group) %>%
         summarise(value = mean(value)) %>%
@@ -775,9 +776,9 @@ output_mean_time_to_deploy <- memoised(function(raw.deployment_times) {
     plots.deploymenttimes <- anova_boxplot(p, df, "Placement method", "value", "group", mean_cb, c(4, 6, 19))
     plots.deploymenttimes + labs(title = plots.deployment_times.caption)
     return(plots.deploymenttimes)
-})
+}
 
-output_mean_time_to_deploy_simple <- memoised(function(raw.deployment_times) {
+output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
     df <- raw.deployment_times
 
     p <- ggplot(data = df, aes(x = docker_fn_name, y = value, color = folder, alpha = 1)) +
@@ -803,9 +804,9 @@ output_mean_time_to_deploy_simple <- memoised(function(raw.deployment_times) {
         scale_fill_viridis(discrete = T) +
         geom_quasirandom(method='tukey',alpha=.2)
     return(p)
-})
+}
 
-output_spending_plot_simple <- memoised(function(bids_won, node_levels) {
+output_spending_plot_simple <- function(bids_won, node_levels) {
   df <- bids_won %>%
     extract_function_name_info() %>%
     left_join(node_levels %>% rename(winner = name))
@@ -837,8 +838,9 @@ output_spending_plot_simple <- memoised(function(bids_won, node_levels) {
     #geom_point(aes(color = metric_group, fill = metric_group, )) +
     #stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
   return(p)
-})
-output_spending_plot <- memoised(function(plots.spending.data) {
+}
+
+output_spending_plot <- function(plots.spending.data) {
     df <- plots.spending.data %>%
         mutate(group = "toto") %>%
         ungroup()
@@ -873,6 +875,4 @@ output_spending_plot <- memoised(function(plots.spending.data) {
     plots.spending <- anova_boxplot(p, df, "Placement method", "spending", "group", mean_cb)
     plots.spending + labs(title = plots.spending.caption)
     return(plots.spending)
-})
-
-
+}

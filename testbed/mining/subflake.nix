@@ -85,7 +85,7 @@
               just
               my-R
               pandoc
-              nodePackages_latest.live-server
+              nodePackages_latest.browser-sync
               entr
               rPackages.styler
             ];

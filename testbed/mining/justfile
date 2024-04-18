@@ -1,12 +1,21 @@
 # Runs the script
 run:
-    Rscript main.R
-    @echo -e "\033[1;32mok\033[0m"
+    @mkdir -p /dev/shm/R-giraff
+    @ln -s /dev/shm/R-giraff ./cache || true
+    Rscript main.R || (echo -e "\033[1;31mERR\033[0m" | nc -N localhost 4000 ; false)
+    @echo -e "\033[1;32mdone\033[0m"
+    @echo -e "\033[1;32mdone\033[0m" | nc -N localhost 4000
+
+logs:
+    while true; do nc -l 4000; done
 
 # Serves the content of the directory so graphs can be opened in a browser
 serve port="9000":
-    mkdir -p out/
-    cd out; live-server --port={{port}} --watch=*.htm,*.png
+    mkdir -p /dev/shm/R-giraff-out
+    ln -s /dev/shm/R-giraff-out ./out || true
+    browser-sync start --config ./bs-config.js
+
+#cd out; live-server --port={{ port }} --watch=*.htm --no-css-inject --wait=10
 
 watch:
     ls *.R | entr -nr just

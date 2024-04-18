@@ -6,45 +6,44 @@ init <- function() {
   # To call python from R
   library(archive)
   library(dplyr)
-  library(reticulate)
+  # library(reticulate)
   library(tidyverse)
   library(igraph)
-  library(r2r)
+  # library(r2r)
   library(formattable)
   library(stringr)
   library(viridis)
   # library(geomtextpath)
-  library(cowplot)
+  # library(cowplot)
   library(scales)
   library(vroom)
   library(zoo)
-  library(ggdist)
-  library(gghighlight)
-  library(ggrepel)
-  library(ggbreak)
-  library(grid)
-  library(lemon)
+  # library(ggdist)
+  # library(gghighlight)
+  # library(ggrepel)
+  # library(ggbreak)
+  # library(grid)
+  # library(lemon)
   library(ggprism)
-  library(ggh4x)
-  library(ggExtra)
-  library(tibbletime)
+  # library(ggh4x)
+  # library(ggExtra)
+  # library(tibbletime)
   library(snakecase)
   library(foreach)
   library(doParallel)
-  library(ggside)
+  # library(ggside)
   library(ggbeeswarm)
   library(multidplyr)
-  library(ggpubr)
-  library(Hmisc)
-  library(rstatix)
-  library(multcompView)
-  library(gganimate)
+  # library(ggpubr)
+  # library(Hmisc)
+  # library(rstatix)
+  # library(multcompView)
 
-  library(intergraph)
-  library(network)
-  library(ggnetwork)
-  library(treemapify)
-  library(networkD3)
+  # library(intergraph)
+  # library(network)
+  # library(ggnetwork)
+  ## library(treemapify)
+  # library(networkD3)
   library(plotly)
   library(htmlwidgets)
   library(htmltools)
@@ -53,6 +52,8 @@ init <- function() {
 
   library(purrr)
   library(future.apply)
+  library(rlang)
+
   future::plan("multicore", workers = workers)
 
   ggplot2::theme_set(theme_prism())
@@ -61,7 +62,8 @@ init <- function() {
 
 source("config.R")
 suppressMessages(init())
-source("utils.R")
+
+log.socket <- make.socket(port = 4000)
 
 cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-giraff"), max_size = 20 * 1024^3)
 
@@ -80,23 +82,19 @@ if (no_memoization) {
 
 cd$set("metrics", METRICS_ARKS)
 
-memoised <- function(f) {
-  memoise(f, cache = cd)
+mem <- function(cb) {
+  memoise(cb, cache = cd)
 }
 
-combine_all_loaded <- memoised(function(arks, cb) {
-  registerDoParallel(cl = workers, cores = workers)
-  return(bind_rows(foreach(ark = arks) %dopar% {
-    return(cb(ark))
-  }))
-})
+source("utils.R")
 
-graph <- memoised(function(name, graphs, graph) {
+
+graph <- mem(function(name, graphs, graph) {
   df <- data.frame(name = name, type = "ggplot", graph = I(list(graph)))
   return(bind_rows(graphs, df))
 })
 
-graph_non_ggplot <- memoised(function(name, graphs, graph) {
+graph_non_ggplot <- mem(function(name, graphs, graph) {
   df <- data.frame(name = name, type = "noggplot", graph = I(list(graph)))
   return(bind_rows(graphs, df))
 })
@@ -104,17 +102,33 @@ graph_non_ggplot <- memoised(function(name, graphs, graph) {
 source("loaders.R")
 source("graphs.R")
 source("commongraphs.R")
+combine <- function(arks, cb) {
+  cb_name <- deparse(substitute(cb))
+  return(combine2(arks, cb_name, cb))
+}
+
+combine2 <- memoise2(function(arks, cb_name, cb) {
+  Log(paste0("Combining ", cb_name))
+  cl <- makeForkCluster(all_workers)
+  registerDoParallel(cl = cl)
+  tmp <- foreach(ark = arks, .verbose = FALSE, .packages = c("purrr", "dplyr", "multidplyr"), .combine = bind_rows) %dopar% mem(cb)(ark)
+  parallel::stopCluster(cl)
+
+  return(tmp)
+}, cache = cd, expr_vars = c("cb"))
+
 
 # functions <- load_functions()
 if (single_graphs) {
-  registerDoParallel(cl = workers, cores = workers)
-  graphs <- foreach(ark = METRICS_ARKS) %dopar% {
-    node_levels <- load_node_levels(ark)
-    provisioned_sla <- load_provisioned_sla(ark)
-    respected_sla <- load_respected_sla(ark)
-    bids_raw <- load_bids_raw(ark)
-    bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
-    functions <- load_functions(ark)
+  cl <- makeForkCluster(all_workers)
+  registerDoParallel(cl = cl)
+  graphs <- foreach(ark = METRICS_ARKS, .verbose = FALSE, .combine = bind_rows) %dopar% {
+    node_levels <- mem(load_node_levels)(ark)
+    provisioned_sla <- mem(load_provisioned_sla)(ark)
+    respected_sla <- mem(load_respected_sla)(ark)
+    bids_raw <- mem(load_bids_raw)(ark)
+    bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
+    functions <- mem(load_functions)(ark)
     # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
 
     node_connections <- load_node_connections(ark)
@@ -138,6 +152,7 @@ if (single_graphs) {
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
 
     if (generate_gif) {
+      library(gganimate)
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
       output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
     }
@@ -147,31 +162,30 @@ if (single_graphs) {
         mutate(tag = ark)
     )
   }
-  graphs <- bind_rows(graphs)
   write_multigraphs(graphs)
 }
 
-combine <- function(cb) {
-  return(combine_all_loaded(METRICS_ARKS, cb))
-}
-node_levels <- combine(load_node_levels)
-bids_raw <- combine(load_bids_raw)
-provisioned_sla <- combine(load_provisioned_sla)
-functions <- combine(load_functions)
-respected_sla <- combine(load_respected_sla)
+node_levels <- combine(METRICS_ARKS, load_node_levels)
+bids_raw <- combine(METRICS_ARKS, load_bids_raw)
+provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
+functions <- combine(METRICS_ARKS, load_functions)
+respected_sla <- combine(METRICS_ARKS, load_respected_sla)
+raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
 
-functions_total <- load_functions_total(functions)
-bids_won_function <- load_bids_won_function(bids_raw, provisioned_sla)
-earnings_jains_plot_data <- load_earnings_jains_plot_data(node_levels, bids_won_function)
+functions_total <- mem(load_functions_total)(functions)
+functions_all_total <- mem(load_functions_all_total)(functions)
+bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
+earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids_won_function)
 
-export_graph("provisioned", output_provisioned_simple(functions_total))
-export_graph("provisioned_total", output_provisioned_simple_total(functions_total))
-export_graph("jains", output_jains_simple(earnings_jains_plot_data))
-export_graph("spending_total", output_spending_plot_simple_total(bids_won_function, node_levels))
-export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
-export_graph("respected_sla_plot_total", output_respected_data_plot_total(respected_sla))
-export_graph("total_requests_served", output_number_requests(respected_sla))
-export_graph("total_requests_served_total", output_number_requests_total(respected_sla))
+export_graph("provisioned", mem(output_provisioned_simple)(functions_total))
+export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total))
+export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total))
+export_graph("spending_total", mem(output_spending_plot_simple_total)(bids_won_function, node_levels))
+# export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
+export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(respected_sla, node_levels))
+export_graph("total_requests_served", mem(output_number_requests)(respected_sla, node_levels))
+export_graph("total_requests_served_total", mem(output_number_requests_total)(respected_sla, node_levels))
+export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels))
 
 
 # plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
