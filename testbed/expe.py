@@ -83,25 +83,18 @@ def generate_rand(min: int, max: int) -> int:
     return random.randint(min, max)
 
 
-def open_loop_poisson_process(rate, time):
-    """
-    Simulates an open-loop Poisson process.
+def open_loop_poisson_process(nb, period):
+    nb+=1
+    # Generate X inter-arrival times based on exponential distribution with mean 1
+    inter_arrival_times = np.random.exponential(1, nb)
+    # Scale the inter-arrival times so their sum equals T
+    scale_factor = period / np.sum(inter_arrival_times)
+    scaled_inter_arrival_times = inter_arrival_times * scale_factor
+    # Calculate the actual arrival times as the cumulative sum of the scaled inter-arrival times
+    arrival_times = np.cumsum(scaled_inter_arrival_times)
+    arrival_times=arrival_times[:-1]
 
-    Parameters:
-    rate: The average rate of events (lambda).
-    time: The total time to simulate.
-
-    Returns:
-    A list of event times.
-    """
-    num_events = np.random.poisson(rate * time)
-    event_times = np.random.uniform(0, time, num_events)
-
-    # # Sort the event times
-    # event_times.sort()
-
-    return event_times
-
+    return arrival_times
 
 if __name__ == "__main__":
     for k, v in os.environ.items():
@@ -389,6 +382,9 @@ async def save_file(filename: str):
             # latencies = [
             #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
             # ]
+
+            print(open_loop_poisson_process(nb_function, EXPERIMENT_DURATION))
+            exit(1)
             request_intervals = [
                 math.ceil(abs(1000 * x))
                 for x in np.random.gamma(2.35, 15, nb_function)
@@ -400,8 +396,12 @@ async def save_file(filename: str):
             ]
             arrivals = [
                 math.ceil(x)
-                for x in open_loop_poisson_process(nb_function, EXPERIMENT_DURATION)
+                for x in open_loop_poisson_process(nb_function)
             ]
+
+            print(arrivals)
+            print(len(arrivals))
+            print(nb_function)
 
             for index in range(0, nb_function):
                 # latency = latencies[index]
