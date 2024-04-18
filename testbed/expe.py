@@ -382,9 +382,6 @@ async def save_file(filename: str):
             # latencies = [
             #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
             # ]
-
-            print(open_loop_poisson_process(nb_function, EXPERIMENT_DURATION))
-            exit(1)
             request_intervals = [
                 math.ceil(abs(1000 * x))
                 for x in np.random.gamma(2.35, 15, nb_function)
@@ -396,12 +393,8 @@ async def save_file(filename: str):
             ]
             arrivals = [
                 math.ceil(x)
-                for x in open_loop_poisson_process(nb_function)
+                for x in open_loop_poisson_process(nb_function,EXPERIMENT_DURATION)
             ]
-
-            print(arrivals)
-            print(len(arrivals))
-            print(nb_function)
 
             for index in range(0, nb_function):
                 # latency = latencies[index]

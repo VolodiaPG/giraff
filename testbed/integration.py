@@ -170,8 +170,8 @@ def cli(**kwargs):
     en.init_logging(level=logging.INFO)
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
-    # en.set_config(ansible_forks=200)
-    #en.config._config["ansible_forks"] = 200  # type: ignore
+    #en.set_config(ansible_forks=25)
+    en.config._config["ansible_forks"] = 5  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
 

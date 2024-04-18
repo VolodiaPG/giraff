@@ -451,15 +451,15 @@ def network_generation():
         "flavor": TIER_1_FLAVOR,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, int(2 * SIZE_MULTIPLIER)),
+            nb_nodes=(1, int(4 * SIZE_MULTIPLIER)),
             latencies=(2, 3),
-            modifiers=[set_cloud, drop_children(drop_one_in=3)],
+            modifiers=[set_cloud, drop_children(drop_one_in=2)],
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(10, 32),
                 modifiers=[
-                    drop_children(drop_one_in=4),
+                    drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2]),
                     flavor_randomizer_mem([0, 2]),
                 ],
