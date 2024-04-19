@@ -360,8 +360,8 @@ def restart(env: EnosEnv = None):
     if env is None:
         print("env is None")
         exit(1)
-    netem = env["netem"]
-    netem.destroy()
+    #netem = env["netem"]
+    #netem.destroy()
 
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
 
@@ -386,10 +386,11 @@ def restart2(env: EnosEnv = None):
     if env is None:
         print("env is None")
         exit(1)
+
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
-    
+
     with actions(
-        roles=roles, gather_facts=False, strategy="free", background=True
+        roles=roles, gather_facts=True, strategy="free", background=False
     ) as p:
         p.wait_for(retries=5)
         p.shell(
