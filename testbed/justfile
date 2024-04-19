@@ -90,7 +90,7 @@ fresh fog_node_image market_image $DEPLOYMENT_NAME:
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{ RUN }} integration.py restart
     sleep 60
-    timeout 500 sh -c "until timeout 60 {{ RUN }} integration.py restart2; do sleep 2; done"
+    timeout 500 sh -c "until timeout 60 {{ RUN }} integration.py restart2; do sleep 30; done"
     {{ RUN }} integration.py restart3
     just _deploy {{ fog_node_image }} {{ market_image }}
 
@@ -267,7 +267,7 @@ _docker_campaign name expe_dir:
 single_campaign name dotenvfile_default dotenvfile_variation:
     #!/usr/bin/env bash
     set -e
-    expe_dir="/tmp/{{ name }}"
+    expe_dir="/dev/shm/{{ name }}"
     mkdir -p $expe_dir
 
     cp {{ dotenvfile_default }} $expe_dir/.env
