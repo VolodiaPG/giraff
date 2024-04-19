@@ -24,14 +24,6 @@
                 aiohttp
                 influxdb-client
                 marshmallow-dataclass
-                (alive-progress.overridePythonAttrs
-                  (
-                    _old: {
-                      postInstall = ''
-                        rm $out/LICENSE
-                      '';
-                    }
-                  ))
                 (buildPythonPackage rec {
                   pname = "randomname";
                   version = "0.2.1";

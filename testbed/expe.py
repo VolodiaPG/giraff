@@ -6,13 +6,12 @@ import random
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import aiohttp  # type: ignore
 import dill  # type: ignore
 import marshmallow_dataclass  # type: ignore
 import numpy as np  # type: ignore
-from alive_progress import alive_bar  # type: ignore
 
 port_int = int
 MiB_int = int
@@ -340,7 +339,7 @@ successes = 0
 errors = 0
 
 
-async def do_request_progress(bar: Any, functions: List[Function]):
+async def do_request(functions: List[Function]):
     global successes
     global errors
     success = False
@@ -352,8 +351,6 @@ async def do_request_progress(bar: Any, functions: List[Function]):
         successes += 1
     else:
         errors += 1
-    bar.text = f"--> Done {successes}, failed to provision {errors} functions..."
-    bar()
 
 
 PERCENTILE_NORMAL_LOW = -2
@@ -465,7 +462,6 @@ async def load_file(filename: str):
         )
     functions = load_functions(filename)
     tasks = []
-    bar_len = len(functions)
 
     response = None
     async with AsyncSession() as session:
@@ -476,21 +472,20 @@ async def load_file(filename: str):
             response = await response.json()
     fognet = {fog_node_data["id"]: fog_node_data["ip"] for fog_node_data in response}
 
-    with alive_bar(bar_len, title="Functions", ctrl_c=False, dual_line=True) as bar:
-        for function_sublist in functions:
-            # Use the id of the node instead of its name
-            for function in function_sublist:
-                function.target_node = nodes[function.target_node.replace("'", "")]
-                function.first_node_ip = (
-                    NODES_IP if NODES_IP else fognet[function.target_node]
-                )
-            tasks.append(
-                asyncio.create_task(
-                    do_request_progress(bar=bar, functions=function_sublist)
-                )
+    for function_sublist in functions:
+        # Use the id of the node instead of its name
+        for function in function_sublist:
+            function.target_node = nodes[function.target_node.replace("'", "")]
+            function.first_node_ip = (
+                NODES_IP if NODES_IP else fognet[function.target_node]
             )
+        tasks.append(
+            asyncio.create_task(
+                do_request(functions=function_sublist)
+            )
+        )
 
-        await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks)
 
 
 async def main():
