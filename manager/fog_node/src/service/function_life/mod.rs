@@ -34,6 +34,10 @@ mod auction_placement;
 
 #[cfg(feature = "maxcpu")]
 mod maxcpu;
+
+#[cfg(feature = "mincpurandom")]
+mod mincpurandom;
+
 // #[cfg(feature = "cloud_only")]
 // mod cloud_only_placement;
 // #[cfg(feature = "cloud_only")]
@@ -111,6 +115,10 @@ impl FunctionLife {
         #[cfg(feature = "maxcpu")]
         {
             info!("Using maxcpu placement");
+        }
+        #[cfg(feature = "mincpurandom")]
+        {
+            info!("Using mincpurandom placement");
         }
 
         let function_live_timeout =

@@ -49,6 +49,9 @@ edge_ward_v3 = []
 # Gather all possible hosts, finding the ones that accept the sla,
 # finding the 2 least cpu-utilized and choosing at random in between those 2
 maxcpu = []
+# Randomly chooses two nodes to explore, they return their utilisation
+# Then the one with the lowest is chosen
+mincpurandom = []
 
 [dependencies]
 actix-web = "4.4"

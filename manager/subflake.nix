@@ -88,7 +88,7 @@
                   nixpkgs.lib.attrsets.cartesianProductOfSets
                   {
                     # Do not forget to run cargo2nix at each new features added
-                    strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu"];
+                    strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu" "mincpurandom"];
                     valuation = ["linear_rates" "quadratic_rates"];
                     telemetry = ["no_telemetry" "jaeger"];
                   }

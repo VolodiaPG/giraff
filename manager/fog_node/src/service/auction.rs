@@ -221,8 +221,8 @@ impl Auction {
         }))
     }
 
-    #[cfg(feature = "maxcpu")]
-    async fn compute_bid_maxcpu(
+    #[cfg(any(feature = "maxcpu", feature = "mincpurandom"))]
+    async fn compute_bid_cpu(
         &self,
         sla: &Sla,
         accumulated_latency: &AccumulatedLatency,
@@ -250,7 +250,7 @@ impl Auction {
         sla: Sla,
         accumulated_latency: &AccumulatedLatency,
     ) -> Result<Option<(BidId, Proposed)>> {
-        #[cfg(not(feature = "maxcpu"))]
+        #[cfg(not(any(feature = "maxcpu", feature = "mincpurandom")))]
         let Some(ComputedBid { name, bid, .. }) = self
             .compute_bid(&sla, accumulated_latency)
             .await
@@ -258,12 +258,12 @@ impl Auction {
         else {
             return Ok(None);
         };
-        #[cfg(not(feature = "maxcpu"))]
+        #[cfg(not(any(feature = "maxcpu", feature = "mincpurandom")))]
         let price = bid;
 
-        #[cfg(feature = "maxcpu")]
+        #[cfg(any(feature = "maxcpu", feature = "mincpurandom"))]
         let Some((name, bid, price)) = self
-            .compute_bid_maxcpu(&sla, accumulated_latency)
+            .compute_bid_cpu(&sla, accumulated_latency)
             .await
             .context("Failed to compute bid for sla")?
         else {
