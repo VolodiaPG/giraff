@@ -120,21 +120,35 @@ combine2 <- memoise2(function(arks, cb_name, cb) {
 
 # functions <- load_functions()
 if (single_graphs) {
+  Log("Doing single graphs")
   cl <- makeForkCluster(all_workers)
   registerDoParallel(cl = cl)
+
+  # memoize useful loaders
+  m_load_node_levels <- mem(load_node_levels)
+  m_load_provisioned_sla <- mem(load_provisioned_sla)
+  m_load_respected_sla <- mem(load_respected_sla)
+  m_load_bids_raw <- mem(load_bids_raw)
+  m_load_bids_won_function <- mem(load_bids_won_function)
+  m_load_functions <- mem(load_functions)
+  m_load_node_connections <- mem(load_node_connections)
+  m_load_latency <- mem(load_latency)
+  m_load_raw_latency <- mem(load_raw_latency)
+  m_load_raw_deployment_times <- mem(load_raw_deployment_times)
+
   graphs <- foreach(ark = METRICS_ARKS, .verbose = FALSE, .combine = bind_rows) %dopar% {
-    node_levels <- mem(load_node_levels)(ark)
-    provisioned_sla <- mem(load_provisioned_sla)(ark)
-    respected_sla <- mem(load_respected_sla)(ark)
-    bids_raw <- mem(load_bids_raw)(ark)
-    bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
-    functions <- mem(load_functions)(ark)
+    node_levels <- m_load_node_levels(ark)
+    provisioned_sla <- m_load_provisioned_sla(ark)
+    respected_sla <- m_load_respected_sla(ark)
+    bids_raw <- m_load_bids_raw(ark)
+    bids_won_function <- m_load_bids_won_function(bids_raw, provisioned_sla)
+    functions <- m_load_functions(ark)
     # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
 
-    node_connections <- load_node_connections(ark)
-    latency <- load_latency(ark, node_connections)
-    raw_latency <- load_raw_latency(ark)
-    raw_deployment_times <- load_raw_deployment_times(ark)
+    node_connections <- m_load_node_connections(ark)
+    latency <- m_load_latency(ark, node_connections)
+    raw_latency <- m_load_raw_latency(ark)
+    raw_deployment_times <- m_load_raw_deployment_times(ark)
 
     graphs <- NULL
     graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
@@ -152,6 +166,7 @@ if (single_graphs) {
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
 
     if (generate_gif) {
+      Log("Doing GIF")
       library(gganimate)
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
       output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
@@ -165,6 +180,7 @@ if (single_graphs) {
   write_multigraphs(graphs)
 }
 
+Log("Doing combined graphs")
 node_levels <- combine(METRICS_ARKS, load_node_levels)
 bids_raw <- combine(METRICS_ARKS, load_bids_raw)
 provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
@@ -177,7 +193,7 @@ functions_all_total <- mem(load_functions_all_total)(functions)
 bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids_won_function)
 
-export_graph("provisioned", mem(output_provisioned_simple)(functions_total))
+export_graph("provisioned", mem(output_provisioned_simple)(functions_total, node_levels))
 export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total))
 export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total))
 export_graph("spending_total", mem(output_spending_plot_simple_total)(bids_won_function, node_levels))

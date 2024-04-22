@@ -1,9 +1,13 @@
-output_provisioned_simple <- function(functions_total) {
-  df <- functions_total %>% filter(status == "provisioned")
+output_provisioned_simple <- function(functions_total, node_levels) {
+  df <- functions_total %>%
+    filter(status == "provisioned") %>%
+    inner_join(node_levels %>% group_by(metric_group, metric_group_group, folder) %>% summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    extract_context()
+
   provisioned <- df %>%
-    ggplot(aes(x = metric_group, y = n)) +
+    ggplot(aes(x = env, y = n)) +
     # geom_quasirandom(method = "tukey", alpha = .2) +$
-    facet_grid(rows = vars(docker_fn_name)) +
+    facet_grid(rows = vars(docker_fn_name), cols = vars(placement_method)) +
     labs(
       x = "Function",
       y = "Number function provisioned"
@@ -12,9 +16,9 @@ output_provisioned_simple <- function(functions_total) {
     guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
-    geom_point(aes(color = metric_group, fill = metric_group, )) +
-    geom_line(aes(group = metric_group_group), alpha = .2) +
-    stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
+    geom_point(aes(size = n, color = env, fill = env)) +
+    geom_line(aes(group = run), alpha = .2) +
+    stat_summary(aes(color = env, fill = env), fun = mean, geom = "bar", alpha = 0.5)
 
   return(provisioned)
 }
