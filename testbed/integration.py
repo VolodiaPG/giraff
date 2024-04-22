@@ -366,7 +366,7 @@ def restart(env: EnosEnv = None):
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=False, strategy="free", background=True
+        roles=roles, gather_facts=False, background=True
     ) as p:
         p.wait_for(retries=5)
         p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
@@ -390,7 +390,7 @@ def restart2(env: EnosEnv = None):
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=True, strategy="free", background=False
+        roles=roles, gather_facts=True, background=False
     ) as p:
         p.wait_for(retries=5)
         p.shell(
@@ -417,7 +417,7 @@ def restart3(env: EnosEnv = None):
     roles = roles["master"] + roles["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=False, strategy="free", background=True
+        roles=roles, gather_facts=False, background=True
     ) as p:
         p.wait_for(retries=5)
         p.shell(
