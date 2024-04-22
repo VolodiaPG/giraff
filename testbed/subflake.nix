@@ -102,6 +102,7 @@
                 tmux
                 ansible
                 mprocs
+                rsync
               ];
             };
           }
