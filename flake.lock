@@ -23,16 +23,16 @@
     "enoslib": {
       "flake": false,
       "locked": {
-        "lastModified": 1691503744,
-        "narHash": "sha256-3pyPtj8xzbQVVtoFGAaOEuEp98qWAhc35yt3liZkIvM=",
-        "ref": "refs/tags/v8.1.5",
-        "rev": "b6750d846cac1985713a6630810ab619661569e4",
-        "revCount": 1856,
+        "lastModified": 1712143160,
+        "narHash": "sha256-1/lLrAjgKfhY3h26Y+IwDfr0cth6jLykXwsWpOfBAxQ=",
+        "ref": "refs/tags/v9.2.0",
+        "rev": "6325145b643560fa4aa432dd05005e1e7458d1a0",
+        "revCount": 1937,
         "type": "git",
         "url": "https://gitlab.inria.fr/discovery/enoslib"
       },
       "original": {
-        "ref": "refs/tags/v8.1.5",
+        "ref": "refs/tags/v9.2.0",
         "type": "git",
         "url": "https://gitlab.inria.fr/discovery/enoslib"
       }

@@ -58,7 +58,7 @@
       flake = false;
     };
     enoslib = {
-      url = "git+https://gitlab.inria.fr/discovery/enoslib?ref=refs/tags/v8.1.5";
+      url = "git+https://gitlab.inria.fr/discovery/enoslib?ref=refs/tags/v9.2.0";
       flake = false;
     };
     openfaas = {
