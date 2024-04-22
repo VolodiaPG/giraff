@@ -468,12 +468,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     push_files(){
       set -ex
-      parallel --will-cite rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
-         ::: *.py .env* 
-    echo "toto"
-    parallel --will-cite rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx {} $city.grid5000.fr:~/enosvm/{} \
-         ::: {{ experiments_dotfile }} justfile pipelines/
-
+      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py .env* {{ experiments_dotfile }} justfile pipelines/ $city.grid5000.fr:~/enosvm/
     }
 
     make_enosvm_dir(){
@@ -500,7 +495,7 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false" sk
     echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
 
-    parallel ::: \
+    parallel --will-cite ::: \
       'just upload {{ experiments_dotfile }} {{ skip_vms }}' \
       'just build_required_images {{ user }} {{ skip_rebuild }}'
 
@@ -514,7 +509,7 @@ master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="fa
     source {{ experiments_dotfile }}
     set +o allexport
 
-    parallel ::: \
+    parallel --will-cite ::: \
       'just upload {{ experiments_dotfile }} true' \
       'just build_required_images {{ user }} {{ skip_rebuild }}'
     {{ RUN }} master.py run-command-refresh
