@@ -483,7 +483,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     log "fog node vms" {{ skip_vms }} push_vms
     echo -e "all files rsynced \033[1;32mOK\033[0m"
 
-master_exec user name experiments_dotfile=".experiments.env" skip_vms="false" skip_rebuild="false":
+master_exec user experiments_dotfile=".experiments.env" skip_vms="false" skip_rebuild="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
@@ -499,10 +499,12 @@ master_exec user name experiments_dotfile=".experiments.env" skip_vms="false" sk
       'just upload {{ experiments_dotfile }} {{ skip_vms }}' \
       'just build_required_images {{ user }} {{ skip_rebuild }}'
 
-    {{ RUN }} master.py up --name {{ name }} --walltime $MASTER_WALLTIME --force
+    NAME=`git rev-parse --abbrev-ref HEAD`
+
+    {{ RUN }} master.py up --name $NAME --walltime $MASTER_WALLTIME --force
     {{ RUN }} master.py run-command
 
-master_refresh user name experiments_dotfile=".experiments.env" skip_rebuild="false":
+master_refresh user experiments_dotfile=".experiments.env" skip_rebuild="false":
     #!/usr/bin/env bash
     set -e
     set -o allexport
