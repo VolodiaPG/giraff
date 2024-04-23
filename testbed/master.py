@@ -15,7 +15,6 @@ from enoslib import (  # type: ignore
     g5k_api_utils,
     init_logging,
 )
-from enoslib import run_command as enos_run_command  # type: ignore
 from enoslib.infra.enos_g5k.g5k_api_utils import (  # type: ignore
     get_cluster_site,
     get_threads,
@@ -24,7 +23,7 @@ from enoslib.infra.enos_g5k.g5k_api_utils import (  # type: ignore
 EnosEnv = Optional[dict[str, Any]]
 
 log = logging.getLogger("rich")
-
+STRATEGY_FREE="free"
 
 @click.group()
 def cli(**kwargs):
@@ -35,8 +34,9 @@ def cli(**kwargs):
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
+    #logging.basicConfig(level = logging.DEBUG)
     init_logging(level=logging.INFO)
-    set_config(g5k_auto_jump=False)
+    #set_config(g5k_auto_jump=False)
     set_config(ansible_stdout="noop")
 
 
@@ -114,7 +114,7 @@ def up(
     
 
 
-    with actions(roles=roles["master"]) as a:
+    with actions(roles=roles["master"], strategy=STRATEGY_FREE) as a:
         a.shell("mkdir -p /nfs/{metrics-arks,logs,logs_campaign,experiment}")
         a.shell("touch /nfs/joblog")
         a.shell("mkdir -p /home/enos")
@@ -162,21 +162,21 @@ def run_command(env: EnosEnv = None, variations: str | None = None, **kwargs):
         exit(1)
 
     roles = env["roles"]
-    enos_run_command(
-        "until [ -f /home/enos/env.source ]; do sleep 3; done; "
-        "cd /home/enos;"
-        ". /home/enos/env.source;"
-        "tmux new -d bash -c "
-        "'"
-        "cd /home/enos;"
-        ". /home/enos/env.source;"
-        "eval $(ssh-agent -s);"
-        "ssh-add;"
-        "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
-        "'",
-        task_name="Run command experiment",
-        roles=roles["master"],
-    )
+    with actions(roles=roles["master"], strategy=STRATEGY_FREE) as a:
+        a.shell(
+            "until [ -f /home/enos/env.source ]; do sleep 3; done; "
+            "cd /home/enos;"
+            ". /home/enos/env.source;"
+            "tmux new -d bash -c "
+            "'"
+            "cd /home/enos;"
+            ". /home/enos/env.source;"
+            "eval $(ssh-agent -s);"
+            "ssh-add;"
+            "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
+            "'",
+            task_name="Run command experiment",
+        )
 
     
 @cli.command()# type: ignore
@@ -188,21 +188,21 @@ def run_command_refresh(env: EnosEnv = None, variations: str | None = None, **kw
         exit(1)
 
     roles = env["roles"]
-    enos_run_command(
-        "until [ -f /home/enos/env.source ]; do sleep 3; done; "
-        "cd /home/enos;"
-        ". /home/enos/env.source;"
-        "tmux new -d bash -c "
-        "'"
-        "cd /home/enos;"
-        ". /home/enos/env.source;"
-        "eval $(ssh-agent -s);"
-        "ssh-add;"
-        "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
-        "'",
-        task_name="Run command experiment",
-        roles=roles["master"],
-    )
+    with actions(roles=roles["master"], strategy=STRATEGY_FREE) as a:
+        a.shell(
+            "until [ -f /home/enos/env.source ]; do sleep 3; done; "
+            "cd /home/enos;"
+            ". /home/enos/env.source;"
+            "tmux new -d bash -c "
+            "'"
+            "cd /home/enos;"
+            ". /home/enos/env.source;"
+            "eval $(ssh-agent -s);"
+            "ssh-add;"
+            "just master_docker_campaign > ./logs_campaign/out.logs 2>&1"
+            "'",
+            task_name="Run command experiment",
+        )
 
 
 @cli.command()# type: ignore

@@ -47,6 +47,8 @@ EnosEnv = Optional[dict[str, Any]]
 log = logging.getLogger("rich")
 
 KUBECONFIG_LOCATION_K3S = "/etc/rancher/k3s/k3s.yaml"
+STRATEGY_FREE = "free"
+STRATEGY_LINEAR = "free"
 
 
 def get_aliases(env):
@@ -167,10 +169,11 @@ def cli(**kwargs):
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
-    en.init_logging(level=logging.INFO)
+    en.init_logging(level=logging.DEBUG)
+    #en.init_logging(level=logging.DEBUG)
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
-    #en.set_config(ansible_forks=25)
+    en.set_config(ansible_forks=1000)
     #en.config._config["ansible_forks"] = 5  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
@@ -366,10 +369,11 @@ def restart(env: EnosEnv = None):
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=False, background=True
+        roles=roles, gather_facts=False, background=True, strategy = STRATEGY_FREE
     ) as p:
-        p.wait_for(retries=5)
+        #p.wait_for(retries=5)
         p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
+    #p.reboot(reboot_command = "/run/current-system/sw/bin/reboot -ff")
 
 @cli.command()# type: ignore
 @enostask()
@@ -390,7 +394,7 @@ def restart2(env: EnosEnv = None):
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=True, background=False
+        roles=roles, gather_facts=True, background=False, strategy= STRATEGY_FREE
     ) as p:
         p.wait_for(retries=5)
         p.shell(
@@ -417,7 +421,7 @@ def restart3(env: EnosEnv = None):
     roles = roles["master"] + roles["iot_emulation"]
 
     with actions(
-        roles=roles, gather_facts=False, background=True
+        roles=roles, gather_facts=False, background=True, strategy=STRATEGY_FREE
     ) as p:
         p.wait_for(retries=5)
         p.shell(
@@ -449,21 +453,16 @@ def set_sshx(env: EnosEnv):
             role.set_extra(my_name=vm_name)
         concerned_roles += roles[vm_name]
 
-    en.run_command(
-        f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
-        task_name="Clearing sshx folder",
-        roles=roles["market"],
-    )
-
-    en.run_command(
-        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
-        task_name="Setting names",
-        roles=concerned_roles,
-    )
-
-    #for role in concerned_roles:
-    #    role.reset_extra()
-
+    with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+        p.shell(
+            f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
+            task_name="Clearing sshx folder",
+        )
+    with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
+       p.shell(
+            'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
+            task_name="Setting names",
+        )
 
 @cli.command()# type: ignore
 @enostask()
@@ -474,7 +473,7 @@ def k3s_setup(env: EnosEnv = None):
     roles = env["roles"]
     print("Setting up k3s and FaaS...")
 
-    with actions(roles=roles["master"], gather_facts=False) as p:
+    with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
             (
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
@@ -492,7 +491,7 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         exit(1)
     roles = env["roles"]
     # Deploy the echo node
-    with actions(roles=roles["iot_emulation"], gather_facts=False) as p:
+    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
             """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
@@ -685,23 +684,24 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     for role in roles[NETWORK["name"]]:
         role.set_extra(market_deployment=market_deployment)
 
-    en.run_command(
-        "cat << EOF > /tmp/node_conf.yaml\n"
-        "{{ fog_node_deployment }}\n"
-        "EOF\n"
-        "k3s kubectl create -f /tmp/node_conf.yaml",
-        #roles=roles["master"],
-        roles=fog_node_roles,
-        task_name="Deploying fog_node software",
-    )
-    en.run_command(
-        "cat << EOF > /tmp/market.yaml\n"
-        "{{ market_deployment }}\n"
-        "EOF\n"
-        "k3s kubectl create -f /tmp/market.yaml",
-        roles=roles["market"],
-        task_name="Deploying market software",
-    )
+    with actions(roles=fog_node_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
+        p.shell(
+            "cat << EOF > /tmp/node_conf.yaml\n"
+            "{{ fog_node_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/node_conf.yaml",
+            #roles=roles["master"],
+            task_name="Deploying fog_node software",
+        )
+
+    with actions(roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+        p.shell(
+            "cat << EOF > /tmp/market.yaml\n"
+            "{{ market_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/market.yaml",
+            task_name="Deploying market software",
+        )
 
 
 def names(queue):

@@ -39,6 +39,7 @@
       (python3.withPackages (p:
         with p; [
           requests
+          mitogen
         ]))
       fping
       kubernetes-helm

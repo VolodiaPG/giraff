@@ -31,4 +31,5 @@ experiments
 *.net
 !.env
 !.experiments.env
+ansible.cfg
 

@@ -84,13 +84,16 @@ deploy fog_node_image market_image $DEPLOYMENT_NAME:
 [private]
 fresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{ RUN }} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    cp -Lr current current.bak
     just _deploy {{ fog_node_image }} {{ market_image }}
 
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{ RUN }} integration.py restart
     sleep 60
-    timeout 500 sh -c "until timeout 60 {{ RUN }} integration.py restart2; do sleep 30; done"
+    cp -fr current.bak current.new
+    ln -sfn current.new current
+    timeout 500 sh -c "until {{ RUN }} integration.py restart2; do sleep 30; done"
     {{ RUN }} integration.py restart3
     just _deploy {{ fog_node_image }} {{ market_image }}
 
@@ -128,15 +131,19 @@ scenario archive_name +city_name_node_targets:
 _scenario archive_name +city_name_node_targets:
     #!/usr/bin/env bash
     set -e
+    source utils.sh
 
     MARKET_IP=$({{ RUN }} integration.py market-ip | grep address | sed 's/address: //')
 
-    parallel --will-cite \
-      -j25 \
-      --timeout 600 \
-      --halt soon,fail=1 \
-      just _until_is_connected_timeout {1} $MARKET_IP $MARKET_LOCAL_PORT 500 \
-      ::: {{ city_name_node_targets }}
+    function verify_connections {
+      parallel --will-cite \
+            -j25 \
+            --timeout 600 \
+            --halt soon,fail=1 \
+            just _until_is_connected_timeout {1} $MARKET_IP $MARKET_LOCAL_PORT 500 \
+            ::: {{ city_name_node_targets }}
+    }
+    log "verify fog interconnections" false verify_connections
 
     NODE_TARGETS=()
     for city in {{ city_name_node_targets }}; do
@@ -148,7 +155,6 @@ _scenario archive_name +city_name_node_targets:
 
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
-    echo $joined
 
     sleep 60
     just expe $IOT_IP $MARKET_IP "$joined"
@@ -163,13 +169,13 @@ scenarii +city_name_node_targets:
     set -e
 
     function run_scenario() {
+        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3 (exec #$1)"
         set -e
-        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3"
         if [ $1 -eq 1 ]; then
-            timeout 900 just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
+            just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
-            timeout 900 just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME \
-            || timeout 900 just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
+            #|| timeout 900 just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
         just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{ city_name_node_targets }}'"
     }
@@ -179,7 +185,7 @@ scenarii +city_name_node_targets:
     echo 'will cite' | parallel --citation &> /dev/null || true
 
     export -f run_scenario
-    parallel --tty --shuf \
+    parallel --tty -j1 --shuf \
         --joblog ./joblog \
         run_scenario {#} {1} {2} \
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
@@ -204,8 +210,13 @@ logs *FLAGS:
 docker_enos name expe_dir cmd="bash":
     #!/usr/bin/env bash
     set -e
+    source utils.sh
     eval $(ssh-agent -s)
-    rsync -rL {{ justfile_directory() }}/* {{ expe_dir }}
+
+    function sync_files {
+      rsync -rL {{ justfile_directory() }}/* {{ expe_dir }}
+    }
+    log "sync files with experiment container" false sync_files
 
     echo "LOAD_NET: $LOAD_NETWORK_FILE"
 
@@ -310,6 +321,7 @@ build_required_images user skip_rebuild:
 _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfile:
     #!/usr/bin/env bash
     set -e
+    source utils.sh
 
     function expe_command() {
         set -e
@@ -344,22 +356,25 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     set +o allexport
 
     if [ "$DEV" = "true" ]; then
-        if [ "$DEV_NETWORK" = "true" ]; then
-            export LOAD_NETWORK_FILE=$(mktemp)
-        else
-            export SAVE_NETWORK_FILE=$(mktemp)
-            set -- $SIZE_MULTIPLIERS
-            export SIZE_MULTIPLIER=$1
-            set -- $MIN_NUMBER_VMS
-            export MIN_NB_VMS=$1
-            set -- $MAX_NUMBER_VMS
-            export MAX_NB_VMS=$1
+        function gen_network {
+          if [ "$DEV_NETWORK" = "true" ]; then
+              export LOAD_NETWORK_FILE=$(mktemp)
+          else
+              export SAVE_NETWORK_FILE=$(mktemp)
+              set -- $SIZE_MULTIPLIERS
+              export SIZE_MULTIPLIER=$1
+              set -- $MIN_NUMBER_VMS
+              export MIN_NB_VMS=$1
+              set -- $MAX_NUMBER_VMS
+              export MAX_NB_VMS=$1
 
-            {{ RUN }} definitions.py
-            export LOAD_NETWORK_FILE=$SAVE_NETWORK_FILE
+              {{ RUN }} definitions.py
+              export LOAD_NETWORK_FILE=$SAVE_NETWORK_FILE
 
-            unset SAVE_NETWORK_FILE
-        fi
+              unset SAVE_NETWORK_FILE
+          fi
+        }
+        log "generate fog network parameters" false gen_network
         just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_DEV" {{ single_experiment_dotenvfile }} ".env.dev"
         exit 0
     fi
@@ -395,38 +410,41 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     }
 
     # Enable job control
-    set -m
-    export -f expe_command
-    export -f encapsulated_expe_command
+    function run_experiments {
+      set -m
+      export -f expe_command
+      export -f encapsulated_expe_command
 
-    set +e
-    if [ ! -f $JOB_LOG ] && [ "$TYPE" != "first_run" ]; then
-        >&2 echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
-        exit 1
-    fi
-    if [ $TYPE == "retry" ]; then
-        (parallel --will-cite --retry-failed --joblog $JOB_LOG)
-    else
-        env_variations=$ENV_VARIATIONS
-        if [ "$DEV" = "true" ]; then
-          env_variations=".env.dev"
-        fi
-        cmd=$(cat <<EOF
-        --joblog $JOB_LOG \
-        -j $NB_IN_PARALLEL \
-        encapsulated_expe_command {1} {#} '$JOB_DIR/'{2}-{3}.net \
-        ::: $env_variations
-        ::: $SIZE_MULTIPLIERS \
-        ::: $(seq 1 $NB_REPETITIONS)
+      set +e
+      if [ ! -f $JOB_LOG ] && [ "$TYPE" != "first_run" ]; then
+          >&2 echo "the action is TYPE=$TYPE; cannot run without JOB_LOG=$JOB_LOG existing"
+          exit 1
+      fi
+      if [ $TYPE == "retry" ]; then
+          (parallel --will-cite --retry-failed --joblog $JOB_LOG)
+      else
+          env_variations=$ENV_VARIATIONS
+          if [ "$DEV" = "true" ]; then
+            env_variations=".env.dev"
+          fi
+          cmd=$(cat <<EOF
+          --joblog $JOB_LOG \
+          -j $NB_IN_PARALLEL \
+          encapsulated_expe_command {1} {#} '$JOB_DIR/'{2}-{3}.net \
+          ::: $env_variations
+          ::: $SIZE_MULTIPLIERS \
+          ::: $(seq 1 $NB_REPETITIONS)
     EOF
     )
-        if [ $TYPE == "resume" ]; then
-            parallel --will-cite --shuf --resume $cmd
-        else
-            rm $JOB_LOG || true
-            parallel --will-cite --shuf $cmd
-        fi
-    fi
+          if [ $TYPE == "resume" ]; then
+              parallel --will-cite --shuf --resume $cmd
+          else
+              rm $JOB_LOG || true
+              parallel --will-cite --shuf $cmd
+          fi
+      fi
+    }
+    log "run the experiments" false run_experiments
 
     echo "Here is the JOB_LOG:"
     cat $JOB_LOG
@@ -455,29 +473,35 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     city=$({{ RUN }} master.py get-city)
 
     push_master_vm(){
-      set -ex
+      set -e
       vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
       rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2
     }
 
     push_vms(){
-      set -ex
+      set -e
       cd iso
       nix develop .#iso -c just upload $city
     }
 
     push_files(){
       set -ex
-      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
+      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py utils.sh .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
+    }
+
+    rm_distant_known_hosts (){
+      set -e
+      ssh $city.grid5000.fr rm .ssh/known_hosts
     }
 
     make_enosvm_dir(){
       set -ex
-      ssh $city.grid5000.fr [ -e enosvm ] "&&" rm -rf enosvm
       ssh $city.grid5000.fr mkdir -p enosvm
+      ssh $city.grid5000.fr [ -e enosvm ] "&&" rm -rf enosvm
     }
 
-    log "making and cleaning enosvm dir" false make_enosvm_dir
+    log "make and cleaning enosvm dir" false make_enosvm_dir
+    #log "remove g5k ssh known_hosts" false rm_distant_known_hosts
     log "config files" false push_files
     log "master vm" {{ skip_vms }} push_master_vm
     log "fog node vms" {{ skip_vms }} push_vms
@@ -489,11 +513,19 @@ master_exec user experiments_dotfile=".experiments.env" skip_vms="false" skip_re
     set -o allexport
     source {{ experiments_dotfile }}
     set +o allexport
+    source utils.sh
 
     city=$({{ RUN }} master.py get-city)
     username=$({{ RUN }} master.py get-username)
-    echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
-    echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
+
+    function set_nfs {
+      echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
+    }
+    function set_ntp {
+        echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
+    }
+    log "use $username's NFS volume" false set_nfs
+    log "use $city's NTP clock for VMs" false set_ntp
 
     parallel --will-cite ::: \
       'just upload {{ experiments_dotfile }} {{ skip_vms }}' \

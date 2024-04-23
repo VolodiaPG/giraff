@@ -3,7 +3,7 @@
     # Al packages
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # This defines the ansible dependencies for enoslib as it uses an older version
-    nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
+    #nixpkgs-ansible-enoslib.url = "github:NixOS/nixpkgs/nixos-22.11";
     flake-utils.url = "github:numtide/flake-utils";
     # Rust
     crane = {
@@ -30,13 +30,13 @@
       };
     };
     # Provides enoslib
-    nur-kapack = {
-      url = "github:oar-team/nur-kapack";
-      inputs = {
-        # nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-      };
-    };
+    #nur-kapack = {
+    #  url = "github:oar-team/nur-kapack";
+    #  inputs = {
+    #    # nixpkgs.follows = "nixpkgs";
+    #    flake-utils.follows = "flake-utils";
+    #  };
+    #};
     # Go
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
@@ -59,6 +59,15 @@
     };
     enoslib = {
       url = "git+https://gitlab.inria.fr/discovery/enoslib?ref=refs/tags/v9.2.0";
+      #url = "github:volodiapg/enoslib/ansiblah";
+      flake = false;
+    };
+    enoslib-ansible = {
+      url = "git+https://gitlab.inria.fr/discovery/enoslib-ansible?ref=refs/tags/v7.7.0.3";
+      flake = false;
+    };
+    ansible = {
+      url = "github:ansible/ansible/tags/v2.14.15";
       flake = false;
     };
     openfaas = {

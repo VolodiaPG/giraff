@@ -1,7 +1,9 @@
 log(){
-  set +e
+  set +exm
   text=$1
   skip=$2
+  # rest of args are the command
+
   if [ "$skip" = "true" ]; then
     echo -e "$text \033[34mSKIPPING\033[0m"
     return
@@ -29,11 +31,12 @@ log(){
   if [ $status -eq 0 ]; then
     echo -e "$text \033[32mOK\033[0m"
     rm $file
-    return
   else
     echo -e "$text \033[31mFAILED\033[0m"
+    echo -n "Err is: "
     cat $file
     rm $file
-    exit 1
+    exit $status
   fi
 }
+

@@ -628,7 +628,7 @@ def gen_net(nodes, callback):
         latencies = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            print(f"{node_name} -> {destination} = {latency}")
+            #print(f"{node_name} -> {destination} = {latency}")
             callback(node_name, destination, latency)
 
 def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
