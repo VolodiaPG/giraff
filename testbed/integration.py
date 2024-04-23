@@ -704,23 +704,6 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     )
 
 
-@cli.command()# type: ignore
-@click.option("--all", is_flag=True, help="all namespaces")
-@enostask()
-def health(env: EnosEnv = None, all=False, **kwargs):
-    if env is None:
-        print("env is None")
-        exit(1)
-
-    roles = env["roles"]
-
-    command = "kubectl get deployments -n openfaas"
-    if all:
-        command = "kubectl get deployments --all-namespaces"
-    res = en.run_command(command, roles=roles["master"])
-    log_cmd(env, [res])
-
-
 def names(queue):
     names = aliases()
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
