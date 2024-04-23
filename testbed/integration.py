@@ -171,7 +171,7 @@ def cli(**kwargs):
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
     #en.set_config(ansible_forks=25)
-    en.config._config["ansible_forks"] = 5  # type: ignore
+    #en.config._config["ansible_forks"] = 5  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
 
@@ -294,7 +294,7 @@ def up(
         walltime=walltime,
         image="/home/volparolguarino/nixos.qcow2",
         reservation=os.environ["RESERVATION"] if "RESERVATION" in os.environ else None,
-        gateway=True,
+        #gateway=True,
     ).add_machine(
         roles=["prom_agent", "iot_emulation", "ssh"],
         cluster=cluster,
