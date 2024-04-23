@@ -40,7 +40,6 @@
         with p; [
           requests
         ]))
-      ansible
       fping
       kubernetes-helm
 
