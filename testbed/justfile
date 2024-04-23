@@ -468,7 +468,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     push_files(){
       set -ex
-      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py .env* {{ experiments_dotfile }} justfile pipelines/ $city.grid5000.fr:~/enosvm/
+      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
     }
 
     make_enosvm_dir(){
