@@ -169,7 +169,7 @@ def cli(**kwargs):
     P.S.
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
-    en.init_logging(level=logging.DEBUG)
+    en.init_logging(level=logging.INFO)
     #en.init_logging(level=logging.DEBUG)
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
@@ -366,14 +366,19 @@ def restart(env: EnosEnv = None):
     #netem = env["netem"]
     #netem.destroy()
 
-    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    #roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    roles = env["roles"]["iot_emulation"]
+    print("iot_emulation", roles[0].address)
 
-    with actions(
-        roles=roles, gather_facts=False, background=True, strategy = STRATEGY_FREE
-    ) as p:
-        #p.wait_for(retries=5)
-        p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
-    #p.reboot(reboot_command = "/run/current-system/sw/bin/reboot -ff")
+    #ips = [role.address for role in roles]
+    #for ip in ips:
+    #    subprocess.run(["ssh", f"root@{ip}", "nohup sh -c 'sleep 2; 1 touch /do_reboot'"])
+
+    #with actions(
+    #    roles=roles, gather_facts=False, background=True, strategy = STRATEGY_FREE
+    #) as p:
+    #    p.shell('mkdir /toto', task_name="Rebooting")
+
 
 @cli.command()# type: ignore
 @enostask()
@@ -391,16 +396,20 @@ def restart2(env: EnosEnv = None):
         print("env is None")
         exit(1)
 
-    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    #roles = en.sync_info(env["roles"], env["networks"])
+    roles = env["roles"]
+
+    roles = roles["master"] + roles["iot_emulation"]
 
     with actions(
         roles=roles, gather_facts=True, background=False, strategy= STRATEGY_FREE
     ) as p:
-        p.wait_for(retries=5)
         p.shell(
-            'bash -c "[ ! -e /iwasthere ]"',
+            'bash -c "[ ! -e /reboot_should_have_rm_me ]"',
             task_name="Checking if reboot took effect, aka is iwasthere is no more",
         )
+
+    #env["roles"] = roles
 
 
 @cli.command()# type: ignore

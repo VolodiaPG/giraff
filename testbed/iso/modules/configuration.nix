@@ -33,5 +33,41 @@ in {
 
   services.tailscale.enable = true;
 
+  systemd.services.rebootwatcher = {
+    description = "reboot the computer when /nfs/enosvm/do_restart/xx.xx.xx is created";
+    wantedBy = ["multi-user.target"];
+    path = [pkgs.busybox];
+    script = ''
+      reboot_path() {
+        local IP_GROUP_CMD=$(ip -f inet addr show ens3 | sed -En -e 's/.*inet ([0-9]+.[0-9]+.[0-9]+).*/\1/p')
+        local DO_REBOOT_PATH="/nfs/enosvm/do_reboot/$IP_GROUP_CMD"
+        echo "$DO_REBOOT_PATH"
+      }
+
+      PREV_BOOTID_PATH=/nix/persist/previous_bootid
+      BOOTID=$(cat /proc/sys/kernel/random/boot_id)
+      PREV_BOOTID=$BOOTID
+      if [ -f $PREV_BOOTID_PATH ]; then
+        PREV_BOOTID=$(cat $PREV_BOOTID_PATH)
+      fi
+
+      while [ ! -d "$(reboot_path)" ] || [ -f "$(reboot_path)/$PREV_BOOTID" ] ; do
+        sleep 2
+      done
+
+      touch "$(reboot_path)/$BOOTID"
+      echo $BOOTID > $(echo $PREV_BOOTID_PATH)
+
+      touch /reboot_should_have_rm_me
+      reboot -ff
+    '';
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = "yes";
+      Restart = "on-failure";
+      RestartSec = "3";
+    };
+  };
+
   system.stateVersion = "22.05"; # Do not change
 }

@@ -18,7 +18,7 @@ log(){
   cmd_pid=$!
   # Wait for seconds and check if the command is still running
   {
-      sleep 4
+      sleep 2
       if kill -0 $cmd_pid 2>/dev/null; then
           echo -e "$text \033[33m...starting\033[0m"
           wait $cmd_pid 2>/dev/null # Optionally wait for the command to actually finish

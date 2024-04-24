@@ -89,7 +89,14 @@ fresh fog_node_image market_image $DEPLOYMENT_NAME:
 
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
-    {{ RUN }} integration.py restart
+    #!/usr/bin/env bash
+    set -e
+    IP_GROUP=$({{ RUN }} integration.py restart | sed -En -e 's/iot_emulation ([0-9]+.[0-9]+.[0-9]+).*/\1/p')
+    if [ -d "enosvm/do_reboot/$IP_GROUP" ]; then
+      rm -fr enosvm/do_reboot/$IP_GROUP/*
+    else
+      mkdir -p enosvm/do_reboot/$IP_GROUP
+    fi
     sleep 60
     cp -fr current.bak current.new
     ln -sfn current.new current
@@ -113,9 +120,7 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
-expe $IOT_IP $MARKET_IP $TARGET_NODES env_variation="/dev/null":
-    #!/usr/bin/env bash
-    source ./{{ env_variation }}
+expe $IOT_IP $MARKET_IP $TARGET_NODES:
     {{ RUN }} expe.py
 
 [private]
@@ -157,7 +162,7 @@ _scenario archive_name +city_name_node_targets:
     export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
 
     sleep 60
-    just expe $IOT_IP $MARKET_IP "$joined"
+    just expe $IOT_IP $MARKET_IP "$joined" 
     sleep $WAIT_TIME
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
     {{ RUN }} integration.py collect
@@ -233,6 +238,7 @@ docker_enos name expe_dir cmd="bash":
             -v {{ expe_dir }}:/home/enos \
             -v {{ justfile_directory() }}/metrics-arks:/home/enos/metrics-arks \
             -v {{ justfile_directory() }}/logs:/home/enos/logs \
+            -v {{ justfile_directory() }}/enosvm:/home/enos/enosvm \
             -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
             -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
