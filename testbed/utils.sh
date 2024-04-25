@@ -1,5 +1,5 @@
 log(){
-  set +exm
+  set +em
   text=$1
   skip=$2
   # rest of args are the command
@@ -14,7 +14,9 @@ log(){
 
   file=$(mktemp)
 
-  $@ > $file 2>&1&
+  {
+    $@ > $file 2>&1
+  }&
   cmd_pid=$!
   # Wait for seconds and check if the command is still running
   {
@@ -33,7 +35,7 @@ log(){
     rm $file
   else
     echo -e "$text \033[31mFAILED\033[0m"
-    echo -n "Err is: "
+    echo -en "\033[31mErr is: \033[0m"
     cat $file
     rm $file
     exit $status
