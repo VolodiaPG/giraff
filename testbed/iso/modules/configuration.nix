@@ -1,6 +1,7 @@
 {
   pkgs,
   lib,
+  inputs,
   ...
 }: let
   # readLines = file: builtins.filter (x: x != "") (lib.strings.splitString "\n" (builtins.readFile file));
@@ -29,6 +30,7 @@ in {
     arkade
     tailscale
     k9s
+    inputs.ebpf-netem.packages.${pkgs.system}.ebpf-netem
   ];
 
   services.tailscale.enable = true;
