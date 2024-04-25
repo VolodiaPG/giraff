@@ -90,6 +90,7 @@ fresh fog_node_image market_image $DEPLOYMENT_NAME:
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash
+    source utils.sh
     set -e
     IP_GROUP=$({{ RUN }} integration.py restart | sed -En -e 's/iot_emulation ([0-9]+.[0-9]+.[0-9]+).*/\1/p')
     if [ -d "enosvm/do_reboot/$IP_GROUP" ]; then
@@ -97,11 +98,20 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     else
       mkdir -p enosvm/do_reboot/$IP_GROUP
     fi
-    sleep 60
-    cp -fr current.bak current.new
-    ln -sfn current.new current
-    timeout 500 sh -c "until {{ RUN }} integration.py restart2; do sleep 30; done"
-    {{ RUN }} integration.py restart3
+    sleep 90
+    timeout 900 sh <<EOT
+    set -e
+    check_restart() {
+      set -e
+      cp -fr current.bak current.new
+      ln -sfn current.new current
+      rm ~/.ssh/known_hosts
+      {{ RUN }} integration.py restart2
+    }
+    until check_restart; do
+      sleep 30
+    done
+    EOT
     just _deploy {{ fog_node_image }} {{ market_image }}
 
 # Delete the Job on grid'5000 and local EnosLib files
@@ -162,7 +172,7 @@ _scenario archive_name +city_name_node_targets:
     export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
 
     sleep 60
-    just expe $IOT_IP $MARKET_IP "$joined" 
+    just expe $IOT_IP $MARKET_IP "$joined"
     sleep $WAIT_TIME
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
     {{ RUN }} integration.py collect
