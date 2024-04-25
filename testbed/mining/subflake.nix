@@ -11,7 +11,7 @@
             plotly
             htmlwidgets
             htmltools
-            treemapify
+            #treemapify
             (
               archive.overrideAttrs (old: {
                 buildInputs =
@@ -21,34 +21,34 @@
                   ]);
               })
             )
-            cowplot
-            reticulate
+            #cowplot
+            #reticulate
             vroom
             tidyverse
             igraph
-            r2r
+            #r2r
             formattable
             stringr
             viridis
             # geomtextpath
             scales
             zoo
-            gghighlight
-            ggdist
-            ggbreak
-            lemon
+            #gghighlight
+            #ggdist
+            #ggbreak
+            #lemon
             ggprism
-            ggh4x
-            ggExtra
+            #ggh4x
+            #ggExtra
             tibbletime
             snakecase
             reshape2
-            ggside
+            #ggside
             ggbeeswarm
-            ggpubr
+            #ggpubr
             Hmisc
-            rstatix
-            multcompView
+            #rstatix
+            #multcompView
 
             doParallel
             foreach
@@ -88,6 +88,8 @@
               nodePackages_latest.browser-sync
               entr
               rPackages.styler
+              binserve
+              parallel
             ];
           };
           devShells.mining-export = pkgs.mkShell {
