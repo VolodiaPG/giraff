@@ -93,8 +93,12 @@ output_spending_plot_simple_total <- function(bids_won, node_levels) {
     facet_grid(rows = vars(level_value), cols = vars(placement_method)) +
     scale_alpha_continuous(guide = "none") +
     labs(
-      y = "Function cost",
+      y = "Function cost (log10)",
       x = "Placement method",
+    ) +
+    scale_y_log10(
+      minor_breaks = rep(1:9, 4) * (10^rep(0:3, each = 9)),
+      guide = "prism_minor"
     ) +
     theme(legend.background = element_rect(
       fill = alpha("white", .7),
@@ -122,9 +126,10 @@ output_number_requests <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group, docker_fn_name) %>%
     summarise(total = sum(total)) %>%
-    inner_join(node_levels %>% group_by(metric_group, metric_group_group, folder) %>% summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group"))
+    inner_join(node_levels %>% group_by(metric_group, metric_group_group, folder) %>% summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    extract_context()
 
-  p <- ggplot(data = df, aes(x = metric_group, y = total, alpha = 1)) +
+  p <- ggplot(data = df, aes(x = placement_method, y = total, alpha = 1)) +
     theme(legend.position = "none") +
     facet_grid(rows = vars(docker_fn_name)) +
     scale_alpha_continuous(guide = "none") +
@@ -145,9 +150,9 @@ output_number_requests <- function(respected_sla, node_levels) {
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     guides(colour = guide_legend(nrow = 1)) +
-    geom_point(aes(color = metric_group, fill = metric_group, )) +
-    geom_line(aes(group = metric_group_group), alpha = .2) +
-    stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
+    geom_point(aes(color = placement_method, fill = placement_method, )) +
+    geom_line(aes(group = run), alpha = .2) +
+    stat_summary(aes(color = placement_method, fill = placement_method, ), fun = mean, geom = "bar", alpha = 0.5)
 
   return(p)
 }
@@ -214,7 +219,7 @@ output_number_requests_total <- function(respected_sla, node_levels) {
     scale_fill_viridis(discrete = TRUE) +
     guides(colour = guide_legend(nrow = 1)) +
     geom_point(aes(size = n, color = placement_method, fill = placement_method)) +
-    geom_line(aes(group = run, linetype = env), alpha = .2) +
+    geom_line(aes(group = run, linetype = run), alpha = .2) +
     stat_summary(aes(color = placement_method, fill = placement_method), fun = mean, geom = "bar", alpha = 0.5)
 
   return(p)
