@@ -1,22 +1,5 @@
 {
   "nodes": {
-    "ansible": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1711385737,
-        "narHash": "sha256-m6xQdm8VAWtOtXFOTdIuPpHDdSL7NFLyx5L3rcznE6Q=",
-        "owner": "ansible",
-        "repo": "ansible",
-        "rev": "43bd7f6b4407775f9dd3cdca613e080d11a02225",
-        "type": "github"
-      },
-      "original": {
-        "owner": "ansible",
-        "ref": "tags/v2.14.15",
-        "repo": "ansible",
-        "type": "github"
-      }
-    },
     "crane": {
       "inputs": {
         "nixpkgs": [
@@ -52,23 +35,6 @@
         "ref": "refs/tags/v9.2.0",
         "type": "git",
         "url": "https://gitlab.inria.fr/discovery/enoslib"
-      }
-    },
-    "enoslib-ansible": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1706633899,
-        "narHash": "sha256-D1SpccwObkXEYYgUYZ3VyN5lSHTPf1PnAi8+Q1g8vug=",
-        "ref": "refs/tags/v7.7.0.3",
-        "rev": "f31a3bf24cdca0d5fca498f11b245cd5f8400f46",
-        "revCount": 19,
-        "type": "git",
-        "url": "https://gitlab.inria.fr/discovery/enoslib-ansible"
-      },
-      "original": {
-        "ref": "refs/tags/v7.7.0.3",
-        "type": "git",
-        "url": "https://gitlab.inria.fr/discovery/enoslib-ansible"
       }
     },
     "fenix": {
@@ -338,10 +304,8 @@
     },
     "root": {
       "inputs": {
-        "ansible": "ansible",
         "crane": "crane",
         "enoslib": "enoslib",
-        "enoslib-ansible": "enoslib-ansible",
         "fenix": "fenix",
         "flake-utils": "flake-utils",
         "fwatchdog": "fwatchdog",

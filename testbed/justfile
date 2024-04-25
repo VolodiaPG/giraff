@@ -99,14 +99,14 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
       mkdir -p enosvm/do_reboot/$IP_GROUP
     fi
     sleep 90
-    timeout 900 sh <<EOT
+    timeout 1000 sh <<EOT
     set -e
     check_restart() {
       set -e
       cp -fr current.bak current.new
       ln -sfn current.new current
       rm ~/.ssh/known_hosts
-      {{ RUN }} integration.py restart2
+      timeout 500 {{ RUN }} integration.py restart2
     }
     until check_restart; do
       sleep 30
