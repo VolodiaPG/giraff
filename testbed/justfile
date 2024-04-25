@@ -124,7 +124,7 @@ clean:
 _deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
-    {{ RUN }} integration.py network
+    time {{ RUN }} integration.py network
     {{ RUN }} integration.py iot-emulation
     {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
@@ -172,8 +172,12 @@ _scenario archive_name +city_name_node_targets:
     export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
 
     sleep 60
-    just expe $IOT_IP $MARKET_IP "$joined"
+    do_expe(){
+        just expe $IOT_IP $MARKET_IP "$joined"
+    }
+    log "experiment" false do_expe
     sleep $WAIT_TIME
+
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
     {{ RUN }} integration.py collect
     sleep 60
