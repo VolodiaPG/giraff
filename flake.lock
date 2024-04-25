@@ -20,6 +20,32 @@
         "type": "github"
       }
     },
+    "ebpf-netem": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "gomod2nix": [
+          "gomod2nix"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1714057613,
+        "narHash": "sha256-I7cjveeoA5xzcGp7l/FQrZn7DMnWEapc1DOqds2zMgc=",
+        "owner": "volodiapg",
+        "repo": "ebpf-netem",
+        "rev": "da0ee0c5a971df1a10e115a4ff3e07d44df2cac4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "volodiapg",
+        "repo": "ebpf-netem",
+        "type": "github"
+      }
+    },
     "enoslib": {
       "flake": false,
       "locked": {
@@ -305,6 +331,7 @@
     "root": {
       "inputs": {
         "crane": "crane",
+        "ebpf-netem": "ebpf-netem",
         "enoslib": "enoslib",
         "fenix": "fenix",
         "flake-utils": "flake-utils",
