@@ -750,7 +750,7 @@ if os.getenv(SAVE_NETWORK_FILE) and MIN_NUMBER_VMS:
     min_number_vms = int(MIN_NUMBER_VMS)
     nb_vms = len(FOG_NODES)
     if nb_vms < min_number_vms:
-        print(f"Got nb_vms {nb_vms} > {min_number_vms}", file=sys.stderr)
+        print(f"Got nb_vms {nb_vms} < {min_number_vms}", file=sys.stderr)
         exit(122)
 
 MAX_NUMBER_VMS = os.getenv("MAX_NB_VMS")
