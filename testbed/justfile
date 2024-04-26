@@ -305,7 +305,7 @@ single_campaign name dotenvfile_default dotenvfile_variation:
     cat {{ dotenvfile_variation }} >> $expe_dir/.env
 
     cp definitions.py $expe_dir/definitions.py
-    mkdir -p metrics-arks logs
+    mkdir -p metrics-arks logs logs_campaign
 
     today=$( date +%Y%m%d )
     number=0
@@ -314,7 +314,6 @@ single_campaign name dotenvfile_default dotenvfile_variation:
         printf -v fname '%s-%02d.log' "{{ name }}-$today" "$(( ++number ))"
     done
 
-    mkdir -p logs_campaign
     just _docker_campaign {{ name }} $expe_dir |& tee -a logs_campaign/$fname
 
 [private]
@@ -376,11 +375,13 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
     set +o allexport
 
     if [ "$DEV" = "true" ]; then
-        function gen_network {
+        export NETWORK_FILE=$(mktemp)
+        gen_network() {
+          set -e
           if [ "$DEV_NETWORK" = "true" ]; then
-              export LOAD_NETWORK_FILE=$(mktemp)
+              export LOAD_NETWORK_FILE=$NETWORK_FILE
           else
-              export SAVE_NETWORK_FILE=$(mktemp)
+              export SAVE_NETWORK_FILE=$NETWORK_FILE
               set -- $SIZE_MULTIPLIERS
               export SIZE_MULTIPLIER=$1
               set -- $MIN_NUMBER_VMS
@@ -395,6 +396,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
           fi
         }
         log "generate fog network parameters" false gen_network
+        export LOAD_NETWORK_FILE=$NETWORK_FILE
         just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_DEV" {{ single_experiment_dotenvfile }} ".env.dev"
         exit 0
     fi
@@ -506,7 +508,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     push_files(){
       set -ex
-      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx *.py utils.sh .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
+      rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx emul *.py utils.sh .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
     }
 
     rm_distant_known_hosts (){
