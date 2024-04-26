@@ -33,11 +33,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1714057613,
-        "narHash": "sha256-I7cjveeoA5xzcGp7l/FQrZn7DMnWEapc1DOqds2zMgc=",
+        "lastModified": 1714077500,
+        "narHash": "sha256-xu3wqOdphA8obd9sQD9TJxNN1Y8/FmKZ5NPSiLm3274=",
         "owner": "volodiapg",
         "repo": "ebpf-netem",
-        "rev": "da0ee0c5a971df1a10e115a4ff3e07d44df2cac4",
+        "rev": "eed6492a9d77588122eb67c93d7169339b30ec73",
         "type": "github"
       },
       "original": {
