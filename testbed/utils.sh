@@ -3,7 +3,6 @@ echodate(){
 }
 
 log(){
-  set +em
   text=$1
   skip=$2
   # rest of args are the command
