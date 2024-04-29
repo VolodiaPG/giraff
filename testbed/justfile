@@ -196,15 +196,14 @@ scenarii +city_name_node_targets:
             just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
             #|| timeout 900 just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
-        just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{ city_name_node_targets }}'"
+        #just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{ city_name_node_targets }}'"
+        just scenario "$DEPLOYMENT_NAME-$2-$3" {{ city_name_node_targets }}
     }
 
     echo "Deploying..."
 
-    echo 'will cite' | parallel --citation &> /dev/null || true
-
     export -f run_scenario
-    parallel --tty -j1 --shuf \
+    parallel --tty -j1 --shuf --will-cite \
         --joblog ./joblog \
         run_scenario {#} {1} {2} \
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
@@ -507,7 +506,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     }
 
     push_files(){
-      set -ex
+      set -e
       rsync -cazpq --inplace --stats --chmod=u+rwx,g+rwx,o+rwx emul *.py utils.sh .env* {{ experiments_dotfile }} justfile pipelines $city.grid5000.fr:~/enosvm/
     }
 
@@ -517,7 +516,7 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
     }
 
     make_enosvm_dir(){
-      set -ex
+      set -e
       ssh $city.grid5000.fr mkdir -p enosvm
       ssh $city.grid5000.fr [ -e enosvm ] "&&" rm -rf enosvm
     }
@@ -541,7 +540,7 @@ master_exec user experiments_dotfile=".experiments.env" skip_vms="false" skip_re
     username=$({{ RUN }} master.py get-username)
 
     function set_nfs {
-      echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
+        echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     }
     function set_ntp {
         echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
