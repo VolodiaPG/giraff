@@ -124,7 +124,7 @@ clean:
 _deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
-    time {{ RUN }} integration.py network
+    {{ RUN }} integration.py network
     {{ RUN }} integration.py iot-emulation
     {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
@@ -540,7 +540,7 @@ master_exec user experiments_dotfile=".experiments.env" skip_vms="false" skip_re
     username=$({{ RUN }} master.py get-username)
 
     function set_nfs {
-        echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
+      echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     }
     function set_ntp {
         echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt
