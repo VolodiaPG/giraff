@@ -11,7 +11,6 @@ from collections import defaultdict
 from datetime import datetime
 from io import TextIOWrapper
 from pathlib import Path
-from time import sleep
 from typing import Any, Optional
 
 import click  # type: ignore
@@ -41,6 +40,7 @@ from definitions import (
     gen_net,
     gen_vm_conf,
 )
+from emul.bpf import NetemBPF
 
 EnosEnv = Optional[dict[str, Any]]
 
@@ -548,23 +548,25 @@ def network(env: EnosEnv = None):
         print("env is None")
         exit(1)
 
-    netem = en.NetemHTB()
-    env["netem"] = netem
+    net = NetemBPF()
+    env["netem"] = net
     roles = env["roles"]
 
     def add_netem_cb(source, destination, delay):
-        netem.add_constraints(
+        net.add_constraints(
             src=roles[source],
             dest=roles[destination],
-            delay=str(delay) + "ms",  # That's a really bad fix there...
-            rate="1gbit",
+            #delay=str(delay) + "ms",  # That's a really bad fix there...
+            delay=delay,  # That's a really bad fix there...
+            #rate="1gbit",
+            rate = 1_000_000_000, # BPS
             symmetric=True,
         )
 
     gen_net(NETWORK, add_netem_cb)
 
-    netem.deploy()
-    netem.validate()
+    net.deploy()
+    net.validate()
 
 
 @cli.command()# type: ignore
@@ -865,48 +867,48 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
     log_cmd(env, res)
 
 
-@enostask()
-def do_open_tunnels(env: EnosEnv = None, **kwargs):
-    if env is None:
-        print("env is None")
-        exit(1)
+#@enostask()
+#def do_open_tunnels(env: EnosEnv = None, **kwargs):
+#    if env is None:
+#        print("env is None")
+#        exit(1)
+#
+#    roles = env["roles"]
+#    env["agent_tunnels"] = list()
+#    for prom_agent in roles["prom_agent"]:
+#        # local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)
+#        # env["agent_tunnels"].append(f"{local_address}:{local_port}")
+#        env["agent_tunnels"].append(f"{prom_agent.address}:9086")
 
-    roles = env["roles"]
-    env["agent_tunnels"] = list()
-    for prom_agent in roles["prom_agent"]:
-        # local_address, local_port = open_tunnel(prom_agent.address, 9086, 0)
-        # env["agent_tunnels"].append(f"{local_address}:{local_port}")
-        env["agent_tunnels"].append(f"{prom_agent.address}:9086")
 
-
-@cli.command()# type: ignore
-@click.option(
-    "--command",
-    required=False,
-    help="Pass command to execute once done, will close tunnels after task is exited",
-)
-def tunnels(command=None, **kwargs):
-    """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
-    # procs = []
-    # try:
-    do_open_tunnels()
-
-    if command is not None:
-        pro = subprocess.Popen(
-            command,
-            shell=True,
-            preexec_fn=os.setsid,
-        )
-        pro.wait()
-    else:
-        sleep(1)
-        print("Press Enter to kill.")
-        input()
-    # finally:
-    #     for pro in procs:
-    #         os.killpg(
-    #             os.getpgid(pro.pid), signal.SIGTERM
-    #         )  # Send the signal to all the process groups
+#@cli.command()# type: ignore
+#@click.option(
+#    "--command",
+#    required=False,
+#    help="Pass command to execute once done, will close tunnels after task is exited",
+#)
+#def tunnels(command=None, **kwargs):
+#    """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
+#    # procs = []
+#    # try:
+#    do_open_tunnels()
+#
+#    if command is not None:
+#        pro = subprocess.Popen(
+#            command,
+#            shell=True,
+#            preexec_fn=os.setsid,
+#        )
+#        pro.wait()
+#    else:
+#        sleep(1)
+#        print("Press Enter to kill.")
+#        input()
+#    # finally:
+#    #     for pro in procs:
+#    #         os.killpg(
+#    #             os.getpgid(pro.pid), signal.SIGTERM
+#    #         )  # Send the signal to all the process groups
 
 
 @cli.command()# type: ignore
