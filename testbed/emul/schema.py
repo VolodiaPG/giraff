@@ -10,12 +10,12 @@ CONSTRAINT_SCHEMA: Dict = {
         "src": {"type": "string", "description": "Source group"},
         "dst": {"type": "string", "description": "Destination group"},
         "delay": {
-            "type": "string",
+            "type": "integer",
             "description": "Delay to apply [ms]",
             "format": "delay",
         },
         "rate": {
-            "type": "string",
+            "type": "integer",
             "description": "Rate to apply [kbit, mbit, gbit]",
             "format": "rate",
         },
@@ -38,8 +38,8 @@ CONCRETE_CONSTRAINT_SCHEMA: Dict = {
     "properties": {
         "device": {"type": "string"},
         "target": {"type": "string", "format": "ipv4"},
-        "delay": {"type": "string", "description": "Delay to apply", "format": "delay"},
-        "rate": {"type": "string", "description": "Rate to apply", "format": "rate"},
+        "delay": {"type": "integer", "description": "Delay to apply", "format": "delay"},
+        "rate": {"type": "integer", "description": "Rate to apply", "format": "rate"},
         "loss": {
             "type": ["string", "null"],
             "description": "Loss to apply (percentage)",
@@ -54,12 +54,12 @@ SCHEMA: Dict = {
     "type": "object",
     "properties": {
         "default_delay": {
-            "type": "string",
+            "type": "integer",
             "description": "default delay to apply on all groups (e.g. 10ms)",
             "format": "delay",
         },
         "default_rate": {
-            "type": "string",
+            "type": "integer",
             "description": "default rate to apply on all groups (e.g. 1gbit)",
             "format": "rate",
         },
@@ -96,24 +96,24 @@ HTBFormatChecker: FormatChecker = FormatChecker()
 @HTBFormatChecker.checks("delay")
 def is_valid_delay(instance) -> bool:
     """Something that ends with ms."""
-    if not isinstance(instance, str):
+    if not isinstance(instance, int):
         return False
-    if not instance.endswith("ms"):
-        return False
+    #if not instance.endswith("ms"):
+    #    return False
     return True
 
 
 @HTBFormatChecker.checks("rate")
 def is_valid_rate(instance) -> bool:
     """Something that ends with kbit, mbit or gbit."""
-    if not isinstance(instance, str):
+    if not isinstance(instance, int):
         return False
-    if (
-        not instance.endswith("gbit")
-        and not instance.endswith("mbit")
-        and not instance.endswith("kbit")
-    ):
-        return False
+    #if (
+    #    not instance.endswith("gbit")
+    #    and not instance.endswith("mbit")
+    #    and not instance.endswith("kbit")
+    #):
+    #    return False
     return True
 
 

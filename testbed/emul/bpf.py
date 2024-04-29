@@ -15,14 +15,14 @@ from enoslib.html import (
     repr_html_check,
 )
 from enoslib.objects import Host, Network, Networks, PathLike, Roles
-from enoslib.service.emul.objects import BaseNetem
-from enoslib.service.emul.schema import HTBConcreteConstraintValidator, HTBValidator
 
+from .objects import BaseNetem
+from .schema import HTBConcreteConstraintValidator, HTBValidator
 from .utils import _build_commands, _build_options, _combine, _destroy, _validate
 
 SERVICE_PATH: str = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
-DEFAULT_RATE = "10gbit"
+DEFAULT_RATE = 10_000_000_000
 
 DEFAULT_LOSS: Optional[str] = None
 
@@ -60,7 +60,7 @@ class HTBConstraint:
     device: str
     delay: str
     target: str
-    rate: str = DEFAULT_RATE
+    rate: int = DEFAULT_RATE
     #loss: Optional[str] = DEFAULT_LOSS
 
     def __post_init__(self):
@@ -70,7 +70,7 @@ class HTBConstraint:
 
     def add_commands(self) -> List[str]:
         """Add the class-full qdisc at the root of the device."""
-        return [f"ebpf-network-simulation -iface {self.device}"]
+        return [f"ebpf-network-emulation -iface {self.device}"]
 
     def remove_commands(self) -> List[str]:
         """Remove everything."""
@@ -267,9 +267,9 @@ class NetemBPF(BaseNetem):
         self,
         src: Iterable[Host],
         dest: Iterable[Host],
-        delay: str,
-        rate: str,
-        loss: Optional[float] = None,
+        delay: int,
+        rate: int,
+        #loss: Optional[float] = None,
         networks: Optional[Iterable[Network]] = None,
         symmetric: bool = False,
         *,
@@ -329,12 +329,12 @@ class NetemBPF(BaseNetem):
                             target=str(daddr.ip.ip),
                             delay=delay,
                             rate=rate,
-                            loss=loss,
+                            #loss=loss,
                         )
                         source.add_constraint(**kwargs)
         if symmetric:
             self.add_constraints(
-                dest, src, delay, rate, loss=loss, networks=networks, symmetric=False
+                dest, src, delay, rate, networks=networks, symmetric=False
             )
         return self
 
@@ -371,7 +371,7 @@ class NetemBPF(BaseNetem):
         selected = [roles[role] for role in groups if role not in except_roles]
         default_delay = network_constraints["default_delay"]
         default_rate = network_constraints["default_rate"]
-        default_loss = network_constraints.get("default_loss")
+        #default_loss = network_constraints.get("default_loss")
         default_network_name = network_constraints.get("default_network")
         if default_network_name is not None:
             networks_list = networks[default_network_name]
@@ -383,7 +383,7 @@ class NetemBPF(BaseNetem):
                 dest,
                 default_delay,
                 default_rate,
-                default_loss,
+                #default_loss,
                 networks=networks_list,
             )
         # specific
@@ -392,7 +392,7 @@ class NetemBPF(BaseNetem):
             dest_role = constraint["dst"]
             delay = constraint.get("delay", default_delay)
             rate = constraint.get("rate", default_rate)
-            loss = constraint.get("loss", default_loss)
+            #loss = constraint.get("loss", default_loss)
             network_name = constraint.get("network", default_network_name)
             symmetric = constraint.get("symmetric", False)
             if network_name is not None:
@@ -404,7 +404,7 @@ class NetemBPF(BaseNetem):
                 roles[dest_role],
                 delay,
                 rate,
-                loss,
+                #loss,
                 symmetric=symmetric,
                 networks=networks_list,
             )
