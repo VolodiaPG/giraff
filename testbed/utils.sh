@@ -31,7 +31,7 @@ log(){
   # Wait for seconds and check if the command is still running
   do_starting_block() {
       timestamp=$(echodate)
-      sleep 2
+      sleep 3
       if kill -0 $cmd_pid 2>/dev/null; then
         echo -e "\033[37m$timestamp\033[0m $text \033[33m...starting\033[0m"
           wait $cmd_pid 2>/dev/null # Optionally wait for the command to actually finish
