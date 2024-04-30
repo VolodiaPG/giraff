@@ -412,7 +412,7 @@ async fn register_to_market(
     node_situation: Arc<NodeSituation>,
 ) {
     info!("Registering to market and parent...");
-    let mut interval = time::interval(Duration::from_secs(5));
+    let mut interval = time::interval(Duration::from_secs(1));
     let my_ip = node_situation.get_my_public_ip();
     let my_port_http = node_situation.get_my_public_port_http();
     let my_port_faas = node_situation.get_my_public_port_faas();
