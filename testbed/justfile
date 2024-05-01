@@ -92,26 +92,34 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash
     source utils.sh
     set -e
-    IP_GROUP=$({{ RUN }} integration.py restart | sed -En -e 's/iot_emulation ([0-9]+.[0-9]+.[0-9]+).*/\1/p')
-    if [ -d "enosvm/do_reboot/$IP_GROUP" ]; then
-      rm -fr enosvm/do_reboot/$IP_GROUP/*
-    else
-      mkdir -p enosvm/do_reboot/$IP_GROUP
-    fi
-    sleep 90
-    timeout 1000 sh <<EOT
-    set -e
-    check_restart() {
+    # reboot and wait for reasonable time if we can detect the machines did reboot
+    {{ RUN }} integration.py restart
+    sleep 10
+    ackreboot(){
       set -e
-      cp -fr current.bak current.new
-      ln -sfn current.new current
-      rm ~/.ssh/known_hosts
-      timeout 500 {{ RUN }} integration.py restart2
+      timeout 500 {{ RUN }} integration.py ack-reboot
     }
-    until check_restart; do
-      sleep 30
-    done
+    log "ACK reboot" false ackreboot
+
+    # verify the machines did in fact reboot
+    check_reboot(){
+    timeout 500 sh <<EOT
+      set -e
+      check_restart() {
+        set -e
+        cp -fr current.bak current.new
+        ln -sfn current.new current
+        rm ~/.ssh/known_hosts
+        {{ RUN }} integration.py check-rebooted
+      }
+      until check_restart; do
+        sleep 30
+      done
     EOT
+    }
+    log "wait and check the system is responsive and rebooted" false check_reboot
+
+    # pursue installation process for experiments
     just _deploy {{ fog_node_image }} {{ market_image }}
 
 # Delete the Job on grid'5000 and local EnosLib files
@@ -151,9 +159,10 @@ _scenario archive_name +city_name_node_targets:
     MARKET_IP=$({{ RUN }} integration.py market-ip | grep address | sed 's/address: //')
 
     function verify_connections {
+      set -e
       parallel --will-cite \
             -j25 \
-            --timeout 600 \
+            --timeout 120 \
             --halt soon,fail=1 \
             just _until_is_connected_timeout {1} $MARKET_IP $MARKET_LOCAL_PORT 500 \
             ::: {{ city_name_node_targets }}
@@ -175,7 +184,7 @@ _scenario archive_name +city_name_node_targets:
     do_expe(){
         just expe $IOT_IP $MARKET_IP "$joined"
     }
-    log "experiment" false do_expe
+    log "experiment ($EXPERIMENT_DURATION secs)" false do_expe
     sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
@@ -210,7 +219,7 @@ scenarii +city_name_node_targets:
         :::+ $(echo ${MARKET_IMAGE_TAGS[@]})
 
     for INDEX in $(seq 1 3); do
-        parallel --tty --joblog ./joblog --retry-failed
+        parallel --will-cite --tty --joblog ./joblog --retry-failed
     done
 
 collect:
@@ -540,7 +549,7 @@ master_exec user experiments_dotfile=".experiments.env" skip_vms="false" skip_re
     username=$({{ RUN }} master.py get-username)
 
     function set_nfs {
-      echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
+        echo "nfs:/export/home/$username" | tee iso/config/g5k.nfs.txt
     }
     function set_ntp {
         echo "ntp.$city.grid5000.fr" | tee iso/config/ntp-servers.txt

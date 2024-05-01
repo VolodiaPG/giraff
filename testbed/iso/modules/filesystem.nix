@@ -13,7 +13,7 @@ in {
     "/" = {
       device = "none";
       fsType = "tmpfs";
-      options = ["defaults" "relatime" "size=2G" "mode=755"]; # mode=755 so only root can write to those files
+      options = ["defaults" "relatime" "size=4G" "mode=755"]; # mode=755 so only root can write to those files
     };
     "/nix" = {
       device = "/dev/disk/by-label/nixos";

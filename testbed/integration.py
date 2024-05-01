@@ -3,6 +3,7 @@ import csv
 import logging
 import multiprocessing as mp
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -347,98 +348,88 @@ def up(
 
    # set_sshx(env)
 
+def clear_directory(path):
+    # Check if the directory exists
+    if not os.path.exists(path):
+        # Create the directory if it does not exist
+        os.makedirs(path)
+    else:
+        # If the directory exists, remove all its contents
+        for filename in os.listdir(path):
+            file_path = os.path.join(path, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f'Failed to delete {file_path}. Reason: {e}')
+
 @cli.command()# type: ignore
 @enostask()
 def restart(env: EnosEnv = None):
-    """
-    (needs followup with restart2)
-    Restarts the VMs, because they are Stateless NixOS instances, rebooting will umount all tmpfs (aka /) and will reset everything, except some stuff
-
-    Because of some random shit, it looks like once in a while an instance reboots and then refuses to join back the network,
-    the problem seems to be inside the VM itself
-    To mitigate, it is advised to run the restart command with and or (||) with a deploy command to re-deploy in the case of failure.
-    However, precautions have been taken in this function to only reboot one VM at a time per host
-    (though only waiting a small amount of time before passing to the next)
-    """
     if env is None:
         print("env is None")
         exit(1)
-    #netem = env["netem"]
-    #netem.destroy()
 
-    #roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
-    roles = env["roles"]["iot_emulation"]
-    print("iot_emulation", roles[0].address)
-
-    #ips = [role.address for role in roles]
-    #for ip in ips:
-    #    subprocess.run(["ssh", f"root@{ip}", "nohup sh -c 'sleep 2; 1 touch /do_reboot'"])
-
+    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
     #with actions(
-    #    roles=roles, gather_facts=False, background=True, strategy = STRATEGY_FREE
+    #    roles=roles, gather_facts=False, strategy="free", background=True
     #) as p:
-    #    p.shell('mkdir /toto', task_name="Rebooting")
+    #    p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
+    #    results.filter(task="docker_container")[0]
 
+    groups = set()
+    for role in roles:
+        splitted = role.address.split(".")
+        splitted.pop() # remove last bit, keep subnet
+        group = ".".join(splitted)
+        groups.add(group)
+
+    for group in groups:
+        clear_directory(f"enosvm/do_reboot/{group}")
+
+    env["reboot_groups"] = groups
 
 @cli.command()# type: ignore
 @enostask()
-def restart2(env: EnosEnv = None):
-    """
-    (followup of restart; final step is restart3)
-    It is here because of shenanigans withat ansible when something is restarted.
-    The idea is that when the first action is executed, then the ssh connections are closed.
-    Then the python is stopped (as well as enos).
-    The context goes back to the bash script that then executes the next steps.
-    Those steps are simply to wait for all machines to come back online.
-    Then restart3 is executed with the rest of the actions to run on all the nodes.
-    """
+def ack_reboot(env: EnosEnv):
     if env is None:
         print("env is None")
         exit(1)
 
-    #roles = en.sync_info(env["roles"], env["networks"])
-    roles = env["roles"]
-
-    roles = roles["master"] + roles["iot_emulation"]
-
-    with actions(
-        roles=roles, gather_facts=True, background=False, strategy= STRATEGY_FREE
-    ) as p:
-        p.shell(
-            'bash -c "[ ! -e /reboot_should_have_rm_me ]"',
-            task_name="Checking if reboot took effect, aka is iwasthere is no more",
-        )
-
-    #env["roles"] = roles
-
+    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    groups = env["reboot_groups"]
+    # Wait for restart to have happened
+    nb_vms = len(roles)
+    print(f"Waiting for {nb_vms} to be rebooted")
+    file_count = 0
+    while file_count != nb_vms:
+        time.sleep(20)
+        file_count = 0
+        for group in groups:
+            _, _, files = next(os.walk(f"enosvm/do_reboot/{group}"))
+            file_count += len(files)
+        print(f"{file_count}/{nb_vms} have been rebooted")
 
 @cli.command()# type: ignore
 @enostask()
-def restart3(env: EnosEnv = None):
-    """
-    (followup of restart2; final step
-    """
+def check_rebooted(env: EnosEnv):
     if env is None:
         print("env is None")
         exit(1)
+    provider = env["provider"]
+    roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
+    job = provider.g5k_provider.jobs[0]  # type: ignore
+    ips = [vm.address for vm in roles]
+    en.g5k_api_utils.enable_home_for_job(job, ips)
 
-    networks = env["networks"]
-    roles = env["roles"]
-    roles = en.sync_info(roles, networks)
-    env["roles"] = roles
-
-    roles = roles["master"] + roles["iot_emulation"]
-
-    with actions(
-        roles=roles, gather_facts=False, background=True, strategy=STRATEGY_FREE
-    ) as p:
-        p.wait_for(retries=5)
+    with actions(roles=roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
-            'bash -c "[ ! -e /iwasthere ]"',
-            task_name="Checking if reboot took effect, aka is iwasthere is no more",
+            'PREV_BOOTID=$(cat /prevbootid) && BOOTID=$(cat /proc/sys/kernel/random/boot_id) && bash -c "[ $PREV_BOOTID != $BOOTID ]"',
+            task_name="Making sure the vm has been rebooted",
         )
 
-    #set_sshx(env)
 
 
 def set_sshx(env: EnosEnv):
@@ -565,8 +556,10 @@ def network(env: EnosEnv = None):
 
     gen_net(NETWORK, add_netem_cb)
 
+    print("deploying network")
     net.deploy()
-    net.validate()
+    #print("validating network")
+    #net.validate()
 
 
 @cli.command()# type: ignore
@@ -630,10 +623,11 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
 
     roles = env["roles"]
 
-    ids = {
-        node_name: (uuid.uuid4(), roles[node_name][0].address)
-        for node_name in FOG_NODES
-    }
+    ids = {}
+    for node_name in FOG_NODES:
+        assert len(roles[node_name]) == 1
+        ids[node_name] = (uuid.uuid4(), roles[node_name][0].address)
+
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
     confs = [
@@ -755,7 +749,13 @@ def _collect(env: EnosEnv, **kwargs):
     if env is None:
         print("env is None")
         exit(1)
-    return env["agent_tunnels"]
+
+    roles = env["roles"]
+    ret = list()
+    for prom_agent in roles["prom_agent"]:
+        ret.append(f"{prom_agent.address}:9086")
+
+    return ret
 
 
 @cli.command()# type: ignore

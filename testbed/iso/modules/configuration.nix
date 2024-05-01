@@ -1,17 +1,8 @@
 {
   pkgs,
-  lib,
   inputs,
   ...
-}: let
-  # readLines = file: builtins.filter (x: x != "") (lib.strings.splitString "\n" (builtins.readFile file));
-  readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
-in {
-  services = {
-    chrony.enable = true;
-    chrony.servers = readLines ../config/ntp-servers.txt;
-  };
-
+}: {
   programs.fish.shellAliases = {
     kubectl = "k3s kubectl";
     k = "kubectl";
@@ -52,15 +43,13 @@ in {
       if [ -f $PREV_BOOTID_PATH ]; then
         PREV_BOOTID=$(cat $PREV_BOOTID_PATH)
       fi
-
-      while [ ! -d "$(reboot_path)" ] || [ -f "$(reboot_path)/$PREV_BOOTID" ] ; do
+      echo $PREV_BOOTID > /prevbootid
+      echo $BOOTID > $(echo $PREV_BOOTID_PATH)
+      while [[ ! -d "$(reboot_path)" || -f "$(reboot_path)/$PREV_BOOTID" ]]; do
         sleep 2
       done
 
       touch "$(reboot_path)/$BOOTID"
-      echo $BOOTID > $(echo $PREV_BOOTID_PATH)
-
-      touch /reboot_should_have_rm_me
       reboot -ff
     '';
     serviceConfig = {

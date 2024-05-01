@@ -2,7 +2,9 @@
   pkgs,
   lib,
   ...
-}: {
+}: let
+  readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
+in {
   programs.fish.enable = true;
 
   # declare the gaming user and its fixed password
@@ -81,6 +83,11 @@
     "kernel.pid-max" = 2000000;
     "fs.file-max" = 204708;
     "vm.max_map_count" = 6000000;
+  };
+
+  services = {
+    chrony.enable = true;
+    chrony.servers = readLines ../config/ntp-servers.txt;
   };
 
   system.stateVersion = "22.05"; # Do not change

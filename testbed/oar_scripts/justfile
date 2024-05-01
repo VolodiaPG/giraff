@@ -74,4 +74,4 @@ watch script args="":
     source ../.env
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
-    ssh -t -o LogLevel=ERROR $city.grid5000.fr watch -n 10 ./{{ script }} {{ args }}
+    ssh -t -o LogLevel=ERROR $city.grid5000.fr watch -t -n 10 ./{{ script }} {{ args }}
