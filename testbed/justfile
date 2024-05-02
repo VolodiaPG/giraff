@@ -34,41 +34,29 @@ tunnels +FLAGS='':
 endpoints:
     {{ RUN }} integration.py endpoints
 
-_is_connected city_name_node_target $market_ip market_port:
+_is_connected city_name_node_target $market_ip market_port $tmpfile:
     #!/usr/bin/env bash
-    set -o pipefail
-    raw_output=`curl -m 30 -s "$market_ip:{{ market_port }}/api/fog"`
-    output=`echo "$raw_output" | jq '.[] | select(.tags[] == "{{ city_name_node_target }}") | .id' | sed -nE 's/"(.*)"/\1/p'`
-    status=$?
-    if [ $status -ne 0 ]; then
-        echo $raw_output
-    fi
+    set -e
+    curl -m 30 -s "$market_ip:{{ market_port }}/api/fog" -o $tmpfile
+    jq -r '.[] | select(.tags[] == "{{ city_name_node_target }}") | .id' $tmpfile | sponge $tmpfile
+    output=$(cat $tmpfile)
     if [ "$output" == "" ]; then
-      echo $raw_output
+      echo "didn't find the tags"
       exit 1
     fi
-    exit $status
 
 _until_is_connected city_name_node_target market_ip market_port:
     #!/usr/bin/env bash
     status=1
     while [ $status -ne 0 ]; do
-      just _is_connected {{ city_name_node_target }} {{ market_ip }} {{ market_port }}
+      tmpfile=$(mktemp)
+      just _is_connected {{ city_name_node_target }} {{ market_ip }} {{ market_port }} $tmpfile
       status=$?
+      rm $tmpfile
       if [ $status -ne 0 ]; then
         sleep 3
       fi
     done
-
-_until_is_connected_timeout city_name_node_target market_ip market_port timeout:
-    #!/usr/bin/env bash
-    output=`timeout {{ timeout }} bash -c "just _until_is_connected {{ city_name_node_target }} {{ market_ip }} {{ market_port }}" 2>&1`
-    status=$?
-    if [ $status -ne 0 ]; then
-      output=`echo "$output" | tail -n 5`
-      echo "Failed to check connection to {{ city_name_node_target }} w/ output: $output"
-    fi
-    exit $status
 
 [private]
 deploy fog_node_image market_image $DEPLOYMENT_NAME:
@@ -109,7 +97,7 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
         set -e
         cp -fr current.bak current.new
         ln -sfn current.new current
-        rm ~/.ssh/known_hosts
+        rm ~/.ssh/known_hosts || true
         {{ RUN }} integration.py check-rebooted
       }
       until check_restart; do
@@ -161,35 +149,49 @@ _scenario archive_name +city_name_node_targets:
     function verify_connections {
       set -e
       parallel --will-cite \
-            -j25 \
-            --timeout 120 \
+            -j5 \
+            --timeout 500 \
             --halt soon,fail=1 \
-            just _until_is_connected_timeout {1} $MARKET_IP $MARKET_LOCAL_PORT 500 \
+            just _until_is_connected {1} $MARKET_IP $MARKET_LOCAL_PORT \
             ::: {{ city_name_node_targets }}
     }
     log "verify fog interconnections" false verify_connections
 
     NODE_TARGETS=()
+    tmpfile=$(mktemp)
+
     for city in {{ city_name_node_targets }}; do
         echo "Getting connection to $city"
-        NODE_TARGETS+=($(curl -s "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" 2>/dev/null | jq -r ".[] | select(any(.tags[]; . == \"$city\")) | .id"))
+        curl -s  "$MARKET_IP:$MARKET_LOCAL_PORT/api/fog" -o $tmpfile
+        jq -r ".[] | select(any(.tags[]; . == \"$city\")) | .id" $tmpfile | sponge $tmpfile
+        TARGET="$(cat $tmpfile)"
+        if [ "$TARGET" = "" ]; then
+          echo "Could not find city to extract its id and use it as a target for the experiment"
+          exit 1
+        fi
+        NODE_TARGETS+=("$(cat $tmpfile)")
     done
-    echo $NODE_TARGETS
+
+    rm $tmpfile
+    echo "got ${#NODE_TARGETS[@]} ips"
+
     IOT_IP=$(just endpoints | sed -nE 's/Iot emulation IP -> (.*)/\1/p')
 
     printf -v joined '%s\t' "${NODE_TARGETS[@]}"
     export TARGET_NODE_NAMES="{{ city_name_node_targets }}"
+    log "sleeping 60 secs" false sleep 60
 
-    sleep 60
     do_expe(){
         just expe $IOT_IP $MARKET_IP "$joined"
     }
     log "experiment ($EXPERIMENT_DURATION secs)" false do_expe
-    sleep $WAIT_TIME
+
+    log "sleeping $WAIT_TIME secs" false sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
     {{ RUN }} integration.py collect
-    sleep 60
+
+    log "sleeping 60 secs" false sleep 60
 
 [private]
 scenarii +city_name_node_targets:
@@ -255,6 +257,7 @@ docker_enos name expe_dir cmd="bash":
         {{ DOCKER }} run -it --rm \
             --privileged \
             --cap-add=ALL \
+            --pids-limit -1 \
             --workdir /home/enos \
             -v /lib/modules:/lib/modules \
             -v {{ expe_dir }}:/home/enos \

@@ -145,6 +145,7 @@
                 tmux
                 mprocs
                 rsync
+                moreutils # sponge is useful for buffering large cmd outs
               ];
             };
           }
@@ -187,6 +188,7 @@
                 jq
                 openssh
                 curl
+                moreutils
               ])
               ++ (with outputs.packages.${system}; [
                 # Environment to run enos and stuff

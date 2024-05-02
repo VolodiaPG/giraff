@@ -174,7 +174,7 @@ def cli(**kwargs):
     #en.init_logging(level=logging.DEBUG)
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
-    en.set_config(ansible_forks=1000)
+    en.set_config(ansible_forks=100)
     #en.config._config["ansible_forks"] = 5  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
@@ -418,11 +418,8 @@ def check_rebooted(env: EnosEnv):
     if env is None:
         print("env is None")
         exit(1)
-    provider = env["provider"]
+
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
-    job = provider.g5k_provider.jobs[0]  # type: ignore
-    ips = [vm.address for vm in roles]
-    en.g5k_api_utils.enable_home_for_job(job, ips)
 
     with actions(roles=roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
@@ -557,7 +554,7 @@ def network(env: EnosEnv = None):
     gen_net(NETWORK, add_netem_cb)
 
     print("deploying network")
-    net.deploy()
+    net.deploy(chunk_size=25)
     #print("validating network")
     #net.validate()
 
