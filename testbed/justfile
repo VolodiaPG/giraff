@@ -126,20 +126,23 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
-expe $IOT_IP $MARKET_IP $TARGET_NODES:
+expe env_variation $IOT_IP $MARKET_IP $TARGET_NODES:
+    #!/usr/bin/env bash
+    set -e
+    source {{ env_variation }}
     {{ RUN }} expe.py
 
 [private]
-scenario archive_name +city_name_node_targets:
+scenario archive_name env_variation +city_name_node_targets:
     #!/usr/bin/env bash
-    just _scenario "{{ archive_name }}" {{ city_name_node_targets }}
+    just _scenario "{{ archive_name }}" "{{ env_variation }}" {{ city_name_node_targets }}
 
     if [ "$DEV" = "true" ]; then
         printf "DEV activated ; waiting indefinitely\n"
         sleep 9999999999;
     fi
 
-_scenario archive_name +city_name_node_targets:
+_scenario archive_name env_variation +city_name_node_targets:
     #!/usr/bin/env bash
     set -e
     source utils.sh
@@ -182,7 +185,7 @@ _scenario archive_name +city_name_node_targets:
     log "sleeping 60 secs" false sleep 60
 
     do_expe(){
-        just expe $IOT_IP $MARKET_IP "$joined"
+        just expe "{{ env_variation }}" $IOT_IP $MARKET_IP "$joined"
     }
     log "experiment ($EXPERIMENT_DURATION secs)" false do_expe
 
@@ -199,26 +202,28 @@ scenarii +city_name_node_targets:
     set -e
 
     function run_scenario() {
-        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3 (exec #$1)"
+        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3 (exec #$1; env $4)"
         set -e
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
             just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
-            #|| timeout 900 just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
-        #just tunnels --command="'just scenario \"$DEPLOYMENT_NAME-$2-$3\" {{ city_name_node_targets }}'"
-        just scenario "$DEPLOYMENT_NAME-$2-$3" {{ city_name_node_targets }}
+        just scenario "$DEPLOYMENT_NAME-$2-$3-$4" "$4" {{ city_name_node_targets }}
     }
 
     echo "Deploying..."
 
     export -f run_scenario
+    if [ $DEV == "true" ]; then
+      ENV_VARIATIONS=".env.dev"
+    fi
     parallel --tty -j1 --shuf --will-cite \
         --joblog ./joblog \
-        run_scenario {#} {1} {2} \
+        run_scenario {#} {1} {2} {3}\
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
-        :::+ $(echo ${MARKET_IMAGE_TAGS[@]})
+        :::+ $(echo ${MARKET_IMAGE_TAGS[@]}) \
+        ::: $(echo ${ENV_VARIATIONS[@]})
 
     for INDEX in $(seq 1 3); do
         parallel --will-cite --tty --joblog ./joblog --retry-failed
@@ -306,14 +311,16 @@ _docker_campaign name expe_dir:
     for input in $({{ RUN }} integration.py iot-connections); do cities[${#cities[@]}]="'$input'"; done
     just docker_scenarii {{ name }} {{ expe_dir }} ${cities[@]}
 
-single_campaign name dotenvfile_default dotenvfile_variation:
+single_campaign name dotenvfile_default:
     #!/usr/bin/env bash
     set -e
     expe_dir="/dev/shm/{{ name }}"
     mkdir -p $expe_dir
 
     cp {{ dotenvfile_default }} $expe_dir/.env
-    cat {{ dotenvfile_variation }} >> $expe_dir/.env
+    for file in $ENV_VARIATIONS; do
+      cp "$file" "$expe_dir/"
+    done
 
     cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs logs_campaign
@@ -376,8 +383,8 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
             exit 127
         fi
 
-        suffix=`echo "$ii"_"$current_time"_"$ENV_VARIATION"`
-        timeout --foreground ${job_duration_seconds} just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_$suffix" "{{ single_experiment_dotenvfile }}" $ENV_VARIATION
+        suffix=`echo "$ii"_"$current_time"`
+        timeout --foreground ${job_duration_seconds} just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_$suffix" "{{ single_experiment_dotenvfile }}"
     }
 
     # Import all the settings for multiple experiments and load the var as env vars
@@ -408,7 +415,7 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
         }
         log "generate fog network parameters" false gen_network
         export LOAD_NETWORK_FILE=$NETWORK_FILE
-        just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_DEV" {{ single_experiment_dotenvfile }} ".env.dev"
+        just single_campaign "{{ variation }}{{ single_experiment_dotenvfile }}_DEV" {{ single_experiment_dotenvfile }}
         exit 0
     fi
 
@@ -436,10 +443,9 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
 
     function encapsulated_expe_command() {
         set -e
-        export ENV_VARIATION=$1
-        export LOAD_NETWORK_FILE=$3
+        export LOAD_NETWORK_FILE=$2
         echo "Running the expe command with LOAD_NETWORK_FILE=$LOAD_NETWORK_FILE"
-        expe_command $2
+        expe_command $1
     }
 
     # Enable job control
@@ -456,15 +462,10 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
       if [ $TYPE == "retry" ]; then
           (parallel --will-cite --retry-failed --joblog $JOB_LOG)
       else
-          env_variations=$ENV_VARIATIONS
-          if [ "$DEV" = "true" ]; then
-            env_variations=".env.dev"
-          fi
           cmd=$(cat <<EOF
           --joblog $JOB_LOG \
           -j $NB_IN_PARALLEL \
-          encapsulated_expe_command {1} {#} '$JOB_DIR/'{2}-{3}.net \
-          ::: $env_variations
+          encapsulated_expe_command {#} '$JOB_DIR/'{1}-{2}.net \
           ::: $SIZE_MULTIPLIERS \
           ::: $(seq 1 $NB_REPETITIONS)
     EOF
