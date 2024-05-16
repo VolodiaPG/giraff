@@ -2,6 +2,7 @@
 run:
     @mkdir -p /dev/shm/R-giraff
     @ln -s /dev/shm/R-giraff ./cache || true
+    @echo -e "\033[1;33mstarting...\033[0m" | nc -N localhost 4000
     Rscript main.R || (echo -e "\033[1;31mERR\033[0m" | nc -N localhost 4000 ; false)
     @echo -e "\033[1;32mdone\033[0m"
     @echo -e "\033[1;32mdone\033[0m" | nc -N localhost 4000

@@ -363,7 +363,7 @@ prepare_convert <- function(x) {
 extract_context <- function(x) {
   # The first element is the input string
   info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
-  info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+)_.*_\\.env\\.([0-9]+)-.+")
+  info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+")
   return(
     x %>%
       ungroup() %>%
@@ -897,8 +897,11 @@ memoise2 <- function(f, ..., expr_vars = character(0)) {
 }
 
 Log <- function(text, ...) {
-  captured_output <- capture.output(print(toString(text)))
-  msg <- sprintf(paste0(as.character(Sys.time()), ": ", captured_output, "\n"), ...)
-  cat(msg)
+  captured_output <- capture.output(print(text))
+  msg <- sprintf(paste0(as.character(Sys.time()), ": "))
   write.socket(log.socket, msg)
+  # Write the output to the socket
+  for (line in captured_output) {
+    write.socket(log.socket, paste0(line, "\n"))
+  }
 }

@@ -24,6 +24,7 @@ init <- function() {
   # library(ggbreak)
   # library(grid)
   # library(lemon)
+  # library(ggforce)
   library(ggprism)
   # library(ggh4x)
   # library(ggExtra)
@@ -40,8 +41,6 @@ init <- function() {
   # library(multcompView)
 
   # library(intergraph)
-  # library(network)
-  # library(ggnetwork)
   ## library(treemapify)
   # library(networkD3)
   library(plotly)
@@ -168,6 +167,9 @@ if (single_graphs) {
     if (generate_gif) {
       Log("Doing GIF")
       library(gganimate)
+      library(network)
+      library(ggnetwork)
+
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
       output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
     }
@@ -188,41 +190,19 @@ functions <- combine(METRICS_ARKS, load_functions)
 respected_sla <- combine(METRICS_ARKS, load_respected_sla)
 raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
 
+Log("Loading additionnal full sets")
 functions_total <- mem(load_functions_total)(functions)
 functions_all_total <- mem(load_functions_all_total)(functions)
 bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids_won_function)
 
 export_graph("provisioned", mem(output_provisioned_simple)(functions_total, node_levels))
-export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total))
-export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total))
+export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total, node_levels))
+export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total, node_levels))
 export_graph("spending_total", mem(output_spending_plot_simple_total)(bids_won_function, node_levels))
-# export_graph("respected_sla_plot", output_respected_data_plot(respected_sla))
-export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(respected_sla, node_levels))
-export_graph("total_requests_served", mem(output_number_requests)(respected_sla, node_levels))
+export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(respected_sla, functions_all_total, node_levels))
+export_graph("requests_served", mem(output_number_requests)(respected_sla, node_levels))
 export_graph("total_requests_served_total", mem(output_number_requests_total)(respected_sla, node_levels))
+export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
 export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels))
-
-
-# plots.nb_deployed.data <- load_nb_deployed_plot_data(respected_sla, functions_total, node_levels)
-# # ggsave("anova_nb_deployed.png", output_anova_nb_deployed(plots.nb_deployed.data))
-
-# plots.respected_sla <- load_respected_sla_plot_data(respected_sla)
-# # ggsave("respected_sla.png", output_respected_data_plot(plots.respected_sla))
-
-# ggsave("jains.png", output_jains_index_plot(earnings_jains_plot_data))
-# ggsave("mean_time_to_deploy.png", output_mean_time_to_deploy(raw_deployment_times))
-# export_graph("mean_time_to_deploy_simple", output_mean_time_to_deploy_simple(raw_deployment_times))
-# spending_plot_data <- load_spending_plot_data(bids_won_function)
-# ggsave("spending.png", output_spending_plot(spending_plot_data))
-# export_graph("spending_simple", output_spending_plot_simple(bids_won_function))
-# options(width = 1000)
-# toto <- load_csv("proxy.csv") %>%
-#     # rename(function_name = tags) %>%
-#     # extract_function_name_info() %>%
-#     filter(req_id == "063ea3fa-b428-4977-a1e4-7588c326b8a4") %>%
-#     {
-#         .
-#     }
-
-# print(toto)
+export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))

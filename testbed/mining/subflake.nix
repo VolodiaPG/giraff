@@ -37,6 +37,7 @@
             #ggdist
             #ggbreak
             #lemon
+            ggforce
             ggprism
             #ggh4x
             #ggExtra

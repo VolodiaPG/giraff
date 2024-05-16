@@ -8,7 +8,8 @@ output_latency <- function(latency) {
         ggplot(aes(x = sorted_interaction, y = latency_value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
         facet_grid(cols = vars(folder)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-        geom_quasirandom(method='tukey',alpha=.2) +
+        geom_boxplot() +
+        #geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
 }
 
@@ -588,7 +589,8 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
             x = "Function",
             y = "measured_latency/latency"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_boxplot()
+        #geom_quasirandom(method='tukey',alpha=.2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))

@@ -60,14 +60,14 @@ load_functions <- function(ark) {
         prepare_convert() %>%
         extract_function_name_info() %>%
         select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
-        # distinct() %>%
+        distinct() %>%
         mutate(status = "refused") %>%
         group_by(instance, folder, docker_fn_name, metric_group, metric_group_group, status) %>%
         summarise(n = n())
     },
     error = function(cond) {
       df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), docker_fn_name = character(0), status = character(0), n = numeric(0))
-      print("cannot get refused gauge functions")
+      Log(paste0("cannot get refused gauge functions for ", ark))
       return(df)
     }
   )
@@ -80,14 +80,14 @@ load_functions <- function(ark) {
         rename(function_name = tag) %>%
         extract_function_name_info() %>%
         select(instance, folder, metric_group, metric_group_group, docker_fn_name) %>%
-        # distinct() %>%
+        distinct() %>%
         mutate(status = "failed") %>%
         group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
         summarise(n = n())
     },
     error = function(cond) {
       df <- data.frame(instance = character(0), docker_fn_name = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
-      print("cannot get failed gauge functions")
+      Log(paste0("cannot get failed gauge functions for ", ark))
       return(df)
     }
   )
@@ -97,7 +97,7 @@ load_functions <- function(ark) {
     prepare_convert() %>%
     extract_function_name_info() %>%
     select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
-    # distinct() %>%
+    distinct() %>%
     mutate(status = "provisioned") %>%
     group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
     summarise(n = n()) %>%
@@ -109,8 +109,17 @@ load_functions <- function(ark) {
 
 load_functions_all_total <- function(functions) {
   total <- functions %>%
+    filter(status == "provisioned") %>%
     group_by(folder, metric_group, metric_group_group) %>%
-    summarise(total = sum(n))
+    select(-status) %>%
+    summarise(provisioned = sum(n))
+
+  total <- functions %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(total = sum(n)) %>%
+    inner_join(total, by = c("folder", "metric_group_group", "metric_group")) %>%
+    mutate(ratio = provisioned / total)
+
   return(total)
 }
 
@@ -294,7 +303,7 @@ load_respected_sla <- function(ark) {
     extract_function_name_info() %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     partition(cluster) %>%
-    arrange(value) %>%
+    arrange(desc(first_req_id), value) %>%
     mutate(ran_for = timestamp - value) %>%
     mutate(prev = ifelse(first_req_id == TRUE, value, timestamp)) %>%
     mutate(in_flight = value - lag(prev)) %>%
@@ -306,7 +315,16 @@ load_respected_sla <- function(ark) {
     mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.001)) %>%
     mutate(acceptable_chained = accumulate(acceptable, `&`)) %>%
     collect() %>%
-    group_by(sla_id, folder, metric_group, metric_group_group, function_name, docker_fn_name, prev_function, prev_sla) %>%
+    group_by(
+      sla_id,
+      folder,
+      metric_group,
+      metric_group_group,
+      function_name,
+      docker_fn_name,
+      prev_function,
+      prev_sla
+    ) %>%
     partition(cluster) %>%
     summarise(
       acceptable = sum(acceptable),
@@ -326,7 +344,14 @@ load_respected_sla <- function(ark) {
       proxy_errored = sum((status >= 400) & (status < 500)) - proxy_timeouted - proxy_not_found,
       proxy_server_errored = sum(status >= 500),
     ) %>%
+    filter(!is.na(acceptable)) %>%
+    filter(!is.na(acceptable_chained)) %>%
     collect()
+
+  # Log(respected_sla %>% group_by(sla_id, folder) %>% filter(is.na(acceptable)) %>% select(sla_id, folder))
+  # Log("titi")
+  # Log(respected_sla %>% filter(req_id == "3ad1345e-56db-4655-8f09-d70707f08786") %>% select(sla_id, req_id, value, timestamp, acceptable, docker_fn_name, in_flight, first_req_id))
+  # Log(respected_sla %>% filter(req_id == "59e081e1-0240-4b4f-a3f4-afaf53e6972f") %>% select(sla_id, req_id, value, timestamp, acceptable, docker_fn_name, in_flight, first_req_id))
 
   return(respected_sla)
 }
