@@ -217,16 +217,16 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
         # Sync request
         url = f"http://{urls[ii].faas_ip}:{urls[ii].faas_port}/function/fogfn-{urls[ii].function_id}/reconfigure"
 
-        print(
-            "from:",
-            urls[ii].function_id,
-            "- to:",
-            urls[ii + 1].function_id,
-            "- url:",
-            url,
-            "- data:",
-            data,
-        )
+        #print(
+        #    "from:",
+        #    urls[ii].function_id,
+        #    "- to:",
+        #    urls[ii + 1].function_id,
+        #    "- url:",
+        #    url,
+        #    "- data:",
+        #    data,
+        #)
         async with AsyncSession() as session:
             async with session.post(url, headers=headers, json=data) as response:
                 http_code = response.status
@@ -275,7 +275,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
         function = functions[ii]
         response, code = await asyncio.ensure_future(put_request_fog_node(function))
         if code != 200:
-            print("Fog request somehow failed", code, response)
+            #print("Fog request somehow failed", code, response)
             return False
         if started_at is None:
             started_at = datetime.now()

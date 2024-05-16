@@ -129,7 +129,11 @@ _deploy fog_node_image market_image:
 expe env_variation $IOT_IP $MARKET_IP $TARGET_NODES:
     #!/usr/bin/env bash
     set -e
-    source {{ env_variation }}
+    set -o allexport
+    source "{{ justfile_directory() }}/.env"
+    source "{{ justfile_directory() }}/{{ env_variation }}"
+    set +o allexport
+    export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
     {{ RUN }} expe.py
 
 [private]
@@ -185,9 +189,11 @@ _scenario archive_name env_variation +city_name_node_targets:
     log "sleeping 60 secs" false sleep 60
 
     do_expe(){
+        set -e
         just expe "{{ env_variation }}" $IOT_IP $MARKET_IP "$joined"
     }
-    log "experiment ($EXPERIMENT_DURATION secs)" false do_expe
+    echo "experiment ({{ env_variation }} for $EXPERIMENT_DURATION secs)"
+    do_expe
 
     log "sleeping $WAIT_TIME secs" false sleep $WAIT_TIME
 
@@ -248,7 +254,7 @@ docker_enos name expe_dir cmd="bash":
     eval $(ssh-agent -s)
 
     function sync_files {
-      rsync -rL {{ justfile_directory() }}/* {{ expe_dir }}
+      rsync -rL {{ justfile_directory() }}/ {{ expe_dir }}
     }
     log "sync files with experiment container" false sync_files
 
@@ -277,7 +283,6 @@ docker_enos name expe_dir cmd="bash":
             -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
             -e SSH_AUTH_SOCK=/ssh-agent \
             -e DEPLOYMENT_NAME="{{ name }}" \
-            -e EXPE_LOAD_FILE=/home/enos/requests \
             -e LOAD_NETWORK_FILE=/home/enos/net \
             -e REFRESH="false" \
             --name "{{ name }}" \
@@ -299,9 +304,23 @@ _inside_docker_scenearii +city_name_node_targets:
     fi
     just clean
 
+# Investigate that
 [private]
 docker_scenarii name expe_dir +city_name_node_targets:
-    EXPE_SAVE_FILE={{ expe_dir }}/requests TARGET_NODE_NAMES="{{ city_name_node_targets }}" {{ RUN }} expe.py
+    #!/usr/bin/env bash
+    set -e
+    if [ $DEV == "true" ]; then
+      ENV_VARIATIONS=".env.dev"
+    fi
+    for variation in ${ENV_VARIATIONS[@]}; do
+    (
+      set -o allexport
+      source "{{ justfile_directory() }}/.env"
+      source "{{ justfile_directory() }}/$variation"
+      set +o allexport
+      EXPE_SAVE_FILE="{{ expe_dir }}/requests$variation" TARGET_NODE_NAMES="{{ city_name_node_targets }}" {{ RUN }} expe.py
+    )
+    done
     just docker_enos {{ name }} {{ expe_dir }} "just _inside_docker_scenearii {{ city_name_node_targets }}"
 
 _docker_campaign name expe_dir:
@@ -318,9 +337,7 @@ single_campaign name dotenvfile_default:
     mkdir -p $expe_dir
 
     cp {{ dotenvfile_default }} $expe_dir/.env
-    for file in $ENV_VARIATIONS; do
-      cp "$file" "$expe_dir/"
-    done
+    cp .env* "$expe_dir/"
 
     cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs logs_campaign
@@ -478,7 +495,8 @@ _docker_campaign_in_env variation experiments_dotfile single_experiment_dotenvfi
           fi
       fi
     }
-    log "run the experiments" false run_experiments
+    run_experiments
+    #log "run the experiments" false run_experiments
 
     echo "Here is the JOB_LOG:"
     cat $JOB_LOG

@@ -320,30 +320,30 @@ def additional_env_vars(level):
 TIER_4_FLAVOR = {
     "core": 2,
     "mem": 1024 * 6,
-    "reserved_core": 1.75,
-    "reserved_mem": 1024 * 5,
+    "reserved_core": 2,
+    "reserved_mem": 1024 * 6,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 4,
     "mem": 1024 * 8,
-    "reserved_core": 3.5,
-    "reserved_mem": 1024 * 7,
+    "reserved_core": 4,
+    "reserved_mem": 1024 * 8,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
-    "reserved_core": 7,
-    "reserved_mem": 1024 * 15,
+    "reserved_core": 8,
+    "reserved_mem": 1024 * 16,
     "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
     "core": 16,
     "mem": 1024 * 46,
-    "reserved_core": 15,
-    "reserved_mem": 1024 * 44,
+    "reserved_core": 16,
+    "reserved_mem": 1024 * 45,
     "additional_env_vars": additional_env_vars(0),
 }
 
@@ -451,22 +451,22 @@ def network_generation():
         "flavor": TIER_1_FLAVOR,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, int(4 * SIZE_MULTIPLIER)),
-            latencies=(2, 3),
+            nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
+            latencies=(1, 3),
             modifiers=[set_cloud, drop_children(drop_one_in=2)],
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
-                latencies=(10, 32),
+                latencies=(6, 32),
                 modifiers=[
                     drop_children(drop_one_in=3),
-                    flavor_randomizer_cpu([0, 2]),
-                    flavor_randomizer_mem([0, 2]),
+                    flavor_randomizer_cpu([0, 2, 4]),
+                    flavor_randomizer_mem([0, 2, 4]),
                 ],
                 next_lvl=generate_level(
                     TIER_3_FLAVOR,
-                    nb_nodes=(3, int(6 * SIZE_MULTIPLIER)),
-                    latencies=(3, 20),
+                    nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
+                    latencies=(7, 64),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -475,7 +475,7 @@ def network_generation():
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
-                        latencies=(1, 3),
+                        latencies=(1, 4),
                         modifiers=[
                             set_iot_connected(drop_one_in=6),
                             flavor_randomizer_mem([0, 2]),
