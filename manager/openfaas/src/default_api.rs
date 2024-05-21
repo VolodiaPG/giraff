@@ -82,7 +82,7 @@ impl DefaultApiClient {
         let mut builder = self
             .client
             .get(&uri_str)
-            .timeout(std::time::Duration::from_secs(1));
+            .timeout(std::time::Duration::from_secs(15));
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
