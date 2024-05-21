@@ -18,7 +18,7 @@ Untitled*.ipynb
 vroom/
 *.bak
 *.csv
-requests
+requests*
 joblog
 *.qcow2
 .python-grid5000.yaml
