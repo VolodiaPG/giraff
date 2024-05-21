@@ -1,7 +1,9 @@
 use super::*;
 use futures::future::{join, try_join_all};
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    BidProposal, BidProposals, BidRequest, BidRequestOwned,
+};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
 
@@ -93,16 +95,18 @@ impl FunctionLife {
 
     pub async fn bid_on_new_function_and_transmit(
         &self,
-        sla: &Sla,
-        from: NodeId,
-        accumulated_latency: AccumulatedLatency,
+        bid_request: &BidRequestOwned,
     ) -> Result<BidProposals> {
+        let sla = &bid_request.sla;
+        let from = &bid_request.node_origin;
+        let accumulated_latency = &bid_request.accumulated_latency;
+
         let (result_bid, proposals) = join(
             self.auction.bid_on(sla.clone(), &accumulated_latency),
             self.follow_up_to_neighbors(
                 sla,
                 from.clone(),
-                &accumulated_latency,
+                accumulated_latency,
             ),
         )
         .await;

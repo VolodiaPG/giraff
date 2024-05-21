@@ -1,6 +1,8 @@
 use super::*;
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
+use model::view::auction::{
+    BidProposal, BidProposals, BidRequest, BidRequestOwned,
+};
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
 
@@ -86,13 +88,15 @@ impl FunctionLife {
     /// itself as a candidate
     pub async fn bid_on_new_function_and_transmit(
         &self,
-        sla: &Sla,
-        from: NodeId,
-        accumulated_latency: AccumulatedLatency,
+        bid_request: &BidRequestOwned,
     ) -> Result<BidProposals> {
+        let sla = &bid_request.sla;
+        let from = &bid_request.node_origin;
+        let accumulated_latency = &bid_request.accumulated_latency;
+
         trace!("Transmitting bid to other nodes...");
         let mut follow_up = self
-            .follow_up_to_neighbors(sla, &from, &accumulated_latency)
+            .follow_up_to_neighbors(sla, from, accumulated_latency)
             .await
             .context("Failed to follow up sla to my neighbors")?;
         let bid = follow_up.bids.pop();
@@ -102,10 +106,8 @@ impl FunctionLife {
                 vec![bid]
             }
             None => {
-                if let Ok(Some((id, record))) = self
-                    .auction
-                    .bid_on(sla.clone(), &accumulated_latency)
-                    .await
+                if let Ok(Some((id, record))) =
+                    self.auction.bid_on(sla.clone(), accumulated_latency).await
                 {
                     info!("no bids are coming from any neighbors, bidded.");
                     vec![BidProposal {

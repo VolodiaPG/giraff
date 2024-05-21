@@ -33,11 +33,7 @@ pub async fn bid_on(
         })
         .await?;
     function
-        .bid_on_new_function_and_transmit(
-            &bid_request.sla,
-            bid_request.node_origin,
-            bid_request.accumulated_latency,
-        )
+        .bid_on_new_function_and_transmit(&bid_request)
         .await
         .context("Failed to bid on function and transmit it to neighbors")
 }

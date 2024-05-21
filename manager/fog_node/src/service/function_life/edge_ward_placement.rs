@@ -1,8 +1,9 @@
 use super::*;
 use anyhow::ensure;
 use model::domain::sla::Sla;
-use model::view::auction::{BidProposal, BidProposals, BidRequest};
-use model::NodeId;
+use model::view::auction::{
+    BidProposal, BidProposals, BidRequest, BidRequestOwned,
+};
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
@@ -41,12 +42,13 @@ impl FunctionLife {
     /// itself as a candidate
     pub async fn bid_on_new_function_and_transmit(
         &self,
-        sla: &Sla,
-        _from: NodeId,
-        accumulated_latency: AccumulatedLatency,
+        bid_request: &BidRequestOwned,
     ) -> Result<BidProposals> {
+        let sla = &bid_request.sla;
+        let accumulated_latency = &bid_request.accumulated_latency;
+
         let bid = if let Ok(Some((id, record))) =
-            self.auction.bid_on(sla.clone(), &accumulated_latency).await
+            self.auction.bid_on(sla.clone(), accumulated_latency).await
         {
             BidProposal {
                 node_id: self.node_situation.get_my_id(),
@@ -56,7 +58,7 @@ impl FunctionLife {
         } else {
             trace!("Transmitting bid to other node...");
             let mut follow_up = self
-                .follow_up_to_parent(sla, accumulated_latency)
+                .follow_up_to_parent(sla, accumulated_latency.clone())
                 .await
                 .context("Failed to follow up sla to my parent")?;
             follow_up.bids.pop().ok_or(anyhow!(
