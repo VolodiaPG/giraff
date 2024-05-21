@@ -2,49 +2,85 @@
   inputs,
   pkgs,
   lib,
+  config,
   ...
 }: let
   readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
+  rootVolume = "disk/by-partlabel/disk-sda-root";
 in {
-  imports = [
-    inputs.impermanence.nixosModules.impermanence
-  ];
-  fileSystems = {
-    "/" = {
-      device = "none";
-      fsType = "tmpfs";
-      options = ["defaults" "relatime" "size=4G" "mode=755"]; # mode=755 so only root can write to those files
-    };
-    "/nix" = {
-      device = "/dev/disk/by-label/nixos";
-      fsType = "ext4";
-    };
-    "/lib/modules" = {
-      device = "/run/current-system/kernel-modules/lib/modules";
-      options = ["bind" "x-systemd.automount"];
-    };
-    # Bogus mount to import all tools and kernel extensions
-    # However useless this mount is,
-    # it still loads all necessary modules for the mounting to manually be invoked inside a script afterwardss
-    "/mnt" = {
-      device = "nfs:/export";
-      fsType = "nfs";
-      options = ["x-systemd.automount" "noauto"];
-    };
-  };
-
   boot = {
-    growPartition = true;
     kernelPackages = pkgs.linuxPackages_latest;
     kernelParams = ["console=ttyS0"]; # "preempt=none"];
     loader.grub = {
-      device = "/dev/vda";
+      device = "nodev";
     };
     loader.timeout = 0;
+    supportedFilesystems = ["btrfs"];
+    initrd.enable = true;
+    initrd.postDeviceCommands = let
+      directoriesList = config.environment.persistence."/persistent".directories;
+      directories = builtins.map (set: "\"" + set.directory + "\"") directoriesList;
+
+      dirname = path: let
+        components = lib.strings.splitString "/" path;
+        length = builtins.length components;
+        dirname = builtins.concatStringsSep "/" (lib.lists.take (length - 1) components);
+      in
+        dirname;
+      filesList = map (set: set.file) config.environment.persistence."/persistent".files;
+      files = builtins.map dirname filesList;
+
+      directoriesToBind = directories ++ files;
+    in
+      lib.mkAfter ''
+        mkdir /btrfs_tmp
+        diskpath=$(realpath /dev/${rootVolume})
+        mount -t btrfs $diskpath /btrfs_tmp
+
+        delete_subvolume_recursively() {
+              IFS=$'\n'
+              for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
+                  delete_subvolume_recursively "/btrfs_tmp/$i"
+              done
+              btrfs subvolume delete "$1"
+          }
+
+          delete_subvolume_recursively /btrfs_tmp/root
+
+          btrfs subvolume create /btrfs_tmp/root
+
+          mkdir -p /btrfs_tmp/root/boot
+          mkdir -p /btrfs_tmp/root/nix
+          mkdir -p /btrfs_tmp/root/persistent
+          ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/root" + dir) directoriesToBind)}
+          ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/persistent" + dir) directoriesToBind)}
+          ${builtins.concatStringsSep "; " (builtins.map (dir: "touch /btrfs_tmp/persistent" + dir) filesList)}
+
+          umount /btrfs_tmp
+      '';
   };
 
+  fileSystems = lib.mkMerge [
+    {
+      "/persistent" = {
+        neededForBoot = true;
+      };
+      "/lib/modules" = {
+        device = "/run/current-system/kernel-modules/lib/modules";
+        options = ["bind" "x-systemd.automount"];
+      };
+      # Bogus mount to import all tools and kernel extensions
+      # However useless this mount is,
+      # it still loads all necessary modules for the mounting to manually be invoked inside a script afterwardss
+      "/mnt" = {
+        device = "nfs:/export";
+        fsType = "nfs";
+        options = ["x-systemd.automount" "noauto"];
+      };
+    }
+  ];
   environment = {
-    persistence."/nix/persist" = {
+    persistence."/persistent" = {
       hideMounts = true;
       directories = [
         "/var/lib/chrony"
@@ -58,7 +94,7 @@ in {
         "/var/lib/docker/containerd"
         "/var/log"
         "/root"
-        "/etc/ssh"
+        #          "/etc/ssh"
       ];
       files = [
         # Preserve influxdb login information as created initially in Nix

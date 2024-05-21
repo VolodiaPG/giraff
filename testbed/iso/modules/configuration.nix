@@ -37,7 +37,7 @@
         echo "$DO_REBOOT_PATH"
       }
 
-      PREV_BOOTID_PATH=/nix/persist/previous_bootid
+      PREV_BOOTID_PATH=/persistent/previous_bootid
       BOOTID=$(cat /proc/sys/kernel/random/boot_id)
       PREV_BOOTID=$BOOTID
       if [ -f $PREV_BOOTID_PATH ]; then

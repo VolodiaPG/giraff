@@ -27,6 +27,11 @@
         flake-utils.follows = "flake-utils";
       };
     };
+    disko = {
+      #url = "github:jmbaur/disko/self-contained-deps";
+      url = "github:nix-community/disko"; # for disk generation
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # Go
     gomod2nix = {
       url = "github:nix-community/gomod2nix";

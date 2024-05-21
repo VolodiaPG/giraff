@@ -32,4 +32,4 @@ experiments
 !.env
 !.experiments.env
 ansible.cfg
-
+*.raw

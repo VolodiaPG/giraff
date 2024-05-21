@@ -29,7 +29,28 @@
               proxy
             ];
           in {
-            packages.vm = import ./pkgs {inherit pkgs inputs outputs modules;};
+            packages.nixosConfigurations.node_vm = nixpkgs.lib.nixosSystem {
+              inherit system;
+              specialArgs = {
+                inherit inputs outputs;
+              };
+              modules =
+                [
+                  impermanence.nixosModules.impermanence
+                  disko.nixosModules.disko
+                  inputs.srvos.nixosModules.server
+                  outputs.nixosModules.disk
+                  "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
+                  "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+                  {
+                    disko.devices.disk.sda.imageSize = "10G";
+
+                    networking.hostName = "giraff";
+                    system.stateVersion = "22.05"; #config.system.nixos.version;
+                  }
+                ]
+                ++ modules;
+            };
             packages.openfaas =
               (kubenix.evalModules.${system} {
                 module = {kubenix, ...}: {
@@ -47,61 +68,6 @@
                       '';
                     };
                   };
-                  # kubernetes.resources = {
-                  #   services.proxy = {
-                  #     metadata.namespace = "openfaas";
-                  #     metadata.labels.app = "fn";
-                  #     spec = {
-                  #       selector.app = "fn";
-                  #       type= "ExternalName";
-                  #       externalName="10.0.100.100";
-                  #       ports = [
-                  #         {
-                  #           protocol = "TCP";
-                  #           port = 3128;
-                  #         }
-                  #       ];
-                  #     };
-                  #   };
-                  #   # services.proxy = {
-                  #   #   metadata.namespace = "openfaas";
-                  #   #   metadata.labels.app = "fn";
-                  #   #   spec = {
-                  #   #     selector.app = "fn";
-                  #   #     type= "ClusterIP";
-                  #   #     clusterIP = "None";
-                  #   #     # selector.name = "proxy";
-                  #   #     ports = [
-                  #   #       {
-                  #   #         name = "http";
-                  #   #         protocol = "TCP";
-                  #   #         port = 3128;
-                  #   #         targetPort = 3128;
-                  #   #         # nodePort = 30128;
-                  #   #       }
-                  #   #     ];
-                  #   #   };
-                  #   # };
-                  #   # endpoints.proxy = {
-                  #   #   metadata.namespace = "openfaas";
-                  #   #   metadata.labels.app = "fn";
-                  #   #   # selector.labels.app = "fn";
-                  #   #   # selector.matchLabels.app = "fn";
-                  #   #   subsets = [
-                  #   #     {
-                  #   #       addresses = [
-                  #   #         # {ip = "10.0.100.100";}
-                  #   #         {ip = "10.0.2.15";}
-                  #   #       ];
-                  #   #       ports = [
-                  #   #         {
-                  #   #           port = 3128;
-                  #   #         }
-                  #   #       ];
-                  #   #     }
-                  #   #   ];
-                  #   # };
-                  # };
                 };
               })
               .config

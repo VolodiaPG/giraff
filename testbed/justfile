@@ -526,7 +526,12 @@ upload experiments_dotfile=".experiments.env" skip_vms="false":
 
     push_master_vm(){
       set -e
-      vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
+      rm -f ./sda.raw || true
+      script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.enosvm.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
+      $script_vm --build-memory 4096
+      vm_path_raw=./sda.raw
+      vm_path=./sda.qcow2
+      nix develop .#enosvm -c qemu-img convert -c -f raw -O qcow2 $vm_path_raw $vm_path
       rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx $vm_path $city.grid5000.fr:~/nixos.env.qcow2
     }
 
@@ -609,7 +614,13 @@ master_run:
 _master_run:
     #!/usr/bin/env bash
     set -e
-    vm_path=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#enosvm --print-out-paths --no-link --quiet)/nixos.qcow2
+    rm -f ./sda.raw || true
+    script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.enosvm.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
+    $script_vm --build-memory 4096
+    vm_path_raw=./sda.raw
+    vm_path=./sda.qcow2
+    qemu-img convert -f raw -O qcow2 $vm_path_raw $vm_path
+
     temp=nixos.qcow2
     cp $vm_path $temp
     chmod u+rwx $temp

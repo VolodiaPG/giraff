@@ -194,14 +194,6 @@
                 # Environment to run enos and stuff
                 experiments
               ]);
-
-            # extraCommands = ''
-            #   ${pkgs.dockerTools.shadowSetup}
-            #   # mkdir -p /home/enos
-            #   mkdir -p -m 0777 /tmp
-            #   mkdir -p -m 0777 /usr/bin
-            #   ln -s ${pkgs.busybox}/bin/env /usr/bin/env
-            # '';
           };
         in {
           packages.docker = dockerImage;
@@ -216,6 +208,7 @@
             binPath = with pkgs;
               lib.strings.makeBinPath (
                 [
+                  podman
                   outputs.packages.${pkgs.system}.experiments
                 ]
                 ++ outputs.devShells.${pkgs.system}.testbed.buildInputs
@@ -234,6 +227,8 @@
                 set -ex
                 # Fails if not active
                 systemctl is-active mountNfs
+                # Load the container for later use
+                ${outputs.packages.${pkgs.system}.docker} | ${pkgs.podman}/bin/podman load
 
                 export PATH=${binPath}:$PATH
                 mkdir -p /home/enos
@@ -250,10 +245,8 @@
               };
             };
           };
-          nixosModules.make-disk-image-stateless = isoOutputs.nixosModules.make-disk-image-stateless;
         }
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
-          pkgs = nixpkgs.legacyPackages.${system};
           modules = with isoOutputs.nixosModules;
             [
               base
@@ -261,20 +254,25 @@
             ]
             ++ [
               outputs.nixosModules.enosvm
+              impermanence.nixosModules.impermanence
+              disko.nixosModules.disko
+              inputs.srvos.nixosModules.server
+              outputs.nixosModules.disk
+              "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
+              "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
+              {
+                disko.devices.disk.sda.imageSize = "20G";
+
+                networking.hostName = "giraff-master";
+                system.stateVersion = "22.05"; #config.system.nixos.version;
+              }
             ];
-          VMMounts = ''
-            #!${pkgs.bash}/bin/bash
-            set -ex
-            mkdir -p $mountPoint
-            sh -c ${outputs.packages.${pkgs.system}.docker} | gzip --fast > $mountPoint/output.gz
-          '';
-          inVMScript = ''
-            set -ex
-            gunzip -c output.gz | podman load
-          '';
         in {
-          packages = {
-            enosvm = import ./iso/pkgs {inherit pkgs inputs outputs modules VMMounts inVMScript;};
+          packages.nixosConfigurations.enosvm = nixpkgs.lib.nixosSystem {
+            inherit system modules;
+            specialArgs = {
+              inherit inputs outputs;
+            };
           };
           devShells.enosvm = isoOutputs.devShells.${system}.iso;
         }))
