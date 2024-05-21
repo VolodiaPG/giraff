@@ -179,11 +179,11 @@ run MY_IP_ADDRESS *FLAGS="--features auction": (build FLAGS)
       "just run_fog_node node_1 {{ MY_IP_ADDRESS }}" \
       "just run_market {{ FLAGS }}"
 
-expe localhost_ip $MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
+expe localhost_ip MARKET_LOCAL_PORT=MARKET_PORT IOT_LOCAL_PORT='30080':
     #!/usr/bin/env bash
     cd {{ justfile_directory() }}/../testbed
-    nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{ IOT_LOCAL_PORT }} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc .env.local'
-    nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 IOT_LOCAL_PORT={{ IOT_LOCAL_PORT }} OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc .env.local'
+    nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe .env.local 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc {{ MARKET_LOCAL_PORT }} {{ IOT_LOCAL_PORT }}'
+    nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=node_3 OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 ; just expe .env.local 127.0.0.1 {{ localhost_ip }} c132ee95-5368-4bc8-9dfd-227eb77da5fc  {{ MARKET_LOCAL_PORT }} {{ IOT_LOCAL_PORT }}'
 
 _ghcr user image:
     #!/usr/bin/env bash

@@ -126,14 +126,19 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
-expe env_variation $IOT_IP $MARKET_IP $TARGET_NODES:
+expe env_variation IOT_IP MARKET_IP TARGET_NODES MARKET_LOCAL_PORT IOT_LOCAL_PORT:
     #!/usr/bin/env bash
     set -e
-    set -o allexport
-    source "{{ justfile_directory() }}/.env"
+    set -a
     source "{{ justfile_directory() }}/{{ env_variation }}"
-    set +o allexport
+    source "{{ justfile_directory() }}/.env"
+    set +a
+    export IOT_IP={{ IOT_IP }}
+    export MARKET_IP={{ MARKET_IP }}
+    export TARGET_NODES="{{ TARGET_NODES }}"
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
+    export IOT_LOCAL_PORT={{ IOT_LOCAL_PORT }}
+    export MARKET_LOCAL_PORT={{ MARKET_LOCAL_PORT }}
     {{ RUN }} expe.py
 
 [private]
