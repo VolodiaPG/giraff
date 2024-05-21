@@ -64,9 +64,11 @@ impl AccumulatedLatency {
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BidRequest<'a> {
-    pub node_origin:         NodeId,
-    pub sla:                 &'a Sla,
-    pub accumulated_latency: AccumulatedLatency,
+    pub node_origin:              NodeId,
+    pub sla:                      &'a Sla,
+    pub accumulated_latency:      AccumulatedLatency,
+    #[cfg(feature = "mincpurandom")]
+    pub nb_propositions_required: usize,
 }
 
 /// Same as [`BidRequest`](BidRequest) but with an owned SLA
@@ -74,9 +76,11 @@ pub struct BidRequest<'a> {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BidRequestOwned {
-    pub node_origin:         NodeId,
-    pub sla:                 Sla,
-    pub accumulated_latency: AccumulatedLatency,
+    pub node_origin:              NodeId,
+    pub sla:                      Sla,
+    pub accumulated_latency:      AccumulatedLatency,
+    #[cfg(feature = "mincpurandom")]
+    pub nb_propositions_required: usize,
 }
 
 /// A bid

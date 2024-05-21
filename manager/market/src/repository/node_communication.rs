@@ -50,6 +50,8 @@ impl NodeCommunication {
                 sla,
                 node_origin: to.clone(),
                 accumulated_latency: AccumulatedLatency::default(),
+                #[cfg(feature = "mincpurandom")]
+                nb_propositions_required: 2,
             })
             .send()
             .await

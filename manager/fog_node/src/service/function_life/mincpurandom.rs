@@ -16,6 +16,7 @@ impl FunctionLife {
         sla: &Sla,
         from: &NodeId,
         accumulated_latency: &AccumulatedLatency,
+        nb_propositions_required: usize,
     ) -> Result<Option<BidProposals>> {
         if neighbor == from {
             return Ok(None);
@@ -57,6 +58,7 @@ impl FunctionLife {
             sla,
             node_origin: self.node_situation.get_my_id(),
             accumulated_latency: accumulated_latency_to_next_node,
+            nb_propositions_required,
         };
 
         let bid = self
@@ -78,6 +80,14 @@ impl FunctionLife {
         let mut neighbors = self.node_situation.get_neighbors();
         neighbors.shuffle(&mut thread_rng());
 
+        let nb_propositions_required =
+            if number_neighbors_to_follow_to <= neighbors.len() {
+                1
+            } else {
+                (number_neighbors_to_follow_to as f64 / neighbors.len() as f64)
+                    .ceil() as usize
+            };
+
         let promises = neighbors
             .iter()
             .take(number_neighbors_to_follow_to)
@@ -87,6 +97,7 @@ impl FunctionLife {
                     sla,
                     &from,
                     accumulated_latency,
+                    nb_propositions_required,
                 )
             });
 
@@ -108,6 +119,12 @@ impl FunctionLife {
         let sla = &bid_request.sla;
         let from = &bid_request.node_origin;
         let accumulated_latency = &bid_request.accumulated_latency;
+        let mut nb_propositions_required =
+            bid_request.nb_propositions_required;
+
+        if nb_propositions_required == 0 {
+            return Ok(BidProposals { bids: vec![] });
+        }
 
         let my_id = self.node_situation.get_my_id();
         let my_proposal =
@@ -124,22 +141,16 @@ impl FunctionLife {
                 }
             };
 
-        let proposals = if my_proposal.is_some() {
-            self.follow_up_to_neighbors(
-                sla,
-                from.clone(),
-                accumulated_latency,
-                1,
-            )
-        } else {
-            self.follow_up_to_neighbors(
-                sla,
-                from.clone(),
-                accumulated_latency,
-                2,
-            )
-        };
+        if my_proposal.is_some() {
+            nb_propositions_required -= 1;
+        }
 
+        let proposals = self.follow_up_to_neighbors(
+            sla,
+            from.clone(),
+            accumulated_latency,
+            nb_propositions_required,
+        );
         let mut proposals = proposals.await.with_context(|| {
             format!(
                 "Failed to bid an transmit on the sla coming from {}",
@@ -151,7 +162,6 @@ impl FunctionLife {
             proposals.bids.push(my_proposal);
         }
 
-        proposals.bids.truncate(2);
         Ok(proposals)
     }
 }

@@ -19,6 +19,7 @@ jaeger = [
 ]
 # See the cargo.toml of the fog node for more explanations
 random = []
+mincpurandom = []
 
 [dependencies]
 actix-web = "4.4"
