@@ -106,12 +106,13 @@ combine <- function(arks, cb) {
   return(combine2(arks, cb_name, cb))
 }
 
+cl <- makeForkCluster(workers)
+registerDoParallel(cl = cl)
+
+
 combine2 <- memoise2(function(arks, cb_name, cb) {
   Log(paste0("Combining ", cb_name))
-  cl <- makeForkCluster(all_workers)
-  registerDoParallel(cl = cl)
   tmp <- foreach(ark = arks, .verbose = FALSE, .packages = c("purrr", "dplyr", "multidplyr"), .combine = bind_rows) %dopar% mem(cb)(ark)
-  parallel::stopCluster(cl)
 
   return(tmp)
 }, cache = cd, expr_vars = c("cb"))
@@ -120,9 +121,6 @@ combine2 <- memoise2(function(arks, cb_name, cb) {
 # functions <- load_functions()
 if (single_graphs) {
   Log("Doing single graphs")
-  cl <- makeForkCluster(all_workers)
-  registerDoParallel(cl = cl)
-
   # memoize useful loaders
   m_load_node_levels <- mem(load_node_levels)
   m_load_provisioned_sla <- mem(load_provisioned_sla)
@@ -206,3 +204,6 @@ export_graph("total_requests_served_total", mem(output_number_requests_total)(re
 export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
 export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels))
 export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
+
+
+parallel::stopCluster(cl)

@@ -94,13 +94,13 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
     group_by(placement_method) %>%
     # filter(n() > 3) %>% # Ensure at least 3 points in each group
     summarise(
-      x_centered = mean(x_centered),
+      # x_centered = mean(x_centered),
       y_centered = mean(y_centered),
       label = unique(placement_method)
     )
 
   jains <- df %>%
-    ggplot(aes(alpha = 1, x = x_centered, y = y_centered, color = placement_method, fill = placement_method)) +
+    ggplot(aes(alpha = 1, x = placement_method, y = y_centered, color = env, fill = env)) +
     # facet_grid(rows = vars(env)) +
     # geom_hline(yintercept = max(earnings$worst_case), color = "black") +
     labs(
@@ -112,9 +112,9 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
-    geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
-    geom_point(aes(size = nodes, shape = env))
-  # geom_quasirandom(aes(shape = env, color = placement_method), method = "tukey", alpha = .4) +
+    # geom_text(data = df_centroid, check_overlap = TRUE) +
+    #  geom_point(aes(size = nodes, shape = env))
+    geom_quasirandom(method = "tukey", alpha = .4)
   # geom_line(aes(group = run, linetype = run), alpha = .2)
   # stat_summary(aes(color = placement_method, fill = placement_method), fun = mean, geom = "bar", position = "dodge", alpha = 0.5)
 
@@ -304,8 +304,8 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
     mutate(y_centered = (y - mean(y, na.rm = TRUE)) / sd(y, na.rm = TRUE))
 
 
-  p <- ggplot(data = df, aes(alpha = 1)) +
-    facet_grid(cols = vars(placement_method), x = as.factor(n), y = y_centered) +
+  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = y_centered)) +
+    facet_grid(cols = vars(placement_method)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
@@ -319,7 +319,7 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
     # geom_quasirandom(aes(shape = run, color = env, x = as.factor(n), y = value), method = "tukey", alpha = .2) +
     geom_boxplot(aes(alpha = 0.8), outlier.shape = NA) +
     geom_violin(aes(alpha = 0.8), outlier.shape = NA) +
-    geom_text(data = df %>% filter(y_centered > 1), aes(x = as.factor(n), y = 1, label = "+hidden"), nudge_x = 0.2)
+    geom_text(data = df %>% filter(y_centered > 1), aes(y = 1, label = "+hidden"), nudge_x = 0.2)
 
   return(p)
 }
