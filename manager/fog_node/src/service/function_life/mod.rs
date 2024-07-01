@@ -198,13 +198,18 @@ impl FunctionLife {
         function.provision_function(id.clone()).await?;
         drop(function);
 
-        backoff::future::retry(self.get_backoff(), || async {
+        let res = backoff::future::retry(self.get_backoff(), || async {
             trace!("Checking if function is alive");
             self.function.check_and_set_function_is_live(id.clone()).await?;
             Ok(())
         })
-        .await?;
-        Ok(())
+        .await;
+
+        if res.is_err() {
+            let function = self.function.lock().await?;
+            function.finish_function(id).await?;
+        }
+        res
     }
 
     fn get_backoff(&self) -> ExponentialBackoff<SystemClock> {

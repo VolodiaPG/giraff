@@ -172,12 +172,12 @@ METRICS_ARKS <- c(
   #---
 
   # "metrics_valuation_rates.env_1_1715951996-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-13-38.tar.xz",
-  "metrics_valuation_rates.env_1_1715954876-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-14-38.tar.xz",
-  "metrics_valuation_rates.env_1_1715959110-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-19.tar.xz",
-  "metrics_valuation_rates.env_1_1715959110-fog_node-edge_furthest-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-34.tar.xz",
-  "metrics_valuation_rates.env_1_1715959110-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-04.tar.xz",
-  # "metrics_valuation_rates.env_1_1715959110-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-17-15-52.tar.xz",
-  "metrics_valuation_rates.env_1_1715959110-fog_node-mincpurandom-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-15-37.tar.xz",
+  # "metrics_valuation_rates.env_1_1715954876-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-14-38.tar.xz",
+  # "metrics_valuation_rates.env_1_1715959110-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-19.tar.xz",
+  # "metrics_valuation_rates.env_1_1715959110-fog_node-edge_furthest-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-34.tar.xz",
+  # "metrics_valuation_rates.env_1_1715959110-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-16-04.tar.xz",
+  ## "metrics_valuation_rates.env_1_1715959110-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-17-15-52.tar.xz",
+  # "metrics_valuation_rates.env_1_1715959110-fog_node-mincpurandom-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-17-15-37.tar.xz",
   #---
   # "metrics_valuation_rates.env_1_1715619273-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-13-19-40.tar.xz",
   # "metrics_valuation_rates.env_1_1715619273-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.3_2024-05-13-23-17.tar.xz",
@@ -290,6 +290,12 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_2_1715789021-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.3_2024-05-16-01-13.tar.xz",
   # "metrics_valuation_rates.env_2_1715789021-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.2_2024-05-16-01-48.tar.xz",
   # "metrics_valuation_rates.env_2_1715789021-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-16-00-28.tar.xz",
+  #---
+  "metrics_valuation_rates.env_1_1716363759-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-04.tar.xz",
+  # "metrics_valuation_rates.env_1_1716363759-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-08-15.tar.xz",
+  # "metrics_valuation_rates.env_1_1716363759-fog_node-edge_furthest-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-08-30.tar.xz",
+  "metrics_valuation_rates.env_1_1716363759-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-31.tar.xz",
+  "metrics_valuation_rates.env_1_1716363759-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-22-08-49.tar.xz",
   #---
   #---
   #---

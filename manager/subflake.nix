@@ -56,7 +56,7 @@
                   nixpkgs.lib.attrsets.cartesianProductOfSets
                   {
                     # Do not forget to run cargo2nix at each new features added
-                    strategy = ["default_strategy" "random"];
+                    strategy = ["default_strategy" "random" "mincpurandom"];
                     telemetry = ["no_telemetry" "jaeger"];
                   }
                 )
