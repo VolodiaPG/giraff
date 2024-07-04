@@ -1,7 +1,7 @@
 NIX_FLAGS := env_var_or_default("NIX_FLAGS", "--extra-experimental-features nix-command,flakes --print-out-paths --no-link --quiet")
 
 _default:
-    PORT="30080" \
+    PORT="3003" \
     INFLUX_ADDRESS="10.42.0.1:9086" \
     INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
     INFLUX_ORG="faasfog" \
@@ -17,13 +17,11 @@ update:
 
 ghcr user:
     #!/usr/bin/env bash
-    output=`$(nix build .#iot_emulation --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:iot_emulation 2>&1`
+    output=`$(nix build .#iot_emulation --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/giraff:iot_emulation 2>&1`
     retVal=$?
     if [ $retVal -ne 0 ]; then
-      echo -e "[{{file_name(justfile_directory())}}] upload \033[31mFAILED\033[0m"
+      echo -e "[{{ file_name(justfile_directory()) }}] upload \033[31mFAILED\033[0m"
       echo -e $output
       exit $retVal
     fi
-    echo -e "[{{file_name(justfile_directory())}}] upload \033[32mOK\033[0m"
-
-
+    echo -e "[{{ file_name(justfile_directory()) }}] upload \033[32mOK\033[0m"

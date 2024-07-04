@@ -43,7 +43,7 @@
                   "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
                   "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"
                   {
-                    disko.devices.disk.sda.imageSize = "10G";
+                    disko.devices.disk.sda.imageSize = "15G";
 
                     networking.hostName = "giraff";
                     system.stateVersion = "22.05"; #config.system.nixos.version;

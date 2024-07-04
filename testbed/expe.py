@@ -307,7 +307,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
         return False
     for response, http_code in responses_chain:
         if http_code != 200:
-            print("Provisioning failed", http_code, response)
+            print("Provisioning failed", http_code)
             return False
     print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
 
@@ -317,7 +317,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
         return False
     for response, http_code in responses_chain:
         if http_code != 200:
-            print("Request failed", http_code, response)
+            print("Request failed", http_code)
             return False
     print(f"Chained {','.join([ff.function_name for ff in functions])}")
 
