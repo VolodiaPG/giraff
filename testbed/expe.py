@@ -380,12 +380,12 @@ async def save_file(filename: str):
             #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
             # ]
             request_intervals = [
-                math.ceil(abs(1000 * x))
+                math.ceil(abs(10000 * x))
                 for x in np.random.gamma(2.35, 15, nb_function)
                 # math.ceil(abs(1000 * x)) for x in np.random.gamma(0.75, 47, nb_function)
             ]
             durations = [
-                math.ceil(10000 * x)
+                math.ceil(100000 * x)
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
             ]
             arrivals = [

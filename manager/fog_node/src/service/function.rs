@@ -9,6 +9,7 @@ use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
+use model::dto::function::Paid;
 use model::SlaId;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -169,7 +170,7 @@ impl Function<Locked> {
     pub(in crate::service) async fn pay_function(
         &self,
         id: SlaId,
-    ) -> Result<()> {
+    ) -> Result<Paid> {
         let proposal =
             self.function_tracking.get_proposed(&id).with_context(|| {
                 format!(
@@ -229,17 +230,19 @@ impl Function<Locked> {
             })
             .await?;
         self.function_tracking.save_paid(&id, paid);
+        let paid = self.function_tracking.get_paid(&id).context(
+            "Could not find any record of the just registerd payment",
+        )?;
 
         let Ok(()) = self
             .resource_tracking
             .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
             .await
         else {
-            error!("Could not set updated tracked cpu and memory");
-            return Ok(());
+            bail!("Could not set updated tracked cpu and memory");
         };
 
-        Ok(())
+        Ok(paid)
     }
 
     pub(in crate::service) async fn provision_function(

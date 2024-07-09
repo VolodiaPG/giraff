@@ -68,6 +68,7 @@ deploy fog_node_image market_image $DEPLOYMENT_NAME:
     else
       just fresh {{ fog_node_image }} {{ market_image }} $DEPLOYMENT_NAME
     fi
+    {{ RUN }} integration.py market-ip
 
 [private]
 fresh fog_node_image market_image $DEPLOYMENT_NAME:
@@ -122,7 +123,7 @@ _deploy fog_node_image market_image:
     set -e
     {{ RUN }} integration.py network
     {{ RUN }} integration.py iot-emulation
-    {{ RUN }} integration.py k3s-setup
+    timeout 10m {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
@@ -229,14 +230,15 @@ scenarii +city_name_node_targets:
     fi
     parallel --tty -j1 --shuf --will-cite \
         --joblog ./joblog \
+        --retries 3 \
         run_scenario {#} {1} {2} {3}\
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
         :::+ $(echo ${MARKET_IMAGE_TAGS[@]}) \
         ::: $(echo ${ENV_VARIATIONS[@]})
 
-    for INDEX in $(seq 1 3); do
-        parallel --will-cite --tty --joblog ./joblog --retry-failed
-    done
+    #for INDEX in $(seq 1 3); do
+    #    parallel --will-cite --tty --joblog ./joblog --retry-failed
+    #done
 
 collect:
     mkdir -p metrics
@@ -354,7 +356,7 @@ single_campaign name dotenvfile_default:
 
     just _docker_campaign {{ name }} $expe_dir |& tee -a logs_campaign/$fname
 
-[private]
+# Builds and upload container images
 build_required_images user skip_rebuild:
     #!/usr/bin/env bash
     set -e
@@ -519,6 +521,7 @@ city experiments_dotfile=".experiments.env":
     source {{ experiments_dotfile }}
     {{ RUN }} master.py get-city
 
+# Uploads the necessary files for the experiments to the specified node in .env and <experiments_dotfile>. Uploading and building VMs can be skipped using <skip_vm>
 upload experiments_dotfile=".experiments.env" skip_vms="false":
     #!/usr/bin/env bash
     set -e

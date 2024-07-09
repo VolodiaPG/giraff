@@ -154,6 +154,7 @@ load_bids_raw <- function(ark) {
     mutate(bid = ifelse(bid < 0 & bid >= -0.001, 0, bid))
 
   if ((bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% summarise(n = n()))$n != 0) {
+    Log(bids_raw %>% ungroup() %>% filter(bid < 0.0))
     stop(paste0("Error, there are negative bids in ", bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% select(folder) %>% distinct()))
   }
 
@@ -181,6 +182,15 @@ load_bids_won_function <- function(bids_raw, provisioned_sla) {
     select(sla_id, function_name, folder, metric_group, metric_group_group, winner, cost, bid)
 
   return(bids_won_function)
+}
+
+load_raw_cpu_all <- function(ark) {
+  cpu <- load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
+    prepare() %>%
+    prepare_convert() %>%
+    select(-value) %>%
+    spread(field, value_raw)
+  return(cpu)
 }
 
 load_raw_cpu_observed_from_fog_node <- function(ark) {
@@ -268,6 +278,14 @@ load_raw_deployment_times <- function(ark) {
     prepare_convert() %>%
     extract_function_name_info()
   return(raw_deployment_times)
+}
+
+load_paid_functions <- function(ark) {
+  paid_functions <- load_single_csv(ark, "paid_functions.csv") %>%
+    prepare() %>%
+    prepare_convert() %>%
+    extract_function_name_info()
+  return(paid_functions)
 }
 
 load_earnings_jains_plot_data <- function(node_levels, bids_won_function) {

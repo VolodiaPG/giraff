@@ -210,6 +210,7 @@ impl Auction {
             * (2.0 * aa * utilisation + (aa * sla_cpu + bb) * sla_duration);
 
         trace!("(quadratic) price on is {:?}", bid);
+        assert!(bid > 0.0, "the bid wasn't > 0");
 
         Ok(Some(ComputedBid {
             name,
@@ -274,6 +275,9 @@ impl Auction {
         self.db.insert(record.clone());
         let id = Uuid::new_v4();
         let id = BidId::from(id);
+
+        assert!(bid >= 0.0, "Proposed bid is negative");
+        assert!(price > 0.0, "Proposed price is negative");
         self.metrics
             .observe(BidGauge {
                 bid,

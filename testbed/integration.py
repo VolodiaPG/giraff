@@ -468,7 +468,7 @@ def k3s_setup(env: EnosEnv = None):
         print("env is None")
         exit(1)
     roles = env["roles"]
-    print("Setting up k3s and FaaS...")
+    print("Checking up on k3s and FaaS...")
 
     with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
@@ -476,7 +476,7 @@ def k3s_setup(env: EnosEnv = None):
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
                     && until k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=10s; do sleep 10; done"""
             ),
-            task_name="[master] Installing OpenFaaS",
+            task_name="[master] Checking OpenFaaS",
         )
 
 

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use helper_derive::influx_observation;
 
 /// What is the duration of the auctioning process, from start to having a
@@ -5,13 +6,15 @@ use helper_derive::influx_observation;
 #[influx_observation]
 struct FunctionDeploymentDuration {
     #[influxdb(field)]
-    value:         i64,
+    value:                   i64,
     #[influxdb(tag)]
-    function_name: String,
+    function_name:           String,
     #[influxdb(tag)]
-    bid_id:        String,
+    timestamp_auction_start: String,
     #[influxdb(tag)]
-    sla_id:        String,
+    bid_id:                  String,
+    #[influxdb(tag)]
+    sla_id:                  String,
 }
 
 /// Number of provisioned functions.d

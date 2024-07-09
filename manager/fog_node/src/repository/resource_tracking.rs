@@ -163,6 +163,14 @@ impl ResourceTracking {
         self.key_exists(&name)
             .await
             .with_context(|| format!("Cannot set used metric {}", name))?;
+        assert!(
+            cpu > Ratio::new::<helper::uom_helper::cpu_ratio::cpu>(0.0),
+            "CPU value to set is not > 0"
+        );
+        assert!(
+            memory > Information::new::<information::gigabyte>(0.0),
+            "Memory value to set is not > 0"
+        );
         self.resources_used.insert(name.clone(), (memory, cpu));
         self.update_metrics(&name).await.with_context(|| {
             format!("Failed to update prometheus metric {}", name)

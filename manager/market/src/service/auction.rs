@@ -14,7 +14,6 @@ use model::dto::node::NodeRecord;
 use model::view::auction::{AcceptedBid, BidProposals, InstanciatedBid};
 use model::{NodeId, SlaId};
 use std::sync::Arc;
-use tokio::time::Instant;
 use tracing::trace;
 
 pub struct Auction {
@@ -129,7 +128,7 @@ impl Auction {
         target_node: NodeId,
         sla: Sla,
     ) -> Result<AcceptedBid> {
-        let started = Instant::now();
+        let started = Utc::now();
 
         let proposals = self
             .call_for_bids(target_node.clone(), &sla)
@@ -152,18 +151,18 @@ impl Auction {
         let accepted = res
             .context("Failed to provision function after several retries.")?;
 
-        let finished = Instant::now();
-
-        let duration = chrono::Duration::from_std(finished - started)
-            .context("Failed to convert std duration to chrono duration")?;
+        let finished = Utc::now();
+        let duration = finished - started;
 
         self.metrics
             .observe(FunctionDeploymentDuration {
-                value:         duration.num_milliseconds(),
-                function_name: sla.function_live_name,
-                bid_id:        chosen_bid.bid.id.to_string(),
-                sla_id:        sla.id.to_string(),
-                timestamp:     Utc::now(),
+                value:                   duration.num_milliseconds(),
+                function_name:           sla.function_live_name,
+                bid_id:                  chosen_bid.bid.id.to_string(),
+                sla_id:                  sla.id.to_string(),
+                timestamp_auction_start:
+                    helper::monitoring::convert_timestamp(started).to_string(),
+                timestamp:               Utc::now(),
             })
             .await
             .context("Failed to save metrics")?;

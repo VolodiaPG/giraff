@@ -7,7 +7,7 @@ workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
-single_graphs <- TRUE
+single_graphs <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 5
@@ -291,11 +291,17 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_2_1715789021-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.2_2024-05-16-01-48.tar.xz",
   # "metrics_valuation_rates.env_2_1715789021-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-16-00-28.tar.xz",
   #---
-  "metrics_valuation_rates.env_1_1716363759-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-04.tar.xz",
+  # "metrics_valuation_rates.env_1_1716363759-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-04.tar.xz",
   # "metrics_valuation_rates.env_1_1716363759-fog_node-edge_first-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-08-15.tar.xz",
   # "metrics_valuation_rates.env_1_1716363759-fog_node-edge_furthest-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-08-30.tar.xz",
-  "metrics_valuation_rates.env_1_1716363759-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-31.tar.xz",
-  "metrics_valuation_rates.env_1_1716363759-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-22-08-49.tar.xz",
+  # "metrics_valuation_rates.env_1_1716363759-fog_node-edge_ward-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-05-22-09-31.tar.xz",
+  # "metrics_valuation_rates.env_1_1716363759-fog_node-maxcpu-quadratic_rates-no_telemetry-market-random-no_telemetry-.env.1_2024-05-22-08-49.tar.xz",
+  # "metrics_valuation_rates.env_1_1720300561-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-07-06-23-04.tar.xz",
+  # "metrics_valuation_rates.env_1_1720300561-fog_node-mincpurandom-quadratic_rates-no_telemetry-market-mincpurandom-no_telemetry-.env.1_2024-07-07-00-19.tar.xz",
+  # "metrics_valuation_rates.env_1_1720425461-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-07-08-09-07.tar.xz",
+  # "metrics_valuation_rates.env_1_1720425461-fog_node-mincpurandom-quadratic_rates-no_telemetry-market-mincpurandom-no_telemetry-.env.1_2024-07-08-09-44.tar.xz",
+  "metrics_valuation_rates.env_1_1720454390-fog_node-auction-quadratic_rates-no_telemetry-market-default_strategy-no_telemetry-.env.1_2024-07-08-18-18.tar.xz",
+  "metrics_valuation_rates.env_1_1720454390-fog_node-mincpurandom-quadratic_rates-no_telemetry-market-mincpurandom-no_telemetry-.env.1_2024-07-08-16-53.tar.xz",
   #---
   #---
   #---

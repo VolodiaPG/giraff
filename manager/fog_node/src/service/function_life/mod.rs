@@ -141,13 +141,8 @@ impl FunctionLife {
 
     pub async fn pay_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
-        function.pay_function(id.clone()).await?;
-        drop(function);
+        let paid = function.pay_function(id.clone()).await?; // Function is now in the system
 
-        let paid = self
-            .function_tracking
-            .get_paid(&id)
-            .ok_or(anyhow!("Failed to retrieve paid function {}", id))?;
         let function = self.function.clone();
         let node = paid.node;
         let task = Task::UnprovisionFunction(UnprovisionFunction {

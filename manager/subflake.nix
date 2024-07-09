@@ -48,8 +48,8 @@
                         Env = ["SERVER_PORT=3003"];
                       };
                       features =
-                        nixpkgs.lib.optional (settings.strategy != "default_strategy") "market/${settings.strategy}"
-                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "market/${settings.telemetry}";
+                        nixpkgs.lib.optional (settings.strategy != "default_strategy") "${settings.strategy}"
+                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "${settings.telemetry}";
                     };
                   }
                 ) (
@@ -78,9 +78,8 @@
                       };
                       features =
                         ["fog_node/${settings.strategy}"]
-                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "fog_node/${settings.valuation}"
-                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "fog_node/${settings.telemetry}"
-                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "openfaas/${settings.telemetry}";
+                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "${settings.valuation}"
+                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "${settings.telemetry}";
                     };
                   }
                 )

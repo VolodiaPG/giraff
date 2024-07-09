@@ -51,7 +51,7 @@ edge_ward_v3 = []
 maxcpu = []
 # Randomly chooses two nodes to explore, they return their utilisation
 # Then the one with the lowest is chosen
-mincpurandom = []
+mincpurandom = ["model/mincpurandom"]
 
 [dependencies]
 actix-web = "4.4"

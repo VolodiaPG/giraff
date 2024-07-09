@@ -132,8 +132,14 @@ if (single_graphs) {
   m_load_latency <- mem(load_latency)
   m_load_raw_latency <- mem(load_raw_latency)
   m_load_raw_deployment_times <- mem(load_raw_deployment_times)
+  m_load_raw_cpu_all <- mem(load_raw_cpu_all)
+  m_load_paid_functions <- mem(load_paid_functions)
 
   graphs <- foreach(ark = METRICS_ARKS, .verbose = FALSE, .combine = bind_rows) %dopar% {
+    graphs <- NULL
+    # raw_cpu_all <- m_load_raw_cpu_all(ark)
+    # graphs <- graph("raw_cpu", graphs, output_raw_cpu_usage(raw_cpu_all))
+
     node_levels <- m_load_node_levels(ark)
     provisioned_sla <- m_load_provisioned_sla(ark)
     respected_sla <- m_load_respected_sla(ark)
@@ -147,7 +153,6 @@ if (single_graphs) {
     raw_latency <- m_load_raw_latency(ark)
     raw_deployment_times <- m_load_raw_deployment_times(ark)
 
-    graphs <- NULL
     graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
     graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
 
@@ -187,6 +192,7 @@ provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
 functions <- combine(METRICS_ARKS, load_functions)
 respected_sla <- combine(METRICS_ARKS, load_respected_sla)
 raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
+paid_functions <- combine(METRICS_ARKS, load_paid_functions)
 
 Log("Loading additionnal full sets")
 functions_total <- mem(load_functions_total)(functions)
@@ -202,7 +208,7 @@ export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(r
 export_graph("requests_served", mem(output_number_requests)(respected_sla, node_levels))
 export_graph("total_requests_served_total", mem(output_number_requests_total)(respected_sla, node_levels))
 export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
-export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels))
+export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
 

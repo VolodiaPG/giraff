@@ -292,19 +292,28 @@ output_number_requests_total <- function(respected_sla, node_levels) {
   return(p)
 }
 
-output_mean_time_to_deploy_simple_total <- function(deployment_times, node_levels) {
+output_mean_time_to_deploy_simple_total <- function(deployment_times, node_levels, paid_functions) {
+  Log(colnames(deployment_times))
+  Log(colnames(node_levels))
+  Log(colnames(paid_functions))
+
   df <- deployment_times %>%
     inner_join(node_levels %>%
       group_by(metric_group, metric_group_group, folder) %>%
       summarise(n = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    left_join(paid_functions %>%
+      group_by(metric_group, metric_group_group, folder) %>%
+      rename(timestamp_paid = timestamp, paid = value), by = c("folder", "metric_group", "metric_group_group", "docker_fn_name", "sla_id")) %>%
+    mutate(kube_overhaead = difftime(timestamp, timestamp_paid, units = "secs")) %>%
+    mutate(placement_overhead = value / 1000 - kube_overhaead) %>%
     extract_context() %>%
     mutate(y = value) %>%
-    # group_by(env, run) %>%
     ungroup() %>%
     mutate(y_centered = (y - mean(y, na.rm = TRUE)) / sd(y, na.rm = TRUE))
 
+  Log(df %>% filter(placement_overhead > 4000) %>% arrange(timestamp) %>% select(placement_overhead, kube_overhaead, value, timestamp_paid, timestamp))
 
-  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = y_centered)) +
+  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = placement_overhead)) +
     facet_grid(cols = vars(placement_method)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
@@ -312,7 +321,7 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
       y = "Mean time to deploy",
       x = "fog net size",
     ) +
-    coord_cartesian(ylim = c(-1, 1), clip = "on") +
+    # coord_cartesian(ylim = c(-1, 1), clip = "on") +
     guides(colour = guide_legend(ncol = 1)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +

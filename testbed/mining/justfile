@@ -8,7 +8,11 @@ run:
     @echo -e "\033[1;32mdone\033[0m" | nc -N localhost 4000
 
 logs:
-    while true; do nc -l 4000; done
+    #! /usr/bin/env bash
+    touch logs.txt
+    while true; do
+      nc -l 4000 | tee -a logs.txt
+    done
 
 # Serves the content of the directory so graphs can be opened in a browser
 serve port="9000":
