@@ -11,7 +11,7 @@ use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
 use std::sync::Arc;
-use tracing::trace;
+use tracing::{instrument, trace};
 use uom::si::f64::{Information, Ratio};
 use uuid::Uuid;
 
@@ -65,6 +65,7 @@ impl Auction {
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
+    #[instrument(level = "trace", skip(self, sla))]
     async fn get_a_node(
         &self,
         sla: &Sla,
@@ -111,6 +112,7 @@ impl Auction {
     }
 
     #[cfg(feature = "linear_rates")]
+    #[instrument(level = "trace", skip(self, sla, _accumulated_latency))]
     async fn compute_bid(
         &self,
         sla: &Sla,
@@ -156,6 +158,7 @@ impl Auction {
     }
 
     #[cfg(feature = "quadratic_rates")]
+    #[instrument(level = "trace", skip(self, sla, _accumulated_latency))]
     async fn compute_bid(
         &self,
         sla: &Sla,
@@ -224,6 +227,7 @@ impl Auction {
     }
 
     #[cfg(any(feature = "maxcpu", feature = "mincpurandom"))]
+    #[instrument(level = "trace", skip(self, sla))]
     async fn compute_bid_cpu(
         &self,
         sla: &Sla,
@@ -247,6 +251,7 @@ impl Auction {
         }
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn bid_on(
         &self,
         sla: Sla,

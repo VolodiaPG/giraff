@@ -6,11 +6,12 @@ use helper::monitoring::MetricsExporter;
 use model::view::auction::{BidProposals, BidRequestOwned};
 use model::SlaId;
 use std::sync::Arc;
-use tracing::trace;
+use tracing::{instrument, trace};
 use uom::si::time::second;
 
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for
 /// their bids.
+#[instrument(level = "trace", skip(function, metrics))]
 pub async fn bid_on(
     bid_request: BidRequestOwned,
     function: &Arc<FunctionLife>,
@@ -40,6 +41,7 @@ pub async fn bid_on(
 }
 
 /// Reserves the space for the indicated duration to enable the limits
+#[instrument(level = "trace", skip(function))]
 pub async fn set_paid_from_sla(
     id: SlaId,
     function: &Arc<FunctionLife>,

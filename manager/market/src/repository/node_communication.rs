@@ -6,6 +6,7 @@ use model::view::auction::{AccumulatedLatency, BidProposals, BidRequest};
 use model::{NodeId, SlaId};
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::instrument;
 
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 
@@ -35,6 +36,7 @@ impl NodeCommunication {
         Ok(self.client.post(format!("http://{ip}:{port_http}/api/{route}")))
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn request_bids_from_node(
         &self,
         to: NodeId,
@@ -68,6 +70,7 @@ impl NodeCommunication {
             })
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn take_offer(&self, to: NodeId, id: &SlaId) -> Result<()> {
         let response = self
             .send(&to, &format!("accept/{}", id))
@@ -93,6 +96,7 @@ impl NodeCommunication {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn provision_function(
         &self,
         to: NodeId,

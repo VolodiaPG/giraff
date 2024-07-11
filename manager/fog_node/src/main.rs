@@ -94,7 +94,7 @@ pub fn init_subscriber(name: String, env_filter: String) {
         var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = var("LOG_CONFIG_FILENAME")
-        .unwrap_or_else(|_| "fog_node.log".to_string());
+        .unwrap_or_else(|_| "market.log".to_string());
 
     let file_appender =
         tracing_appender::rolling::never(log_config_path, log_config_filename);
@@ -107,32 +107,32 @@ pub fn init_subscriber(name: String, env_filter: String) {
     let reg = Registry::default()
         .with(env_filter)
         .with(fmt::Layer::default().with_writer(non_blocking_file));
-
-    let collector_ip = std::env::var("COLLECTOR_IP")
-        .unwrap_or_else(|_| "localhost".to_string());
-    let collector_port = std::env::var("COLLECTOR_PORT")
-        .unwrap_or_else(|_| "14268".to_string());
-
-    //let provider = TracerProvider::builder()
-    //    .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-    //    .build();
+    // let provider = TracerProvider::builder()
+    //     .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+    //     .build();
     //let tracer = provider.tracer(name.clone());
-    let tracer = opentelemetry_jaeger::new_collector_pipeline()
-        .with_endpoint(format!(
-            "http://{collector_ip}:{collector_port}/api/traces"
-        ))
-        .with_reqwest()
-        .with_service_name(name)
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-        .unwrap();
-
-    let tracing_layer = tracing_opentelemetry::OpenTelemetryLayer::new(tracer);
     //  let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
     //let reg = reg.with(telemetry);
     if std::env::var("ENABLE_COLLECTOR").unwrap_or("".to_string())
         == "true".to_string()
     {
+        let collector_ip = std::env::var("COLLECTOR_IP")
+            .unwrap_or_else(|_| "localhost".to_string());
+        let collector_port = std::env::var("COLLECTOR_PORT")
+            .unwrap_or_else(|_| "14268".to_string());
+
+        let tracer = opentelemetry_jaeger::new_collector_pipeline()
+            .with_endpoint(format!(
+                "http://{collector_ip}:{collector_port}/api/traces"
+            ))
+            .with_reqwest()
+            .with_service_name(name)
+            .install_batch(opentelemetry_sdk::runtime::Tokio)
+            .unwrap();
+
+        let tracing_layer =
+            tracing_opentelemetry::OpenTelemetryLayer::new(tracer);
         let reg = reg.with(tracing_layer);
         let reg = reg.with(ForestLayer::default());
 

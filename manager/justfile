@@ -59,6 +59,7 @@ run_market *FLAGS:
      INFLUX_ORG="faasfog" \
      INFLUX_BUCKET="faasfog" \
      INSTANCE_NAME="marketplace" \
+     ENABLE_COLLECTOR="true" \
      cargo run --bin market {{ FLAGS }}
 
 # Run the node, type is market or else (generic fog_node)
@@ -98,6 +99,21 @@ run_fog_node node_type MY_IP_ADDRESS:
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
         tags: ["node_connected_1"],
+    )'''
+
+    nodes["node_12"] = '''(
+        situation: NodeConnected (
+            parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
+            parent_node_ip: "127.0.0.1",
+            parent_node_port_http: "3030",
+            parent_latency: "4 ms"
+        ),
+        my_id: "fd4f121d-6b3d-44ca-8b82-90695aabaa3f",
+        my_public_ip: "127.0.0.1",
+        my_public_port_http: "3050",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
+        tags: ["node_connected_12"],
     )'''
 
     nodes["node_2"] = '''(
@@ -178,6 +194,7 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['LOG_CONFIG_FILENAME'] = "{{ node_type }}.log"
     env_vars['COLLECTOR_IP'] = "127.0.0.1"
     env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317"
+    env_vars['ENABLE_COLLECTOR'] = "true"
 
     env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
@@ -211,6 +228,7 @@ run MY_IP_ADDRESS *FLAGS="--features auction": (build FLAGS)
       "just run_fog_node node_2 {{ MY_IP_ADDRESS }}" \
       "just run_fog_node node_3 {{ MY_IP_ADDRESS }}" \
       "just run_fog_node node_1 {{ MY_IP_ADDRESS }}" \
+      "just run_fog_node node_12 {{ MY_IP_ADDRESS }}" \
       "just run_fog_node node_34 {{ MY_IP_ADDRESS }}" \
       "just run_fog_node node_35 {{ MY_IP_ADDRESS }}" \
       "just run_market {{ FLAGS }}"

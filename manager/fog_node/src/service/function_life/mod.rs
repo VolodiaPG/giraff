@@ -12,7 +12,7 @@ use backoff::SystemClock;
 use helper::env_load;
 use model::view::auction::AccumulatedLatency;
 use model::SlaId;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, instrument, trace, warn};
 use uom::si::f64::{Information, Ratio, Time};
 use uom::si::information::byte;
 use uom::si::ratio::ratio;
@@ -141,6 +141,7 @@ impl FunctionLife {
         })
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn pay_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
         let paid = function.pay_function(id.clone()).await?; // Function is now in the system
@@ -190,6 +191,7 @@ impl FunctionLife {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     pub async fn provision_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
         function.provision_function(id.clone()).await?;
