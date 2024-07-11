@@ -4,6 +4,7 @@ use model::view::auction::{
     BidProposal, BidProposals, BidRequest, BidRequestOwned,
 };
 use model::NodeId;
+use tracing::debug;
 use uom::fmt::DisplayStyle::Abbreviation;
 
 impl FunctionLife {

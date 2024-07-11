@@ -2,8 +2,6 @@
 #![feature(stmt_expr_attributes)]
 
 extern crate core;
-#[macro_use]
-extern crate tracing;
 use helper::{env_load, env_var};
 
 use helper::monitoring::{
@@ -12,6 +10,8 @@ use helper::monitoring::{
 };
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_sdk::trace::TracerProvider;
 use reqwest_retry::RetryTransientMiddleware;
 
 #[cfg(feature = "mimalloc")]
@@ -34,29 +34,23 @@ use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::service::node_life::NodeLife;
 use actix_web::web::Data;
 use actix_web::{middleware, web, App, HttpServer};
-#[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use anyhow::Context;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
 use model::{FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
 use openfaas::{Configuration, DefaultApiClient};
-#[cfg(feature = "jaeger")]
 use opentelemetry::global;
-#[cfg(feature = "jaeger")]
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
-#[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
-use std::env;
+use std::env::{self, var};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 use tracing::subscriber::set_global_default;
-use tracing::Subscriber;
-#[cfg(feature = "jaeger")]
+use tracing::{debug, error, info, trace, warn, Subscriber};
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
-use tracing_log::LogTracer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
 use uom::si::f64::Time;
@@ -91,18 +85,14 @@ fn load_config_from_env() -> anyhow::Result<String> {
 
     Ok(config)
 }
-
 /// Compose multiple layers into a `tracing`'s subscriber.
-pub fn get_subscriber(
-    _name: String,
-    env_filter: String,
-) -> impl Subscriber + Send + Sync {
+pub fn init_subscriber(name: String, env_filter: String) {
     // Env variable LOG_CONFIG_PATH points at the path where
     // LOG_CONFIG_FILENAME is located
     let log_config_path =
-        env::var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
+        var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
-    let log_config_filename = env::var("LOG_CONFIG_FILENAME")
+    let log_config_filename = var("LOG_CONFIG_FILENAME")
         .unwrap_or_else(|_| "fog_node.log".to_string());
 
     let file_appender =
@@ -113,53 +103,56 @@ pub fn get_subscriber(
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or(EnvFilter::new(env_filter));
 
-    #[cfg(feature = "jaeger")]
-    let collector_ip =
-        env::var("COLLECTOR_IP").unwrap_or_else(|_| "localhost".to_string());
-    #[cfg(feature = "jaeger")]
-    let collector_port =
-        env::var("COLLECTOR_PORT").unwrap_or_else(|_| "14268".to_string());
-    #[cfg(feature = "jaeger")]
-    let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
-        opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint(format!(
-                "http://{collector_ip}:{collector_port}/api/traces"
-            ))
-            .with_reqwest()
-            .with_service_name(_name)
-            .install_batch(opentelemetry_sdk::runtime::Tokio)
-            .unwrap(),
-    );
-
     let reg = Registry::default()
         .with(env_filter)
         .with(fmt::Layer::default().with_writer(non_blocking_file));
 
-    #[cfg(feature = "jaeger")]
-    let reg = reg.with(tracing_leyer);
+    let collector_ip = std::env::var("COLLECTOR_IP")
+        .unwrap_or_else(|_| "localhost".to_string());
+    let collector_port = std::env::var("COLLECTOR_PORT")
+        .unwrap_or_else(|_| "14268".to_string());
 
-    reg.with(ForestLayer::default())
-}
+    let provider = TracerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build();
+    //let tracer = provider.tracer(name.clone());
+    let tracer = opentelemetry_jaeger::new_collector_pipeline()
+        .with_endpoint(format!(
+            "http://{collector_ip}:{collector_port}/api/traces"
+        ))
+        .with_reqwest()
+        .with_service_name(name)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .unwrap();
 
-/// Register a subscriber as global default to process span data.
-/// It should only be called once!
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    LogTracer::init().expect("Failed to set logger");
-    set_global_default(subscriber).expect("Failed to set subscriber");
+    let tracing_layer = tracing_opentelemetry::OpenTelemetryLayer::new(tracer);
+    //  let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    //let reg = reg.with(telemetry);
+    if std::env::var("ENABLE_COLLECTOR").unwrap_or("".to_string())
+        == "true".to_string()
+    {
+        let reg = reg.with(tracing_layer);
+        let reg = reg.with(ForestLayer::default());
+
+        set_global_default(reg).expect("Failed to set subscriber");
+    } else {
+        let reg = reg.with(ForestLayer::default());
+
+        set_global_default(reg).expect("Failed to set subscriber");
+    }
 }
 
 // TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let subscriber = get_subscriber(
+    init_subscriber(
         env::var("LOG_CONFIG_FILENAME")
             .unwrap_or_else(|_| "fog_node.log".to_string()),
-        "trace".into(),
+        "info".into(),
     );
-    init_subscriber(subscriber);
 
     debug!("Tracing initialized.");
 
@@ -203,16 +196,12 @@ async fn main() -> anyhow::Result<()> {
             .pool_idle_timeout(Some(Duration::from_secs(90)))
             .build()?, // keep-alive
     );
-
-    #[cfg(feature = "jaeger")]
-    {
-        client_builder = client_builder.with(TracingMiddleware::default());
-    }
+    client_builder = client_builder.with(TracingMiddleware::default());
 
     let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
         .build_with_max_retries(3);
-    client_builder = client_builder
-        .with(RetryTransientMiddleware::new_with_policy(retry_policy));
+    //client_builder = client_builder
+    //    .with(RetryTransientMiddleware::new_with_policy(retry_policy));
 
     let http_client = Arc::new(client_builder.build());
 
@@ -370,7 +359,6 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
-        #[cfg(feature = "jaeger")]
         let app =
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
@@ -401,7 +389,6 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     // Ensure all spans have been reported
-    #[cfg(feature = "jaeger")]
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())

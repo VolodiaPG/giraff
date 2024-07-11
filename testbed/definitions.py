@@ -126,6 +126,8 @@ spec:
           value: "{collector_ip}"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
           value: "http://{collector_ip}:4317"
+        - name: ENABLE_COLLECTOR
+          value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
           value: "120000"
 {additional_env_vars}
@@ -208,6 +210,8 @@ spec:
           value: "faasfog"
         - name: COLLECTOR_IP
           value: "{collector_ip}"
+        - name: ENABLE_COLLECTOR
+          value: "{enable_collector}"
         - name: INSTANCE_NAME
           value: "marketplace"
         volumeMounts:

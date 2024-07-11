@@ -10,15 +10,6 @@ default = ["mimalloc"]
 # Enable mimalloc
 mimalloc = []
 # Enable jaeger
-jaeger = [
-    "opentelemetry",
-    "opentelemetry_sdk",
-    "opentelemetry-jaeger",
-    "reqwest-tracing",
-    "tracing-opentelemetry",
-    "tracing-actix-web",
-]
-
 # Bid Computation methods
 # Valuation made from a constant rate, give by an ENV variable
 linear_rates = []
@@ -76,21 +67,22 @@ kube = { version = "0.87", features = ["client", "runtime"] }
 lazy-regex = "3.1"
 lazy_static = "1.4"
 mimalloc = { version = "0.1", default-features = false }
-opentelemetry = { version = "0.21", optional = true }
+opentelemetry = { version = "0.21" }
 opentelemetry_sdk = { version = "0.21", features = [
     "rt-tokio",
-], default-features = false, optional = true }
+], default-features = false}
+opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
 opentelemetry-jaeger = { version = "0.20", features = [
     "reqwest_collector_client",
     "rt-tokio",
-], default-features = false, optional = true }
+], default-features = false}
 rand = "0.8.5"
 reqwest = { version = "0.11", features = ["json", "gzip"] }
 reqwest-middleware = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-middleware" }
 reqwest-retry = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-retry" }
 reqwest-tracing = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-tracing", features = [
     "opentelemetry_0_21",
-], optional = true }
+] }
 ron = "0.8"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
@@ -101,12 +93,11 @@ tokio-cron-scheduler = "0.9"
 tracing = "0.1"
 tracing-actix-web = { version = "0.7", features = [
     "opentelemetry_0_21",
-], optional = true }
+]}
 tracing-appender = "0.2"
 tracing-forest = { version = "0.1", features = ["tokio"] }
-tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-opentelemetry = { version = "0.22", optional = true }
+tracing-opentelemetry = { version = "0.22" }
 uom = { version = "0.34", default-features = false, features = [
     "f64",
     "si",

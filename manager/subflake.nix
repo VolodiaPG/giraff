@@ -38,7 +38,7 @@
                 builtins.map
                 (
                   settings: let
-                    name = "market-${settings.strategy}-${settings.telemetry}";
+                    name = "market-${settings.strategy}";
                   in {
                     inherit name;
                     value = dockerImageGenerator {
@@ -48,8 +48,7 @@
                         Env = ["SERVER_PORT=3003"];
                       };
                       features =
-                        nixpkgs.lib.optional (settings.strategy != "default_strategy") "${settings.strategy}"
-                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "${settings.telemetry}";
+                        nixpkgs.lib.optional (settings.strategy != "default_strategy") "${settings.strategy}";
                     };
                   }
                 ) (
@@ -57,7 +56,6 @@
                   {
                     # Do not forget to run cargo2nix at each new features added
                     strategy = ["default_strategy" "random" "mincpurandom"];
-                    telemetry = ["no_telemetry" "jaeger"];
                   }
                 )
               ))
@@ -67,7 +65,7 @@
                 builtins.map
                 (
                   settings: let
-                    name = "fog_node-${settings.strategy}-${settings.valuation}-${settings.telemetry}";
+                    name = "fog_node-${settings.strategy}-${settings.valuation}";
                   in {
                     inherit name;
                     value = dockerImageGenerator {
@@ -78,8 +76,7 @@
                       };
                       features =
                         ["fog_node/${settings.strategy}"]
-                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "${settings.valuation}"
-                        ++ nixpkgs.lib.optional (settings.telemetry != "no_telemetry") "${settings.telemetry}";
+                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "${settings.valuation}";
                     };
                   }
                 )
@@ -89,7 +86,6 @@
                     # Do not forget to run cargo2nix at each new features added
                     strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu" "mincpurandom"];
                     valuation = ["linear_rates" "quadratic_rates"];
-                    telemetry = ["no_telemetry" "jaeger"];
                   }
                 )
               )

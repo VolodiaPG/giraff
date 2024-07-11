@@ -6,6 +6,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use std::sync::Arc;
+use tracing::warn;
 
 pub async fn init(
     cron: Arc<Cron>,

@@ -5,9 +5,10 @@ use model::view::sla::PutSla;
 use model::{NodeId, SlaId};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tracing::trace;
+use tracing::{instrument, trace};
 
 /// Register a SLA and starts the auctioning process, can take a while.
+#[instrument(level = "trace", skip(auction_service, payload))]
 pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<crate::service::auction::Auction>,
@@ -20,6 +21,7 @@ pub async fn start_auction(
         .context("Failed the auctioning and provisionning process")
 }
 /// Provision a paid SLA
+#[instrument(level = "trace", skip(auction_service))]
 pub async fn provision_function(
     id: SlaId,
     auction_service: &Arc<crate::service::auction::Auction>,

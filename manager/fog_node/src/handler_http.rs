@@ -7,6 +7,7 @@ use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
 use model::SlaId;
 use serde::Deserialize;
+use tracing::error;
 
 #[derive(Debug)]
 pub struct AnyhowErrorWrapper {

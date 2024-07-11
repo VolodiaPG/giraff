@@ -12,6 +12,7 @@ use backoff::SystemClock;
 use helper::env_load;
 use model::view::auction::AccumulatedLatency;
 use model::SlaId;
+use tracing::{error, info, trace, warn};
 use uom::si::f64::{Information, Ratio, Time};
 use uom::si::information::byte;
 use uom::si::ratio::ratio;

@@ -14,24 +14,20 @@ use mimalloc::MiMalloc;
 static GLOBAL: MiMalloc = MiMalloc;
 use crate::handler::*;
 use actix_web::{middleware, web, App, HttpServer};
-#[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
 use anyhow::Context;
-#[cfg(feature = "jaeger")]
 use opentelemetry::global;
-#[cfg(feature = "jaeger")]
+use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::TracerProvider;
 use reqwest_middleware::ClientBuilder;
-#[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
 use std::env::var;
 use std::sync::Arc;
 use tracing::subscriber::set_global_default;
 use tracing::{debug, info, Subscriber};
-#[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
-use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{fmt, EnvFilter, Registry};
 
@@ -48,17 +44,14 @@ env_var!(INFLUX_BUCKET);
 env_var!(INSTANCE_NAME);
 
 /// Compose multiple layers into a `tracing`'s subscriber.
-pub fn get_subscriber(
-    _name: String,
-    env_filter: String,
-) -> impl Subscriber + Send + Sync {
+pub fn init_subscriber(name: String, env_filter: String) {
     // Env variable LOG_CONFIG_PATH points at the path where
     // LOG_CONFIG_FILENAME is located
     let log_config_path =
         var("LOG_CONFIG_PATH").unwrap_or_else(|_| "./".to_string());
     // Env variable LOG_CONFIG_FILENAME names the log file
     let log_config_filename = var("LOG_CONFIG_FILENAME")
-        .unwrap_or_else(|_| "marketplace.log".to_string());
+        .unwrap_or_else(|_| "market.log".to_string());
 
     let file_appender =
         tracing_appender::rolling::never(log_config_path, log_config_filename);
@@ -68,49 +61,51 @@ pub fn get_subscriber(
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or(EnvFilter::new(env_filter));
 
-    #[cfg(feature = "jaeger")]
-    let collector_ip = std::env::var("COLLECTOR_IP")
-        .unwrap_or_else(|_| "localhost".to_string());
-    #[cfg(feature = "jaeger")]
-    let collector_port = std::env::var("COLLECTOR_PORT")
-        .unwrap_or_else(|_| "14268".to_string());
-    #[cfg(feature = "jaeger")]
-    let tracing_leyer = tracing_opentelemetry::OpenTelemetryLayer::new(
-        opentelemetry_jaeger::new_collector_pipeline()
-            .with_endpoint(format!(
-                "http://{collector_ip}:{collector_port}/api/traces"
-            ))
-            .with_reqwest()
-            .with_service_name(_name)
-            .install_batch(opentelemetry_sdk::runtime::Tokio)
-            .unwrap(),
-    );
-
     let reg = Registry::default()
         .with(env_filter)
         .with(fmt::Layer::default().with_writer(non_blocking_file));
 
-    #[cfg(feature = "jaeger")]
-    let reg = reg.with(tracing_leyer);
+    let collector_ip = std::env::var("COLLECTOR_IP")
+        .unwrap_or_else(|_| "localhost".to_string());
+    let collector_port = std::env::var("COLLECTOR_PORT")
+        .unwrap_or_else(|_| "14268".to_string());
 
-    reg.with(ForestLayer::default())
-}
+    let provider = TracerProvider::builder()
+        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+        .build();
+    //let tracer = provider.tracer(name.clone());
+    let tracer = opentelemetry_jaeger::new_collector_pipeline()
+        .with_endpoint(format!(
+            "http://{collector_ip}:{collector_port}/api/traces"
+        ))
+        .with_reqwest()
+        .with_service_name(name)
+        .install_batch(opentelemetry_sdk::runtime::Tokio)
+        .unwrap();
 
-/// Register a subscriber as global default to process span data.
-///
-/// It should only be called once!
-pub fn init_subscriber(subscriber: impl Subscriber + Send + Sync) {
-    LogTracer::init().expect("Failed to set logger");
-    set_global_default(subscriber).expect("Failed to set subscriber");
+    let tracing_layer = tracing_opentelemetry::OpenTelemetryLayer::new(tracer);
+    //  let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    //let reg = reg.with(telemetry);
+    if std::env::var("ENABLE_COLLECTOR").unwrap_or("".to_string())
+        == "true".to_string()
+    {
+        let reg = reg.with(tracing_layer);
+        let reg = reg.with(ForestLayer::default());
+
+        set_global_default(reg).expect("Failed to set subscriber");
+    } else {
+        let reg = reg.with(ForestLayer::default());
+
+        set_global_default(reg).expect("Failed to set subscriber");
+    }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    #[cfg(feature = "jaeger")]
     global::set_text_map_propagator(TraceContextPropagator::new());
 
-    let subscriber = get_subscriber("market".into(), "trace".into());
-    init_subscriber(subscriber);
+    init_subscriber("marketplace".into(), "info".into());
 
     debug!("Tracing initialized.");
 
@@ -129,16 +124,17 @@ async fn main() -> anyhow::Result<()> {
         .expect("Cannot build the InfluxDB2 database connection"),
     );
 
-    #[cfg(feature = "jaeger")]
-    let http_client = Arc::new(
-        ClientBuilder::new(reqwest::Client::new())
-            .with(TracingMiddleware::default())
-            .build(),
+    let mut client_builder = ClientBuilder::new(
+        reqwest::Client::builder()
+            .pool_idle_timeout(Some(std::time::Duration::from_secs(90)))
+            .build()?, // keep-alive
     );
+    client_builder = client_builder.with(TracingMiddleware::default());
+    let http_client = Arc::new(client_builder.build());
 
-    #[cfg(not(feature = "jaeger"))]
-    let http_client =
-        Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
+    //#[cfg(not(feature = "jaeger"))]
+    //let http_client =
+    //    Arc::new(ClientBuilder::new(reqwest::Client::new()).build());
 
     let fog_node = Arc::new(repository::fog_node::FogNode::new());
     let fog_node_network_service = Arc::new(
@@ -179,7 +175,6 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         let app = App::new().wrap(middleware::Compress::default());
 
-        #[cfg(feature = "jaeger")]
         let app =
             app.wrap(TracingLogger::default()).wrap(RequestTracing::new());
 
@@ -205,7 +200,6 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     // Ensure all spans have been reported
-    #[cfg(feature = "jaeger")]
     opentelemetry::global::shutdown_tracer_provider();
 
     Ok(())

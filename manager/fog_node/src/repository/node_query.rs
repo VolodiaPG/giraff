@@ -9,6 +9,7 @@ use reqwest::Response;
 use serde::Serialize;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::{instrument, trace};
 
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 

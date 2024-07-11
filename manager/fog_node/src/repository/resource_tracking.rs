@@ -6,6 +6,7 @@ use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::warn;
 use uom::si::f64::{Information, Ratio};
 use uom::si::information::{self, byte};
 use uom::si::ratio::part_per_billion;

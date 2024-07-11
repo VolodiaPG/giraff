@@ -4,6 +4,7 @@ use model::domain::sla::Sla;
 use model::view::auction::{
     BidProposal, BidProposals, BidRequest, BidRequestOwned,
 };
+use tracing::debug;
 
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it

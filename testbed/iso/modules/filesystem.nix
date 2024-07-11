@@ -108,53 +108,84 @@ in {
   };
 
   # useful for debugging
-  systemd.services.sshx = {
-    description = "sshx";
-    wantedBy = ["multi-user.target"];
-    script = ''
-      dir=$(mktemp -d)
-      ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
+  systemd.services = {
+    sshx = {
+      description = "sshx";
+      wantedBy = ["multi-user.target"];
+      script = ''
+        dir=$(mktemp -d)
+        ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
 
-      while ! [ -f "/my_group" ] ; do
-        sleep 1
-      done
-      while ! [ -f "/my_name" ] ; do
-        sleep 1
-      done
-      mkdir -p "$dir/sshx/$(cat /my_group)"
-      export PATH=/run/current-system/sw/bin:$PATH
-      export SHELL="fish"
-      ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
-    '';
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = "yes";
-      Restart = "on-failure";
-      RestartSec = "3";
+        while ! [ -f "/my_group" ] ; do
+          sleep 1
+        done
+        while ! [ -f "/my_name" ] ; do
+          sleep 1
+        done
+        mkdir -p "$dir/sshx/$(cat /my_group)"
+        export PATH=/run/current-system/sw/bin:$PATH
+        export SHELL="fish"
+        ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
+      '';
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = "yes";
+        Restart = "on-failure";
+        RestartSec = "3";
+      };
     };
-  };
-  systemd.services.mountNfs = {
-    description = "Mount ssh";
-    wantedBy = ["multi-user.target"];
-    script = ''
-      mkdir -p /nfs
-      ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} /nfs
 
-      mkdir -p /etc/ssh/authorized_keys.d
-      cat /nfs/.ssh/authorized_keys > /etc/ssh/authorized_keys.d/root
-      chmod 644 /etc/ssh/authorized_keys.d/root
+    # useful for debugging
+    tailscale-connect = {
+      description = "tailscale-connect";
+      wantedBy = ["multi-user.target"];
+      script = ''
+        dir=$(mktemp -d)
+        ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
 
-      mkdir -p /root/.ssh
-      cp /nfs/.ssh/{authorized_keys,config,id_rsa,id_rsa.pub} /root/.ssh
-      chmod 700 -R /root/.ssh
-      chmod 600 /root/.ssh/*
-      chmod 644 /root/.ssh/*.pub
-    '';
-    serviceConfig = {
-      Type = "oneshot";
-      RemainAfterExit = "yes";
-      Restart = "on-failure";
-      RestartSec = "3";
+        while ! [ -f "/my_name" ] ; do
+          sleep 1
+        done
+        if [[ $(cat "/my_name") == "iot_emulation" ]]; then
+          while ! [ -f "$dir/tailscale_authkey" ] ; do
+            sleep 1
+          done
+          AUTH_KEY=$(cat "$dir/tailscale_authkey")
+
+          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY
+        fi
+      '';
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = "yes";
+        Restart = "on-failure";
+        RestartSec = "3";
+      };
+    };
+
+    mountNfs = {
+      description = "Mount ssh";
+      wantedBy = ["multi-user.target"];
+      script = ''
+        mkdir -p /nfs
+        ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} /nfs
+
+        mkdir -p /etc/ssh/authorized_keys.d
+        cat /nfs/.ssh/authorized_keys > /etc/ssh/authorized_keys.d/root
+        chmod 644 /etc/ssh/authorized_keys.d/root
+
+        mkdir -p /root/.ssh
+        cp /nfs/.ssh/{authorized_keys,config,id_rsa,id_rsa.pub} /root/.ssh
+        chmod 700 -R /root/.ssh
+        chmod 600 /root/.ssh/*
+        chmod 644 /root/.ssh/*.pub
+      '';
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = "yes";
+        Restart = "on-failure";
+        RestartSec = "3";
+      };
     };
   };
 }

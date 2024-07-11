@@ -11,6 +11,7 @@ use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
 use std::sync::Arc;
+use tracing::trace;
 use uom::si::f64::{Information, Ratio};
 use uuid::Uuid;
 

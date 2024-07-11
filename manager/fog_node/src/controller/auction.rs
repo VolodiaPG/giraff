@@ -6,6 +6,7 @@ use helper::monitoring::MetricsExporter;
 use model::view::auction::{BidProposals, BidRequestOwned};
 use model::SlaId;
 use std::sync::Arc;
+use tracing::trace;
 use uom::si::time::second;
 
 /// Return a bid for the SLA. And makes the follow up to ask other nodes for

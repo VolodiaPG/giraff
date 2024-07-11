@@ -346,7 +346,7 @@ def up(
     env["roles"] = roles
     env["networks"] = networks
 
-   # set_sshx(env)
+    set_sshx(env)
 
 def clear_directory(path):
     # Check if the directory exists
@@ -434,30 +434,35 @@ def set_sshx(env: EnosEnv):
         print("env is None")
         exit(1)
 
-    assignations = env["assignations"]
+    #assignations = env["assignations"]
     roles = env["roles"]
 
-    for role in roles["market"]:
-        role.set_extra(my_name="market")
-    concerned_roles = roles["market"]
+    #for role in roles["market"]:
+    #    role.set_extra(my_name="market")
+    #concerned_roles = roles["market"]
 
-    for role in roles["iot_emulation"]:
-        role.set_extra(my_name="iot_emulation")
-    concerned_roles += roles["iot_emulation"]
+    #for role in roles["iot_emulation"]:
+    #    role.set_extra(my_name="iot_emulation")
+    #concerned_roles += roles["iot_emulation"]
 
-    for vm_name in assignations.keys():
-        for role in roles[vm_name]:
-            role.set_extra(my_name=vm_name)
-        concerned_roles += roles[vm_name]
+    #for vm_name in assignations.keys():
+    #    for role in roles[vm_name]:
+    #        role.set_extra(my_name=vm_name)
+    #    concerned_roles += roles[vm_name]
 
-    with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
-        p.shell(
-            f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
-            task_name="Clearing sshx folder",
-        )
-    with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
+    #with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    #    p.shell(
+    #        f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
+    #        task_name="Clearing sshx folder",
+    #    )
+    #with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
+    #   p.shell(
+    #        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
+    #        task_name="Setting names",
+    #    )
+    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
        p.shell(
-            'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
+            'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
             task_name="Setting names",
         )
 
@@ -666,6 +671,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             node_name=name,
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
+            enable_collector = "true" if os.environ["DEV"] == "true" else "false",
             is_cloud="is_cloud"
             if tier_flavor.get("is_cloud") is not None
             and tier_flavor.get("is_cloud") is True
@@ -681,6 +687,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         # influx_ip=roles["prom_master"][0].address,
         influx_ip="10.42.0.1",
         collector_ip=roles["iot_emulation"][0].address,
+        enable_collector = "true" if os.environ["DEV"] == "true" else "false",
         market_image=market_image,
     )
     for role in roles[NETWORK["name"]]:

@@ -1,4 +1,3 @@
-use chrono::{DateTime, Utc};
 use helper_derive::influx_observation;
 
 /// What is the duration of the auctioning process, from start to having a

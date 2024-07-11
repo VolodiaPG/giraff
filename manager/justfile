@@ -35,9 +35,7 @@ check subcommand="check":
     # just _{{ subcommand }} --features edge_ward_v2
     just _{{ subcommand }} --features linear_rates,edge_ward_v3
     just _{{ subcommand }} --features random,quadratic_rates,maxcpu
-    just _{{ subcommand }} --features random,quadratic_rates,mincpurandom
-
-    just _{{ subcommand }} --features linear_rates,jaeger,auction
+    just _{{ subcommand }} --features quadratic_rates,mincpurandom
 
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:

@@ -793,6 +793,7 @@ dependencies = [
  "openfaas",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "opentelemetry-stdout",
  "opentelemetry_sdk",
  "rand",
  "reqwest",
@@ -810,7 +811,6 @@ dependencies = [
  "tracing-actix-web",
  "tracing-appender",
  "tracing-forest",
- "tracing-log",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uom",
@@ -1645,6 +1645,7 @@ dependencies = [
  "num-traits",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "opentelemetry-stdout",
  "opentelemetry_sdk",
  "rand",
  "reqwest",
@@ -1659,7 +1660,6 @@ dependencies = [
  "tracing-actix-web",
  "tracing-appender",
  "tracing-forest",
- "tracing-log",
  "tracing-opentelemetry",
  "tracing-subscriber",
  "uom",
@@ -2007,6 +2007,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5774f1ef1f982ef2a447f6ee04ec383981a3ab99c8e77a1a7b30182e65bbc84"
 dependencies = [
  "opentelemetry",
+]
+
+[[package]]
+name = "opentelemetry-stdout"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c13b2df4cd59c176099ac82806725ba340c8fa7b1a7004c0912daad30470f63e"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "opentelemetry",
+ "opentelemetry_sdk",
+ "ordered-float 4.2.0",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

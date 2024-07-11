@@ -7,6 +7,7 @@ use model::view::auction::{
 use model::NodeId;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use tracing::debug;
 use uom::fmt::DisplayStyle::Abbreviation;
 
 impl FunctionLife {

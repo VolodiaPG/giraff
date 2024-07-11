@@ -5,6 +5,7 @@ use model::view::node::RegisterNode;
 use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort};
 use std::net::IpAddr;
 use std::sync::Arc;
+use tracing::trace;
 
 #[derive(Debug)]
 pub struct NodeLife {

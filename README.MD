@@ -201,6 +201,8 @@ To locally develop, I will describe the simple steps to get started:
 - upload the functions to the registry: `cd openfaas-functions; just`
 - you can run parts of the experimental configuration using `cd manager; just expe <ip:same as before>`
 
+> [!TIP]
+> On grid5k, on your `~/`, you can paste a tailscale auth token (ephemeral; reusable) in `~/tailscale_authkey` to automatically connect newly spawned VMs to tailnet. That way, you can access Jaeger to see logs from the comfort of your web browser, for example.
 
 ### Notes about the system architectures
 
