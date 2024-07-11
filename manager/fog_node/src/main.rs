@@ -10,9 +10,10 @@ use helper::monitoring::{
 };
 #[cfg(feature = "mimalloc")]
 use mimalloc::MiMalloc;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_sdk::trace::TracerProvider;
-use reqwest_retry::RetryTransientMiddleware;
+#[cfg(not(feature = "offline"))]
+use repository::latency_estimation::LatencyEstimationImpl;
+#[cfg(feature = "offline")]
+use repository::latency_estimation::LatencyEstimationOfflineImpl;
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -48,7 +49,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 use tracing::subscriber::set_global_default;
-use tracing::{debug, error, info, trace, warn, Subscriber};
+use tracing::{debug, error, info, warn};
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::*;
@@ -75,8 +76,8 @@ env_var!(FUNCTION_PAYING_TIMEOUT_MSECS);
 const INFLUX_DEFAULT_ADDRESS: &str = "127.0.0.1:9086";
 
 /// Load the CONFIG env variable
-fn load_config_from_env() -> anyhow::Result<String> {
-    let config = env::var("CONFIG")?;
+fn load_config_from_env(env_var: String) -> anyhow::Result<String> {
+    let config = env::var(env_var)?;
     let config = base64::decode_config(
         config,
         base64::STANDARD.decode_allow_trailing_bits(true),
@@ -112,9 +113,9 @@ pub fn init_subscriber(name: String, env_filter: String) {
     let collector_port = std::env::var("COLLECTOR_PORT")
         .unwrap_or_else(|_| "14268".to_string());
 
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
+    //let provider = TracerProvider::builder()
+    //    .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+    //    .build();
     //let tracer = provider.tracer(name.clone());
     let tracer = opentelemetry_jaeger::new_collector_pipeline()
         .with_endpoint(format!(
@@ -180,7 +181,7 @@ async fn main() -> anyhow::Result<()> {
     debug!("username: {:?}", username);
     debug!("password?: {:?}", password.is_some());
 
-    let config = load_config_from_env()
+    let config = load_config_from_env("CONFIG".to_string())
         .map_err(|err| {
             error!(
                 "Error looking for the based64 CONFIG env variable: {}",
@@ -198,8 +199,9 @@ async fn main() -> anyhow::Result<()> {
     );
     client_builder = client_builder.with(TracingMiddleware::default());
 
-    let retry_policy = reqwest_retry::policies::ExponentialBackoff::builder()
-        .build_with_max_retries(3);
+    // let retry_policy =
+    // reqwest_retry::policies::ExponentialBackoff::builder()
+    //     .build_with_max_retries(3);
     //client_builder = client_builder
     //    .with(RetryTransientMiddleware::new_with_policy(retry_policy));
 
@@ -278,12 +280,20 @@ async fn main() -> anyhow::Result<()> {
         .await
         .expect("Failed to instanciate the ResourceTrackingRepo"),
     );
-    let latency_estimation_repo = Arc::new(LatencyEstimation::new(
-        node_situation.clone(),
-        metrics.clone(),
-        model::domain::exp_average::Alpha::new(0.3).unwrap(),
-        model::domain::moving_median::MovingMedianSize::new(50).unwrap(),
-    ));
+
+    #[cfg(feature = "offline")]
+    let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> = Arc::new(
+        Box::new(LatencyEstimationOfflineImpl::new(node_situation.clone())),
+    );
+    #[cfg(not(feature = "offline"))]
+    let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> =
+        Arc::new(Box::new(LatencyEstimationImpl::new(
+            node_situation.clone(),
+            metrics.clone(),
+            model::domain::exp_average::Alpha::new(0.3).unwrap(),
+            model::domain::moving_median::MovingMedianSize::new(50).unwrap(),
+        )));
+
     let cron_repo = Arc::new(
         Cron::new(Time::new::<second>(15.0))
             .await

@@ -1,6 +1,8 @@
+use super::{Latency, LatencyEstimation};
 use crate::monitoring::NeighborLatency;
 use crate::NodeSituation;
 use anyhow::{bail, ensure, Context, Result};
+use async_trait::async_trait;
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
 use model::domain::exp_average::ExponentialMovingAverage;
@@ -77,23 +79,64 @@ impl PacketLossRing {
 }
 
 #[derive(Debug)]
-pub struct Latency {
-    pub median:              Time,
-    pub average:             Time,
-    pub interquantile_range: Time,
-    pub packet_loss:         Ratio,
-}
-
-#[derive(Debug)]
-pub struct LatencyEstimation {
+pub struct LatencyEstimationImpl {
     node_situation:            Arc<NodeSituation>,
     metrics:                   Arc<MetricsExporter>,
     latency:                   Arc<dashmap::DashMap<NodeId, Latencies>>,
     alpha:                     model::domain::exp_average::Alpha,
     moving_median_window_size: MovingMedianSize,
 }
+#[async_trait]
+impl LatencyEstimation for LatencyEstimationImpl {
+    async fn latency_to_neighbors(&self) -> Result<()> {
+        let neighbors = self.node_situation.get_neighbors();
+        let mut handles = Vec::with_capacity(neighbors.len());
+        for node in neighbors {
+            handles.push(self.ping(node));
+        }
 
-impl LatencyEstimation {
+        let errors: Vec<anyhow::Error> = futures::future::join_all(handles)
+            .await
+            .into_iter()
+            .filter(|result| result.is_err())
+            .map(|result| result.err().unwrap())
+            .collect();
+
+        ensure!(
+            errors.is_empty(),
+            "Failed to ping for latency estimation because of {}",
+            IndividualErrorList::from(errors)
+        );
+        Ok(())
+    }
+
+    async fn get_latency_to(&self, id: &NodeId) -> Option<Latency> {
+        self.latency.get(id).and_then(|x| {
+            let latencies = x.value();
+            match (
+                latencies.moving_median.median(),
+                latencies.moving_median.interquantile_range(),
+                latencies.moving_average.get(),
+                latencies.packet_loss.get(),
+            ) {
+                (
+                    Some(median),
+                    Some(interquantile_range),
+                    average,
+                    packet_loss,
+                ) => Some(Latency {
+                    median,
+                    interquantile_range,
+                    average,
+                    packet_loss,
+                }),
+                _ => None,
+            }
+        })
+    }
+}
+
+impl LatencyEstimationImpl {
     pub fn new(
         node_situation: Arc<NodeSituation>,
         metrics: Arc<MetricsExporter>,
@@ -179,53 +222,6 @@ impl LatencyEstimation {
                 .await?;
         }
         Ok(())
-    }
-
-    pub async fn latency_to_neighbors(&self) -> Result<()> {
-        let neighbors = self.node_situation.get_neighbors();
-        let mut handles = Vec::with_capacity(neighbors.len());
-        for node in neighbors {
-            handles.push(self.ping(node));
-        }
-
-        let errors: Vec<anyhow::Error> = futures::future::join_all(handles)
-            .await
-            .into_iter()
-            .filter(|result| result.is_err())
-            .map(|result| result.err().unwrap())
-            .collect();
-
-        ensure!(
-            errors.is_empty(),
-            "Failed to ping for latency estimation because of {}",
-            IndividualErrorList::from(errors)
-        );
-        Ok(())
-    }
-
-    pub async fn get_latency_to(&self, id: &NodeId) -> Option<Latency> {
-        self.latency.get(id).and_then(|x| {
-            let latencies = x.value();
-            match (
-                latencies.moving_median.median(),
-                latencies.moving_median.interquantile_range(),
-                latencies.moving_average.get(),
-                latencies.packet_loss.get(),
-            ) {
-                (
-                    Some(median),
-                    Some(interquantile_range),
-                    average,
-                    packet_loss,
-                ) => Some(Latency {
-                    median,
-                    interquantile_range,
-                    average,
-                    packet_loss,
-                }),
-                _ => None,
-            }
-        })
     }
 
     fn update_latency(

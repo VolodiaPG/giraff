@@ -37,6 +37,8 @@ check subcommand="check":
     just _{{ subcommand }} --features random,quadratic_rates,maxcpu
     just _{{ subcommand }} --features quadratic_rates,mincpurandom
 
+    just _{{ subcommand }} --features quadratic_rates,mincpurandom,offline
+
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:
     cargo outdated -R
@@ -88,6 +90,7 @@ run_fog_node node_type MY_IP_ADDRESS:
             parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3030",
+            parent_latency: "2 ms"
         ),
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "127.0.0.1",
@@ -102,6 +105,7 @@ run_fog_node node_type MY_IP_ADDRESS:
             parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3032",
+            parent_latency: "20 ms"
         ),
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         my_public_ip: "127.0.0.1",
@@ -117,6 +121,7 @@ run_fog_node node_type MY_IP_ADDRESS:
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3034",
+            parent_latency: "10 ms"
         ),
         my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",
@@ -131,6 +136,7 @@ run_fog_node node_type MY_IP_ADDRESS:
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3034",
+            parent_latency: "6 ms"
         ),
         my_id: "d132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",
@@ -146,6 +152,7 @@ run_fog_node node_type MY_IP_ADDRESS:
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3034",
+            parent_latency: "2 ms"
         ),
         my_id: "e132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",

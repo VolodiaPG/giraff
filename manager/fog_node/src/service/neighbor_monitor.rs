@@ -19,11 +19,11 @@ impl From<crate::repository::latency_estimation::Latency>
 
 #[derive(Debug)]
 pub struct NeighborMonitor {
-    rtt_estimation: Arc<LatencyEstimation>,
+    rtt_estimation: Arc<Box<dyn LatencyEstimation>>,
 }
 
 impl NeighborMonitor {
-    pub fn new(latency_estimation: Arc<LatencyEstimation>) -> Self {
+    pub fn new(latency_estimation: Arc<Box<dyn LatencyEstimation>>) -> Self {
         Self { rtt_estimation: latency_estimation }
     }
 

@@ -27,13 +27,23 @@ impl NodeLife {
     ) -> Result<()> {
         trace!("Registering child node");
         match &register {
-            RegisterNode::Node { node_id, parent, ip, port_http, .. } => {
+            RegisterNode::Node {
+                node_id,
+                parent,
+                ip,
+                port_http,
+                #[cfg(feature = "offline")]
+                offline_latency,
+                ..
+            } => {
                 if &self.node_situation.get_my_id() == parent {
                     self.node_situation.register(
                         node_id.clone(),
                         NodeDescription {
-                            ip:        *ip,
+                            ip: *ip,
                             port_http: port_http.clone(),
+                            #[cfg(feature = "offline")]
+                            latency: *offline_latency,
                         },
                     );
                 }
@@ -79,6 +89,8 @@ impl NodeLife {
                     .get_parent_id()
                     .context("Failed to get my parent's id")?,
                 tags: self.node_situation.get_my_tags(),
+                #[cfg(feature = "offline")]
+                offline_latency: self.node_situation.get_my_offline_latency(),
             }
         };
         self.node_query.register_to_parent(register).await?;

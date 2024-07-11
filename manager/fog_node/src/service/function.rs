@@ -19,8 +19,11 @@ use uom::si::f64::{Information, Ratio};
 use uom::si::time::millisecond;
 
 pub struct UnprovisionEvent {
+    #[allow(dead_code)]
     pub timestamp: DateTime<Utc>,
+    #[allow(dead_code)]
     pub sla:       Sla,
+    #[allow(dead_code)]
     pub node:      String,
 }
 

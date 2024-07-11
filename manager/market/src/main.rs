@@ -17,15 +17,13 @@ use actix_web::{middleware, web, App, HttpServer};
 use actix_web_opentelemetry::RequestTracing;
 use anyhow::Context;
 use opentelemetry::global;
-use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::trace::TracerProvider;
 use reqwest_middleware::ClientBuilder;
 use reqwest_tracing::TracingMiddleware;
 use std::env::var;
 use std::sync::Arc;
 use tracing::subscriber::set_global_default;
-use tracing::{debug, info, Subscriber};
+use tracing::{debug, info};
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -70,9 +68,9 @@ pub fn init_subscriber(name: String, env_filter: String) {
     let collector_port = std::env::var("COLLECTOR_PORT")
         .unwrap_or_else(|_| "14268".to_string());
 
-    let provider = TracerProvider::builder()
-        .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
-        .build();
+    // let provider = TracerProvider::builder()
+    //     .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+    //     .build();
     //let tracer = provider.tracer(name.clone());
     let tracer = opentelemetry_jaeger::new_collector_pipeline()
         .with_endpoint(format!(

@@ -22,6 +22,7 @@ impl FogNodeNetwork {
                 port_http,
                 port_faas,
                 tags,
+                ..
             } => {
                 self.fog_node
                     .append_root(
@@ -43,6 +44,7 @@ impl FogNodeNetwork {
                 ip,
                 port_http,
                 port_faas,
+                ..
             } => {
                 self.fog_node
                     .append_new_child(

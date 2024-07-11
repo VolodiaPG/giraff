@@ -1,11 +1,12 @@
-use std::fmt::Debug;
-use std::net::IpAddr;
-
 use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
 use model::dto::node::{NodeDescription, NodeSituationData};
 use model::{
     FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
 };
+use std::fmt::Debug;
+use std::net::IpAddr;
+#[cfg(feature = "offline")]
+use uom::si::f64::Time;
 use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug)]
@@ -33,12 +34,16 @@ impl NodeSituation {
                     parent_node_ip,
                     parent_node_port_http,
                     parent_id,
+                    #[cfg(feature = "offline")]
+                    parent_latency,
                     ..
                 } => {
                     if parent_id == id {
                         Some(NodeDescription {
-                            ip:        *parent_node_ip,
+                            ip: *parent_node_ip,
                             port_http: parent_node_port_http.clone(),
+                            #[cfg(feature = "offline")]
+                            latency: *parent_latency,
                         })
                     } else {
                         None
@@ -113,4 +118,12 @@ impl NodeSituation {
     }
 
     pub fn get_reserved_cpu(&self) -> Ratio { self.database.reserved_cpu }
+
+    #[cfg(feature = "offline")]
+    pub fn get_my_offline_latency(&self) -> Time {
+        match &self.database.situation {
+            NodeConnected { parent_latency, .. } => *parent_latency,
+            MarketConnected { .. } => Time::new::<uom::si::time::second>(0.0),
+        }
+    }
 }

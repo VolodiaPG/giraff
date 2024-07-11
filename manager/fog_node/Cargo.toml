@@ -9,6 +9,7 @@ edition = "2021"
 default = ["mimalloc"]
 # Enable mimalloc
 mimalloc = []
+offline = []
 # Enable jaeger
 # Bid Computation methods
 # Valuation made from a constant rate, give by an ENV variable
@@ -48,6 +49,7 @@ mincpurandom = ["model/mincpurandom"]
 actix-web = "4.4"
 actix-web-opentelemetry = "0.16"
 anyhow = "1.0"
+async-trait = "0.1.81"
 backoff = { version = "0.4", features = ["tokio"] }
 base64 = { version = "0.13", default-features = false, features = [
     "alloc", # for base64::decode_config and base64::encode_config

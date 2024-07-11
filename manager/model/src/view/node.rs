@@ -1,8 +1,12 @@
 use chrono::{DateTime, Utc};
+#[cfg(feature = "offline")]
+use helper::uom_helper::time;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashMap;
 use std::net::IpAddr;
+#[cfg(feature = "offline")]
+use uom::si::f64::Time;
 
 use crate::dto::node::NodeRecord;
 use crate::view::auction::AcceptedBid;
@@ -44,6 +48,7 @@ pub struct PostNodeResponse {
     pub answered_at: DateTime<Utc>,
 }
 
+#[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum RegisterNode {
@@ -55,12 +60,15 @@ pub enum RegisterNode {
         tags:      Vec<String>,
     },
     Node {
-        parent:    NodeId,
-        node_id:   NodeId,
-        ip:        IpAddr,
-        port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPortExternal,
-        tags:      Vec<String>,
+        parent:          NodeId,
+        node_id:         NodeId,
+        ip:              IpAddr,
+        port_http:       FogNodeHTTPPort,
+        port_faas:       FogNodeFaaSPortExternal,
+        tags:            Vec<String>,
+        #[cfg(feature = "offline")]
+        #[serde_as(as = "time::Helper")]
+        offline_latency: Time,
     },
 }
 

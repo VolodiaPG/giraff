@@ -1,8 +1,7 @@
-use serde::{Deserialize, Serialize};
-use uom::si::f64::{Information, Ratio, Time};
-
 use crate::{NodeId, SlaId};
 use helper::uom_helper::{information, ratio, time};
+use serde::{Deserialize, Serialize};
+use uom::si::f64::{Information, Ratio, Time};
 
 /// Describe the SLA of a function submitted to be provisioned
 #[serde_with::serde_as]
@@ -34,7 +33,7 @@ pub struct Sla {
     pub env_vars: Vec<(String, String)>,
 
     #[serde_as(as = "information::Helper")]
-    pub input_max_size:Information,
+    pub input_max_size: Information,
 }
 
 /// A point in the Fog

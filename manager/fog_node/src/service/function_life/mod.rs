@@ -6,7 +6,7 @@ use crate::repository::function_tracking::FunctionTracking;
 use crate::service::auction::Auction;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation, FUNCTION_LIVE_TIMEOUT_MSECS};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use backoff::exponential::{ExponentialBackoff, ExponentialBackoffBuilder};
 use backoff::SystemClock;
 use helper::env_load;
@@ -25,6 +25,7 @@ pub struct FunctionLife {
     #[allow(dead_code)]
     neighbor_monitor:      Arc<NeighborMonitor>,
     node_query:            Arc<NodeQuery>,
+    #[allow(dead_code)]
     function_tracking:     Arc<FunctionTracking>,
     cron:                  Arc<Cron>,
     function_live_timeout: Arc<std::time::Duration>,

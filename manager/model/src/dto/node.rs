@@ -1,16 +1,18 @@
-use std::collections::HashMap;
-use std::fmt;
-use std::net::IpAddr;
-
-use helper::uom_helper::{information, ratio};
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
-use uom::si::f64::{Information, Ratio};
-
 use crate::view::auction::AcceptedBid;
 use crate::{
     BidId, FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
 };
+#[cfg(feature = "offline")]
+use helper::uom_helper::time;
+use helper::uom_helper::{information, ratio};
+use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
+use std::collections::HashMap;
+use std::fmt;
+use std::net::IpAddr;
+#[cfg(feature = "offline")]
+use uom::si::f64::Time;
+use uom::si::f64::{Information, Ratio};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -67,8 +69,11 @@ impl From<Vec<NodeId>> for NodeIdList {
 pub struct NodeDescription {
     pub ip:        IpAddr,
     pub port_http: FogNodeHTTPPort,
+    #[cfg(feature = "offline")]
+    pub latency:   Time,
 }
 
+#[serde_with::serde_as]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum NodeCategory {
     MarketConnected {
@@ -79,6 +84,9 @@ pub enum NodeCategory {
         parent_id:             NodeId,
         parent_node_ip:        IpAddr,
         parent_node_port_http: FogNodeHTTPPort,
+        #[cfg(feature = "offline")]
+        #[serde_as(as = "time::Helper")]
+        parent_latency:        Time,
     },
 }
 

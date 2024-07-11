@@ -13,6 +13,7 @@ pub enum States {
     Paid(Paid),
     Provisioned(Provisioned),
     Live(Live),
+    #[allow(dead_code)]
     Finished(Finished),
 }
 
