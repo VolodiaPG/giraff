@@ -7,8 +7,10 @@ use influxdb2::Client;
 use nutype::nutype;
 use std::net::IpAddr;
 use std::str::FromStr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
+use tracing::warn;
 
 #[nutype(derive(Clone, Debug), sanitize(with = to_snake), validate(len_char_min = 3, len_char_max = 64, not_empty))]
 pub struct InfluxName(String);
@@ -47,7 +49,7 @@ pub struct InstanceName(String);
 
 #[derive(Debug)]
 pub struct MetricsExporter {
-    database: Client,
+    database: Arc<Client>,
     instance: InstanceName,
     bucket:   InfluxBucket,
 }
@@ -97,11 +99,11 @@ impl MetricsExporter {
         instance: InstanceName,
     ) -> Result<Self> {
         let ret = Self {
-            database: Client::new(
+            database: Arc::new(Client::new(
                 format!("http://{}", address.clone().into_inner()),
                 org.clone().into_inner(),
                 token.clone().into_inner(),
-            ),
+            )),
             instance,
             bucket: bucket.clone(),
         };
@@ -129,15 +131,20 @@ impl MetricsExporter {
     ) -> Result<()> {
         let toto = vec![data.export(self.instance.clone().into_inner())];
         let s = stream::iter(toto);
-
-        self.database
-            .write_with_precision(
-                &self.bucket.clone().into_inner(),
-                s,
-                influxdb2::api::write::TimestampPrecision::Milliseconds,
-            )
-            .await
-            .context("Failed to write to influxdb2 database")?;
+        let client = self.database.clone();
+        let bucket = self.bucket.clone();
+        tokio::spawn(async move {
+            let res = client
+                .write_with_precision(
+                    &bucket.into_inner(),
+                    s,
+                    influxdb2::api::write::TimestampPrecision::Milliseconds,
+                )
+                .await;
+            if res.is_err() {
+                warn!("Failed to write to influxdb2 database");
+            };
+        });
         Ok(())
     }
 }

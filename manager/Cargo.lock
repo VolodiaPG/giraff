@@ -1059,6 +1059,7 @@ dependencies = [
  "serde_with",
  "thiserror",
  "tokio",
+ "tracing",
  "uom",
 ]
 
