@@ -1,15 +1,23 @@
-use anyhow::{Context, Result};
+#[cfg(not(feature = "offline"))]
+use anyhow::Context;
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use convert_case::{Case, Casing};
+#[cfg(not(feature = "offline"))]
 use futures::stream::{self};
 use influxdb2::models::WriteDataPoint;
+#[cfg(not(feature = "offline"))]
 use influxdb2::Client;
 use nutype::nutype;
 use std::net::IpAddr;
 use std::str::FromStr;
+#[cfg(not(feature = "offline"))]
 use std::sync::Arc;
+#[cfg(not(feature = "offline"))]
 use std::time::Duration;
+#[cfg(not(feature = "offline"))]
 use tokio::time::timeout;
+#[cfg(not(feature = "offline"))]
 use tracing::warn;
 
 #[nutype(derive(Clone, Debug), sanitize(with = to_snake), validate(len_char_min = 3, len_char_max = 64, not_empty))]
@@ -49,8 +57,11 @@ pub struct InstanceName(String);
 
 #[derive(Debug)]
 pub struct MetricsExporter {
+    #[cfg(not(feature = "offline"))]
     database: Arc<Client>,
+    #[cfg(not(feature = "offline"))]
     instance: InstanceName,
+    #[cfg(not(feature = "offline"))]
     bucket:   InfluxBucket,
 }
 
@@ -91,6 +102,7 @@ fn validate_ip_port(input: &str) -> bool {
 }
 
 impl MetricsExporter {
+    #[cfg(not(feature = "offline"))]
     pub async fn new(
         address: InfluxAddress,
         org: InfluxOrg,
@@ -123,12 +135,19 @@ impl MetricsExporter {
         Ok(ret)
     }
 
-    pub async fn observe(
-        &self,
-        // data: impl Stream<Item = impl WriteDataPoint> + Sync + Send +
-        // 'static,
-        data: impl InfluxData,
-    ) -> Result<()> {
+    #[cfg(feature = "offline")]
+    pub async fn new(
+        _address: InfluxAddress,
+        _org: InfluxOrg,
+        _token: InfluxToken,
+        _bucket: InfluxBucket,
+        _instance: InstanceName,
+    ) -> Result<Self> {
+        Ok(Self {})
+    }
+
+    #[cfg(not(feature = "offline"))]
+    pub async fn observe(&self, data: impl InfluxData) -> Result<()> {
         let toto = vec![data.export(self.instance.clone().into_inner())];
         let s = stream::iter(toto);
         let client = self.database.clone();
@@ -145,6 +164,16 @@ impl MetricsExporter {
                 warn!("Failed to write to influxdb2 database");
             };
         });
+        Ok(())
+    }
+
+    #[cfg(feature = "offline")]
+    pub async fn observe(
+        &self,
+        // data: impl Stream<Item = impl WriteDataPoint> + Sync + Send +
+        // 'static,
+        _data: impl InfluxData,
+    ) -> Result<()> {
         Ok(())
     }
 }
