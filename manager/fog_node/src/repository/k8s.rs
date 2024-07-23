@@ -1,13 +1,7 @@
 extern crate uom;
-use anyhow::{anyhow, bail, Context, Result};
-use k8s_openapi::api::core::v1::Node;
-use kube::api::ListParams;
-use kube::{Api, Client};
-use kube_metrics::node::NodeMetrics;
-use lazy_regex::regex;
+use anyhow::Result;
 use model::dto::k8s::{Allocatable, Metrics, Usage};
 use std::collections::HashMap;
-use std::str::FromStr;
 
 pub struct K8s;
 
@@ -15,7 +9,14 @@ impl K8s {
     #[allow(dead_code)]
     pub fn new() -> Self { Self }
 
+    #[cfg(not(feature = "offline"))]
     pub async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>> {
+        use anyhow::{anyhow, Context};
+        use k8s_openapi::api::core::v1::Node;
+        use kube::api::ListParams;
+        use kube::{Api, Client};
+        use kube_metrics::node::NodeMetrics;
+
         let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
 
         let client = Client::try_default()
@@ -88,7 +89,37 @@ impl K8s {
 
         Ok(aggregated_metrics)
     }
+
+    #[cfg(feature = "offline")]
+    pub async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>> {
+        use helper::uom_helper;
+        let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
+        aggregated_metrics.insert(
+            "toto_node".to_string(),
+            Metrics {
+                usage:       Some(Usage {
+                    cpu:    uom::si::f64::Ratio::new::<
+                        uom_helper::cpu_ratio::cpu,
+                    >(0.0),
+                    memory: uom::si::f64::Information::new::<
+                        uom::si::information::megabyte,
+                    >(0.0),
+                }),
+                allocatable: Some(Allocatable {
+                    cpu:    uom::si::f64::Ratio::new::<
+                        uom_helper::cpu_ratio::cpu,
+                    >(1.0),
+                    memory: uom::si::f64::Information::new::<
+                        uom::si::information::megabyte,
+                    >(256.0),
+                }),
+            },
+        );
+        Ok(aggregated_metrics)
+    }
 }
+
+#[cfg(not(feature = "offline"))]
 enum MissingUnitType<'a> {
     /// Missing just the rightmost part, eg. B for Bytes
     Suffix(&'a str),
@@ -97,14 +128,16 @@ enum MissingUnitType<'a> {
     Complete(&'a str),
 }
 
+#[cfg(not(feature = "offline"))]
 fn parse_quantity<T>(
     quantity: &str,
     missing_unit: &MissingUnitType,
 ) -> Result<T>
 where
-    T: FromStr,
+    T: std::str::FromStr,
 {
-    let re = regex!(r"^(\d+)(\w*)$");
+    use anyhow::Context;
+    let re = lazy_regex::regex!(r"^(\d+)(\w*)$");
 
     let captures = re
         .captures(quantity)
@@ -121,13 +154,13 @@ where
     };
 
     let qty = format!("{} {}", measure.as_str(), unit).parse::<T>();
-    let Ok(qty) = qty else{
-            bail!(
-                "Failed to parse the quantity string to the final required \
-                 type '{}'",
-                quantity.to_string()
-            )
-        };
+    let Ok(qty) = qty else {
+        anyhow::bail!(
+            "Failed to parse the quantity string to the final required type \
+             '{}'",
+            quantity.to_string()
+        )
+    };
 
     Ok(qty)
 }
