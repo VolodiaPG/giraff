@@ -32,7 +32,7 @@ pub struct Locked {}
 pub struct Unlocked {}
 
 pub struct Function<State = Unlocked> {
-    function:          Arc<FaaSBackend>,
+    function:          Arc<Box<dyn FaaSBackend>>,
     node_situation:    Arc<NodeSituation>,
     neighbor_monitor:  Arc<NeighborMonitor>,
     node_query:        Arc<NodeQuery>,
@@ -62,7 +62,7 @@ pub(in crate::service) fn satisfiability_check(
 
 impl Function {
     pub fn new(
-        function: Arc<FaaSBackend>,
+        function: Arc<Box<dyn FaaSBackend>>,
         node_situation: Arc<NodeSituation>,
         neighbor_monitor: Arc<NeighborMonitor>,
         node_query: Arc<NodeQuery>,

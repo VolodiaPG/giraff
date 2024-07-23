@@ -51,7 +51,7 @@ _clippy *FLAGS:
     cargo clippy --fix --allow-staged --allow-dirty {{ FLAGS }}  -- -A clippy::let_unit_value -D warnings
 
 # Run the market
-run_market *FLAGS:
+run_market jaeger *FLAGS:
     SERVER_PORT={{ MARKET_PORT }} \
      RUST_LOG={{ RUST_LOG }} \
      INFLUX_ADDRESS="127.0.0.1:9086" \
@@ -59,11 +59,11 @@ run_market *FLAGS:
      INFLUX_ORG="faasfog" \
      INFLUX_BUCKET="faasfog" \
      INSTANCE_NAME="marketplace" \
-     ENABLE_COLLECTOR="true" \
+     ENABLE_COLLECTOR="{{ jaeger }}" \
      cargo run --bin market {{ FLAGS }}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type MY_IP_ADDRESS:
+run_fog_node node_type MY_IP_ADDRESS jaeger="false":
     #!.venv/bin/python
     import os
     import base64
@@ -186,7 +186,11 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars = {}
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
     env_vars['OPENFAAS_USERNAME'] = "admin"
-    env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{ KUBECONFIG }} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
+    try:
+      env_vars['OPENFAAS_PASSWORD'] = base64.b64decode(subprocess.getoutput('KUBECONFIG={{ KUBECONFIG }} kubectl get secret -n openfaas basic-auth -o jsonpath="{.data.basic-auth-password}"')).decode("utf-8")
+    except:
+      pass
+
     env_vars['KUBECONFIG'] = "{{ KUBECONFIG }}"
     env_vars['OPENFAAS_PORT_EXTERNAL'] = "31112"
     env_vars['OPENFAAS_PORT_INTERNAL'] = "31112"
@@ -194,7 +198,7 @@ run_fog_node node_type MY_IP_ADDRESS:
     env_vars['LOG_CONFIG_FILENAME'] = "{{ node_type }}.log"
     env_vars['COLLECTOR_IP'] = "127.0.0.1"
     env_vars['OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION']="http://10.42.0.1:4317"
-    env_vars['ENABLE_COLLECTOR'] = "true"
+    env_vars['ENABLE_COLLECTOR'] = "{{ jaeger }}"
 
     env_vars['INFLUX_ADDRESS']="10.42.0.1:9086"
     env_vars['INFLUX_TOKEN']="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ=="
@@ -223,15 +227,15 @@ run_fog_node node_type MY_IP_ADDRESS:
     print(cmd)
     os.system(cmd)
 
-run MY_IP_ADDRESS *FLAGS="--features auction": (build FLAGS)
-    mprocs "just run_fog_node market {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_2 {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_3 {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_1 {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_12 {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_34 {{ MY_IP_ADDRESS }}" \
-      "just run_fog_node node_35 {{ MY_IP_ADDRESS }}" \
-      "just run_market {{ FLAGS }}"
+run MY_IP_ADDRESS jaeger="false" *FLAGS="": (build FLAGS)
+    mprocs "just run_fog_node market {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_2 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_3 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_1 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_12 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_34 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_fog_node node_35 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+      "just run_market {{ jaeger }}  {{ FLAGS }}"
 
 expe localhost_ip:
     #!/usr/bin/env bash

@@ -38,8 +38,7 @@ use actix_web::{middleware, web, App, HttpServer};
 use actix_web_opentelemetry::RequestTracing;
 use anyhow::Context;
 use model::dto::node::{NodeSituationData, NodeSituationDisk};
-use model::{FogNodeFaaSPortExternal, FogNodeFaaSPortInternal};
-use openfaas::{Configuration, DefaultApiClient};
+use model::FogNodeFaaSPortExternal;
 use opentelemetry::global;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
 use reqwest_middleware::ClientBuilder;
@@ -144,31 +143,18 @@ pub fn init_subscriber(name: String, env_filter: String) {
     }
 }
 
-// TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    global::set_text_map_propagator(TraceContextPropagator::new());
-
-    init_subscriber(
-        env::var("LOG_CONFIG_FILENAME")
-            .unwrap_or_else(|_| "fog_node.log".to_string()),
-        "info".into(),
-    );
-
-    debug!("Tracing initialized.");
-
+#[cfg(not(feature = "offline"))]
+async fn connect_openfaas(
+    http_client: Arc<reqwest_middleware::ClientWithMiddleware>,
+    port_openfaas_external: FogNodeFaaSPortExternal,
+) -> Arc<Box<dyn FaaSBackend>> {
     let port_openfaas_internal = env::var("OPENFAAS_PORT_INTERNAL")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .unwrap_or(8080);
-    let port_openfaas_external = env::var("OPENFAAS_PORT_EXTERNAL")
-        .unwrap_or_else(|_| "31112".to_string())
-        .parse::<u16>()
-        .unwrap_or(31112);
+
     let port_openfaas_internal =
-        FogNodeFaaSPortInternal::from(port_openfaas_internal);
-    let port_openfaas_external =
-        FogNodeFaaSPortExternal::from(port_openfaas_external);
+        model::FogNodeFaaSPortInternal::from(port_openfaas_internal);
     let ip_openfaas =
         env::var("OPENFAAS_IP").unwrap_or_else(|_| "127.0.0.1".to_string());
     debug!(
@@ -181,6 +167,52 @@ async fn main() -> anyhow::Result<()> {
     debug!("username: {:?}", username);
     debug!("password?: {:?}", password.is_some());
 
+    let auth = username.map(|username| (username, password));
+
+    // Repositories
+    let client = Arc::new(openfaas::DefaultApiClient::new(
+        openfaas::Configuration {
+            base_path:  format!(
+                "http://{ip_openfaas}:{port_openfaas_internal}"
+            ),
+            basic_auth: auth,
+        },
+        http_client.clone(),
+    ));
+
+    Arc::new(Box::new(repository::faas::FaaSBackendImpl::new(client.clone())))
+}
+
+#[cfg(feature = "offline")]
+async fn connect_openfaas(
+    _http_client: Arc<reqwest_middleware::ClientWithMiddleware>,
+    _openfaas_port_external: FogNodeFaaSPortExternal,
+) -> Arc<Box<dyn FaaSBackend>> {
+    Arc::new(Box::new(repository::faas::FaaSBackendOfflineImpl::new(
+        Duration::from_secs(15),
+    )))
+}
+
+// TODO: Use https://crates.io/crates/rnp instead of a HTTP ping as it is currently the case
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    global::set_text_map_propagator(TraceContextPropagator::new());
+
+    init_subscriber(
+        env::var("LOG_CONFIG_FILENAME")
+            .unwrap_or_else(|_| "fog_node.log".to_string()),
+        "info".into(),
+    );
+
+    let port_openfaas_external = env::var("OPENFAAS_PORT_EXTERNAL")
+        .unwrap_or_else(|_| "31112".to_string())
+        .parse::<u16>()
+        .unwrap_or(31112);
+
+    let port_openfaas_external =
+        FogNodeFaaSPortExternal::from(port_openfaas_external);
+
+    debug!("Tracing initialized.");
     let config = load_config_from_env("CONFIG".to_string())
         .map_err(|err| {
             error!(
@@ -206,20 +238,6 @@ async fn main() -> anyhow::Result<()> {
     //    .with(RetryTransientMiddleware::new_with_policy(retry_policy));
 
     let http_client = Arc::new(client_builder.build());
-
-    let auth = username.map(|username| (username, password));
-
-    // Repositories
-    let client = Arc::new(DefaultApiClient::new(
-        Configuration {
-            base_path:  format!(
-                "http://{ip_openfaas}:{port_openfaas_internal}"
-            ),
-            basic_auth: auth,
-        },
-        http_client.clone(),
-    ));
-
     let metrics = Arc::new(
         match MetricsExporter::new(
             env_load!(InfluxAddress, INFLUX_ADDRESS),
@@ -261,7 +279,7 @@ async fn main() -> anyhow::Result<()> {
     let disk_data = NodeSituationDisk::new(config);
     let node_situation = Arc::new(NodeSituation::new(NodeSituationData::new(
         disk_data.unwrap(),
-        port_openfaas_external,
+        port_openfaas_external.clone(),
     )));
 
     info!("Current node ID is {}", node_situation.get_my_id());
@@ -303,7 +321,9 @@ async fn main() -> anyhow::Result<()> {
     // Services
     let neighbor_monitor_service =
         Arc::new(NeighborMonitor::new(latency_estimation_repo));
-    let faas_service = Arc::new(FaaSBackend::new(client.clone()));
+
+    let faas_service =
+        connect_openfaas(http_client, port_openfaas_external).await;
     let function = Arc::new(Function::new(
         faas_service.clone(),
         node_situation.clone(),

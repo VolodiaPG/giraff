@@ -1,16 +1,15 @@
+use super::{FaaSBackend, RemovableFunctionRecord};
 use crate::{
     INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN,
     OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION,
 };
-
 use anyhow::{Context, Result};
 use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
-use model::dto::function::{Live, Paid, Provisioned};
+use model::dto::function::{Paid, Provisioned};
 use model::SlaId;
-use nutype::nutype;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
 use openfaas::models::{FunctionDefinition, Limits, Requests};
 use openfaas::DefaultApiClient;
@@ -20,35 +19,17 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 const ENV_VAR_SLA: &str = "SLA";
-
-#[nutype(derive(Clone, Debug), validate(greater_or_equal = 0))]
-pub struct FunctionTimeout(u64);
-
 #[derive(Debug)]
-pub struct FaaSBackend {
+pub struct FaaSBackendImpl {
     client: Arc<DefaultApiClient>,
 }
 
-pub struct RemovableFunctionRecord {
-    function_name: String,
-}
-
-impl From<Provisioned> for RemovableFunctionRecord {
-    fn from(value: Provisioned) -> Self {
-        Self { function_name: value.function_name }
-    }
-}
-
-impl From<Live> for RemovableFunctionRecord {
-    fn from(value: Live) -> Self {
-        Self { function_name: value.function_name }
-    }
-}
-
-impl FaaSBackend {
+impl FaaSBackendImpl {
     pub fn new(client: Arc<DefaultApiClient>) -> Self { Self { client } }
-
-    pub async fn provision_function(
+}
+#[async_trait::async_trait]
+impl FaaSBackend for FaaSBackendImpl {
+    async fn provision_function(
         &self,
         id: SlaId,
         bid: Paid,
@@ -126,12 +107,12 @@ impl FaaSBackend {
         Ok(bid)
     }
 
-    pub async fn check_is_live(&self, function: &Provisioned) -> Result<()> {
+    async fn check_is_live(&self, function: &Provisioned) -> Result<()> {
         self.client.check_is_live(function.function_name.clone()).await?;
         Ok(())
     }
 
-    pub async fn remove_function(
+    async fn remove_function(
         &self,
         function: RemovableFunctionRecord,
     ) -> Result<()> {
