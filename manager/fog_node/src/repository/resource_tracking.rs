@@ -1,15 +1,15 @@
-use crate::monitoring::{CpuObservedFromFogNode, MemoryObservedFromFogNode};
-
 use super::k8s::K8s;
+use crate::monitoring::{CpuObservedFromFogNode, MemoryObservedFromFogNode};
 use anyhow::{ensure, Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
+use helper::uom_helper::cpu_ratio::cpu;
 use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::warn;
-use uom::si::f64::{Information, Ratio};
-use uom::si::information::{self, byte};
-use uom::si::ratio::part_per_billion;
+use uom::num_traits::ToPrimitive;
+use uom::si::information::{byte, gigabyte};
+use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug)]
 pub struct ResourceTracking {
@@ -51,11 +51,11 @@ impl ResourceTracking {
                             "Configured reserved CPU (that will be used) >
                     K8S available CPU detected: {:?} -> {:?}",
                             free_cpu.into_format_args(
-                                helper::uom_helper::cpu_ratio::cpu,
+                                cpu,
                                 uom::fmt::DisplayStyle::Abbreviation
                             ),
                             reserved_cpu.into_format_args(
-                                helper::uom_helper::cpu_ratio::cpu,
+                                cpu,
                                 uom::fmt::DisplayStyle::Abbreviation
                             )
                         );
@@ -66,11 +66,11 @@ impl ResourceTracking {
                             "Configured reserved RAM (that will be used) >
                     K8S available RAM detected: {:?} -> {:?}",
                             free_ram.into_format_args(
-                                information::gigabyte,
+                                gigabyte,
                                 uom::fmt::DisplayStyle::Abbreviation
                             ),
                             reserved_memory.into_format_args(
-                                information::gigabyte,
+                                gigabyte,
                                 uom::fmt::DisplayStyle::Abbreviation
                             )
                         );
@@ -86,8 +86,10 @@ impl ResourceTracking {
                 (
                     name.clone(),
                     (
-                        Information::new::<byte>(0.0),
-                        Ratio::new::<part_per_billion>(0.0),
+                        Information::new::<byte>(num_rational::Ratio::new(
+                            0, 1,
+                        )),
+                        Ratio::new::<cpu>(num_rational::Ratio::new(0, 1)),
                     ),
                 )
             })
@@ -135,8 +137,11 @@ impl ResourceTracking {
         let timestamp = Utc::now();
         self.metrics
             .observe(MemoryObservedFromFogNode {
-                initial_allocatable: avail_mem.get::<information::gigabyte>(),
-                used: used_mem.get::<information::gigabyte>(),
+                initial_allocatable: avail_mem
+                    .get::<gigabyte>()
+                    .to_f64()
+                    .unwrap_or(0.0),
+                used: used_mem.get::<gigabyte>().to_f64().unwrap_or(0.0),
                 name: name.to_string(),
                 timestamp,
             })
@@ -144,9 +149,13 @@ impl ResourceTracking {
         self.metrics
             .observe(CpuObservedFromFogNode {
                 initial_allocatable: avail_cpu
-                    .get::<helper::uom_helper::cpu_ratio::cpu>(
-                ),
-                used: used_cpu.get::<helper::uom_helper::cpu_ratio::cpu>(),
+                    .get::<helper::uom_helper::cpu_ratio::cpu>()
+                    .to_f64()
+                    .unwrap_or(0.0),
+                used: used_cpu
+                    .get::<helper::uom_helper::cpu_ratio::cpu>()
+                    .to_f64()
+                    .unwrap_or(0.0),
                 name: name.to_string(),
                 timestamp,
             })
@@ -159,20 +168,23 @@ impl ResourceTracking {
         &self,
         name: String,
         memory: Information,
-        cpu: Ratio,
+        cc: Ratio,
     ) -> Result<()> {
         self.key_exists(&name)
             .await
             .with_context(|| format!("Cannot set used metric {}", name))?;
         assert!(
-            cpu > Ratio::new::<helper::uom_helper::cpu_ratio::cpu>(0.0),
+            cc >= Ratio::new::<cpu>(num_rational::Ratio::new(0, 1)),
             "CPU value to set is not > 0"
         );
         assert!(
-            memory > Information::new::<information::gigabyte>(0.0),
+            memory
+                >= Information::new::<gigabyte>(num_rational::Ratio::new(
+                    0, 1
+                )),
             "Memory value to set is not > 0"
         );
-        self.resources_used.insert(name.clone(), (memory, cpu));
+        self.resources_used.insert(name.clone(), (memory, cc));
         self.update_metrics(&name).await.with_context(|| {
             format!("Failed to update prometheus metric {}", name)
         })?;

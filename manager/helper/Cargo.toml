@@ -20,6 +20,7 @@ convert_case = "0.6"
 futures = "0.3"
 influxdb2 = "0.4"
 influxdb2-structmap = "0.2"
+num-rational = "0.4.2"
 num-traits = "0.2"
 lazy-regex = "3.1"
 regex = "1.8"
@@ -34,8 +35,9 @@ serde_with = "3.4"
 tokio = { version = "1.28", default-features = false, features = ["time"] }
 thiserror = "1.0"
 tracing = "0.1"
-uom = { version = "0.34", default-features = false, features = [
+uom = { version = "0.36", default-features = false, features = [
     "f64",
+    "rational64",
     "si",
     "autoconvert",
 ] }

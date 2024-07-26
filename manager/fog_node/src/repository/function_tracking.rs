@@ -39,10 +39,16 @@ pub struct FunctionTracking {
 }
 
 impl FunctionTracking {
-    pub fn insert(&self, record: Proposed) -> SlaId {
+    pub fn insert(&self, record: Proposed) {
         let id = record.sla.id.clone();
         self.database.insert(id.clone(), record.into());
-        id
+        #[cfg(test)]
+        assert!(matches!(
+            self.database.get(&id).unwrap().value(),
+            States::Proposed(_)
+        ));
+        #[cfg(test)]
+        assert_eq!(self.get_proposed(&id).unwrap().sla.id, id);
     }
 
     pub fn get_proposed(&self, id: &SlaId) -> Option<Proposed> {
@@ -94,9 +100,7 @@ impl FunctionTracking {
             return;
         };
         let value = previous_record.value_mut();
-        if let States::Live(_) = value {
-            *value = record.into();
-        };
+        *value = record.into();
     }
 
     pub fn get_provisioned(&self, id: &SlaId) -> Option<Provisioned> {
@@ -142,6 +146,14 @@ impl FunctionTracking {
             States::Live(x) => {
                 Some(Box::new(x.clone()) as Box<dyn Finishable + Send + Sync>)
             }
+            _ => None,
+        })
+    }
+
+    #[cfg(test)]
+    pub fn get_finished(&self, id: &SlaId) -> Option<Finished> {
+        self.database.get(id).and_then(|x| match x.value() {
+            States::Finished(x) => Some(x.clone()),
             _ => None,
         })
     }

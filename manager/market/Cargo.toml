@@ -57,8 +57,9 @@ tracing-appender = "0.2"
 tracing-forest = { version = "0.1", features = ["tokio"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-opentelemetry = { version = "0.22" }
-uom = { version = "0.34", default-features = false, features = [
+uom = { version = "0.36", default-features = false, features = [
     "f64",
+    "rational64",
     "si",
     "autoconvert",
 ] }

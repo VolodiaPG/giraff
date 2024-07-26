@@ -1,7 +1,7 @@
 pub use self::function_list_entry::FunctionListEntry;
 pub use function_definition::{FunctionDefinition, Limits, Requests};
-use uom::si::f64::{Information, Ratio};
 use uom::si::information;
+use uom::si::rational64::{Information, Ratio};
 
 pub struct InformationHelper;
 pub struct RatioHelper;

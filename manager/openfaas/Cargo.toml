@@ -27,6 +27,6 @@ serde_with = "3.4.0"
 thiserror = "1.0.31"
 tokio = { version = "1.20.1", features = ["full"] }
 tracing = "0.1.37"
-uom = { version = "0.34.0", features = ["f64", "si", "autoconvert"] }
+uom = { version = "0.36", features = ["f64", "si"] }
 
 helper = { path = "../helper" }

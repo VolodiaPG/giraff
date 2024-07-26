@@ -39,10 +39,22 @@ check subcommand="check":
 
     just _{{ subcommand }} --features quadratic_rates,mincpurandom,offline
 
+test: (check "test")
+
 # Check outdated or unused deps (req. cargo-outdated + updeps create)
 check_deps:
     cargo outdated -R
     cargo udeps --all-targets
+
+_test *FLAGS:
+    #!/usr/bin/env bash
+    export FUNCTION_LIVE_TIMEOUT_MSECS=1000
+    export RATIO_AA=1
+    export RATIO_BB=1
+    export RATIO_CC=1
+    export ELECTRICITY_PRICE=1
+
+    cargo test {{ FLAGS }}
 
 _check *FLAGS:
     cargo check {{ FLAGS }}
@@ -127,7 +139,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         my_public_ip: "127.0.0.1",
         my_public_port_http: "3034",
         reserved_cpu: "2 cpu",
-        reserved_memory: "1.5 GiB",
+        reserved_memory: "1500 MiB",
         tags: ["node_connected_2"],
     )'''
 
@@ -192,7 +204,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
       pass
 
     env_vars['KUBECONFIG'] = "{{ KUBECONFIG }}"
-    env_vars['OPENFAAS_PORT_EXTERNAL'] = "31112"
+    env_vars['OPENFAAS_PORT_EXTERNAL'] = "1112"
     env_vars['OPENFAAS_PORT_INTERNAL'] = "31112"
     env_vars['RUST_LOG'] = "{{ RUST_LOG }}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{ node_type }}.log"

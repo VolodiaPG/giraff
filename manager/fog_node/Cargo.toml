@@ -62,13 +62,14 @@ futures = "0.3"
 influxdb2 = "0.4"
 influxdb2-derive = "0.1"
 influxdb2-structmap = "0.2"
-num-traits = "0.2"
-nutype = "0.4"
 k8s-openapi = { version = "0.20", features = ["latest"] }
 kube = { version = "0.87", features = ["client", "runtime"] }
 lazy-regex = "3.1"
 lazy_static = "1.4"
 mimalloc = { version = "0.1", default-features = false }
+num-rational = "0.4.2"
+num-traits = "0.2"
+nutype = "0.4"
 opentelemetry = { version = "0.21" }
 opentelemetry_sdk = { version = "0.21", features = [
     "rt-tokio",
@@ -100,8 +101,9 @@ tracing-appender = "0.2"
 tracing-forest = { version = "0.1", features = ["tokio"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-opentelemetry = { version = "0.22" }
-uom = { version = "0.34", default-features = false, features = [
+uom = { version = "0.36", default-features = false, features = [
     "f64",
+    "rational64",
     "si",
     "autoconvert",
 ] }

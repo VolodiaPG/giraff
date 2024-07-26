@@ -1,4 +1,4 @@
-use uom::si::f64::{Information, Ratio};
+use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug)]
 pub struct Allocatable {

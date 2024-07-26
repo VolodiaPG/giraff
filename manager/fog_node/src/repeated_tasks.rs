@@ -5,8 +5,11 @@ use crate::service::neighbor_monitor::NeighborMonitor;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use helper::monitoring::MetricsExporter;
+use helper::uom_helper::cpu_ratio::cpu;
 use std::sync::Arc;
 use tracing::warn;
+use uom::num_traits::ToPrimitive;
+use uom::si::information::megabyte;
 
 pub async fn init(
     cron: Arc<Cron>,
@@ -67,16 +70,24 @@ async fn _measure(
         let timestamp = Utc::now();
         metricsdb
             .observe(MemoryObservedFromPlatform {
-                allocatable: allocatable.memory.value,
-                used: usage.memory.value,
+                allocatable: allocatable
+                    .memory
+                    .get::<megabyte>()
+                    .to_f64()
+                    .unwrap_or(0.0),
+                used: usage.memory.get::<megabyte>().to_f64().unwrap_or(0.0),
                 name: name.to_string(),
                 timestamp,
             })
             .await?;
         metricsdb
             .observe(CpuObservedFromPlatform {
-                allocatable: allocatable.cpu.value,
-                used: usage.cpu.value,
+                allocatable: allocatable
+                    .cpu
+                    .get::<cpu>()
+                    .to_f64()
+                    .unwrap_or(0.0),
+                used: usage.cpu.get::<cpu>().to_f64().unwrap_or(0.0),
                 name: name.to_string(),
                 timestamp,
             })

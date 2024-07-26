@@ -13,9 +13,10 @@ use helper::env_load;
 use model::view::auction::AccumulatedLatency;
 use model::SlaId;
 use tracing::{error, info, instrument, trace, warn};
-use uom::si::f64::{Information, Ratio, Time};
+use uom::si::f64::Time;
 use uom::si::information::byte;
 use uom::si::ratio::ratio;
+use uom::si::rational64::Information;
 use uom::si::time::second;
 
 pub struct FunctionLife {
@@ -168,10 +169,22 @@ impl FunctionLife {
                         )
                         .map_err(|err| error!("{:?}", err))
                     else {
+                        #[cfg(test)]
+                        panic!(
+                            "Failed to lock function service to unprovision \
+                             function"
+                        );
+
                         return;
                     };
 
                     if let Err(err) = function.finish_function(id).await {
+                        #[cfg(test)]
+                        panic!(
+                            "Failed to finish function when unprovisioning \
+                             function"
+                        );
+
                         warn!(
                             "Failed to drop paid function as stated in the \
                              cron job {:?}",
@@ -238,13 +251,16 @@ impl FunctionLife {
 #[allow(dead_code)]
 fn get_tcp_latency(
     rtt: Time,
-    packet_loss: Ratio,
+    packet_loss: uom::si::f64::Ratio,
     data_size: Information,
 ) -> Time {
-    let mtu = Information::new::<byte>(DEFAULT_MTU);
-    let mss = mtu - Information::new::<byte>(40.0); // mtu - <tcp
-                                                    // protocol overhead>
-                                                    //let data_size = if data_size < mss { mss } else { data_size };
+    let data_size = *data_size.get::<byte>().numer() as f64
+        / *data_size.get::<byte>().denom() as f64;
+    let data_size = uom::si::f64::Information::new::<byte>(data_size);
+    let mtu = uom::si::f64::Information::new::<byte>(DEFAULT_MTU);
+    let mss = mtu - uom::si::f64::Information::new::<byte>(40.0); // mtu - <tcp
+                                                                  // protocol overhead>
+                                                                  //let data_size = if data_size < mss { mss } else { data_size };
     let mut tcp_max_congestion_window_size = (data_size / mss).get::<ratio>();
     tcp_max_congestion_window_size =
         if tcp_max_congestion_window_size < TCP_MAX_CONGESTION_WINDOW_SIZE {
@@ -275,16 +291,18 @@ fn get_tcp_latency(
 }
 #[cfg(test)]
 mod tests {
-    use uom::si::f64::{Information, Ratio, Time};
+    use uom::si::f64::{Ratio, Time};
     use uom::si::information::{byte, kilobyte};
     use uom::si::ratio::ratio;
+    use uom::si::rational64::Information;
     use uom::si::time::millisecond;
 
     use crate::service::function_life::get_tcp_latency;
     #[test]
     fn test_under_mtu_latency() {
         let rtt = Time::new::<millisecond>(20.0);
-        let data_size = Information::new::<byte>(1000.0);
+        let data_size =
+            Information::new::<byte>(num_rational::Ratio::new(1000, 1));
         let packet_loss = Ratio::new::<ratio>(1e-7);
         let lat = get_tcp_latency(rtt, packet_loss, data_size);
 
@@ -294,7 +312,8 @@ mod tests {
     #[test]
     fn test_over_mtu_latency() {
         let rtt = Time::new::<millisecond>(20.0);
-        let data_size = Information::new::<kilobyte>(100.0);
+        let data_size =
+            Information::new::<kilobyte>(num_rational::Ratio::new(100, 1));
         let packet_loss = Ratio::new::<ratio>(0.0);
         let lat = get_tcp_latency(rtt, packet_loss, data_size);
         println!("(over)lat: {:?}", lat);
@@ -304,7 +323,8 @@ mod tests {
     #[test]
     fn test_over_mtu_latency_loss() {
         let rtt = Time::new::<millisecond>(20.0);
-        let data_size = Information::new::<kilobyte>(100.0);
+        let data_size =
+            Information::new::<kilobyte>(num_rational::Ratio::new(100, 1));
         let packet_loss = Ratio::new::<ratio>(0.01);
         let lat = get_tcp_latency(rtt, packet_loss, data_size);
 
@@ -314,7 +334,8 @@ mod tests {
     #[test]
     fn test_under_mtu_latency_loss() {
         let rtt = Time::new::<millisecond>(20.0);
-        let data_size = Information::new::<byte>(100.0);
+        let data_size =
+            Information::new::<byte>(num_rational::Ratio::new(100, 1));
         let packet_loss = Ratio::new::<ratio>(0.01);
         let lat = get_tcp_latency(rtt, packet_loss, data_size);
 

@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tracing::{error, trace, warn};
-use uom::si::f64::{Information, Ratio};
+use uom::si::rational64::{Information, Ratio};
 use uom::si::time::millisecond;
 
 pub struct UnprovisionEvent {
@@ -54,8 +54,10 @@ pub(in crate::service) fn satisfiability_check(
     available_cpu: &Ratio,
     sla: &Sla,
 ) -> bool {
-    let would_be_used_ram = *used_ram + (sla.memory * sla.max_replica as f64);
-    let would_be_used_cpu = *used_cpu + (sla.cpu * sla.max_replica as f64);
+    let would_be_used_ram = *used_ram
+        + (sla.memory * num_rational::Ratio::new(sla.max_replica as i64, 1));
+    let would_be_used_cpu = *used_cpu
+        + (sla.cpu * num_rational::Ratio::new(sla.max_replica as i64, 1));
 
     would_be_used_cpu < *available_cpu && would_be_used_ram < *available_ram
 }

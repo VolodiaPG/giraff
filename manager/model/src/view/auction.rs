@@ -38,7 +38,7 @@ impl Default for AccumulatedLatency {
             median:             Time::new::<millisecond>(0.0),
             average:            Time::new::<millisecond>(0.0),
             median_uncertainty: Time::new::<millisecond>(0.0),
-            packet_loss:        Ratio::new::<ratio>(0.0),
+            packet_loss:        uom::si::f64::Ratio::new::<ratio>(0.0),
         }
     }
 }

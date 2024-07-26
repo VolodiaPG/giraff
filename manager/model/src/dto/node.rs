@@ -4,7 +4,7 @@ use crate::{
 };
 #[cfg(feature = "offline")]
 use helper::uom_helper::time;
-use helper::uom_helper::{information, ratio};
+use helper::uom_helper::{cpu, information};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use std::fmt;
 use std::net::IpAddr;
 #[cfg(feature = "offline")]
 use uom::si::f64::Time;
-use uom::si::f64::{Information, Ratio};
+use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
@@ -113,7 +113,7 @@ pub struct NodeSituationDisk {
     pub tags:                Vec<String>,
     #[serde_as(as = "information::Helper")]
     pub reserved_memory:     Information,
-    #[serde_as(as = "ratio::Helper")]
+    #[serde_as(as = "cpu::Helper")]
     pub reserved_cpu:        Ratio,
 }
 

@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use std::net::IpAddr;
 #[cfg(feature = "offline")]
 use uom::si::f64::Time;
-use uom::si::f64::{Information, Ratio};
+use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug)]
 pub struct NodeSituation {

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use uom::si::f64::{Information, Ratio};
+use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug, Serialize, Default)]
 pub struct FunctionDefinition {

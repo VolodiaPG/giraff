@@ -1,9 +1,10 @@
 use super::super::domain::sla::Sla;
 use super::super::NodeId;
 use crate::domain::sla::DataFlow;
-use helper::uom_helper::{information, ratio, time};
+use helper::uom_helper::{cpu, information, time};
 use serde::{Deserialize, Serialize};
-use uom::si::f64::{Information, Ratio, Time};
+use uom::si::f64::Time;
+use uom::si::rational64::{Information, Ratio};
 
 /// Describe the SLA of a function submitted to be provisioned
 #[serde_with::serde_as]
@@ -15,7 +16,7 @@ pub struct SlaRequest {
     #[serde_as(as = "information::Helper")]
     pub memory: Information,
 
-    #[serde_as(as = "ratio::Helper")]
+    #[serde_as(as = "cpu::Helper")]
     pub cpu: Ratio,
 
     #[serde_as(as = "time::Helper")]
@@ -28,7 +29,7 @@ pub struct SlaRequest {
     // #[serde_as(as = "time::Helper")]
     // pub max_time_before_hot: Time,
     #[serde_as(as = "time::Helper")]
-    pub duration: Time,
+    pub duration:       Time,
 
     pub max_replica: u64,
 

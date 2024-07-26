@@ -1,9 +1,11 @@
-extern crate uom;
 use anyhow::Result;
 use model::dto::k8s::{Allocatable, Metrics, Usage};
 use std::collections::HashMap;
 
 pub struct K8s;
+
+#[cfg(feature = "offline")]
+pub const OFFLINE_NODE_K8S: &str = "node";
 
 impl K8s {
     #[allow(dead_code)]
@@ -92,26 +94,25 @@ impl K8s {
 
     #[cfg(feature = "offline")]
     pub async fn get_k8s_metrics(&self) -> Result<HashMap<String, Metrics>> {
-        use helper::uom_helper;
+        use helper::uom_helper::cpu_ratio::cpu;
+        use uom::si::information::megabyte;
+        use uom::si::rational64::{Information, Ratio};
+
         let mut aggregated_metrics: HashMap<String, Metrics> = HashMap::new();
         aggregated_metrics.insert(
-            "toto_node".to_string(),
+            OFFLINE_NODE_K8S.to_string(),
             Metrics {
                 usage:       Some(Usage {
-                    cpu:    uom::si::f64::Ratio::new::<
-                        uom_helper::cpu_ratio::cpu,
-                    >(0.0),
-                    memory: uom::si::f64::Information::new::<
-                        uom::si::information::megabyte,
-                    >(0.0),
+                    cpu:    Ratio::new::<cpu>(num_rational::Ratio::new(0, 1)),
+                    memory: Information::new::<megabyte>(
+                        num_rational::Ratio::new(0, 1),
+                    ),
                 }),
                 allocatable: Some(Allocatable {
-                    cpu:    uom::si::f64::Ratio::new::<
-                        uom_helper::cpu_ratio::cpu,
-                    >(1.0),
-                    memory: uom::si::f64::Information::new::<
-                        uom::si::information::megabyte,
-                    >(256.0),
+                    cpu:    Ratio::new::<cpu>(num_rational::Ratio::new(1, 1)),
+                    memory: Information::new::<megabyte>(
+                        num_rational::Ratio::new(256, 1),
+                    ),
                 }),
             },
         );
@@ -165,6 +166,7 @@ where
     Ok(qty)
 }
 
+#[cfg(not(feature = "offline"))]
 #[cfg(test)]
 mod tests {
     use helper::uom_helper::cpu_ratio::nanocpu;

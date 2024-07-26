@@ -1,6 +1,5 @@
-use std::str::FromStr;
-
 use lazy_regex::regex;
+use std::str::FromStr;
 
 pub mod cpu_ratio;
 mod ratio_helper;
@@ -83,12 +82,7 @@ macro_rules! impl_serialize_as {
                 &self,
                 formatter: &mut fmt::Formatter,
             ) -> fmt::Result {
-                write!(
-                    formatter,
-                    "a quantity resembling '<value> <unit>' like '{:?}'",
-                    <$type>::new::<$unit>(1.5)
-                        .into_format_args($format, Abbreviation)
-                )
+                write!(formatter, "a quantity resembling '<value> <unit>'")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -102,8 +96,8 @@ macro_rules! impl_serialize_as {
 }
 
 pub mod information {
-    use uom::si::f64::Information;
     use uom::si::information::megabyte;
+    use uom::si::rational64::Information;
 
     impl_serialize_as!(Information, megabyte, megabyte);
 }
@@ -115,11 +109,17 @@ pub mod time {
     impl_serialize_as!(Time, second, second);
 }
 
-pub mod ratio {
-    use uom::si::f64::Ratio;
-
+pub mod cpu {
     use crate::uom_helper::cpu_ratio::millicpu;
     use crate::uom_helper::ratio_helper::parse;
+    use uom::si::rational64::Ratio;
 
     impl_serialize_as!(Ratio, millicpu, millicpu, parse);
+}
+
+pub mod ratio {
+    use uom::si::f64::Ratio;
+    use uom::si::ratio::basis_point;
+
+    impl_serialize_as!(Ratio, basis_point, basis_point);
 }
