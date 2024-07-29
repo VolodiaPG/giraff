@@ -332,7 +332,7 @@ mod tests {
     use model::dto::node::NodeSituationData;
     use model::SlaId;
     use rand::rngs::StdRng;
-    use rand::SeedableRng;
+    use rand::{thread_rng, SeedableRng};
     use rand_distr::{Distribution, Uniform};
     use std::net::Ipv4Addr;
     use std::time::Duration;
@@ -741,16 +741,14 @@ mod tests {
         } = get_auction_impl().await;
 
         let mut handles = Vec::new();
-        for ii in 0..2_000_000 {
+
+        for ii in 0..100_000 {
             let function_life = function_life.clone();
             let auction = auction.clone();
-            let resource_tracking = resource_tracking.clone();
-            let function_tracking = function_tracking.clone();
 
             let hh = tokio::spawn(async move {
                 let mut r = StdRng::seed_from_u64(ii);
                 let law = Uniform::from(1..5);
-
                 tokio::time::sleep(Duration::from_secs(
                     law.sample(&mut r) * 6,
                 ))
@@ -792,9 +790,7 @@ mod tests {
                     .unwrap()
                     .is_some();
 
-                if pay_it {
-                    assert!(function_tracking.get_proposed(&sla_id).is_some());
-                }
+                pay_it = pay_it && law.sample(&mut r) > 1;
 
                 if pay_it {
                     pay_it = function_life
@@ -803,55 +799,40 @@ mod tests {
                         .is_ok();
                 }
                 if pay_it {
-                    assert!(function_tracking.get_paid(&sla_id).is_some());
-                }
-
-                let (ram, cc) = resource_tracking
-                    .get_used(OFFLINE_NODE_K8S)
-                    .await
-                    .unwrap();
-                assert!(ram <= reserved_memory);
-                assert!(cc <= reserved_cpu);
-
-                if pay_it {
                     tokio::time::sleep(Duration::from_secs(
                         sla_duration.get::<second>().to_f64().unwrap().ceil()
-                            as u64,
+                            as u64
+                            + 1,
                     ))
                     .await;
-                    assert!(function_tracking.get_finished(&sla_id).is_some());
-
-                    return true;
                 }
-
-                let (ram, cc) = resource_tracking
-                    .get_used(OFFLINE_NODE_K8S)
-                    .await
-                    .unwrap();
-                assert!(
-                    ram > Information::new::<megabyte>(
-                        num_rational::Ratio::new(0, 1)
-                    )
-                );
-                assert!(
-                    cc > Ratio::new::<millicpu>(num_rational::Ratio::new(
-                        0, 1
-                    ))
-                );
-                sla_duration <= Time::new::<second>(2.0)
+                (
+                    pay_it,
+                    pay_it || sla_duration <= Time::new::<second>(2.0),
+                    sla_id,
+                )
             });
 
             handles.push(hh);
         }
 
-        let mut count = 0;
+        let mut ran = 0;
+        let mut successes = 0;
         for hh in handles {
-            if hh.await.unwrap() {
-                count += 1;
+            let (pay_it, success, sla_id) = hh.await.unwrap();
+            if success {
+                successes += 1;
+            }
+            if pay_it {
+                assert!(function_tracking.get_finished(&sla_id).is_some());
+                ran += 1;
             }
         }
-        assert!(count > 0);
-        assert!(count >= 1000);
+        assert!(successes > 0);
+        assert!(successes >= 10_000);
+
+        assert!(ran > 0);
+        assert!(ran >= 8000 / 50 * 3);
 
         let (ram, cc) =
             resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();

@@ -97,6 +97,8 @@
 
             packages = with pkgs;
               [
+                cargo-flamegraph
+                linuxPackages_latest.perf
                 docker
                 just
                 pkg-config

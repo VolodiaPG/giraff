@@ -57,6 +57,18 @@ _test *FLAGS:
     export RUST_TEST_THREADS=$(nproc)
     cargo test {{ FLAGS }}
 
+_flame *FLAGS:
+    #!/usr/bin/env bash
+    export FUNCTION_LIVE_TIMEOUT_MSECS=1000
+    export RATIO_AA=1
+    export RATIO_BB=1
+    export RATIO_CC=1
+    export ELECTRICITY_PRICE=1
+
+    export RUST_TEST_THREADS=$(nproc)
+
+    cargo flamegraph --dev --unit-test fog_node {{ FLAGS }}
+
 _check *FLAGS:
     cargo check {{ FLAGS }}
 

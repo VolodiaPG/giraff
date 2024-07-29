@@ -12,7 +12,7 @@ test-threads = 20
 default = ["mimalloc"]
 # Enable mimalloc
 mimalloc = []
-offline = []
+offline = ["model/offline", "helper/offline"]
 # Enable jaeger
 # Bid Computation methods
 # Valuation made from a constant rate, give by an ENV variable
