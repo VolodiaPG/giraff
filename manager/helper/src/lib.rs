@@ -6,6 +6,7 @@ extern crate uom;
 
 pub mod chrono;
 pub mod env;
+pub mod err;
 pub mod from_disk;
 pub mod monitoring;
 pub mod pool;

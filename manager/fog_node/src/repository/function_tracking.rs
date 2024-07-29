@@ -150,7 +150,6 @@ impl FunctionTracking {
         })
     }
 
-    #[cfg(test)]
     pub fn get_finished(&self, id: &SlaId) -> Option<Finished> {
         self.database.get(id).and_then(|x| match x.value() {
             States::Finished(x) => Some(x.clone()),

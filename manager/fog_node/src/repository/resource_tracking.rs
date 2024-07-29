@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::warn;
 use uom::num_traits::ToPrimitive;
-use uom::si::information::{byte, gigabyte};
+use uom::si::information::{byte, gigabyte, megabyte};
 use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug)]
@@ -86,9 +86,9 @@ impl ResourceTracking {
                 (
                     name.clone(),
                     (
-                        Information::new::<byte>(num_rational::Ratio::new(
-                            0, 1,
-                        )),
+                        Information::new::<megabyte>(
+                            num_rational::Ratio::new(0, 1),
+                        ),
                         Ratio::new::<cpu>(num_rational::Ratio::new(0, 1)),
                     ),
                 )
@@ -204,6 +204,7 @@ impl ResourceTracking {
         Ok(*self.resources_used.get(name).unwrap())
     }
 
+    /// The availble part is static, only the used part is updated
     pub async fn get_available(
         &self,
         name: &'_ str,

@@ -318,6 +318,7 @@ mod tests {
     use super::*;
     use crate::repository::cron::Cron;
     use crate::repository::faas::{FaaSBackend, FaaSBackendOfflineImpl};
+    use crate::repository::function_tracking;
     use crate::repository::k8s::{K8s, OFFLINE_NODE_K8S};
     use crate::repository::latency_estimation::{
         LatencyEstimation, LatencyEstimationOfflineImpl,
@@ -329,10 +330,14 @@ mod tests {
     use helper::monitoring::InfluxAddress;
     use helper::uom_helper::cpu_ratio::{cpu, millicpu};
     use model::dto::node::NodeSituationData;
+    use model::SlaId;
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+    use rand_distr::{Distribution, Uniform};
     use std::net::Ipv4Addr;
     use std::time::Duration;
     use uom::si::f64::Time;
-    use uom::si::information::megabyte;
+    use uom::si::information::{gigabyte, megabyte};
     use uom::si::rational64::{Information, Ratio};
     use uom::si::time::second;
 
@@ -341,6 +346,8 @@ mod tests {
         pub function_life:     Arc<FunctionLife>,
         pub function_tracking: Arc<FunctionTracking>,
         pub resource_tracking: Arc<ResourceTracking>,
+        pub reserved_cpu:      Ratio,
+        pub reserved_memory:   Information,
     }
 
     async fn get_auction_impl() -> Instance {
@@ -356,9 +363,9 @@ mod tests {
             .await
             .unwrap(),
         );
-        let reserved_cpu = Ratio::new::<cpu>(num_rational::Ratio::new(1, 1));
+        let reserved_cpu = Ratio::new::<cpu>(num_rational::Ratio::new(20, 1));
         let reserved_memory =
-            Information::new::<megabyte>(num_rational::Ratio::new(256, 1));
+            Information::new::<gigabyte>(num_rational::Ratio::new(8, 1));
         let resource_tracking = Arc::new(
             ResourceTracking::new(
                 k8s,
@@ -370,32 +377,25 @@ mod tests {
             .unwrap(),
         );
         let backend: Arc<Box<dyn FaaSBackend>> = Arc::new(Box::new(
-            FaaSBackendOfflineImpl::new(Duration::from_secs(5)),
+            FaaSBackendOfflineImpl::new(Duration::from_secs(2)),
         ));
         let node_situation = Arc::new(NodeSituation::new(NodeSituationData {
-            situation:
-                model::dto::node::NodeCategory::NodeConnected {
-                    parent_latency:        Time::new::<second>(15.0),
-                    parent_id:             Uuid::new_v4().into(),
-                    parent_node_ip:        std::net::IpAddr::V4(
-                        Ipv4Addr::new(127, 0, 0, 1),
-                    ),
-                    parent_node_port_http: 1234.into(),
-                },
-            my_id:               Uuid::new_v4().into(),
-            my_public_ip:        std::net::IpAddr::V4(Ipv4Addr::new(
-                127, 0, 0, 1,
-            )),
+            situation: model::dto::node::NodeCategory::NodeConnected {
+                parent_latency:        Time::new::<second>(15.0),
+                parent_id:             Uuid::new_v4().into(),
+                parent_node_ip:        std::net::IpAddr::V4(Ipv4Addr::new(
+                    127, 0, 0, 1,
+                )),
+                parent_node_port_http: 1234.into(),
+            },
+            my_id: Uuid::new_v4().into(),
+            my_public_ip: std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             my_public_port_http: 12345.into(),
             my_public_port_faas: 1234.into(),
-            tags:                vec!["toto".to_string()],
-            reserved_memory:     Information::new::<megabyte>(
-                num_rational::Ratio::new(512, 1),
-            ),
-            reserved_cpu:        Ratio::new::<cpu>(num_rational::Ratio::new(
-                1, 1,
-            )),
-            children:            dashmap::DashMap::new(),
+            tags: vec!["toto".to_string()],
+            reserved_memory,
+            reserved_cpu,
+            children: dashmap::DashMap::new(),
         }));
         let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> =
             Arc::new(Box::new(LatencyEstimationOfflineImpl::new(
@@ -456,6 +456,8 @@ mod tests {
             function_life,
             function_tracking,
             resource_tracking,
+            reserved_cpu,
+            reserved_memory,
         }
     }
 
@@ -464,7 +466,7 @@ mod tests {
         let auction = get_auction_impl().await.auction;
         let sla = Sla {
             id:                 Uuid::new_v4().into(),
-            memory:             Information::new::<megabyte>(
+            memory:             Information::new::<gigabyte>(
                 num_rational::Ratio::new(1000, 1),
             ),
             cpu:                Ratio::new::<millicpu>(
@@ -633,6 +635,8 @@ mod tests {
             function_life,
             function_tracking,
             resource_tracking,
+            reserved_cpu,
+            reserved_memory,
             ..
         } = get_auction_impl().await;
 
@@ -709,13 +713,152 @@ mod tests {
 
         let (ram, cc) =
             resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();
-
         assert_eq!(
             ram,
             Information::new::<megabyte>(num_rational::Ratio::new(0, 1))
         );
+        assert_eq!(cc, Ratio::new::<millicpu>(num_rational::Ratio::new(0, 1)));
 
-        let toto = Ratio::new::<millicpu>(num_rational::Ratio::new(0, 1));
-        assert_eq!(cc, toto);
+        let (ram_a, cc_a) =
+            resource_tracking.get_available(OFFLINE_NODE_K8S).await.unwrap();
+        assert_eq!(ram_a, reserved_memory);
+        assert_eq!(cc_a, reserved_cpu);
+
+        assert_eq!(ram_a + ram, reserved_memory);
+        assert_eq!(cc_a + cc, reserved_cpu);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
+    async fn test_lots_functions_parallel() {
+        let Instance {
+            auction,
+            function_life,
+            function_tracking,
+            resource_tracking,
+            reserved_cpu,
+            reserved_memory,
+            ..
+        } = get_auction_impl().await;
+
+        let mut handles = Vec::new();
+        for ii in 0..2_000_000 {
+            let function_life = function_life.clone();
+            let auction = auction.clone();
+            let resource_tracking = resource_tracking.clone();
+            let function_tracking = function_tracking.clone();
+
+            let hh = tokio::spawn(async move {
+                let mut r = StdRng::seed_from_u64(ii);
+                let law = Uniform::from(1..5);
+
+                tokio::time::sleep(Duration::from_secs(
+                    law.sample(&mut r) * 6,
+                ))
+                .await;
+
+                let sla_id: SlaId = Uuid::new_v4().into();
+                let sla_duration =
+                    Time::new::<second>(law.sample(&mut r) as f64);
+
+                let sla = Sla {
+                    id:                 sla_id.clone(),
+                    memory:             Information::new::<megabyte>(
+                        num_rational::Ratio::new(
+                            law.sample(&mut r) as i64 * 10,
+                            1,
+                        ),
+                    ),
+                    cpu:                Ratio::new::<millicpu>(
+                        num_rational::Ratio::new(
+                            law.sample(&mut r) as i64 * 10,
+                            1,
+                        ),
+                    ),
+                    latency_max:        Time::new::<second>(10.0),
+                    duration:           sla_duration.clone(),
+                    max_replica:        1,
+                    function_image:     "toto".to_string(),
+                    function_live_name: "toto".to_string(),
+                    data_flow:          vec![],
+                    env_vars:           vec![],
+                    input_max_size:     Information::new::<megabyte>(
+                        num_rational::Ratio::new(1, 1),
+                    ),
+                };
+
+                let mut pay_it = auction
+                    .bid_on(sla, &AccumulatedLatency::default())
+                    .await
+                    .unwrap()
+                    .is_some();
+
+                if pay_it {
+                    assert!(function_tracking.get_proposed(&sla_id).is_some());
+                }
+
+                if pay_it {
+                    pay_it = function_life
+                        .pay_function(sla_id.clone())
+                        .await
+                        .is_ok();
+                }
+                if pay_it {
+                    assert!(function_tracking.get_paid(&sla_id).is_some());
+                }
+
+                let (ram, cc) = resource_tracking
+                    .get_used(OFFLINE_NODE_K8S)
+                    .await
+                    .unwrap();
+                assert!(ram <= reserved_memory);
+                assert!(cc <= reserved_cpu);
+
+                if pay_it {
+                    tokio::time::sleep(Duration::from_secs(
+                        sla_duration.get::<second>().to_f64().unwrap().ceil()
+                            as u64,
+                    ))
+                    .await;
+                    assert!(function_tracking.get_finished(&sla_id).is_some());
+
+                    return true;
+                }
+
+                let (ram, cc) = resource_tracking
+                    .get_used(OFFLINE_NODE_K8S)
+                    .await
+                    .unwrap();
+                assert!(
+                    ram > Information::new::<megabyte>(
+                        num_rational::Ratio::new(0, 1)
+                    )
+                );
+                assert!(
+                    cc > Ratio::new::<millicpu>(num_rational::Ratio::new(
+                        0, 1
+                    ))
+                );
+                sla_duration <= Time::new::<second>(2.0)
+            });
+
+            handles.push(hh);
+        }
+
+        let mut count = 0;
+        for hh in handles {
+            if hh.await.unwrap() {
+                count += 1;
+            }
+        }
+        assert!(count > 0);
+        assert!(count >= 1000);
+
+        let (ram, cc) =
+            resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();
+        assert_eq!(
+            ram,
+            Information::new::<megabyte>(num_rational::Ratio::new(0, 1))
+        );
+        assert_eq!(cc, Ratio::new::<millicpu>(num_rational::Ratio::new(0, 1)));
     }
 }

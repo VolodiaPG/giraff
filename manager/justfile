@@ -54,6 +54,7 @@ _test *FLAGS:
     export RATIO_CC=1
     export ELECTRICITY_PRICE=1
 
+    export RUST_TEST_THREADS=$(nproc)
     cargo test {{ FLAGS }}
 
 _check *FLAGS:

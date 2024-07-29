@@ -4,11 +4,11 @@ use crate::NodeSituation;
 use anyhow::{bail, ensure, Context, Result};
 use async_trait::async_trait;
 use chrono::Utc;
+use helper::err::IndividualErrorList;
 use helper::monitoring::MetricsExporter;
 use model::domain::exp_average::ExponentialMovingAverage;
 use model::domain::moving_median::{MovingMedian, MovingMedianSize};
 use model::NodeId;
-use std::fmt;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,22 +20,6 @@ use uom::si::time::millisecond;
 
 const NB_ICMP_SENT: u16 = 10;
 const SAMPLING_TIME_MS: u16 = 250;
-
-#[derive(Debug)]
-pub struct IndividualErrorList {
-    list: Vec<anyhow::Error>,
-}
-
-impl fmt::Display for IndividualErrorList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.list)
-    }
-}
-
-impl From<Vec<anyhow::Error>> for IndividualErrorList {
-    fn from(list: Vec<anyhow::Error>) -> Self { IndividualErrorList { list } }
-}
-
 #[derive(Debug)]
 struct Latencies {
     moving_average: ExponentialMovingAverage,

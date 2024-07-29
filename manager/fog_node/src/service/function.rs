@@ -7,6 +7,7 @@ use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
 use anyhow::{bail, ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
+use helper::err::IndividualErrorList;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::Paid;
@@ -240,14 +241,10 @@ impl Function<Locked> {
             "Could not find any record of the just registerd payment",
         )?;
 
-        let Ok(()) = self
-            .resource_tracking
+        self.resource_tracking
             .set_used(name, used_ram + sla_memory, used_cpu + sla_cpu)
             .await
-        else {
-            bail!("Could not set updated tracked cpu and memory");
-        };
-
+            .context("Could not set updated tracked cpu and memory")?;
         Ok(paid)
     }
 
@@ -284,58 +281,72 @@ impl Function<Locked> {
         Ok(())
     }
 
+    async fn finish_record(&self, function: &SlaId) -> Result<()> {
+        let removable = self.function_tracking.get_removable(function);
+        if let Some(removable) = removable {
+            self.function.remove_function(removable).await.with_context(
+                || format!("Failed to delete function {}", function.clone()),
+            )?;
+        }
+        Ok(())
+    }
+
+    async fn finish_update_resources(&self, function: &SlaId) -> Result<()> {
+        let boxed_record =
+            self.function_tracking.get_finishable(function).context(
+                "Failed to get the record associated to the sla id, it is \
+                 not in a 'finishable' state",
+            )?;
+
+        let record = boxed_record.to_finished();
+        self.function_tracking.save_finished(function, record);
+
+        let record = self.function_tracking.get_finished(function).context(
+            "Failed to get the record associated to the sla id, it is not in \
+             a 'finished' state",
+        )?;
+
+        let name = record.node.clone();
+        let sla_cpu = record.sla.cpu;
+        let sla_memory = record.sla.memory;
+
+        let (memory, cpu) = self
+            .resource_tracking
+            .get_used(&name)
+            .await
+            .context("Could not get tracked cpu and memory")?;
+
+        self.resource_tracking
+            .set_used(name, memory - sla_memory, cpu - sla_cpu)
+            .await
+            .context("Could not set updated tracked cpu and memory")?;
+
+        self.metrics
+            .observe(ProvisionedFunctions {
+                n:             0,
+                function_name: record.sla.function_live_name.clone(),
+                sla_id:        record.sla.id.to_string(),
+                timestamp:     Utc::now(),
+            })
+            .await
+    }
+
     pub(in crate::service) async fn finish_function(
         &self,
         function: SlaId,
     ) -> Result<()> {
-        if let Some(boxed_record) =
-            self.function_tracking.get_finishable(&function)
-        {
-            let record = boxed_record.to_finished();
-
-            if let Some(removable) =
-                self.function_tracking.get_removable(&function)
-            {
-                if self.function.remove_function(removable).await.is_err() {
-                    warn!("Failed to delete function {}", function);
-                }
-            }
-
-            let name = record.node.clone();
-            let sla_cpu = record.sla.cpu;
-            let sla_memory = record.sla.memory;
-
-            self.metrics
-                .observe(ProvisionedFunctions {
-                    n:             0,
-                    function_name: record.sla.function_live_name.clone(),
-                    sla_id:        record.sla.id.to_string(),
-                    timestamp:     Utc::now(),
-                })
-                .await?;
-            self.function_tracking.save_finished(&function, record);
-
-            let Ok((memory, cpu)) =
-                self.resource_tracking.get_used(&name).await
-            else {
-                error!("Could not get tracked cpu and memory");
-                return Ok(());
-            };
-            let Ok(()) = self
-                .resource_tracking
-                .set_used(name, memory - sla_memory, cpu - sla_cpu)
-                .await
-            else {
-                error!("Could not set updated tracked cpu and memory");
-                return Ok(());
-            };
-
-            Ok(())
-        } else {
-            bail!(
-                "Current function is not in a state where it can be dropped \
-                 from the active pool of functions running on a node"
-            );
+        let mut errors = vec![];
+        if let Err(err) = self.finish_record(&function).await {
+            errors.push(err);
         }
+        if let Err(err) = self.finish_update_resources(&function).await {
+            errors.push(err);
+        }
+        ensure!(
+            errors.is_empty(),
+            "Failed to properly finish the function: {}",
+            IndividualErrorList::from(errors)
+        );
+        Ok(())
     }
 }

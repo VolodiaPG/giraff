@@ -3,6 +3,9 @@ name = "fog_node"
 version = "0.1.0"
 edition = "2021"
 
+[testing]
+test-threads = 20
+
 [features]
 # Do not forget to run cargo2nix at each new features added
 
@@ -92,7 +95,6 @@ serde_json = { version = "1.0", features = ["raw_value"] }
 serde_with = "3.4"
 surge-ping = "0.8"
 tokio = { version = "1.21", features = ["full"] }
-tokio-cron-scheduler = "0.9"
 tracing = "0.1"
 tracing-actix-web = { version = "0.7", features = [
     "opentelemetry_0_21",
@@ -114,3 +116,7 @@ helper_derive = { path = "../helper_derive" }
 kube_metrics = { path = "../kube_metrics" }
 model = { path = "../model" }
 openfaas = { path = "../openfaas" }
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = ["std_rng"] }
+rand_distr = "0.4.3"

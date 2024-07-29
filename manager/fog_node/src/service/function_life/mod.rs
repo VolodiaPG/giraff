@@ -146,6 +146,7 @@ impl FunctionLife {
     pub async fn pay_function(&self, id: SlaId) -> Result<()> {
         let function = self.function.lock().await?;
         let paid = function.pay_function(id.clone()).await?; // Function is now in the system
+        drop(function);
 
         let function = self.function.clone();
         let node = paid.node;
@@ -182,7 +183,8 @@ impl FunctionLife {
                         #[cfg(test)]
                         panic!(
                             "Failed to finish function when unprovisioning \
-                             function"
+                             function: {}",
+                            err.to_string()
                         );
 
                         warn!(
