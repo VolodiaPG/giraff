@@ -1119,7 +1119,7 @@ mod tests {
         handles = Vec::new();
         let prev_last_bid = last_bid_price.load(Ordering::SeqCst);
         last_bid_price.store(0.0, Ordering::SeqCst);
-        tokio::time::sleep(Duration::from_secs(20)).await;
+        tokio::time::sleep(Duration::from_secs(22)).await;
 
         for ii in 0..10 {
             let function_life = function_life.clone();

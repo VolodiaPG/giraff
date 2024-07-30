@@ -18,7 +18,8 @@ build *FLAGS:
 pre_commit:
     @nix develop .#manager -c just check
     @nix develop .#manager -c just check "clippy"
-    nix develop .#manager -c cargo fmt
+    @nix develop .#manager -c cargo fmt
+    @nix develop .#manager -c just check "test"
 
 # Run cargo check
 check subcommand="check":
