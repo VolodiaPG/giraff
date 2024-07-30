@@ -8,6 +8,8 @@ mod ratio_helper;
 pub enum Error {
     #[error("Unable to parse the quantity: {0}")]
     QuantityParsing(String),
+    #[error("Failed to convert the quantity {0} to {1}")]
+    FailedConversion(String, String),
 }
 
 pub fn parse_quantity<T>(quantity: &str) -> Result<T, Error>
@@ -37,12 +39,19 @@ macro_rules! impl_serialize_as {
     ($type:ty, $unit:ty, $format:expr) => {
         impl_serialize_as!($type, $unit, $format, super::parse_quantity);
     };
-    ($type:ty, $unit:ty, $format:expr, $parser:expr) => {
+
+    ($type:ty, $unit:ty, $format:expr, $parser:expr ) => {
+        use uom::fmt::DisplayStyle::Abbreviation;
+        pub fn serialize_quantity(value: &$type) -> String {
+            format!("{:?}", value.into_format_args($format, Abbreviation))
+        }
+
+        impl_serialize_as!($type, $unit, $format, $parser, serialize_quantity);
+    };
+    ($type:ty, $unit:ty, $format:expr, $parser:expr, $serializer:expr) => {
         use core::fmt;
         use serde::de::Visitor;
         use serde::{Deserializer, Serializer};
-
-        use uom::fmt::DisplayStyle::Abbreviation;
 
         pub struct Helper;
 
@@ -54,13 +63,7 @@ macro_rules! impl_serialize_as {
             where
                 S: Serializer,
             {
-                serializer.serialize_str(
-                    format!(
-                        "{:?}",
-                        value.into_format_args($format, Abbreviation)
-                    )
-                    .as_str(),
-                )
+                serializer.serialize_str($serializer(value).as_str())
             }
         }
 
@@ -99,7 +102,17 @@ pub mod information {
     use uom::si::information::megabyte;
     use uom::si::rational64::Information;
 
-    impl_serialize_as!(Information, megabyte, megabyte);
+    fn serialize_quantity(value: &Information) -> String {
+        format!("{:?} MB", value.get::<megabyte>().numer())
+    }
+
+    impl_serialize_as!(
+        Information,
+        megabyte,
+        megabyte,
+        super::parse_quantity,
+        serialize_quantity
+    );
 }
 
 pub mod time {
@@ -112,9 +125,14 @@ pub mod time {
 pub mod cpu {
     use crate::uom_helper::cpu_ratio::millicpu;
     use crate::uom_helper::ratio_helper::parse;
+    use uom::num_traits::ToPrimitive;
     use uom::si::rational64::Ratio;
 
-    impl_serialize_as!(Ratio, millicpu, millicpu, parse);
+    fn serialize_quantity(value: &Ratio) -> String {
+        format!("{:?} mcpu", value.get::<millicpu>().to_f64().unwrap())
+    }
+
+    impl_serialize_as!(Ratio, millicpu, millicpu, parse, serialize_quantity);
 }
 
 pub mod ratio {

@@ -1,6 +1,3 @@
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
-
 use crate::monitoring::BidGauge;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
@@ -14,7 +11,8 @@ use model::dto::node::MaxInFlight;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
-use tokio::sync::Mutex;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 use tracing::{instrument, trace};
 use uom::num_traits::ToPrimitive;
 use uom::si::rational64::{Information, Ratio};

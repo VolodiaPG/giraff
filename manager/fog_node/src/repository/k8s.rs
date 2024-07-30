@@ -120,7 +120,7 @@ impl K8s {
     }
 }
 
-#[cfg(not(feature = "offline"))]
+#[cfg(any(test, not(feature = "offline")))]
 enum MissingUnitType<'a> {
     /// Missing just the rightmost part, eg. B for Bytes
     Suffix(&'a str),
@@ -129,7 +129,7 @@ enum MissingUnitType<'a> {
     Complete(&'a str),
 }
 
-#[cfg(not(feature = "offline"))]
+#[cfg(any(test, not(feature = "offline")))]
 fn parse_quantity<T>(
     quantity: &str,
     missing_unit: &MissingUnitType,
@@ -166,16 +166,13 @@ where
     Ok(qty)
 }
 
-#[cfg(not(feature = "offline"))]
 #[cfg(test)]
 mod tests {
-    use helper::uom_helper::cpu_ratio::nanocpu;
+    use super::*;
+    use helper::uom_helper::cpu_ratio::millicpu;
     use uom::fmt::DisplayStyle::Abbreviation;
     use uom::si::f64::{Information, Ratio};
     use uom::si::information::byte;
-    // Note this useful idiom: importing names from outer (for mod tests)
-    // scope.
-    use super::*;
 
     #[test]
     fn test_ratio_cpu() -> Result<()> {
@@ -183,12 +180,12 @@ mod tests {
             format!(
                 "{}",
                 parse_quantity::<Ratio>(
-                    "1024n",
-                    &MissingUnitType::Complete("ppb")
+                    "1024m",
+                    &MissingUnitType::Complete("ppm")
                 )?
-                .into_format_args(nanocpu, Abbreviation)
+                .into_format_args(millicpu, Abbreviation)
             ),
-            "1023.9999999999999 nanocpu".to_owned()
+            "1.024 mcpu".to_owned()
         );
 
         Ok(())
