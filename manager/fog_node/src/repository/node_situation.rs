@@ -1,5 +1,5 @@
 use model::dto::node::NodeCategory::{MarketConnected, NodeConnected};
-use model::dto::node::{NodeDescription, NodeSituationData};
+use model::dto::node::{MaxInFlight, NodeDescription, NodeSituationData};
 use model::{
     FogNodeFaaSPortExternal, FogNodeHTTPPort, MarketHTTPPort, NodeId,
 };
@@ -55,6 +55,10 @@ impl NodeSituation {
     }
 
     pub fn get_my_id(&self) -> NodeId { self.database.my_id.clone() }
+
+    pub fn get_max_in_flight_functions_proposals(&self) -> MaxInFlight {
+        self.database.max_in_flight_functions_proposals.clone()
+    }
 
     pub fn get_parent_id(&self) -> Option<NodeId> {
         match &self.database.situation {

@@ -10,6 +10,7 @@ use helper::env_var;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
 use model::dto::function::Proposed;
+use model::dto::node::MaxInFlight;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
@@ -26,10 +27,6 @@ use super::function::Function;
     validate(finite, greater_or_equal = 0.0)
 )]
 pub struct PricingRatio(f64);
-
-#[nutype(derive(PartialEq, PartialOrd, Clone), validate(greater_or_equal = 1))]
-pub struct MaxInFlight(usize);
-
 env_var!(PRICING_CPU);
 env_var!(PRICING_CPU_INITIAL);
 env_var!(PRICING_MEM);
@@ -39,8 +36,6 @@ env_var!(RATIO_AA);
 env_var!(RATIO_BB);
 env_var!(RATIO_CC);
 env_var!(ELECTRICITY_PRICE);
-env_var!(MAX_IN_FLIGHT_FUNCTIONS_PROPOSALS);
-
 struct ComputedBid {
     pub(crate) name:          String,
     #[allow(dead_code)]
@@ -71,13 +66,8 @@ impl Auction {
         db: Arc<FunctionTracking>,
         metrics: Arc<MetricsExporter>,
         function: Arc<Function>,
+        max_in_flight_functions_proposals: MaxInFlight,
     ) -> Result<Self> {
-        let max_in_flight = helper::env_load!(
-            MaxInFlight,
-            MAX_IN_FLIGHT_FUNCTIONS_PROPOSALS,
-            usize
-        );
-
         Ok(Self {
             resource_tracking,
             db,
@@ -85,7 +75,7 @@ impl Auction {
             function,
             in_flight_functions_per_sec_1: AtomicU32::new(0),
             in_flight_functions_per_sec_2: AtomicU32::new(0),
-            max_in_flight,
+            max_in_flight: max_in_flight_functions_proposals,
         })
     }
 
@@ -403,11 +393,32 @@ mod tests {
     use rand::{thread_rng, SeedableRng};
     use rand_distr::{Distribution, Uniform};
     use std::net::Ipv4Addr;
+    use std::sync::atomic::AtomicU64;
     use std::time::Duration;
     use uom::si::f64::Time;
     use uom::si::information::{gigabyte, megabyte};
     use uom::si::rational64::{Information, Ratio};
     use uom::si::time::second;
+
+    pub struct AtomicF64 {
+        storage: AtomicU64,
+    }
+    impl AtomicF64 {
+        pub fn new(value: f64) -> Self {
+            let as_u64 = value.to_bits();
+            Self { storage: AtomicU64::new(as_u64) }
+        }
+
+        pub fn store(&self, value: f64, ordering: Ordering) {
+            let as_u64 = value.to_bits();
+            self.storage.store(as_u64, ordering)
+        }
+
+        pub fn load(&self, ordering: Ordering) -> f64 {
+            let as_u64 = self.storage.load(ordering);
+            f64::from_bits(as_u64)
+        }
+    }
 
     struct Instance {
         pub auction:           Arc<Auction>,
@@ -463,6 +474,7 @@ mod tests {
             tags: vec!["toto".to_string()],
             reserved_memory,
             reserved_cpu,
+            max_in_flight_functions_proposals: MaxInFlight::new(160).unwrap(),
             children: dashmap::DashMap::new(),
         }));
         let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> =
@@ -506,6 +518,7 @@ mod tests {
                 function_tracking.clone(),
                 metrics,
                 function.clone(),
+                node_situation.get_max_in_flight_functions_proposals(),
             )
             .unwrap(),
         );
@@ -923,5 +936,211 @@ mod tests {
             Information::new::<megabyte>(num_rational::Ratio::new(0, 1))
         );
         assert_eq!(cc, Ratio::new::<millicpu>(num_rational::Ratio::new(0, 1)));
+    }
+
+    #[cfg(feature = "quadratic_rates")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
+    async fn test_quadratic_rates_always_increasing() {
+        let Instance {
+            auction,
+            function_life,
+            function_tracking,
+            resource_tracking,
+            reserved_cpu,
+            reserved_memory,
+            ..
+        } = get_auction_impl().await;
+
+        let mut handles = Vec::new();
+
+        let last_bid_price = Arc::new(AtomicF64::new(0.0));
+
+        for ii in 0..10 {
+            let function_life = function_life.clone();
+            let auction = auction.clone();
+            let last_bid_price = last_bid_price.clone();
+
+            let hh = tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(ii)).await;
+
+                let sla_id: SlaId = Uuid::new_v4().into();
+                let sla_duration = Time::new::<second>(15.0);
+
+                let sla = Sla {
+                    id:                 sla_id.clone(),
+                    memory:             Information::new::<megabyte>(
+                        num_rational::Ratio::new(50, 1),
+                    ),
+                    cpu:                Ratio::new::<millicpu>(
+                        num_rational::Ratio::new(50, 1),
+                    ),
+                    latency_max:        Time::new::<second>(10.0),
+                    duration:           sla_duration.clone(),
+                    max_replica:        1,
+                    function_image:     "toto".to_string(),
+                    function_live_name: "toto".to_string(),
+                    data_flow:          vec![],
+                    env_vars:           vec![],
+                    input_max_size:     Information::new::<megabyte>(
+                        num_rational::Ratio::new(1, 1),
+                    ),
+                };
+
+                let bid = auction
+                    .bid_on(sla, &AccumulatedLatency::default())
+                    .await
+                    .unwrap();
+                let mut pay_it = bid.is_some();
+
+                if let Some((_, propal)) = bid {
+                    assert_eq!(propal.node, OFFLINE_NODE_K8S);
+                    assert!(
+                        propal.bid > last_bid_price.load(Ordering::SeqCst)
+                    );
+                    last_bid_price.store(propal.bid, Ordering::SeqCst);
+                }
+
+                if pay_it {
+                    pay_it = function_life
+                        .pay_function(sla_id.clone())
+                        .await
+                        .is_ok();
+                }
+                if pay_it {
+                    tokio::time::sleep(Duration::from_secs(
+                        sla_duration.get::<second>().to_f64().unwrap().ceil()
+                            as u64
+                            + 1,
+                    ))
+                    .await;
+                }
+                (
+                    pay_it,
+                    pay_it || sla_duration <= Time::new::<second>(2.0),
+                    sla_id,
+                )
+            });
+
+            handles.push(hh);
+        }
+
+        for hh in handles {
+            let (pay_it, success, sla_id) = hh.await.unwrap();
+        }
+    }
+
+    #[cfg(feature = "quadratic_rates")]
+    async fn _test_quadratic_rates_inner_loop(
+        function_life: Arc<FunctionLife>,
+        auction: Arc<Auction>,
+        last_bid_price: Arc<AtomicF64>,
+        wait: u64,
+    ) {
+        tokio::time::sleep(Duration::from_secs(wait)).await;
+
+        let sla_id: SlaId = Uuid::new_v4().into();
+        let sla_duration = Time::new::<second>(15.0);
+
+        let sla = Sla {
+            id:                 sla_id.clone(),
+            memory:             Information::new::<megabyte>(
+                num_rational::Ratio::new(50, 1),
+            ),
+            cpu:                Ratio::new::<millicpu>(
+                num_rational::Ratio::new(50, 1),
+            ),
+            latency_max:        Time::new::<second>(10.0),
+            duration:           sla_duration.clone(),
+            max_replica:        1,
+            function_image:     "toto".to_string(),
+            function_live_name: "toto".to_string(),
+            data_flow:          vec![],
+            env_vars:           vec![],
+            input_max_size:     Information::new::<megabyte>(
+                num_rational::Ratio::new(1, 1),
+            ),
+        };
+
+        let bid =
+            auction.bid_on(sla, &AccumulatedLatency::default()).await.unwrap();
+        let mut pay_it = bid.is_some();
+
+        if let Some((_, propal)) = bid {
+            assert_eq!(propal.node, OFFLINE_NODE_K8S);
+            assert!(propal.bid > last_bid_price.load(Ordering::SeqCst));
+            last_bid_price.store(propal.bid, Ordering::SeqCst);
+        }
+
+        if pay_it {
+            pay_it = function_life.pay_function(sla_id.clone()).await.is_ok();
+        }
+        if pay_it {
+            tokio::time::sleep(Duration::from_secs(
+                sla_duration.get::<second>().to_f64().unwrap().ceil() as u64
+                    + 1,
+            ))
+            .await;
+        }
+    }
+
+    #[cfg(feature = "quadratic_rates")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
+    async fn test_quadratic_rates_repeatability() {
+        let Instance {
+            auction,
+            function_life,
+            function_tracking,
+            resource_tracking,
+            reserved_cpu,
+            reserved_memory,
+            ..
+        } = get_auction_impl().await;
+
+        let mut handles = Vec::new();
+
+        let last_bid_price = Arc::new(AtomicF64::new(0.0));
+
+        for ii in 0..10 {
+            let function_life = function_life.clone();
+            let auction = auction.clone();
+            let last_bid_price = last_bid_price.clone();
+
+            let hh = tokio::spawn(_test_quadratic_rates_inner_loop(
+                function_life,
+                auction,
+                last_bid_price,
+                ii,
+            ));
+            handles.push(hh);
+        }
+
+        for hh in handles {
+            hh.await.unwrap();
+        }
+
+        handles = Vec::new();
+        let prev_last_bid = last_bid_price.load(Ordering::SeqCst);
+        last_bid_price.store(0.0, Ordering::SeqCst);
+        tokio::time::sleep(Duration::from_secs(20)).await;
+
+        for ii in 0..10 {
+            let function_life = function_life.clone();
+            let auction = auction.clone();
+            let last_bid_price = last_bid_price.clone();
+
+            let hh = tokio::spawn(_test_quadratic_rates_inner_loop(
+                function_life,
+                auction,
+                last_bid_price,
+                ii,
+            ));
+            handles.push(hh);
+        }
+
+        for hh in handles {
+            hh.await.unwrap();
+        }
+
+        assert_eq!(last_bid_price.load(Ordering::SeqCst), prev_last_bid);
     }
 }

@@ -240,6 +240,7 @@ MARKET_CONNECTED_NODE = """(
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_market", "{name}"],
+    max_in_flight_functions_proposals: MaxInFlight({max_in_flight}),
 )
 
 """
@@ -256,6 +257,7 @@ NODE_CONNECTED_NODE = """(
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_node", "{name}"],
+    max_in_flight_functions_proposals: MaxInFlight({max_in_flight}),
 )
 
 """

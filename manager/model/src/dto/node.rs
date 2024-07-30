@@ -14,6 +14,12 @@ use std::net::IpAddr;
 use uom::si::f64::Time;
 use uom::si::rational64::{Information, Ratio};
 
+#[nutype::nutype(
+    derive(Debug, Clone, Deserialize),
+    validate(greater_or_equal = 1)
+)]
+pub struct MaxInFlight(usize);
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Node<T> {
     pub parent:   Option<NodeId>,
@@ -92,29 +98,31 @@ pub enum NodeCategory {
 
 #[derive(Debug)]
 pub struct NodeSituationData {
-    pub situation:           NodeCategory,
-    pub my_id:               NodeId,
-    pub my_public_ip:        IpAddr,
-    pub my_public_port_http: FogNodeHTTPPort,
-    pub my_public_port_faas: FogNodeFaaSPortExternal,
-    pub tags:                Vec<String>,
-    pub reserved_memory:     Information,
-    pub reserved_cpu:        Ratio,
-    pub children:            dashmap::DashMap<NodeId, NodeDescription>,
+    pub situation:                         NodeCategory,
+    pub my_id:                             NodeId,
+    pub my_public_ip:                      IpAddr,
+    pub my_public_port_http:               FogNodeHTTPPort,
+    pub my_public_port_faas:               FogNodeFaaSPortExternal,
+    pub tags:                              Vec<String>,
+    pub reserved_memory:                   Information,
+    pub reserved_cpu:                      Ratio,
+    pub max_in_flight_functions_proposals: MaxInFlight,
+    pub children: dashmap::DashMap<NodeId, NodeDescription>,
 }
 
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Deserialize)]
 pub struct NodeSituationDisk {
-    pub situation:           NodeCategory,
-    pub my_id:               NodeId,
-    pub my_public_ip:        IpAddr,
-    pub my_public_port_http: FogNodeHTTPPort,
-    pub tags:                Vec<String>,
+    pub situation:                         NodeCategory,
+    pub my_id:                             NodeId,
+    pub my_public_ip:                      IpAddr,
+    pub my_public_port_http:               FogNodeHTTPPort,
+    pub tags:                              Vec<String>,
     #[serde_as(as = "information::Helper")]
-    pub reserved_memory:     Information,
+    pub reserved_memory:                   Information,
     #[serde_as(as = "cpu::Helper")]
-    pub reserved_cpu:        Ratio,
+    pub reserved_cpu:                      Ratio,
+    pub max_in_flight_functions_proposals: MaxInFlight,
 }
 
 /// Loads node configuration from file
@@ -138,6 +146,7 @@ impl NodeSituationData {
             tags,
             reserved_memory,
             reserved_cpu,
+            max_in_flight_functions_proposals,
         } = disk;
 
         Self {
@@ -149,6 +158,7 @@ impl NodeSituationData {
             tags,
             reserved_memory,
             reserved_cpu,
+            max_in_flight_functions_proposals,
             children: dashmap::DashMap::new(),
         }
     }

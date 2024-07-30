@@ -587,6 +587,8 @@ def aliases(env: EnosEnv = None, **kwargs):
 
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
+    # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
+    max_in_flight_functions_proposals = int(node["flavor"]["reserved_mem"]) / 100
     conf = NODE_CONNECTED_NODE.format(
         parent_id=parent_id,
         parent_ip=parent_ip,
@@ -595,6 +597,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
         name=node["name"],
         reserved_cpu=node["flavor"]["reserved_core"],
         reserved_memory=node["flavor"]["reserved_mem"],
+        max_in_flight_functions_proposals=max_in_flight_functions_proposals,
     )
 
     children = node["children"] if "children" in node else []
@@ -632,6 +635,8 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
 
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
+    # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
+    max_in_flight_functions_proposals = int(NETWORK["flavor"]["reserved_mem"]) / 100
     confs = [
         (
             NETWORK["name"],
@@ -642,6 +647,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
                 name="cloud",
                 reserved_memory=NETWORK["flavor"]["reserved_mem"],
                 reserved_cpu=NETWORK["flavor"]["reserved_core"],
+                max_in_flight_functions_proposals=max_in_flight_functions_proposals,
             ),
             NETWORK["flavor"],
         )

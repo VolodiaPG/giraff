@@ -53,7 +53,6 @@ _test *FLAGS:
     export RATIO_BB=1
     export RATIO_CC=1
     export ELECTRICITY_PRICE=1
-    export MAX_IN_FLIGHT_FUNCTIONS_PROPOSALS=160
 
     export RUST_TEST_THREADS=$(nproc)
     cargo test {{ FLAGS }}
@@ -110,6 +109,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "8 cpus",
         reserved_memory: "3 GiB",
         tags: ["market connected"],
+        max_in_flight_functions_proposals: MaxInFlight(30),
     )'''
 
     nodes["node_1"] = '''(
@@ -125,6 +125,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
         tags: ["node_connected_1"],
+        max_in_flight_functions_proposals: MaxInFlight(20),
     )'''
 
     nodes["node_12"] = '''(
@@ -140,6 +141,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
         tags: ["node_connected_12"],
+        max_in_flight_functions_proposals: MaxInFlight(20),
     )'''
 
     nodes["node_2"] = '''(
@@ -155,6 +157,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "2 cpu",
         reserved_memory: "1500 MiB",
         tags: ["node_connected_2"],
+        max_in_flight_functions_proposals: MaxInFlight(15),
     )'''
 
     # Must be that port so expe.sh works magically
@@ -171,6 +174,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node_connected_3"],
+        max_in_flight_functions_proposals: MaxInFlight(10),
     )'''
 
     nodes["node_34"] = '''(
@@ -186,6 +190,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node_connected_34"],
+        max_in_flight_functions_proposals: MaxInFlight(10),
     )'''
 
 
@@ -202,6 +207,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_cpu: "1 cpu",
         reserved_memory: "1 GiB",
         tags: ["node_connected_35"],
+        max_in_flight_functions_proposals: MaxInFlight(10),
     )'''
 
     if node_type not in nodes:
