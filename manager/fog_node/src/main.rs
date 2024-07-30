@@ -339,7 +339,7 @@ async fn main() -> anyhow::Result<()> {
         function_tracking_repo.clone(),
         metrics.clone(),
         function.clone(),
-    ));
+    )?);
     let node_life_service =
         Arc::new(NodeLife::new(node_situation.clone(), node_query.clone()));
     let function_life_service = Arc::new(FunctionLife::new(

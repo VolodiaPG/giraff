@@ -1,8 +1,11 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+
 use crate::monitoring::BidGauge;
 use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
-use anyhow::{Context, Result};
-use chrono::Utc;
+use anyhow::{bail, Context, Result};
+use chrono::{Timelike, Utc};
 use helper::env_var;
 use helper::monitoring::MetricsExporter;
 use model::domain::sla::Sla;
@@ -10,7 +13,7 @@ use model::dto::function::Proposed;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
-use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{instrument, trace};
 use uom::num_traits::ToPrimitive;
 use uom::si::rational64::{Information, Ratio};
@@ -24,6 +27,9 @@ use super::function::Function;
 )]
 pub struct PricingRatio(f64);
 
+#[nutype(derive(PartialEq, PartialOrd, Clone), validate(greater_or_equal = 1))]
+pub struct MaxInFlight(usize);
+
 env_var!(PRICING_CPU);
 env_var!(PRICING_CPU_INITIAL);
 env_var!(PRICING_MEM);
@@ -33,6 +39,7 @@ env_var!(RATIO_AA);
 env_var!(RATIO_BB);
 env_var!(RATIO_CC);
 env_var!(ELECTRICITY_PRICE);
+env_var!(MAX_IN_FLIGHT_FUNCTIONS_PROPOSALS);
 
 struct ComputedBid {
     pub(crate) name:          String,
@@ -48,11 +55,14 @@ struct ComputedBid {
 }
 
 pub struct Auction {
-    resource_tracking: Arc<ResourceTracking>,
-    db:                Arc<FunctionTracking>,
-    metrics:           Arc<MetricsExporter>,
+    resource_tracking:             Arc<ResourceTracking>,
+    db:                            Arc<FunctionTracking>,
+    metrics:                       Arc<MetricsExporter>,
     #[allow(dead_code)]
-    function:          Arc<Function>,
+    function:                      Arc<Function>,
+    in_flight_functions_per_sec_1: AtomicU32,
+    in_flight_functions_per_sec_2: AtomicU32,
+    max_in_flight:                 MaxInFlight,
 }
 
 impl Auction {
@@ -61,8 +71,22 @@ impl Auction {
         db: Arc<FunctionTracking>,
         metrics: Arc<MetricsExporter>,
         function: Arc<Function>,
-    ) -> Self {
-        Self { resource_tracking, db, metrics, function }
+    ) -> Result<Self> {
+        let max_in_flight = helper::env_load!(
+            MaxInFlight,
+            MAX_IN_FLIGHT_FUNCTIONS_PROPOSALS,
+            usize
+        );
+
+        Ok(Self {
+            resource_tracking,
+            db,
+            metrics,
+            function,
+            in_flight_functions_per_sec_1: AtomicU32::new(0),
+            in_flight_functions_per_sec_2: AtomicU32::new(0),
+            max_in_flight,
+        })
     }
 
     /// Get a suitable (free enough) node to potentially run the designated SLA
@@ -279,6 +303,11 @@ impl Auction {
         else {
             return Ok(None);
         };
+
+        if self.check_in_flight().await.is_err() {
+            return Ok(None);
+        }
+
         #[cfg(not(any(feature = "maxcpu", feature = "mincpurandom")))]
         let price = bid;
 
@@ -308,7 +337,46 @@ impl Auction {
                 timestamp: Utc::now(),
             })
             .await?;
+
         Ok(Some((id, record)))
+    }
+
+    /// Allow and increase the counter or refuses
+    async fn check_in_flight(&self) -> Result<()> {
+        let current_second = (Utc::now().second() % 2) as usize; // 0 or 1
+        let inc;
+        let err;
+
+        if current_second == 0 {
+            inc = self
+                .in_flight_functions_per_sec_1
+                .fetch_add(1, Ordering::Relaxed);
+            err = self.in_flight_functions_per_sec_2.fetch_update(
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+                |_| Some(0),
+            );
+        } else {
+            inc = self
+                .in_flight_functions_per_sec_2
+                .fetch_add(1, Ordering::Relaxed);
+            err = self.in_flight_functions_per_sec_1.fetch_update(
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+                |_| Some(0),
+            );
+        };
+
+        if err.is_err() {
+            bail!("Failed to update atomic");
+        }
+
+        let size = self.max_in_flight.clone().into_inner();
+        if (inc as usize) > size {
+            bail!("Too many in flight functions I have bidded upon")
+        }
+
+        Ok(())
     }
 }
 
@@ -432,12 +500,15 @@ mod tests {
             metrics.clone(),
             cron.clone(),
         ));
-        let auction = Arc::new(Auction::new(
-            resource_tracking.clone(),
-            function_tracking.clone(),
-            metrics,
-            function.clone(),
-        ));
+        let auction = Arc::new(
+            Auction::new(
+                resource_tracking.clone(),
+                function_tracking.clone(),
+                metrics,
+                function.clone(),
+            )
+            .unwrap(),
+        );
 
         let function_life = Arc::new(
             FunctionLife::new(
@@ -728,8 +799,19 @@ mod tests {
         assert_eq!(cc_a + cc, reserved_cpu);
     }
 
+    /// Check that a lot (millions) of request can be handled without breaking
+    /// anything
     #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
     async fn test_lots_functions_parallel() {
+        let result = tokio::time::timeout(Duration::from_secs(60), async {
+            _test_lots_functions_parallel().await;
+            "done"
+        })
+        .await;
+        assert!(result.is_ok())
+    }
+
+    async fn _test_lots_functions_parallel() {
         let Instance {
             auction,
             function_life,
@@ -742,7 +824,7 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        for ii in 0..100_000 {
+        for ii in 0..2_000_000 {
             let function_life = function_life.clone();
             let auction = auction.clone();
 
@@ -832,7 +914,7 @@ mod tests {
         assert!(successes >= 10_000);
 
         assert!(ran > 0);
-        assert!(ran >= 8000 / 50 * 3);
+        assert!(ran >= 8000 / 50 * 2);
 
         let (ram, cc) =
             resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();

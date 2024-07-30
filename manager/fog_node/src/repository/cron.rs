@@ -19,6 +19,7 @@ pub struct UnprovisionFunction {
     pub sla:  SlaId,
     pub node: String, // k8s node
 }
+
 pub enum Task {
     UnprovisionFunction(UnprovisionFunction),
 }
