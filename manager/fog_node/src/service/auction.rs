@@ -32,7 +32,6 @@ env_var!(PRICING_MEM_INITIAL);
 env_var!(PRICING_GEOLOCATION);
 env_var!(RATIO_AA);
 env_var!(RATIO_BB);
-env_var!(RATIO_CC);
 env_var!(ELECTRICITY_PRICE);
 struct ComputedBid {
     pub(crate) name:          String,
@@ -182,7 +181,7 @@ impl Auction {
         use crate::service::function::UnprovisionEvent;
         use chrono::Duration;
         use helper::env_load;
-        use uom::si::ratio::basis_point;
+        use helper::uom_helper::cpu_ratio::cpu;
         use uom::si::time::second;
 
         let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
@@ -219,13 +218,13 @@ impl Auction {
 
             let duration = duration.num_seconds() as f64;
             utilisation += (sla.cpu / available_cpu)
-                .get::<basis_point>()
+                .get::<cpu>()
                 .to_f64()
                 .context("Overlfow while converting to f64")?
                 * duration;
         }
         let sla_cpu = (sla.cpu / available_cpu)
-            .get::<basis_point>()
+            .get::<cpu>()
             .to_f64()
             .context("Overflow during conversion to f64")?;
         let sla_duration = sla.duration.get::<second>();

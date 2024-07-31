@@ -302,6 +302,7 @@ def additional_env_vars(level):
                 {
                     "RATIO_AA": random.uniform(0.6, 0.9),
                     "RATIO_BB": random.uniform(1.0, 1.2),
+                    "ELECTRICITY_PRICE": 1.0,
                 }
             )
         elif level == 2:
@@ -309,6 +310,7 @@ def additional_env_vars(level):
                 {
                     "RATIO_AA": random.uniform(0.4, 0.8),
                     "RATIO_BB": random.uniform(0.9, 1.1),
+                    "ELECTRICITY_PRICE": 0.95,
                 }
             )
         elif level <= 1:
@@ -316,6 +318,7 @@ def additional_env_vars(level):
                 {
                     "RATIO_AA": 0.0,
                     "RATIO_BB": 0.9,
+                    "ELECTRICITY_PRICE": 0.75,
                 }
             )
         return ret

@@ -64,6 +64,8 @@ class FunctionProvisioned:
     node_id: str
 
 
+OFFLINE_MODE = os.getenv("OFFLINE_MODE", "") == "true"
+
 RANDOM_SEED = os.getenv("RANDOM_SEED")
 if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
@@ -310,6 +312,10 @@ async def register_new_functions(functions: List[Function]) -> bool:
             print("Provisioning failed", http_code)
             return False
     print(f"Provisioned {','.join([ff.function_name for ff in functions])}")
+
+    if OFFLINE_MODE:
+        return True
+
 
     responses_chain = await post_request_chain_functions(responses)
     if responses_chain is None:

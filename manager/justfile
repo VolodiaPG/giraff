@@ -99,7 +99,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
 
     nodes = {}
 
-    nodes["market"] = '''(
+    nodes["market"] = ('''(
         situation: MarketConnected (
             market_ip: "127.0.0.1",
             market_port: "{{ MARKET_PORT }}",
@@ -111,9 +111,9 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "3 GiB",
         tags: ["market connected"],
         max_in_flight_functions_proposals: MaxInFlight(30),
-    )'''
+    )''',0)
 
-    nodes["node_1"] = '''(
+    nodes["node_1"] = ('''(
         situation: NodeConnected (
             parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
             parent_node_ip: "127.0.0.1",
@@ -127,9 +127,9 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "2 GiB",
         tags: ["node_connected_1"],
         max_in_flight_functions_proposals: MaxInFlight(20),
-    )'''
+    )''',1)
 
-    nodes["node_12"] = '''(
+    nodes["node_12"] = ('''(
         situation: NodeConnected (
             parent_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
             parent_node_ip: "127.0.0.1",
@@ -143,9 +143,9 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "2 GiB",
         tags: ["node_connected_12"],
         max_in_flight_functions_proposals: MaxInFlight(20),
-    )'''
+    )''',2)
 
-    nodes["node_2"] = '''(
+    nodes["node_2"] = ('''(
         situation: NodeConnected (
             parent_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
             parent_node_ip: "127.0.0.1",
@@ -159,10 +159,10 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1500 MiB",
         tags: ["node_connected_2"],
         max_in_flight_functions_proposals: MaxInFlight(15),
-    )'''
+    )''',3)
 
     # Must be that port so expe.sh works magically
-    nodes["node_3"] = '''(
+    nodes["node_3"] = ('''(
         situation: NodeConnected (
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
@@ -176,9 +176,9 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_3"],
         max_in_flight_functions_proposals: MaxInFlight(10),
-    )'''
+    )''',4)
 
-    nodes["node_34"] = '''(
+    nodes["node_34"] = ('''(
         situation: NodeConnected (
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
@@ -192,15 +192,15 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_34"],
         max_in_flight_functions_proposals: MaxInFlight(10),
-    )'''
+    )''',4)
 
 
-    nodes["node_35"] = '''(
+    nodes["node_35"] = ('''(
         situation: NodeConnected (
             parent_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
             parent_node_ip: "127.0.0.1",
             parent_node_port_http: "3034",
-            parent_latency: "2 ms"
+            parent_latency: "1 ms"
         ),
         my_id: "e132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "127.0.0.1",
@@ -209,12 +209,12 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_35"],
         max_in_flight_functions_proposals: MaxInFlight(10),
-    )'''
+    )''',4)
 
     if node_type not in nodes:
         print(f"Wrong node name, select one of the following: {','.join(nodes.keys())}")
         exit(1)
-    config = nodes[node_type]
+    config,level = nodes[node_type]
 
     env_vars = {}
     env_vars['CONFIG'] = base64.b64encode(bytes(config, "utf-8")).decode("utf-8")
@@ -241,15 +241,14 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
 
     env_vars['FUNCTION_LIVE_TIMEOUT_MSECS']="120000"
     env_vars['PRICING_CPU']="1.0"
-    env_vars['PRICING_MEM']="1.0"
+    env_vars['PRICING_MEM']="0.5"
     env_vars['PRICING_CPU_INITIAL']="1.0"
     env_vars['PRICING_MEM_INITIAL']="1.0"
     env_vars['PRICING_GEOLOCATION']="1.0"
 
-    env_vars['RATIO_AA']="1.0"
-    env_vars['RATIO_BB']="1.0"
-    env_vars['RATIO_CC']="1.0"
-    env_vars['ELECTRICITY_PRICE']="1.0"
+    env_vars['RATIO_AA']="0.1"
+    env_vars['RATIO_BB']="0.4"
+    env_vars['ELECTRICITY_PRICE']=level
 
     if "{{ node_type }}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"
@@ -270,11 +269,11 @@ run MY_IP_ADDRESS jaeger="false" *FLAGS="": (build FLAGS)
       "just run_fog_node node_35 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
       "just run_market {{ jaeger }}  {{ FLAGS }}"
 
-expe localhost_ip:
+expe localhost_ip OFFLINE_MODE="false":
     #!/usr/bin/env bash
     cd {{ justfile_directory() }}/../testbed
     nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_3 node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} "c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
-    nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_3 node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} ; just expe .env.local 127.0.0.1 {{ localhost_ip }} "c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
+    nix develop .#testbed -c sh -c 'export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_3 node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} OFFLINE_MODE={{ OFFLINE_MODE }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} "c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
 
 _ghcr user image:
     #!/usr/bin/env bash
