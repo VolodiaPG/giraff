@@ -50,9 +50,8 @@ check_deps:
 _test *FLAGS:
     #!/usr/bin/env bash
     export FUNCTION_LIVE_TIMEOUT_MSECS=1000
-    export RATIO_AA=1
-    export RATIO_BB=1
-    export RATIO_CC=1
+    export RATIO_AA="0.1"
+    export RATIO_BB="0.4"
     export ELECTRICITY_PRICE=1
 
     export RUST_TEST_THREADS=$(nproc)
