@@ -15,14 +15,17 @@
     enable = true;
   };
   # useful packages
-  environment.systemPackages = with pkgs; [
-    faas-cli
-    kubectl
-    arkade
-    tailscale
-    k9s
-    inputs.ebpf-netem.packages.${pkgs.system}.ebpf-netem
-  ];
+  environment.systemPackages =
+    (with pkgs; [
+      faas-cli
+      kubectl
+      arkade
+      tailscale
+      k9s
+    ])
+    ++ [
+      inputs.ebpf-netem.packages.${pkgs.system}.ebpf-netem
+    ];
 
   services.tailscale.enable = true;
 

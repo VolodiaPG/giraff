@@ -57,7 +57,7 @@
                 }
               )
               (
-                nixpkgs.lib.attrsets.cartesianProductOfSets
+                nixpkgs.lib.cartesianProduct
                 {
                   # Do not forget to run cargo2nix at each new features added
                   telemetry = ["no-telemetry" "jaeger"];
@@ -69,6 +69,8 @@
             };
           devShells.fn_echo = rust.craneLib.devShell {
             shellHook = (extra.shellHook system) "fn_echo";
+
+            LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
 
             packages = with pkgs; [
               just

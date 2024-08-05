@@ -17,7 +17,7 @@
             pkgs = import nixpkgs {
               inherit system;
               overlays = [
-                ebpf-netem.overlays.${system}.default
+                # ebpf-netem.overlays.${system}.default
               ];
             };
             modules = with outputs.nixosModules; [
@@ -38,7 +38,7 @@
                 [
                   impermanence.nixosModules.impermanence
                   disko.nixosModules.disko
-                  inputs.srvos.nixosModules.server
+                  srvos.nixosModules.server
                   outputs.nixosModules.disk
                   "${nixpkgs}/nixos/modules/profiles/qemu-guest.nix"
                   "${nixpkgs}/nixos/modules/profiles/all-hardware.nix"

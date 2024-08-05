@@ -52,7 +52,7 @@
                     };
                   }
                 ) (
-                  nixpkgs.lib.attrsets.cartesianProductOfSets
+                  nixpkgs.lib.cartesianProduct
                   {
                     # Do not forget to run cargo2nix at each new features added
                     strategy = ["default_strategy" "random" "mincpurandom"];
@@ -81,7 +81,7 @@
                   }
                 )
                 (
-                  nixpkgs.lib.attrsets.cartesianProductOfSets
+                  nixpkgs.lib.cartesianProduct
                   {
                     # Do not forget to run cargo2nix at each new features added
                     strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu" "mincpurandom"];
@@ -92,8 +92,9 @@
             );
           devShells.manager = rust.craneLib.devShell {
             shellHook =
-              ((extra.shellHook system) "manager")
-              + (extra.shellHookPython pkgs.python3.interpreter);
+              (extra.shellHook system) "manager";
+
+            LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
 
             packages = with pkgs;
               [
@@ -115,8 +116,8 @@
                 parallel
                 skopeo
               ]
-              ++ lib.optionals pkgs.stdenv.isDarwin [
-                pkgs.libiconv
+              ++ nixpkgs.lib.optionals stdenv.isDarwin [
+                libiconv
                 darwin.apple_sdk.frameworks.SystemConfiguration
               ];
           };

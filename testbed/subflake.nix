@@ -76,16 +76,18 @@
                     }
                   )
                 ];
-              experiments = final.python311.withPackages (ps: (with ps; [
+              experiments = final.python312.withPackages (ps: (with ps; [
                 dill
                 click
                 types-click
                 aiohttp
+                aiodns
+                brotli
                 influxdb-client
                 marshmallow-dataclass
                 randomname
                 numpy
-                (buildPythonPackage rec {
+                (buildPythonPackage {
                   pname = "enoslib";
                   src = inputs.enoslib;
                   version = "${inputs.enoslib.shortRev}";
@@ -124,14 +126,13 @@
             devShells.testbed = pkgs.mkShell {
               shellHook =
                 ((extra.shellHook system) "testbed")
-                + (extra.shellHookPython pkgs.experiments.interpreter)
                 + ''
                   ln -sfn ${pkgs.ansible_cfg} ansible.cfg
                 '';
 
               PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
 
-              buildInputs = with pkgs; [
+              packages = with pkgs; [
                 just
                 jq
                 ruff

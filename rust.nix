@@ -5,7 +5,7 @@ with inputs; let
     src,
     symlinks ? [],
   }: let
-    craneLib = crane.lib.${pkgs.system}.overrideToolchain (fenix.packages.${pkgs.system}.latest.withComponents [
+    craneLib = (crane.mkLib pkgs).overrideToolchain (fenix.packages.${pkgs.system}.latest.withComponents [
       "cargo"
       "clippy"
       "rust-src"
@@ -38,9 +38,9 @@ with inputs; let
           [
             openssl
           ]
-          ++ lib.optionals pkgs.stdenv.isDarwin [
+          ++ lib.optionals stdenv.isDarwin [
             # Additional darwin specific inputs can be set here
-            pkgs.libiconv
+            libiconv
             darwin.apple_sdk.frameworks.SystemConfiguration
           ];
       };

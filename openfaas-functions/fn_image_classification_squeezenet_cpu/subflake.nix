@@ -12,7 +12,7 @@
           };
 
           overlay = self: _super: {
-            myFunction = self.python311.withPackages (
+            myFunction = self.python312.withPackages (
               ps: (with ps; [
                 torch
                 torchvision
@@ -68,8 +68,7 @@
           packages."fn_${fn_name}" = image;
           devShells."fn_${fn_name}" = pkgs.mkShell {
             shellHook =
-              ((extra.shellHook system) "fn_${fn_name}")
-              + (extra.shellHookPython pkgs.myFunction.interpreter);
+              (extra.shellHook system) "fn_${fn_name}";
             SQUEEZENET_MODEL = squeezenetModel;
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";

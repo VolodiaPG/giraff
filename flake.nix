@@ -24,7 +24,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         nixpkgs-stable.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
       };
     };
     disko = {
@@ -62,14 +61,7 @@
       url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
       flake = false;
     };
-    ebpf-netem = {
-      url = "github:volodiapg/ebpf-netem";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-utils.follows = "flake-utils";
-        gomod2nix.follows = "gomod2nix";
-      };
-    };
+    ebpf-netem.url = "github:volodiapg/ebpf-netem";
   };
 
   # Enable caching
@@ -103,21 +95,6 @@
 
           source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
           ${outputs.checks.${system}.pre-commit-check.shellHook}
-        '';
-
-        shellHookPython = interpreter: let
-          venvDir = "./.venv";
-        in ''
-          SOURCE_DATE_EPOCH=$(date +%s)
-          if [ -d "${venvDir}" ] && [ "${interpreter}" == $(cat "${venvDir}/interpreter.hash") ]; then
-            >&2 echo "Skipping venv creation, '${venvDir}' already exists"
-          else
-            rm -rf ${venvDir} || true
-            >&2 echo "Creating new venv environment in path: '${venvDir}'"
-            ${interpreter} -m venv "${venvDir}"
-            echo ${interpreter} > "${venvDir}"/interpreter.hash
-          fi
-          source "${venvDir}/bin/activate"
         '';
       };
 
@@ -189,7 +166,6 @@
             checks = {
               pre-commit-check = pre-commit-hooks.lib.${system}.run {
                 src = ./.;
-                settings.statix.ignore = ["Cargo.nix"];
                 hooks = {
                   # Nix
                   alejandra.enable = true;
