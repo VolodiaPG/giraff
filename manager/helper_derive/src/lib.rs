@@ -60,7 +60,7 @@ pub fn influx_observation(
         });
 
     let name = &item_struct.ident;
-    let influx_name = InfluxName::new(name.to_string())
+    let influx_name = InfluxName::try_new(name.to_string())
         .expect(
             "Provided name is not conform to the validation and sanitization \
              schemas",

@@ -10,7 +10,7 @@ offline = []
 [dependencies]
 anyhow = "1.0"
 chrono = "0.4"
-dashmap = "5.4"
+dashmap = "6.0"
 lazy-regex = "3.1"
 lazy_static = "1.4"
 nutype = { version = "0.4", features = ["regex"] }

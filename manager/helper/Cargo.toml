@@ -14,25 +14,25 @@ actix-web = "4.4"
 anyhow = "1.0"
 async-stream = "0.3"
 async-trait = "0.1"
-bytes = "1.4"
+bytes = "1.7"
 chrono = "0.4"
 convert_case = "0.6"
 futures = "0.3"
-influxdb2 = "0.4"
+influxdb2 = "0.5"
 influxdb2-structmap = "0.2"
 num-rational = "0.4.2"
 num-traits = "0.2"
 lazy-regex = "3.1"
-regex = "1.8"
+regex = "1.10"
 lazy_static = "1.4"
 nutype = { version = "0.4", features = ["serde", "regex"] }
-reqwest = { version = "0.11", features = ["json", "gzip"] }
-reqwest-middleware = "0.2"
+reqwest = { version = "0.12", features = ["json", "gzip"] }
+reqwest-middleware = { version = "0.3", features = ["json"] }
 ron = "0.8"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = { version = "1.0", features = ["raw_value"] }
 serde_with = "3.4"
-tokio = { version = "1.28", default-features = false, features = ["time"] }
+tokio = { version = "1.39", default-features = false, features = ["time"] }
 thiserror = "1.0"
 tracing = "0.1"
 uom = { version = "0.36", default-features = false, features = [

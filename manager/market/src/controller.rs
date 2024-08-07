@@ -13,7 +13,7 @@ pub async fn start_auction(
     payload: PutSla,
     auction_service: &Arc<crate::service::auction::Auction>,
 ) -> Result<AcceptedBid> {
-    trace!("put sla: {:?}", payload);
+    trace!("put sla: {:?} for {:?}", payload.sla.id, payload.target_node);
 
     auction_service
         .start_auction(payload.target_node, payload.sla)

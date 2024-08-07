@@ -49,7 +49,7 @@ impl Auction {
         to: NodeId,
         sla: &'_ Sla,
     ) -> Result<BidProposals> {
-        trace!("call for bids: {:?}", sla);
+        trace!("call for bids: {:?}", sla.id);
 
         self.node_communication
             .request_bids_from_node(to.clone(), sla)

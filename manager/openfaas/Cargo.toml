@@ -3,29 +3,23 @@ name = "openfaas"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-# Enable jaeger
-jaeger = ["reqwest-tracing"]
-
 [dependencies]
 backoff = { version = "0.4.0", features = ["tokio"] }
-reqwest-middleware = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-middleware" }
-reqwest-tracing = { git = "https://github.com/TrueLayer/reqwest-middleware", rev = "b53d355", package = "reqwest-tracing", features = [
+reqwest-middleware = { version = "0.3", features = ["json"] }
+reqwest-tracing = { version = "0.5", features = [
     "opentelemetry_0_21",
-], optional = true }
-bytes = "1.2.0"
+]}
+bytes = "1.7"
 chrono = "0.4"
 lazy-regex = "3.1.0"
 log = "0.4.17"
-reqwest = { version = "0.11.22", features = ["json", "gzip"] }
-#     "opentelemetry_0_20",
-# ], optional = true }
+reqwest = { version = "0.12", features = ["json", "gzip"] }
 ron = "0.8.0"
-serde = { version = "1.0.140", features = ["derive", "rc"] }
-serde_json = { version = "1.0.82", features = ["raw_value"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1.0", features = ["raw_value"] }
 serde_with = "3.4.0"
 thiserror = "1.0.31"
-tokio = { version = "1.20.1", features = ["full"] }
+tokio = { version = "1.39", features = ["full"] }
 tracing = "0.1.37"
 uom = { version = "0.36", features = ["f64", "si"] }
 
