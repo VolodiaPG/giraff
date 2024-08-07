@@ -226,7 +226,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut client_builder = ClientBuilder::new(
         reqwest::Client::builder()
-            .pool_idle_timeout(Some(Duration::from_secs(90)))
+            .pool_idle_timeout(Some(Duration::from_secs(20)))
             .build()?, // keep-alive
     );
     client_builder = client_builder.with(TracingMiddleware::default());
