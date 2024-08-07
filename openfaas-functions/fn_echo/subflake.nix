@@ -2,6 +2,7 @@
   outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
+      inherit (nixpkgs) lib;
     in
       flake-utils.lib.eachDefaultSystem (
         system: let

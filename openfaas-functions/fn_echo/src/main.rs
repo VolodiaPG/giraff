@@ -5,34 +5,26 @@
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use actix_web::dev::Service;
-use actix_web::{
-    middleware, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer,
-};
+use actix_web::{middleware, web, App, HttpMessage, HttpResponse, HttpServer};
 #[cfg(feature = "jaeger")]
 use actix_web_opentelemetry::RequestTracing;
-use anyhow::{Context, Result};
-use chrono::serde::ts_microseconds;
-use chrono::{DateTime, Utc};
-use helper::monitoring::{
-    InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken, InstanceName,
-    MetricsExporter,
-};
-use helper::{env_load, env_var};
+use anyhow::Result;
+use chrono::Utc;
+use helper::env_var;
 use helper_derive::influx_observation;
-use model::domain::sla::Sla;
 #[cfg(feature = "jaeger")]
 use opentelemetry::global;
 #[cfg(feature = "jaeger")]
 use opentelemetry_sdk::propagation::TraceContextPropagator;
-use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::ClientBuilder;
 #[cfg(feature = "jaeger")]
 use reqwest_tracing::TracingMiddleware;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::subscriber::set_global_default;
-use tracing::{debug, error, info, instrument, warn, Subscriber};
+use tracing::{debug, info, instrument, Subscriber};
 #[cfg(feature = "jaeger")]
 use tracing_actix_web::TracingLogger;
 use tracing_forest::ForestLayer;
@@ -40,7 +32,6 @@ use tracing_log::LogTracer;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-const VAR_SLA: &str = "SLA";
 env_var!(ID);
 
 /// timestamp at which the function is fully operational
@@ -82,16 +73,6 @@ struct LatencyHeader {
     tag:    String,
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct IncomingPayload {
-    #[serde(with = "ts_microseconds")]
-    sent_at: DateTime<Utc>,
-    tag:     String,
-    from:    String,
-    to:      String,
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Reconfigure {
@@ -99,15 +80,14 @@ struct Reconfigure {
 }
 struct Configuration {
     next_function_url: Option<String>,
-    sla:               Sla,
 }
 
 impl Configuration {
-    fn new(sla: Sla) -> Self { Self { sla, next_function_url: None } }
+    fn new() -> Self { Self { next_function_url: None } }
 }
 
 #[instrument(level = "trace")]
-async fn handle() -> HttpResponse { HttpResponse::Ok().finish() }
+async fn handle() -> HttpResponse { return HttpResponse::Ok().finish(); }
 
 #[instrument(level = "trace", skip(config), fields(next_function_url=payload.0.next_function_url))]
 async fn reconfigure(
@@ -179,31 +159,18 @@ async fn main() -> Result<()> {
 
     debug!("Tracing initialized.");
 
-    let Ok(sla_raw) = std::env::var(VAR_SLA) else {
-        panic!("{} env variable not found", VAR_SLA);
-    };
-
-    let Ok(sla) = serde_json::from_str::<Sla>(&sla_raw) else {
-        panic!("Cannot read and deserialize {} env variable", VAR_SLA);
-    };
-
-    let reqwest_client = reqwest::Client::builder()
-        .pool_max_idle_per_host(0)
-        .pool_idle_timeout(Duration::new(20, 0))
-        .build()
-        .expect("Failed to build http client");
+    let builder = ClientBuilder::new(
+        reqwest::Client::builder()
+            .pool_idle_timeout(Some(Duration::from_secs(20)))
+            .build()?, // keep-alive
+    );
 
     #[cfg(feature = "jaeger")]
-    let http_client = Arc::new(
-        ClientBuilder::new(reqwest_client)
-            .with(TracingMiddleware::default())
-            .build(),
-    );
-    #[cfg(not(feature = "jaeger"))]
-    let http_client = Arc::new(ClientBuilder::new(reqwest_client).build());
+    let builder = builder.with(TracingMiddleware::default());
 
-    let config =
-        web::Data::from(Arc::new(RwLock::new(Configuration::new(sla))));
+    let http_client = Arc::new(builder.build());
+
+    let config = web::Data::from(Arc::new(RwLock::new(Configuration::new())));
     let http_client = web::Data::from(http_client);
 
     let server = HttpServer::new(move || {
