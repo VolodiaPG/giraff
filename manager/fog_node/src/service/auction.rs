@@ -235,7 +235,7 @@ impl Auction {
             * (2.0 * aa * utilisation + (aa * sla_cpu + bb) * sla_duration);
 
         trace!("(quadratic) price on is {:?}", bid);
-        assert!(bid > 0.0, "the bid wasn't > 0");
+        assert!(bid > 0.001, "the bid wasn't > 0");
 
         Ok(Some(ComputedBid {
             name,
@@ -394,7 +394,7 @@ mod tests {
     use uom::si::f64::Time;
     use uom::si::information::{gigabyte, megabyte};
     use uom::si::rational64::{Information, Ratio};
-    use uom::si::time::second;
+    use uom::si::time::{millisecond, second};
     use yare::parameterized;
 
     pub struct AtomicF64 {
@@ -906,11 +906,13 @@ mod tests {
                     ),
                 };
 
-                let mut pay_it = auction
-                    .bid_on(sla, &AccumulatedLatency::default())
-                    .await
-                    .unwrap()
-                    .is_some();
+                let mut acc = AccumulatedLatency::default();
+                acc.median =
+                    Time::new::<millisecond>(law.sample(&mut r) as f64 * 15.0);
+                acc.average = acc.median;
+
+                let mut pay_it =
+                    auction.bid_on(sla, &acc).await.unwrap().is_some();
 
                 pay_it = pay_it && law.sample(&mut r) > 1;
 
