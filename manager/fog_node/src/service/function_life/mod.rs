@@ -103,11 +103,11 @@ impl FunctionLife {
         {
             info!("Using edge-ward placement");
         }
-        #[cfg(feature = "edge_ward_placement_v2")]
+        #[cfg(feature = "edge_ward_v2")]
         {
             info!("Using edge-ward v2 placement");
         }
-        #[cfg(feature = "edge_ward_placement_v3")]
+        #[cfg(feature = "edge_ward_v3")]
         {
             info!("Using edge-ward v3 placement");
         }
@@ -176,21 +176,22 @@ impl FunctionLife {
                              function"
                         );
 
+                        #[cfg(not(test))]
                         return;
                     };
 
                     if let Err(err) = function.finish_function(id).await {
+                        warn!(
+                            "Failed to drop paid function as stated in the \
+                             cron job {:?}",
+                            err
+                        );
+
                         #[cfg(test)]
                         panic!(
                             "Failed to finish function when unprovisioning \
                              function: {}",
                             err.to_string()
-                        );
-
-                        warn!(
-                            "Failed to drop paid function as stated in the \
-                             cron job {:?}",
-                            err
                         );
                     }
                 })

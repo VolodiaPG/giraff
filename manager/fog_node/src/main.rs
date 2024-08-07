@@ -251,7 +251,7 @@ async fn main() -> anyhow::Result<()> {
             Ok(metrics) => Ok(metrics),
             Err(err) => {
                 let default = MetricsExporter::new(
-                    InfluxAddress::new(INFLUX_DEFAULT_ADDRESS)?,
+                    InfluxAddress::try_new(INFLUX_DEFAULT_ADDRESS)?,
                     env_load!(InfluxOrg, INFLUX_ORG),
                     env_load!(InfluxToken, INFLUX_TOKEN),
                     env_load!(InfluxBucket, INFLUX_BUCKET),

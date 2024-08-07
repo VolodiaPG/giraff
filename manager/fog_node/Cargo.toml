@@ -3,9 +3,6 @@ name = "fog_node"
 version = "0.1.0"
 edition = "2021"
 
-[testing]
-test-threads = 20
-
 [features]
 # Do not forget to run cargo2nix at each new features added
 
@@ -29,14 +26,14 @@ edge_first = []
 # While putting function the furthest possible first
 edge_furthest = []
 # # Cloud only allocation
-# cloud_only = []
+cloud_only = []
 # # Cloud only allocation v2 (with more chatter between cloud nodes)
-# cloud_only_v2 = []
+cloud_only_v2 = []
 # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
 edge_ward = []
 # # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
 # # + Refuse functions if latency is expected not to be respected
-# edge_ward_v2 = []
+edge_ward_v2 = []
 # Edge-ward algorithm as described in https://arxiv.org/abs/1606.02007
 # + Refuse functions if latency is expected not to be respected
 # + Tries to allocate the furthest first
@@ -118,5 +115,6 @@ model = { path = "../model" }
 openfaas = { path = "../openfaas" }
 
 [dev-dependencies]
-rand = { version = "0.8.5", features = ["std_rng"] }
-rand_distr = "0.4.3"
+rand = { version = "0.8", features = ["std_rng"] }
+rand_distr = "0.4"
+yare = "3.0"

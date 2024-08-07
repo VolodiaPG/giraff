@@ -8,7 +8,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use tracing::warn;
 use uom::num_traits::ToPrimitive;
-use uom::si::information::{byte, gigabyte, megabyte};
+use uom::si::information::{gigabyte, megabyte};
 use uom::si::rational64::{Information, Ratio};
 
 #[derive(Debug)]

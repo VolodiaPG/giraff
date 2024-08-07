@@ -15,6 +15,7 @@ impl FunctionLife {
         from: NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
+        todo!("Maintance to be done");
         let mut requests = vec![];
 
         if std::env::var("IS_CLOUD").map(|x| x == "is_cloud").unwrap_or(false)

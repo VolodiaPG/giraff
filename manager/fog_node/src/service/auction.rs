@@ -373,7 +373,6 @@ mod tests {
     use super::*;
     use crate::repository::cron::Cron;
     use crate::repository::faas::{FaaSBackend, FaaSBackendOfflineImpl};
-    use crate::repository::function_tracking;
     use crate::repository::k8s::{K8s, OFFLINE_NODE_K8S};
     use crate::repository::latency_estimation::{
         LatencyEstimation, LatencyEstimationOfflineImpl,
@@ -384,10 +383,10 @@ mod tests {
     use crate::service::neighbor_monitor::NeighborMonitor;
     use helper::monitoring::InfluxAddress;
     use helper::uom_helper::cpu_ratio::{cpu, millicpu};
-    use model::dto::node::NodeSituationData;
+    use model::dto::node::{NodeCategory, NodeSituationData};
     use model::SlaId;
     use rand::rngs::StdRng;
-    use rand::{thread_rng, SeedableRng};
+    use rand::SeedableRng;
     use rand_distr::{Distribution, Uniform};
     use std::net::Ipv4Addr;
     use std::sync::atomic::AtomicU64;
@@ -396,6 +395,7 @@ mod tests {
     use uom::si::information::{gigabyte, megabyte};
     use uom::si::rational64::{Information, Ratio};
     use uom::si::time::second;
+    use yare::parameterized;
 
     pub struct AtomicF64 {
         storage: AtomicU64,
@@ -427,15 +427,33 @@ mod tests {
         pub function:          Arc<Function>,
     }
 
-    async fn get_auction_impl() -> Instance {
+    fn market_connected() -> NodeCategory {
+        NodeCategory::MarketConnected {
+            market_ip:   std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            market_port: 1234.into(),
+        }
+    }
+
+    fn node_connected() -> NodeCategory {
+        NodeCategory::NodeConnected {
+            parent_latency:        Time::new::<second>(15.0),
+            parent_id:             Uuid::new_v4().into(),
+            parent_node_ip:        std::net::IpAddr::V4(Ipv4Addr::new(
+                127, 0, 0, 1,
+            )),
+            parent_node_port_http: 1234.into(),
+        }
+    }
+
+    async fn get_auction_impl(situation: NodeCategory) -> Instance {
         let k8s = Arc::new(K8s::new());
         let metrics = Arc::new(
             MetricsExporter::new(
-                InfluxAddress::new("127.0.0.1:1234").unwrap(),
-                helper::monitoring::InfluxOrg::new("toto").unwrap(),
-                helper::monitoring::InfluxToken::new("xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==").unwrap(),
-                helper::monitoring::InfluxBucket::new("toto").unwrap(),
-                helper::monitoring::InstanceName::new("toto").unwrap(),
+                InfluxAddress::try_new("127.0.0.1:1234").unwrap(),
+                helper::monitoring::InfluxOrg::try_new("toto").unwrap(),
+                helper::monitoring::InfluxToken::try_new("xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==").unwrap(),
+                helper::monitoring::InfluxBucket::try_new("toto").unwrap(),
+                helper::monitoring::InstanceName::try_new("toto").unwrap(),
             )
             .await
             .unwrap(),
@@ -457,14 +475,7 @@ mod tests {
             FaaSBackendOfflineImpl::new(Duration::from_secs(2)),
         ));
         let node_situation = Arc::new(NodeSituation::new(NodeSituationData {
-            situation: model::dto::node::NodeCategory::NodeConnected {
-                parent_latency:        Time::new::<second>(15.0),
-                parent_id:             Uuid::new_v4().into(),
-                parent_node_ip:        std::net::IpAddr::V4(Ipv4Addr::new(
-                    127, 0, 0, 1,
-                )),
-                parent_node_port_http: 1234.into(),
-            },
+            situation,
             my_id: Uuid::new_v4().into(),
             my_public_ip: std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             my_public_port_http: 12345.into(),
@@ -472,7 +483,8 @@ mod tests {
             tags: vec!["toto".to_string()],
             reserved_memory,
             reserved_cpu,
-            max_in_flight_functions_proposals: MaxInFlight::new(160).unwrap(),
+            max_in_flight_functions_proposals: MaxInFlight::try_new(160)
+                .unwrap(),
             children: dashmap::DashMap::new(),
         }));
         let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> =
@@ -544,9 +556,13 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_sla_refusal() {
-        let auction = get_auction_impl().await.auction;
+    #[parameterized(
+        node = { node_connected(), },
+        market = { market_connected(), },
+    )]
+    #[test_macro(tokio::test())]
+    async fn test_sla_refusal(situation: NodeCategory) {
+        let auction = get_auction_impl(situation).await.auction;
         let sla = Sla {
             id:                 Uuid::new_v4().into(),
             memory:             Information::new::<gigabyte>(
@@ -573,15 +589,19 @@ mod tests {
         assert!(res.is_none());
     }
 
-    #[tokio::test]
-    async fn test_sla_acceptance() {
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()}
+    )]
+    #[test_macro(tokio::test)]
+    async fn test_sla_acceptance(situation: NodeCategory) {
         let Instance {
             auction,
             function_life,
             function_tracking,
             resource_tracking,
             ..
-        } = get_auction_impl().await;
+        } = get_auction_impl(situation).await;
 
         let sla = Sla {
             id:                 Uuid::new_v4().into(),
@@ -646,15 +666,19 @@ mod tests {
 
     /// The function has a duration < to the time it takes to provision the
     /// function on the node
-    #[tokio::test]
-    async fn test_finished_before_live() {
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()},
+    )]
+    #[test_macro(tokio::test)]
+    async fn test_finished_before_live(situation: NodeCategory) {
         let Instance {
             auction,
             function_life,
             function_tracking,
             resource_tracking,
             ..
-        } = get_auction_impl().await;
+        } = get_auction_impl(situation).await;
         let sla = Sla {
             id:                 Uuid::new_v4().into(),
             memory:             Information::new::<megabyte>(
@@ -711,8 +735,12 @@ mod tests {
         assert_eq!(cc, Ratio::new::<cpu>(num_rational::Ratio::new(0, 1)));
     }
 
-    #[tokio::test]
-    async fn test_mutliple_functions() {
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()},
+    )]
+    #[test_macro(tokio::test)]
+    async fn test_mutliple_functions(situation: NodeCategory) {
         let Instance {
             auction,
             function_life,
@@ -721,7 +749,7 @@ mod tests {
             reserved_cpu,
             reserved_memory,
             ..
-        } = get_auction_impl().await;
+        } = get_auction_impl(situation).await;
 
         let sla = Sla {
             id:                 Uuid::new_v4().into(),
@@ -752,10 +780,8 @@ mod tests {
 
         let acc = AccumulatedLatency::default();
 
-        let res =
-            auction.bid_on(sla.clone(), &acc).await.expect("Bidding faield");
-        let res =
-            auction.bid_on(sla2.clone(), &acc).await.expect("Bidding faield");
+        auction.bid_on(sla.clone(), &acc).await.expect("Bidding faield");
+        auction.bid_on(sla2.clone(), &acc).await.expect("Bidding faield");
 
         function_life
             .pay_function(sla2.id.clone())
@@ -813,26 +839,28 @@ mod tests {
 
     /// Check that a lot (millions) of request can be handled without breaking
     /// anything
-    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
-    async fn test_lots_functions_parallel() {
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()},
+    )]
+    #[test_macro(tokio::test(flavor = "multi_thread", worker_threads = 20))]
+    async fn test_lots_functions_parallel(situation: NodeCategory) {
         //let result = tokio::time::timeout(Duration::from_secs(120), async {
-        _test_lots_functions_parallel().await;
+        _test_lots_functions_parallel(situation).await;
         //    "done"
         //})
         //.await;
         //assert!(result.is_ok())
     }
 
-    async fn _test_lots_functions_parallel() {
+    async fn _test_lots_functions_parallel(situation: NodeCategory) {
         let Instance {
             auction,
             function_life,
             function_tracking,
             resource_tracking,
-            reserved_cpu,
-            reserved_memory,
             ..
-        } = get_auction_impl().await;
+        } = get_auction_impl(situation).await;
 
         let mut handles = Vec::new();
 
@@ -926,7 +954,7 @@ mod tests {
         assert!(successes >= 10_000);
 
         assert!(ran > 0);
-        assert!(ran >= 8000 / 50 * 2);
+        assert!(ran >= 8000 / 50);
 
         let (ram, cc) =
             resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();
@@ -938,17 +966,14 @@ mod tests {
     }
 
     #[cfg(feature = "quadratic_rates")]
-    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
-    async fn test_quadratic_rates_always_increasing() {
-        let Instance {
-            auction,
-            function_life,
-            function_tracking,
-            resource_tracking,
-            reserved_cpu,
-            reserved_memory,
-            ..
-        } = get_auction_impl().await;
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()},
+    )]
+    #[test_macro(tokio::test)]
+    async fn test_quadratic_rates_always_increasing(situation: NodeCategory) {
+        let Instance { auction, function_life, .. } =
+            get_auction_impl(situation).await;
 
         let mut handles = Vec::new();
 
@@ -1008,8 +1033,7 @@ mod tests {
                 if pay_it {
                     tokio::time::sleep(Duration::from_secs(
                         sla_duration.get::<second>().to_f64().unwrap().ceil()
-                            as u64
-                            + 1,
+                            as u64,
                     ))
                     .await;
                 }
@@ -1024,7 +1048,7 @@ mod tests {
         }
 
         for hh in handles {
-            let (pay_it, success, sla_id) = hh.await.unwrap();
+            hh.await.unwrap();
         }
     }
 
@@ -1086,19 +1110,15 @@ mod tests {
     }
 
     #[cfg(feature = "quadratic_rates")]
-    #[tokio::test(flavor = "multi_thread", worker_threads = 20)]
-    async fn test_quadratic_rates_repeatability() {
+    #[parameterized(
+        node = {node_connected()},
+        market = {market_connected()},
+    )]
+    #[test_macro(tokio::test(flavor = "multi_thread", worker_threads = 20))]
+    async fn test_quadratic_rates_repeatability(situation: NodeCategory) {
         use futures::future::join_all;
-        let Instance {
-            auction,
-            function_life,
-            function_tracking,
-            resource_tracking,
-            reserved_cpu,
-            reserved_memory,
-            function,
-            ..
-        } = get_auction_impl().await;
+        let Instance { auction, function_life, function, .. } =
+            get_auction_impl(situation).await;
 
         let mut handles = Vec::new();
 
@@ -1127,7 +1147,6 @@ mod tests {
         assert_eq!(function.get_utilisation_variations().await.len(), 0);
 
         handles = Vec::new();
-        let prev_last_bid = last_bid_price.load(Ordering::SeqCst);
         last_bid_price.store(0.0, Ordering::SeqCst);
 
         for ii in 0..10 {

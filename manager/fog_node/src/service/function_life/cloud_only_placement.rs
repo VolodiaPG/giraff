@@ -15,6 +15,7 @@ impl FunctionLife {
         _from: NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
+        todo!("Maintance to be done");
         match self.node_situation.get_parent_id() {
             Some(parent) => {
                 let bid = self

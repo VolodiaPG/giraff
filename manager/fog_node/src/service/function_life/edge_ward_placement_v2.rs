@@ -13,14 +13,9 @@ impl FunctionLife {
         sla: &'a Sla,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
-        let Some(parent) = self
-            .node_situation
-            .get_parent_id()
-            else{
-                return Ok(BidProposals {
-                    bids: vec!()
-                });
-            };
+        let Some(parent) = self.node_situation.get_parent_id() else {
+            return Ok(BidProposals { bids: vec![] });
+        };
 
         let latency_outbound = self
             .neighbor_monitor
@@ -67,6 +62,7 @@ impl FunctionLife {
         _from: NodeId,
         accumulated_latency: Time,
     ) -> Result<BidProposals> {
+        todo!("Maintance to be done");
         let bid = if let Ok(Some((id, record))) =
             self.auction.bid_on(sla.clone(), accumulated_latency).await
         {

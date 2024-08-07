@@ -5,7 +5,7 @@ use crate::repository::function_tracking::FunctionTracking;
 use crate::repository::resource_tracking::ResourceTracking;
 use crate::service::neighbor_monitor::NeighborMonitor;
 use crate::{NodeQuery, NodeSituation};
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{ensure, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use helper::err::IndividualErrorList;
 use helper::monitoring::MetricsExporter;
@@ -15,7 +15,7 @@ use model::SlaId;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
-use tracing::{error, trace, warn};
+use tracing::trace;
 use uom::si::rational64::{Information, Ratio};
 use uom::si::time::millisecond;
 

@@ -72,8 +72,7 @@ impl NodeCommunication {
 
     #[instrument(level = "trace", skip(self))]
     pub async fn take_offer(&self, to: NodeId, id: &SlaId) -> Result<()> {
-        let response = self
-            .send(&to, &format!("accept/{}", id))
+        self.send(&to, &format!("accept/{}", id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)
@@ -82,16 +81,6 @@ impl NodeCommunication {
             .await
             .with_context(|| {
                 format!("Failed to send an offering to {}", to)
-            })?;
-
-        helper::reqwest_helper::deserialize_response(response)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to deserialize the response when trying to take \
-                     the offer of node {}",
-                    to
-                )
             })?;
         Ok(())
     }
@@ -102,8 +91,7 @@ impl NodeCommunication {
         to: NodeId,
         id: &SlaId,
     ) -> Result<()> {
-        let response = self
-            .send(&to, &format!("provision/{}", id))
+        self.send(&to, &format!("provision/{}", id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)
@@ -114,15 +102,6 @@ impl NodeCommunication {
                 format!("Failed to send an offering to {}", to)
             })?;
 
-        helper::reqwest_helper::deserialize_response(response)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to deserialize the response when trying to take \
-                     the offer of node {}",
-                    to
-                )
-            })?;
         Ok(())
     }
 }

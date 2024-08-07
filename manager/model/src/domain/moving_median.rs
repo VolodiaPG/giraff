@@ -135,7 +135,8 @@ mod tests {
 
     #[test]
     fn test_moving_median() {
-        let mut median = MovingMedian::new(MovingMedianSize::new(10).unwrap());
+        let mut median =
+            MovingMedian::new(MovingMedianSize::try_new(10).unwrap());
         median.update(Time::new::<second>(10.0));
         median.update(Time::new::<second>(10.0));
         median.update(Time::new::<second>(0.0));
@@ -153,7 +154,8 @@ mod tests {
 
     #[test]
     fn test_moving_median_window() {
-        let mut median = MovingMedian::new(MovingMedianSize::new(5).unwrap());
+        let mut median =
+            MovingMedian::new(MovingMedianSize::try_new(5).unwrap());
         median.update(Time::new::<second>(0.0));
         median.update(Time::new::<second>(10.0));
         median.update(Time::new::<second>(5.0));
@@ -170,7 +172,8 @@ mod tests {
 
     #[test]
     fn test_interquantile_range_uneven() {
-        let mut median = MovingMedian::new(MovingMedianSize::new(20).unwrap());
+        let mut median =
+            MovingMedian::new(MovingMedianSize::try_new(20).unwrap());
         median.update(Time::new::<second>(6.0));
         median.update(Time::new::<second>(7.0));
         median.update(Time::new::<second>(15.0));
@@ -193,7 +196,8 @@ mod tests {
 
     #[test]
     fn test_interquantile_range_even() {
-        let mut median = MovingMedian::new(MovingMedianSize::new(20).unwrap());
+        let mut median =
+            MovingMedian::new(MovingMedianSize::try_new(20).unwrap());
         median.update(Time::new::<second>(7.0));
         median.update(Time::new::<second>(15.0));
         median.update(Time::new::<second>(36.0));
