@@ -247,7 +247,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
 
     env_vars['RATIO_AA']="0.1"
     env_vars['RATIO_BB']="0.4"
-    env_vars['ELECTRICITY_PRICE']=level
+    env_vars['ELECTRICITY_PRICE']=level if level > 0 else 1
 
     if "{{ node_type }}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"

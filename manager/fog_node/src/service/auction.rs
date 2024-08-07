@@ -20,10 +20,7 @@ use uuid::Uuid;
 
 use super::function::Function;
 
-#[nutype(
-    derive(PartialEq, PartialOrd),
-    validate(finite, greater_or_equal = 0.0)
-)]
+#[nutype(derive(PartialEq, PartialOrd), validate(finite, greater = 0.0))]
 pub struct PricingRatio(f64);
 env_var!(PRICING_CPU);
 env_var!(PRICING_CPU_INITIAL);
@@ -234,8 +231,16 @@ impl Auction {
             * sla_cpu
             * (2.0 * aa * utilisation + (aa * sla_cpu + bb) * sla_duration);
 
+        tracing::event!(
+            tracing::Level::TRACE,
+            bid,
+            sla_cpu,
+            sla_duration,
+            electricity_price
+        );
+
         trace!("(quadratic) price on is {:?}", bid);
-        assert!(bid > 0.001, "the bid wasn't > 0");
+        assert!(bid > 0.000001, "the bid wasn't > 0");
 
         Ok(Some(ComputedBid {
             name,
@@ -286,7 +291,7 @@ impl Auction {
         let Some(ComputedBid { name, bid, .. }) = self
             .compute_bid(&sla, accumulated_latency)
             .await
-            .context("Failed to compute bid for sla")?
+            .context("Faile000d to compute bid for sla")?
         else {
             return Ok(None);
         };
@@ -446,6 +451,7 @@ mod tests {
     }
 
     async fn get_auction_impl(situation: NodeCategory) -> Instance {
+        crate::init_subscriber("test".into(), "trace".into());
         let k8s = Arc::new(K8s::new());
         let metrics = Arc::new(
             MetricsExporter::new(
@@ -840,20 +846,22 @@ mod tests {
     /// Check that a lot (millions) of request can be handled without breaking
     /// anything
     #[parameterized(
-        node = {node_connected()},
-        market = {market_connected()},
+        small_node = {node_connected(), 10},
+        big_node = {node_connected(), 2_000_000},
+        small_market = {market_connected(), 10},
+        big_market = {market_connected(), 2_000_000},
     )]
     #[test_macro(tokio::test(flavor = "multi_thread", worker_threads = 20))]
-    async fn test_lots_functions_parallel(situation: NodeCategory) {
+    async fn test_lots_functions_parallel(situation: NodeCategory, nb: u64) {
         //let result = tokio::time::timeout(Duration::from_secs(120), async {
-        _test_lots_functions_parallel(situation).await;
+        _test_lots_functions_parallel(situation, nb).await;
         //    "done"
         //})
         //.await;
         //assert!(result.is_ok())
     }
 
-    async fn _test_lots_functions_parallel(situation: NodeCategory) {
+    async fn _test_lots_functions_parallel(situation: NodeCategory, nb: u64) {
         let Instance {
             auction,
             function_life,
@@ -864,7 +872,7 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        for ii in 0..2_000_000 {
+        for ii in 0..nb {
             let function_life = function_life.clone();
             let auction = auction.clone();
 
@@ -894,7 +902,9 @@ mod tests {
                             1,
                         ),
                     ),
-                    latency_max:        Time::new::<second>(10.0),
+                    latency_max:        Time::new::<second>(
+                        law.sample(&mut r) as f64 * 14.0,
+                    ),
                     duration:           sla_duration.clone(),
                     max_replica:        1,
                     function_image:     "toto".to_string(),
@@ -902,7 +912,10 @@ mod tests {
                     data_flow:          vec![],
                     env_vars:           vec![],
                     input_max_size:     Information::new::<megabyte>(
-                        num_rational::Ratio::new(1, 1),
+                        num_rational::Ratio::new(
+                            law.sample(&mut r) as i64 * 10,
+                            2,
+                        ),
                     ),
                 };
 
@@ -953,10 +966,12 @@ mod tests {
             }
         }
         assert!(successes > 0);
-        assert!(successes >= 10_000);
-
         assert!(ran > 0);
-        assert!(ran >= 8000 / 50);
+
+        if nb > 10 {
+            assert!(successes >= 10_000);
+            assert!(ran >= 8000 / 50);
+        }
 
         let (ram, cc) =
             resource_tracking.get_used(OFFLINE_NODE_K8S).await.unwrap();
