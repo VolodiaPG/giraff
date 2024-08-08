@@ -55,6 +55,7 @@ _test *FLAGS:
     export ELECTRICITY_PRICE=1
 
     export RUST_TEST_THREADS=$(nproc)
+    export RUST_LOG="error"
     cargo test {{ FLAGS }}
 
 _flame *FLAGS:

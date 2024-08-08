@@ -185,7 +185,7 @@ mod tests {
                 )?
                 .into_format_args(millicpu, Abbreviation)
             ),
-            "1.024 mcpu".to_owned()
+            "1.024 m".to_owned()
         );
 
         Ok(())

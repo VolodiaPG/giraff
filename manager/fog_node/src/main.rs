@@ -86,7 +86,10 @@ fn load_config_from_env(env_var: String) -> anyhow::Result<String> {
     Ok(config)
 }
 /// Compose multiple layers into a `tracing`'s subscriber.
-pub fn init_subscriber(name: String, env_filter: String) {
+pub fn init_subscriber(
+    name: String,
+    env_filter: String,
+) -> anyhow::Result<()> {
     // Env variable LOG_CONFIG_PATH points at the path where
     // LOG_CONFIG_FILENAME is located
     let log_config_path =
@@ -135,11 +138,11 @@ pub fn init_subscriber(name: String, env_filter: String) {
         let reg = reg.with(tracing_layer);
         let reg = reg.with(ForestLayer::default());
 
-        set_global_default(reg).expect("Failed to set subscriber");
+        set_global_default(reg).context("Failed to setup logging with otel")
     } else {
         let reg = reg.with(ForestLayer::default());
 
-        set_global_default(reg).expect("Failed to set subscriber");
+        set_global_default(reg).context("Failed to setup simple logging")
     }
 }
 
@@ -202,7 +205,8 @@ async fn main() -> anyhow::Result<()> {
         env::var("LOG_CONFIG_FILENAME")
             .unwrap_or_else(|_| "fog_node.log".to_string()),
         "info".into(),
-    );
+    )
+    .expect("Failed to init the tracing/logging");
 
     let port_openfaas_external = env::var("OPENFAAS_PORT_EXTERNAL")
         .unwrap_or_else(|_| "31112".to_string())

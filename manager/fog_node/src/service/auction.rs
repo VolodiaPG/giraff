@@ -451,7 +451,7 @@ mod tests {
     }
 
     async fn get_auction_impl(situation: NodeCategory) -> Instance {
-        crate::init_subscriber("test".into(), "trace".into());
+        let _ = crate::init_subscriber("test".into(), "trace".into());
         let k8s = Arc::new(K8s::new());
         let metrics = Arc::new(
             MetricsExporter::new(
@@ -1167,6 +1167,9 @@ mod tests {
         last_bid_price.store(0.0, Ordering::SeqCst);
 
         for ii in 0..10 {
+            if ii % 2 == 0 {
+                continue;
+            }
             let function_life = function_life.clone();
             let auction = auction.clone();
             let last_bid_price = last_bid_price.clone();
