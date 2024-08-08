@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
+use tracing::{info, instrument};
 
 const ENV_VAR_SLA: &str = "SLA";
 #[derive(Debug)]
@@ -25,10 +26,14 @@ pub struct FaaSBackendImpl {
 }
 
 impl FaaSBackendImpl {
-    pub fn new(client: Arc<DefaultApiClient>) -> Self { Self { client } }
+    pub fn new(client: Arc<DefaultApiClient>) -> Self {
+        info!("Using online faas backend");
+        Self { client }
+    }
 }
 #[async_trait::async_trait]
 impl FaaSBackend for FaaSBackendImpl {
+    #[instrument(level = "trace", skip(self))]
     async fn provision_function(
         &self,
         id: SlaId,
@@ -70,18 +75,6 @@ impl FaaSBackend for FaaSBackendImpl {
             );
         }
 
-        #[cfg(feature = "jaeger")]
-        {
-            let collector_ip = env::var("COLLECTOR_IP");
-            if let Ok(collector_ip) = collector_ip {
-                env_vars.insert("COLLECTOR_IP".to_string(), collector_ip);
-            }
-            let collector_port = env::var("COLLECTOR_PORT");
-            if let Ok(collector_port) = collector_port {
-                env_vars.insert("COLLECTOR_PORT".to_string(), collector_port);
-            }
-        }
-
         let definition = FunctionDefinition {
             image: bid.sla.function_image.to_owned(),
             service: function_name.to_owned(),
@@ -112,6 +105,7 @@ impl FaaSBackend for FaaSBackendImpl {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     async fn remove_function(
         &self,
         function: RemovableFunctionRecord,

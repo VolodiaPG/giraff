@@ -221,6 +221,7 @@ impl FunctionLife {
         .await;
 
         if res.is_err() {
+            warn!("Failed to check that the function is alive");
             let function = self.function.lock().await?;
             function.finish_function(id).await?;
         }

@@ -1,7 +1,7 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 
 KUBECONFIG := ".." / "testbed" / "iso" / "vm.kubeconfig"
-RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=trace,helper=trace,market=trace,actix=debug"
+RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=warn,helper=warn,market=trace,actix=warn"
 DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
 PROMETHEUS_PORT := "3090"

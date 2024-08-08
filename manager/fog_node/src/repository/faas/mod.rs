@@ -20,6 +20,7 @@ pub trait FaaSBackend: Debug + Sync + Send {
     ) -> Result<()>;
 }
 
+#[derive(Debug)]
 pub struct RemovableFunctionRecord {
     #[allow(dead_code)]
     function_name: String,

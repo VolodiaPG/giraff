@@ -4,6 +4,7 @@ use model::dto::function::{Paid, Provisioned};
 use model::SlaId;
 use std::fmt::Debug;
 use std::time::Duration;
+use tracing::warn;
 
 #[derive(Debug)]
 pub struct FaaSBackendOfflineImpl {
@@ -11,7 +12,10 @@ pub struct FaaSBackendOfflineImpl {
 }
 
 impl FaaSBackendOfflineImpl {
-    pub fn new(online_delay: Duration) -> Self { Self { online_delay } }
+    pub fn new(online_delay: Duration) -> Self {
+        warn!("Using offline faas backend");
+        Self { online_delay }
+    }
 }
 #[async_trait::async_trait]
 impl FaaSBackend for FaaSBackendOfflineImpl {

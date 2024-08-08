@@ -5,7 +5,7 @@ use log::trace;
 use serde_json::Value;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tracing::instrument;
+use tracing::{event, instrument};
 
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 
@@ -51,8 +51,9 @@ impl DefaultApiClient {
 
         // Adding a fast timeout since it is a health route and should not take
         // long to respond
-        let mut builder =
-            self.client.post(&uri_str).body(serde_json::to_string(&body)?);
+        let body = serde_json::to_string(&body)?;
+        event!(tracing::Level::TRACE, body);
+        let mut builder = self.client.post(&uri_str).body(body);
 
         if let Some((username, password)) = &self.configuration.basic_auth {
             builder = builder.basic_auth(username, password.as_ref());
