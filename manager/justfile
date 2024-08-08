@@ -224,7 +224,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
       pass
 
     env_vars['KUBECONFIG'] = "{{ KUBECONFIG }}"
-    env_vars['OPENFAAS_PORT_EXTERNAL'] = "1112"
+    env_vars['OPENFAAS_PORT_EXTERNAL'] = "31112"
     env_vars['OPENFAAS_PORT_INTERNAL'] = "31112"
     env_vars['RUST_LOG'] = "{{ RUST_LOG }}"
     env_vars['LOG_CONFIG_FILENAME'] = "{{ node_type }}.log"
