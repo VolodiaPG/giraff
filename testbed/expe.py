@@ -229,12 +229,16 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
         #    "- data:",
         #    data,
         #)
-        async with AsyncSession() as session:
-            async with session.post(url, headers=headers, json=data) as response:
-                http_code = response.status
-                response = await response.content.read()
+        try:
+            async with AsyncSession() as session:
+                async with session.post(url, headers=headers, json=data) as response:
+                    http_code = response.status
+                    response = await response.content.read()
 
-                ret.append((response, http_code))
+                    ret.append((response, http_code))
+        except Exception:
+            print(f"Something went wrong contacting openfaas on {url}")
+            return []
 
     return ret
 
