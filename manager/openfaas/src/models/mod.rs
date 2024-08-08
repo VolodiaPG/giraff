@@ -1,5 +1,6 @@
 pub use self::function_list_entry::FunctionListEntry;
 pub use function_definition::{FunctionDefinition, Limits, Requests};
+use uom::num_traits::ToPrimitive;
 use uom::si::information;
 use uom::si::rational64::{Information, Ratio};
 
@@ -28,12 +29,13 @@ impl serde_with::SerializeAs<Ratio> for RatioHelper {
         S: serde::Serializer,
     {
         // Do not forget to remove last letter of the sentence (the unit)
-        serializer.serialize_str(
-            format!("{:?}", value.get::<helper::uom_helper::cpu_ratio::cpu>())
-                .split_whitespace()
-                .collect::<Vec<&str>>()[0]
-                .as_ref(),
-        )
+        serializer.serialize_str(&format!(
+            "{:?}m",
+            value
+                .get::<helper::uom_helper::cpu_ratio::millicpu>()
+                .to_f64()
+                .unwrap()
+        ))
     }
 }
 

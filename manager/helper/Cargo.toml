@@ -40,4 +40,7 @@ uom = { version = "0.36", default-features = false, features = [
     "rational64",
     "si",
     "autoconvert",
-] }
+]}
+
+[dev-dependencies]
+yare = "3.0"

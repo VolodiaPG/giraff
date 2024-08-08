@@ -129,10 +129,51 @@ pub mod cpu {
     use uom::si::rational64::Ratio;
 
     fn serialize_quantity(value: &Ratio) -> String {
-        format!("{:?} mcpu", value.get::<millicpu>().to_f64().unwrap())
+        format!("{:?} m", value.get::<millicpu>().to_f64().unwrap())
     }
 
     impl_serialize_as!(Ratio, millicpu, millicpu, parse, serialize_quantity);
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::uom_helper::cpu_ratio::cpu;
+        use crate::uom_helper::ratio_helper::parse;
+        use anyhow::Result;
+        use yare::parameterized;
+
+        #[parameterized(
+            millicpu = {"1000 millicpu", 1000},
+            m = {"1000 m", 1000},
+            cpu = {"1 cpu", 1000},
+            cpu_float = {"0.31 cpu", 310}
+        )]
+        fn test_serialize(ss: &str, qty: i64) -> Result<()> {
+            assert_eq!(
+                parse(ss)?,
+                Ratio::new::<millicpu>(num_rational::Ratio::new(qty, 1))
+            );
+            Ok(())
+        }
+        #[test]
+        fn test_deserialize() -> Result<()> {
+            assert_eq!(
+                serialize_quantity(&Ratio::new::<millicpu>(
+                    num_rational::Ratio::new(1000, 1)
+                )),
+                "1000.0 m"
+            );
+            Ok(())
+        }
+
+        #[test]
+        fn test_millicpu_cpu() -> Result<()> {
+            assert_eq!(
+                parse("2000.0 millicpu")?,
+                Ratio::new::<cpu>(num_rational::Ratio::new(2, 1))
+            );
+            Ok(())
+        }
+    }
 }
 
 pub mod ratio {

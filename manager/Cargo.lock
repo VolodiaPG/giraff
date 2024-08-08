@@ -1163,6 +1163,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uom",
+ "yare",
 ]
 
 [[package]]
@@ -2122,6 +2123,7 @@ dependencies = [
  "helper",
  "lazy-regex",
  "log",
+ "num-rational",
  "reqwest 0.12.5",
  "reqwest-middleware",
  "reqwest-tracing",

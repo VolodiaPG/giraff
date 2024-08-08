@@ -3,5 +3,5 @@ unit! {
     quantity: uom::si::ratio;
 
     @cpu: prefix!(none); "cpu", "cpu", "cpus";
-    @millicpu: prefix!(milli); "mcpu", "millicpu", "millicpus";
+    @millicpu: prefix!(milli); "m", "millicpu", "millicpus";
 }
