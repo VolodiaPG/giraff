@@ -34,6 +34,7 @@
                     "mode=http"
                     "http_upstream_url=http://127.0.0.1:3000"
                     "ready_path=http://127.0.0.1:3000/health"
+                    "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
                   ]
                   ++ extra.openfaas_env;
                 ExposedPorts = {

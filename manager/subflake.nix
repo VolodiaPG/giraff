@@ -45,7 +45,10 @@
                       inherit name;
                       execName = "market";
                       config = {
-                        Env = ["SERVER_PORT=3003"];
+                        Env = [
+                          "SERVER_PORT=3003"
+                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
+                        ];
                       };
                       features =
                         nixpkgs.lib.optional (settings.strategy != "default_strategy") "${settings.strategy}";
@@ -72,7 +75,10 @@
                       inherit name;
                       execName = "fog_node";
                       config = {
-                        Env = ["FUNCTION_LIVE_TIMEOUT_MSECS=120000"];
+                        Env = [
+                          "FUNCTION_LIVE_TIMEOUT_MSECS=120000"
+                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
+                        ];
                       };
                       features =
                         ["fog_node/${settings.strategy}"]
