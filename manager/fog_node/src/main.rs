@@ -308,8 +308,9 @@ async fn main() -> anyhow::Result<()> {
         Arc::new(Box::new(LatencyEstimationImpl::new(
             node_situation.clone(),
             metrics.clone(),
-            model::domain::exp_average::Alpha::new(0.3).unwrap(),
-            model::domain::moving_median::MovingMedianSize::new(50).unwrap(),
+            model::domain::exp_average::Alpha::try_new(0.3).unwrap(),
+            model::domain::moving_median::MovingMedianSize::try_new(50)
+                .unwrap(),
         )));
 
     let cron_repo = Arc::new(
