@@ -6,7 +6,10 @@ use anyhow::{bail, Context, Result};
 use chrono::{Timelike, Utc};
 use helper::env_var;
 use helper::monitoring::MetricsExporter;
-use model::domain::sla::{Sla, SlaFogPoint};
+use helper::uom_helper::cpu_ratio::cpu;
+use model::domain::sla::Sla;
+#[cfg(feature = "reduction")]
+use model::domain::sla::SlaFogPoint;
 use model::dto::function::Proposed;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
@@ -148,10 +151,11 @@ impl Auction {
         };
 
         let ram_ratio_sla = (sla.memory / available_ram)
-            .get()
+            .get::<cpu>()
             .to_f64()
             .context("Overflow while converting ratio of memory")?;
         let cpu_ratio_sla = (sla.cpu / available_cpu)
+            .get::<cpu>()
             .to_f64()
             .context("Overflow while converting ratio of cpu")?;
         let bid: f64 = ram_ratio_sla * pricing_mem_initial
@@ -179,7 +183,6 @@ impl Auction {
         use crate::service::function::UnprovisionEvent;
         use chrono::Duration;
         use helper::env_load;
-        use helper::uom_helper::cpu_ratio::cpu;
         use uom::si::time::second;
 
         let Some((name, used_ram, used_cpu, available_ram, available_cpu)) =
@@ -282,6 +285,7 @@ impl Auction {
         }
     }
 
+    #[cfg(feature = "reduction")]
     fn reduce_bid_if_on_device(&self, sla: &Sla, bid: f64) -> Option<f64> {
         for flow in &sla.data_flow {
             let res = self.reduce_bid_if_on_device_inside(&flow.from, bid);
@@ -296,6 +300,7 @@ impl Auction {
         None
     }
 
+    #[cfg(feature = "reduction")]
     fn reduce_bid_if_on_device_inside(
         &self,
         point: &SlaFogPoint,
