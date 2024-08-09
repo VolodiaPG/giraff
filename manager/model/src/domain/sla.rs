@@ -43,7 +43,7 @@ pub struct Sla {
 pub enum SlaFogPoint {
     ThisFunction,
     DataSource(NodeId),
-    FunctionSink(String), // Livename
+    //FunctionSink(String), // Livename
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

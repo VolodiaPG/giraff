@@ -68,7 +68,7 @@
                 builtins.map
                 (
                   settings: let
-                    name = "fog_node-${settings.strategy}-${settings.valuation}";
+                    name = "fog_node-${settings.strategy}-${settings.valuation}-${settings.complication}";
                   in {
                     inherit name;
                     value = dockerImageGenerator {
@@ -81,8 +81,9 @@
                         ];
                       };
                       features =
-                        ["fog_node/${settings.strategy}"]
-                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "${settings.valuation}";
+                        ["${settings.strategy}"]
+                        ++ nixpkgs.lib.optional (settings.valuation != "valuation_resources") "${settings.valuation}"
+                        ++ nixpkgs.lib.optional (settings.complication != "no_complication") "${settings.complication}";
                     };
                   }
                 )
@@ -90,8 +91,9 @@
                   nixpkgs.lib.cartesianProduct
                   {
                     # Do not forget to run cargo2nix at each new features added
-                    strategy = ["auction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu" "mincpurandom"];
+                    strategy = ["auction" "auction_reduction" "edge_first" "edge_furthest" "edge_ward" "edge_ward_v3" "maxcpu" "mincpurandom"];
                     valuation = ["linear_rates" "quadratic_rates"];
+                    complication = ["no_complication" "reduction"];
                   }
                 )
               )

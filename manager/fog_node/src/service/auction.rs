@@ -1,13 +1,13 @@
 use crate::monitoring::BidGauge;
 use crate::repository::function_tracking::FunctionTracking;
+use crate::repository::node_situation::NodeSituation;
 use crate::repository::resource_tracking::ResourceTracking;
 use anyhow::{bail, Context, Result};
 use chrono::{Timelike, Utc};
 use helper::env_var;
 use helper::monitoring::MetricsExporter;
-use model::domain::sla::Sla;
+use model::domain::sla::{Sla, SlaFogPoint};
 use model::dto::function::Proposed;
-use model::dto::node::MaxInFlight;
 use model::view::auction::AccumulatedLatency;
 use model::BidId;
 use nutype::nutype;
@@ -51,7 +51,8 @@ pub struct Auction {
     function:                      Arc<Function>,
     in_flight_functions_per_sec_1: AtomicU32,
     in_flight_functions_per_sec_2: AtomicU32,
-    max_in_flight:                 MaxInFlight,
+    #[allow(dead_code)]
+    node_situation:                Arc<NodeSituation>,
 }
 
 impl Auction {
@@ -60,7 +61,7 @@ impl Auction {
         db: Arc<FunctionTracking>,
         metrics: Arc<MetricsExporter>,
         function: Arc<Function>,
-        max_in_flight_functions_proposals: MaxInFlight,
+        node_situation: Arc<NodeSituation>,
     ) -> Result<Self> {
         Ok(Self {
             resource_tracking,
@@ -69,7 +70,7 @@ impl Auction {
             function,
             in_flight_functions_per_sec_1: AtomicU32::new(0),
             in_flight_functions_per_sec_2: AtomicU32::new(0),
-            max_in_flight: max_in_flight_functions_proposals,
+            node_situation,
         })
     }
 
@@ -281,6 +282,36 @@ impl Auction {
         }
     }
 
+    fn reduce_bid_if_on_device(&self, sla: &Sla, bid: f64) -> Option<f64> {
+        for flow in &sla.data_flow {
+            let res = self.reduce_bid_if_on_device_inside(&flow.from, bid);
+            if res.is_some() {
+                return res;
+            }
+            let res = self.reduce_bid_if_on_device_inside(&flow.to, bid);
+            if res.is_some() {
+                return res;
+            }
+        }
+        None
+    }
+
+    fn reduce_bid_if_on_device_inside(
+        &self,
+        point: &SlaFogPoint,
+        bid: f64,
+    ) -> Option<f64> {
+        let reduction_factor = 0.75;
+        let me = &self.node_situation.get_my_id();
+        match point {
+            SlaFogPoint::ThisFunction => Some(bid * reduction_factor),
+            SlaFogPoint::DataSource(source) if source == me => {
+                Some(bid * reduction_factor)
+            }
+            _ => None,
+        }
+    }
+
     #[instrument(level = "trace", skip(self))]
     pub async fn bid_on(
         &self,
@@ -291,7 +322,7 @@ impl Auction {
         let Some(ComputedBid { name, bid, .. }) = self
             .compute_bid(&sla, accumulated_latency)
             .await
-            .context("Faile000d to compute bid for sla")?
+            .context("Failed to compute bid for sla")?
         else {
             return Ok(None);
         };
@@ -311,6 +342,14 @@ impl Auction {
         else {
             return Ok(None);
         };
+
+        #[cfg(feature = "reduction")]
+        let bid: f64 =
+            if let Some(reduced) = self.reduce_bid_if_on_device(&sla, bid) {
+                reduced
+            } else {
+                bid
+            };
         let node = name;
         let record = Proposed::new(bid, sla, node);
         self.db.insert(record.clone());
@@ -363,7 +402,11 @@ impl Auction {
             bail!("Failed to update atomic");
         }
 
-        let size = self.max_in_flight.clone().into_inner();
+        let size = self
+            .node_situation
+            .get_max_in_flight_functions_proposals()
+            .clone()
+            .into_inner();
         if (inc as usize) > size {
             bail!("Too many in flight functions I have bidded upon")
         }
@@ -534,7 +577,7 @@ mod tests {
                 function_tracking.clone(),
                 metrics,
                 function.clone(),
-                node_situation.get_max_in_flight_functions_proposals(),
+                node_situation.clone(),
             )
             .unwrap(),
         );

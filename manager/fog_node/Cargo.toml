@@ -16,6 +16,8 @@ offline = ["model/offline", "helper/offline"]
 linear_rates = []
 # Use quadratic rates from the ENV variables
 quadratic_rates = []
+# Advantage when the previous chained function is also on the same node
+reduction = []
 
 # Placement methods
 # Default placement
