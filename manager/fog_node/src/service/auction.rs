@@ -309,7 +309,6 @@ impl Auction {
         let reduction_factor = 0.75;
         let me = &self.node_situation.get_my_id();
         match point {
-            SlaFogPoint::ThisFunction => Some(bid * reduction_factor),
             SlaFogPoint::DataSource(source) if source == me => {
                 Some(bid * reduction_factor)
             }
@@ -436,7 +435,7 @@ mod tests {
     use crate::service::neighbor_monitor::NeighborMonitor;
     use helper::monitoring::InfluxAddress;
     use helper::uom_helper::cpu_ratio::{cpu, millicpu};
-    use model::dto::node::{NodeCategory, NodeSituationData};
+    use model::dto::node::{MaxInFlight, NodeCategory, NodeSituationData};
     use model::SlaId;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
@@ -478,6 +477,7 @@ mod tests {
         pub reserved_cpu:      Ratio,
         pub reserved_memory:   Information,
         pub function:          Arc<Function>,
+        pub node_situation:    Arc<NodeSituation>,
     }
 
     fn market_connected() -> NodeCategory {
@@ -591,7 +591,7 @@ mod tests {
             FunctionLife::new(
                 function.clone(),
                 auction.clone(),
-                node_situation,
+                node_situation.clone(),
                 neighbor_monitor,
                 node_query,
                 function_tracking.clone(),
@@ -607,7 +607,50 @@ mod tests {
             reserved_cpu,
             reserved_memory,
             function,
+            node_situation,
         }
+    }
+
+    #[cfg(feature = "reduction")]
+    #[tokio::test()]
+    async fn test_reduction() {
+        use model::domain::sla::{DataFlow, SlaFogPoint};
+
+        let Instance { auction, node_situation, .. } =
+            get_auction_impl(node_connected()).await;
+        let sla = Sla {
+            id:                 Uuid::new_v4().into(),
+            memory:             Information::new::<megabyte>(
+                num_rational::Ratio::new(1000, 1),
+            ),
+            cpu:                Ratio::new::<millicpu>(
+                num_rational::Ratio::new(100, 1),
+            ),
+            latency_max:        Time::new::<second>(1.0),
+            duration:           Time::new::<second>(5.0),
+            max_replica:        1,
+            function_image:     "toto".to_string(),
+            function_live_name: "toto".to_string(),
+            data_flow:          vec![DataFlow {
+                from: SlaFogPoint::DataSource(node_situation.get_my_id()),
+                to:   SlaFogPoint::ThisFunction,
+            }],
+            env_vars:           vec![],
+            input_max_size:     Information::new::<megabyte>(
+                num_rational::Ratio::new(1, 1),
+            ),
+        };
+        let mut sla2 = sla.clone();
+        sla2.data_flow = vec![];
+
+        let acc = AccumulatedLatency::default();
+
+        let (_, Proposed { bid, .. }) =
+            auction.bid_on(sla2, &acc).await.expect("Error bidding").unwrap();
+        let bid2 = bid;
+        let (_, Proposed { bid, .. }) =
+            auction.bid_on(sla, &acc).await.expect("Error bidding").unwrap();
+        assert!(bid < bid2);
     }
 
     #[parameterized(
