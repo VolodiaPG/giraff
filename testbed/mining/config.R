@@ -6,7 +6,7 @@ all_workers <- parallel::detectCores()
 workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
-no_memoization <- FALSE
+no_memoization <- TRUE
 single_graphs <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
@@ -16,7 +16,8 @@ GRAPH_TWO_COLUMN_WIDTH <- 12
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-market-default_strategy-.env.dev_2024-08-08-06-39.tar.xz",
+  "metrics_valuation_rates.env_1_1723126314-fog_node-mincpurandom-quadratic_rates-market-mincpurandom-.env.1_2024-08-08-14-29.tar.xz",
+  "metrics_valuation_rates.env_1_1723126314-fog_node-auction-quadratic_rates-market-default_strategy-.env.1_2024-08-08-14-41.tar.xz",
   #---
   #---
   #---

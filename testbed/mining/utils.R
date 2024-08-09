@@ -362,14 +362,14 @@ prepare_convert <- function(x) {
 
 extract_context <- function(x) {
   # The first element is the input string
-  info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
+  info <- stringr::str_match(x$metric_group, "(.+)-(.+)")
   info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+")
+  Log(x$metric_group)
   return(
     x %>%
       ungroup() %>%
       mutate(placement_method = info[, 2]) %>%
       mutate(economic_method = info[, 3]) %>%
-      mutate(telemetry = info[, 4]) %>%
       mutate(run = info2[, 2]) %>%
       mutate(env = info2[, 3])
   )

@@ -189,6 +189,8 @@ Log("Doing combined graphs")
 node_levels <- combine(METRICS_ARKS, load_node_levels)
 bids_raw <- combine(METRICS_ARKS, load_bids_raw)
 provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
+
+Log(provisioned_sla)
 functions <- combine(METRICS_ARKS, load_functions)
 respected_sla <- combine(METRICS_ARKS, load_respected_sla)
 raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
