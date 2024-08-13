@@ -2,6 +2,7 @@ use crate::service::function_life::FunctionLife;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
+use helper::log_err;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
@@ -36,8 +37,9 @@ pub async fn post_bid(
     metrics: Data<MetricsExporter>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let res =
-        controller::auction::bid_on(payload.0, &function, &metrics).await?;
-    Ok(HttpResponse::Ok().json(res))
+        controller::auction::bid_on(payload.0, &function, &metrics).await;
+    log_err!(res);
+    Ok(HttpResponse::Ok().json(res?))
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,8 +57,9 @@ pub async fn post_bid_accept(
     #[allow(clippy::let_unit_value)]
     let res =
         controller::auction::set_paid_from_sla(params.id.clone(), &function)
-            .await?;
-    Ok(HttpResponse::Ok().json(res))
+            .await;
+    log_err!(res);
+    Ok(HttpResponse::Ok().json(res?))
 }
 
 // Proceeds to provision the paid for SLA ([post_bid_accept]) and thus, the
@@ -68,8 +71,9 @@ pub async fn post_provision(
     #[allow(clippy::let_unit_value)]
     let res =
         controller::auction::provision_from_sla(params.id.clone(), &function)
-            .await?;
-    Ok(HttpResponse::Ok().json(res))
+            .await;
+    log_err!(res);
+    Ok(HttpResponse::Ok().json(res?))
 }
 
 /// Register a child node to this one
@@ -77,7 +81,9 @@ pub async fn post_register_child_node(
     payload: web::Json<RegisterNode>,
     router: Data<NodeLife>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
-    controller::node::register_child_node(payload.0, &router).await?;
+    let res = controller::node::register_child_node(payload.0, &router).await;
+    log_err!(res);
+    let _ = res?;
     Ok(HttpResponse::Ok().finish())
 }
 

@@ -8,6 +8,7 @@ pub mod chrono;
 pub mod env;
 pub mod err;
 pub mod from_disk;
+pub mod log_err;
 pub mod monitoring;
 pub mod pool;
 pub mod reqwest_helper;
