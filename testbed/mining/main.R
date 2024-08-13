@@ -170,10 +170,14 @@ if (single_graphs) {
     if (generate_gif) {
       Log("Doing GIF")
       library(gganimate)
+      library(gifski)
       library(network)
       library(ggnetwork)
+      library(intergraph)
 
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
+
+      Log("Producing GIF")
       output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
     }
 

@@ -362,14 +362,14 @@ prepare_convert <- function(x) {
 
 extract_context <- function(x) {
   # The first element is the input string
-  info <- stringr::str_match(x$metric_group, "(.+)-(.+)")
+  info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
   info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+")
   Log(x$metric_group)
   return(
     x %>%
       ungroup() %>%
-      mutate(placement_method = info[, 2]) %>%
-      mutate(economic_method = info[, 3]) %>%
+      mutate(placement_method = paste0(info[, 2], info[, 4])) %>%
+      mutate(economic_method = paste0(info[, 3], info[, 4])) %>%
       mutate(run = info2[, 2]) %>%
       mutate(env = info2[, 3])
   )
@@ -502,7 +502,7 @@ create_plot <- function(data) {
   net <- ggnetwork(net)
   name <- as.character(data$folder[1])
   duration <- max(data$timestamp) / time_interval
-  print(duration)
+  Log(duration)
 
   nudge_offset_x <- 0.05
   nudge_offset_y <- -0.3 / 2
@@ -563,9 +563,9 @@ create_plot <- function(data) {
 
   # rows <- max(out$layout$layout$ROW)
   # cols <- max(out$layout$layout$COL)
-  print(duration)
+  Log(duration)
 
-  # print(pggnetwork[1])
+  Log(pggnetwork[1])
 
   anim_save(filename = sprintf("out/%s.gif", name), animation = pggnetwork, renderer = magick_renderer(), nframes = duration, height = 1600, width = 2000)
 }

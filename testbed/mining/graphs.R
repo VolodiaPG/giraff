@@ -144,6 +144,9 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
         group_split()
 
     animations <- lapply(data_grouped, FUN = create_plot)
+    animations <- foreach(data = data_grouped, .verbose = FALSE, .combine = bind_rows) %dopar% {
+      create_plot(data)
+    }
     return(animations)
 }
 

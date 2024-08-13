@@ -327,7 +327,7 @@ async def register_new_functions(functions: List[Function]) -> bool:
         return False
     for response, http_code in responses_chain:
         if http_code != 200:
-            print("Request failed", http_code)
+            print("Request failed", http_code, response)
             return False
     print(f"Chained {','.join([ff.function_name for ff in functions])}")
 
@@ -390,7 +390,7 @@ async def save_file(filename: str):
             #     max(1, math.ceil(x)) for x in np.random.normal(70, 30.0, nb_function)
             # ]
             request_intervals = [
-                math.ceil(abs(10000 * x))
+                math.ceil(abs(100 * x))
                 for x in np.random.gamma(2.35, 15, nb_function)
                 # math.ceil(abs(1000 * x)) for x in np.random.gamma(0.75, 47, nb_function)
             ]

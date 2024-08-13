@@ -75,12 +75,17 @@
             ggnetwork
             memoise
             cachem
+            gifski
           ];
           my-R = pkgs.rWrapper.override {packages = R-pkgs;};
         in {
           devShells.mining = pkgs.mkShell {
             shellHook =
               (extra.shellHook system) "mining";
+
+            FONTCONFIG_FILE = pkgs.makeFontsConf {
+              fontDirectories = [pkgs.freefont_ttf];
+            };
 
             packages = with pkgs; [
               just
