@@ -59,12 +59,17 @@ impl NodeCommunication {
             .await
             .with_context(|| format!("Failed to send the sla to {}", to))?;
 
+        let response = response
+            .error_for_status()
+            .with_context(|| format!("Failed to send the sla to {}", to))?;
+
         helper::reqwest_helper::deserialize_response(response)
             .await
             .with_context(|| {
                 format!(
                     "Failed to deserialize the response when trying to get \
-                     bids from node {} in response of sla {:?}",
+                     bids from node {} in response of sla {:?}, the response \
+                     errored",
                     to, sla
                 )
             })
@@ -72,7 +77,8 @@ impl NodeCommunication {
 
     #[instrument(level = "trace", skip(self))]
     pub async fn take_offer(&self, to: NodeId, id: &SlaId) -> Result<()> {
-        self.send(&to, &format!("accept/{}", id))
+        let resp = self
+            .send(&to, &format!("accept/{}", id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)
@@ -82,6 +88,14 @@ impl NodeCommunication {
             .with_context(|| {
                 format!("Failed to send an offering to {}", to)
             })?;
+
+        resp.error_for_status().with_context(|| {
+            format!(
+                "Failed to send an offering to {}, the response errored",
+                to
+            )
+        })?;
+
         Ok(())
     }
 
@@ -91,7 +105,8 @@ impl NodeCommunication {
         to: NodeId,
         id: &SlaId,
     ) -> Result<()> {
-        self.send(&to, &format!("provision/{}", id))
+        let resp = self
+            .send(&to, &format!("provision/{}", id))
             .await
             .with_context(|| {
                 format!("Failed to obtained the url to contact {}", to)
@@ -101,7 +116,12 @@ impl NodeCommunication {
             .with_context(|| {
                 format!("Failed to send an offering to {}", to)
             })?;
-
+        resp.error_for_status().with_context(|| {
+            format!(
+                "Failed to send an offering to {}, the response errored",
+                to
+            )
+        })?;
         Ok(())
     }
 }

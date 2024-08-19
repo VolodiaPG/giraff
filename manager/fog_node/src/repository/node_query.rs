@@ -33,17 +33,9 @@ impl NodeQuery {
         data: &T,
     ) -> Result<Response> {
         let response = self.client.post(url).json(data).send().await?;
-        if !response.status().is_success() {
-            let status = response.status();
-            let content =
-                response.text().await.unwrap_or_else(|_| "".to_string());
-            bail!(
-                "Request to {} failed with code {} and content '{}'",
-                url,
-                status,
-                content
-            );
-        }
+        let response = response
+            .error_for_status()
+            .with_context(|| format!("Request to {} failed", url))?;
         Ok(response)
     }
 
