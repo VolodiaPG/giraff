@@ -121,6 +121,9 @@ clean:
 _deploy fog_node_image market_image:
     #!/usr/bin/env bash
     set -e
+    if [ "$DEV" = "true" ]; then
+      export RUST_LOG="warn,fog_node=trace,openfaas=trace,market=trace"
+    fi
     {{ RUN }} integration.py network
     {{ RUN }} integration.py iot-emulation
     timeout 10m {{ RUN }} integration.py k3s-setup
@@ -138,6 +141,7 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export MARKET_IP={{ MARKET_IP }}
     export TARGET_NODES="{{ TARGET_NODES }}"
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
+    export DOCKER_REGISTRY=${DOCKER_REGISTRY:-"{{ MARKET_IP }}:5555"}
     {{ RUN }} expe.py
 
 [private]

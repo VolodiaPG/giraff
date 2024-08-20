@@ -147,6 +147,7 @@
                 mprocs
                 rsync
                 moreutils # sponge is useful for buffering large cmd outs
+                skopeo
               ];
             };
           }
@@ -190,6 +191,7 @@
                 openssh
                 curl
                 moreutils
+                skopeo
               ])
               ++ (with outputs.packages.${system}; [
                 # Environment to run enos and stuff

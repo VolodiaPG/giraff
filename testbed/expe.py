@@ -108,6 +108,7 @@ if __name__ == "__main__":
             "IOT_LOCAL_PORT",
             "EXPE_SAVE_FILE",
             "EXPE_LOAD_FILE",
+            "DOCKER_REGISTRY"
         ]:
             print(f"{k}={v}")
 
@@ -145,6 +146,9 @@ FUNCTION_DESCRIPTIONS = os.getenv(
 assert len(FUNCTION_DESCRIPTIONS) != 0
 
 
+# IMAGE_REGISTRY is the src and the dest used during run time is DOCKER_REGISTRY
+DOCKER_REGISTRY=os.getenv("DOCKER_REGISTRY")
+
 class AsyncSession:
     def __init__(self):
         self.timeout = aiohttp.ClientTimeout()
@@ -167,7 +171,7 @@ async def put_request_fog_node(function: Function):
             "latencyMax": f"{function.latency} ms",
             "maxReplica": 1,
             "duration": f"{function.duration} ms",
-            "functionImage": f"{IMAGE_REGISTRY}/{function.docker_fn_name}",
+            "functionImage": f"{DOCKER_REGISTRY}/{function.docker_fn_name}",
             "functionLiveName": f"{function.function_name}",
             "dataFlow": [  # TODO: update because outdated
                 {
@@ -219,16 +223,19 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
         # Sync request
         url = f"http://{urls[ii].faas_ip}:{urls[ii].faas_port}/function/fogfn-{urls[ii].function_id}/reconfigure"
 
-        #print(
-        #    "from:",
-        #    urls[ii].function_id,
-        #    "- to:",
-        #    urls[ii + 1].function_id,
-        #    "- url:",
-        #    url,
-        #    "- data:",
-        #    data,
-        #)
+        print(
+            "from:",
+            urls[ii].function_id,
+            "- to:",
+            urls[ii + 1].function_id,
+            "- url:",
+            url,
+            "- data:",
+            data,
+        )
+
+        await asyncio.sleep(1)
+
         try:
             async with AsyncSession() as session:
                 async with session.post(url, headers=headers, json=data) as response:
@@ -236,12 +243,11 @@ async def post_request_chain_functions(urls: List[FunctionProvisioned]):
                     response = await response.content.read()
 
                     ret.append((response, http_code))
-        except Exception:
-            print(f"Something went wrong contacting openfaas on {url}")
+        except Exception as e:
+            print(f"Something went wrong contacting openfaas on {url}: {e}")
             return []
 
     return ret
-
 
 async def put_request_iot_emulation(
     provisioned: FunctionProvisioned,
@@ -395,7 +401,8 @@ async def save_file(filename: str):
                 # math.ceil(abs(1000 * x)) for x in np.random.gamma(0.75, 47, nb_function)
             ]
             durations = [
-                math.ceil(100000 * x)
+                #    math.ceil(100000 * x)
+                60*4
                 for x in np.random.lognormal(-0.38, 2.36, nb_function)
             ]
             arrivals = [
@@ -464,6 +471,28 @@ def load_functions(filename) -> List[List[Function]]:
     return functions
 
 
+async def _push_function(function:str):
+    assert(DOCKER_REGISTRY is not None)
+    assert(IMAGE_REGISTRY is not None)
+    print(f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{DOCKER_REGISTRY}/{function}")
+    process = await asyncio.create_subprocess_exec("skopeo", "copy", "--insecure-policy", "--dest-tls-verify=false", "--quiet", f"docker://{IMAGE_REGISTRY}/{function}", f"docker://{DOCKER_REGISTRY}/{function}",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+    stdout, stderr = await process.communicate()
+    print(stdout, stderr)
+
+
+async def push_functions_to_registry(functions: List[List[Function]]):
+    unique_functions = set()
+    for parent in functions:
+        for function in parent:
+            unique_functions.add(function.docker_fn_name)
+
+    to_run = [ asyncio.create_task(_push_function(function)) for function in unique_functions]
+    await asyncio.gather(*to_run)
+
+    print("All upload of function to the internal container registry are done")
+
 async def load_file(filename: str):
     nodes = {}
     for ii in range(len(TARGET_NODE_NAMES)):
@@ -471,6 +500,7 @@ async def load_file(filename: str):
             "'", ""
         )
     functions = load_functions(filename)
+    await push_functions_to_registry(functions)
     tasks = []
 
     response = None

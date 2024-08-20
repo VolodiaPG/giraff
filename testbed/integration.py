@@ -627,6 +627,8 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         print("NETWORK is None")
         exit(1)
 
+    rust_log = os.getenv("RUST_LOG", "warn")
+
     roles = env["roles"]
 
     ids = {}
@@ -684,6 +686,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             and tier_flavor.get("is_cloud") is True
             else "no_cloud",
             additional_env_vars=additional_env_vars,
+            rust_log = rust_log
         )
         for role in roles[name]:
             role.set_extra(fog_node_deployment=deployment)
@@ -696,6 +699,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         collector_ip=roles["iot_emulation"][0].address,
         enable_collector = "true" if os.environ["DEV"] == "true" else "false",
         market_image=market_image,
+        rust_log = rust_log
     )
     for role in roles[NETWORK["name"]]:
         role.set_extra(market_deployment=market_deployment)

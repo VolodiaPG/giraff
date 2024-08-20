@@ -109,7 +109,7 @@ spec:
         - name: LOG_CONFIG_FILENAME
           value: "{node_name}.log"
         - name: RUST_LOG
-          value: "warn,fog_node=trace"
+          value: "{rust_log}"
         - name: IS_CLOUD
           value: "{is_cloud}"
         - name: INFLUX_ADDRESS
@@ -197,7 +197,7 @@ spec:
         - name: LOG_CONFIG_FILENAME
           value: "market.log"
         - name: RUST_LOG
-          value: "warn,market=trace"
+          value: "{rust_log}"
         - name: SERVER_PORT
           value: "30008"
         - name: INFLUX_ADDRESS
@@ -316,7 +316,7 @@ def additional_env_vars(level):
         elif level <= 1:
             ret.update(
                 {
-                    "RATIO_AA": 0.0,
+                    "RATIO_AA": 0.01,
                     "RATIO_BB": 0.9,
                     "ELECTRICITY_PRICE": 0.75,
                 }
@@ -330,21 +330,21 @@ TIER_4_FLAVOR = {
     "core": 2,
     "mem": 1024 * 6,
     "reserved_core": 2,
-    "reserved_mem": 1024 * 6,
+    "reserved_mem": 1024 * 5.5,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 4,
     "mem": 1024 * 8,
     "reserved_core": 4,
-    "reserved_mem": 1024 * 8,
+    "reserved_mem": 1024 * 7.5,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
     "reserved_core": 8,
-    "reserved_mem": 1024 * 16,
+    "reserved_mem": 1024 * 15.5,
     "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
@@ -352,7 +352,7 @@ TIER_1_FLAVOR = {
     "core": 16,
     "mem": 1024 * 46,
     "reserved_core": 16,
-    "reserved_mem": 1024 * 45,
+    "reserved_mem": 1024 * 44,
     "additional_env_vars": additional_env_vars(0),
 }
 
