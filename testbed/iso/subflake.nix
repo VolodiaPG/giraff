@@ -27,6 +27,7 @@
               init
               monitoring
               proxy
+              registry
             ];
           in {
             packages.nixosConfigurations.node_vm = nixpkgs.lib.nixosSystem {

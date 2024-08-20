@@ -152,7 +152,7 @@ in {
           done
           AUTH_KEY=$(cat "$dir/tailscale_authkey")
 
-          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY
+          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY --advertise-tags=tag:grid5000
         fi
       '';
       serviceConfig = {

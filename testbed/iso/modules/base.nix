@@ -59,6 +59,14 @@ in {
             "http://docker-cache.grid5000.fr":
               tls:
                 insecure_skip_verify: true
+        ghcr.io:
+          endpoint:
+            - "http://docker-cache.grid5000.fr"
+          configs:
+            "http://docker-cache.grid5000.fr":
+              tls:
+                insecure_skip_verify: true
+
     '';
 
     # Tell the Nix evaluator to garbage collect morke aggressively.

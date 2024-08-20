@@ -1,4 +1,6 @@
 use lazy_regex::regex;
+use num_rational::Ratio;
+use num_traits::FromPrimitive as _;
 use std::str::FromStr;
 
 pub mod cpu_ratio;
@@ -99,8 +101,44 @@ macro_rules! impl_serialize_as {
 }
 
 pub mod information {
+    use super::*;
+    use std::str::FromStr;
     use uom::si::information::megabyte;
     use uom::si::rational64::Information;
+
+    pub fn parse_quantity<T>(quantity: &str) -> Result<T, Error>
+    where
+        T: FromStr,
+    {
+        let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+)$");
+
+        let captures = re
+            .captures(quantity)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+        let measure = captures
+            .get(1)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
+            .as_str()
+            .parse::<f64>()
+            .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
+        let measure: Ratio<i64> = num_rational::Ratio::from_f64(measure)
+            .ok_or_else(|| {
+                Error::FailedConversion(
+                    quantity.to_string(),
+                    "rational number".to_string(),
+                )
+            })?;
+        let unit = captures
+            .get(2)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
+            .as_str();
+
+        let qty = format!("{} {}", measure, unit)
+            .parse::<T>()
+            .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
+
+        Ok(qty)
+    }
 
     fn serialize_quantity(value: &Information) -> String {
         format!("{:?} MB", value.get::<megabyte>().numer())
@@ -110,9 +148,41 @@ pub mod information {
         Information,
         megabyte,
         megabyte,
-        super::parse_quantity,
+        parse_quantity,
         serialize_quantity
     );
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use anyhow::Result;
+        use yare::parameterized;
+
+        #[parameterized(
+            byte = {"1000 kilobytes", 1},
+            megabyte = {"1 MB", 1},
+            gigabyte = {"1 GB", 1_000},
+            gigabyte_floating = {"0.5 gigabytes", 500},
+            megabyte_reel = {"7680.0 MB", 7680}
+        )]
+        fn test_serialize(ss: &str, qty: i64) -> Result<()> {
+            assert_eq!(
+                parse_quantity::<Information>(ss)?,
+                Information::new::<megabyte>(num_rational::Ratio::new(qty, 1))
+            );
+            Ok(())
+        }
+        #[test]
+        fn test_deserialize() -> Result<()> {
+            assert_eq!(
+                serialize_quantity(&Information::new::<megabyte>(
+                    num_rational::Ratio::new(1000, 1)
+                )),
+                "1000 MB"
+            );
+            Ok(())
+        }
+    }
 }
 
 pub mod time {
