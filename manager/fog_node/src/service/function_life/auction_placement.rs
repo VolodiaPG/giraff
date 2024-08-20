@@ -1,5 +1,5 @@
 use super::*;
-use futures::future::{join, try_join_all};
+use futures::future::{join, join_all};
 use model::domain::sla::Sla;
 use model::view::auction::{
     BidProposal, BidProposals, BidRequest, BidRequestOwned,
@@ -84,11 +84,23 @@ impl FunctionLife {
         });
 
         Ok(BidProposals {
-            bids: try_join_all(promises)
+            bids: join_all(promises)
                 .await
-                .context("Failed to get all neighboring bids")?
                 .into_iter()
-                .flatten()
+                .filter_map(|result| match result {
+                    Ok(value) => Some(value),
+                    Err(e) => {
+                        error!("Encountered an error: {:?}", e);
+                        None
+                    }
+                })
+                .filter_map(|opt| match opt {
+                    Some(value) => Some(value),
+                    None => {
+                        warn!("Empty bid from neighbor");
+                        None
+                    }
+                })
                 .flat_map(|proposals| proposals.bids)
                 .collect(),
         })

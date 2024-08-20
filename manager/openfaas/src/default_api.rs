@@ -1,11 +1,10 @@
 use super::{configuration, Error};
 use crate::models::delete_function_request::DeleteFunctionRequest;
 use crate::models::{FunctionDefinition, FunctionListEntry};
-use log::trace;
 use serde_json::Value;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tracing::{event, instrument};
+use tracing::{event, instrument, trace, warn};
 
 type HttpClient = reqwest_middleware::ClientWithMiddleware;
 
@@ -90,11 +89,12 @@ impl DefaultApiClient {
         }
 
         let response = builder.send().await?;
-        trace!("response: {:#?}", response);
 
         if response.status().is_success() {
+            trace!("response: {:#?}", response);
             Ok(())
         } else {
+            warn!("response: {:#?}", response);
             Err(Error::from((response.status(), response.text().await)))
         }
     }

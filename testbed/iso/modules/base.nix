@@ -52,20 +52,27 @@ in {
     # Set caching for g5k registry
     etc."rancher/k3s/registries.yaml".text = ''
       mirrors:
-        docker.io:
+        "docker.io":
           endpoint:
             - "http://docker-cache.grid5000.fr"
           configs:
             "http://docker-cache.grid5000.fr":
               tls:
                 insecure_skip_verify: true
-        ghcr.io:
+        "ghcr.io":
           endpoint:
             - "http://docker-cache.grid5000.fr"
           configs:
             "http://docker-cache.grid5000.fr":
               tls:
                 insecure_skip_verify: true
+                configs:
+      configs:
+        "ghcr.io":
+        "docker.io":
+        "*":
+          tls:
+            insecure_skip_verify: true
 
     '';
 

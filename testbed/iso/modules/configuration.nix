@@ -13,6 +13,13 @@
 
   services.k3s = {
     enable = true;
+    #"--disable traefik,metrics-server,local-storage,servicelb"
+    extraFlags = [
+      "--disable traefik,local-storage,servicelb"
+      "--flannel-backend=host-gw"
+      "--disable-network-policy"
+      "--disable-cloud-controller"
+    ];
   };
   # useful packages
   environment.systemPackages =

@@ -207,11 +207,14 @@ impl FunctionLife {
         Ok(())
     }
 
+    async fn prov(&self, id: SlaId) -> Result<()> {
+        let function = self.function.lock().await?;
+        function.provision_function(id).await
+    }
+
     #[instrument(level = "trace", skip(self))]
     pub async fn provision_function(&self, id: SlaId) -> Result<()> {
-        let function = self.function.lock().await?;
-        function.provision_function(id.clone()).await?;
-        drop(function);
+        self.prov(id.clone()).await?;
 
         let res = backoff::future::retry(self.get_backoff(), || async {
             trace!("Checking if function is alive");

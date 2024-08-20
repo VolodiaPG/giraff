@@ -17,7 +17,7 @@ pub struct AnyhowErrorWrapper {
 
 impl std::fmt::Display for AnyhowErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error!("{:?}", self.err);
+        //        error!("{:?}", self.err);
         write!(f, "{:?}", self.err)
     }
 }
@@ -26,6 +26,7 @@ impl actix_web::error::ResponseError for AnyhowErrorWrapper {}
 
 impl From<anyhow::Error> for AnyhowErrorWrapper {
     fn from(err: anyhow::Error) -> AnyhowErrorWrapper {
+        error!("{}", err);
         AnyhowErrorWrapper { err }
     }
 }

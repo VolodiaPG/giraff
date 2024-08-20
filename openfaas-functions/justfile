@@ -1,49 +1,47 @@
-DOCKER:=env_var_or_default("DOCKER", "docker")
-FLAKE:=file_name(justfile_directory())
+DOCKER := env_var_or_default("DOCKER", "docker")
+FLAKE := file_name(justfile_directory())
 
 _default:
     @just --list
 
 ghcr user dir=invocation_directory():
     #!/usr/bin/env bash
-    echo {{justfile_directory()}}
-    echo {{dir}}
-    if [ "{{file_name(justfile_directory())}}" = "{{dir}}" ]; then
+    echo {{ justfile_directory() }}
+    echo {{ dir }}
+    if [ "{{ file_name(justfile_directory()) }}" = "{{ dir }}" ]; then
         echo "Consider locating yourself to the function directory to run this command from there"
         exit 1
     fi
-    just _ghcr_wrapped {{user}} {{dir}}
+    just _ghcr_wrapped {{ user }} {{ dir }}
 
 ghcr_all user:
-    nix develop .#{{FLAKE}} -c just _ghcr_all {{user}}
+    nix develop .#{{ FLAKE }} -c just _ghcr_all {{ user }}
 
 _ghcr_wrapped user dir:
-    nix develop .#{{FLAKE}} -c just _ghcr {{user}} {{dir}}
+    nix develop .#{{ FLAKE }} -c just _ghcr {{ user }} {{ dir }}
 
 _ghcr user dir:
     #!/usr/bin/env bash
-    fn_name=$(basename {{dir}})
-    output=`$(nix build .#$fn_name --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{user}}/giraff:$fn_name 2>&1`
+    fn_name=$(basename {{ dir }})
+    output=`$(nix build .#$fn_name --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/giraff:$fn_name 2>&1`
     retVal=$?
     if [ $retVal -ne 0 ]; then
-      echo -e "[{{file_name(justfile_directory())}}] $fn_name \033[31mFAILED\033[0m"
+      echo -e "[{{ file_name(justfile_directory()) }}] $fn_name \033[31mFAILED\033[0m"
       echo -e $output
       exit $retVal
     fi
-    echo -e "[{{file_name(justfile_directory())}}] $fn_name \033[32mOK\033[0m"
-
+    echo -e "[{{ file_name(justfile_directory()) }}] $fn_name \033[32mOK\033[0m"
 
 _ghcr_all user:
     #!/usr/bin/env bash
     find . -maxdepth 1 -type d -name 'fn_*'  -printf '%f\n' \
-        | parallel just _ghcr_wrapped {{user}} {}
+        | parallel just _ghcr_wrapped {{ user }} {}
 
 docker:
     #!/usr/bin/env bash
     set -e
-    fn_dir=$(basename {{invocation_directory()}})
+    fn_dir=$(basename {{ invocation_directory() }})
     echo "Doing function $fn_dir"
     stream_docker=$(nix build .#$fn_dir  --print-out-paths --no-link --quiet)
-    sh -c $stream_docker 2> /dev/null | {{DOCKER}} load
-    {{DOCKER}} run --rm --name $fn_dir -p 8081:8080 -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true -e OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION=http://10.42.0.1:4317 -e ID=toto -e NAME=totoname $fn_dir:latest
-
+    sh -c $stream_docker 2> /dev/null | {{ DOCKER }} load
+    {{ DOCKER }} run --rm --name $fn_dir -p 8081:8080 -e OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true -e OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION=http://10.42.0.1:4317 -e ID=toto -e NAME=totoname $fn_dir:latest
