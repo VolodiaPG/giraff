@@ -66,12 +66,19 @@ in {
             "http://docker-cache.grid5000.fr":
               tls:
                 insecure_skip_verify: true
-                configs:
+        "*":
+          endpoint:
+            - "http://127.0.0.1:5555"
+          configs:
+            "http://127.0.0.1":
+              tls:
+                insecure_skip_verify: true
+
       configs:
         "ghcr.io":
         "docker.io":
         "*":
-          tls:
+         tls:
             insecure_skip_verify: true
 
     '';

@@ -75,7 +75,13 @@ impl ResourceTracking {
                             )
                         );
                     }
-                    Ok((name.clone(), (reserved_memory, reserved_cpu)))
+                    let free_ram =
+                        free_ram * num_rational::Ratio::new(90, 100);
+                    let free_cpu =
+                        free_cpu * num_rational::Ratio::new(90, 100);
+
+                    //Ok((name.clone(), (reserved_memory, reserved_cpu)))
+                    Ok((name.clone(), (free_ram, free_cpu)))
                 })
                 .collect();
         let resources_available = resources_available?;

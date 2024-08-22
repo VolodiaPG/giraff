@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import csv
 import logging
@@ -43,6 +44,7 @@ from definitions import (
     gen_vm_conf,
 )
 from emul.bpf import NetemBPF
+from function import load_function_descriptions, push_functions_to_registry
 
 EnosEnv = Optional[dict[str, Any]]
 
@@ -488,6 +490,27 @@ def k3s_setup(env: EnosEnv = None):
 
 @cli.command()# type: ignore
 @enostask()
+def setup_registry(env: EnosEnv = None, **kwargs):
+    if env is None:
+        print("env is None")
+        exit(1)
+    if NETWORK is None:
+        print("NETWORK is None")
+        exit(1)
+
+    roles = env["roles"]
+    ips = []
+    for node_name in FOG_NODES:
+        ips.append(roles[node_name][0].address)
+    ips.append(roles["market"][0].address)
+
+    function_descriptions = load_function_descriptions()
+
+    asyncio.run(push_functions_to_registry(function_descriptions, ips))
+
+
+@cli.command()# type: ignore
+@enostask()
 def iot_emulation(env: EnosEnv = None, **kwargs):
     if env is None:
         print("env is None")
@@ -607,7 +630,6 @@ def gen_conf(node, parent_id, parent_ip, ids):
         (node["name"], conf, node["flavor"]),
         *[gen_conf(node, my_id, my_ip, ids) for node in children],
     ]
-
 
 @cli.command()# type: ignore
 @click.option(
@@ -781,8 +803,11 @@ def collect(address=None, **kwargs):
     else:
         addresses = set([address])
     token = os.getenv("INFLUX_TOKEN")
+    assert(token is not None)
     org = os.getenv("INFLUX_ORG")
+    assert(org is not None)
     bucket = os.getenv("INFLUX_BUCKET")
+    assert(bucket is not None)
 
     today = datetime.today()
     today = today.strftime("%Y-%m-%d-%H-%M")

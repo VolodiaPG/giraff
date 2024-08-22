@@ -1,5 +1,5 @@
 use crate::NodeSituation;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use backoff::ExponentialBackoffBuilder;
 use model::dto::node::NodeDescription;
 use model::view::auction::{BidProposals, BidRequest};

@@ -327,14 +327,14 @@ def additional_env_vars(level):
 
 
 TIER_4_FLAVOR = {
-    "core": 2,
+    "core": 4,
     "mem": 1024 * 6,
-    "reserved_core": 2,
+    "reserved_core": 4,
     "reserved_mem": 1024 * 5.5,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
-    "core": 4,
+    "core": 6,
     "mem": 1024 * 8,
     "reserved_core": 4,
     "reserved_mem": 1024 * 7.5,

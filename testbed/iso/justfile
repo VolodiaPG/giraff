@@ -72,8 +72,8 @@ _run_vm disk="sda.raw":
     qemu-kvm \
         -cpu max \
         -name giraff.dev \
-        -m 8192 \
-        -smp 6 \
+        -m 4096 \
+        -smp 2 \
         -drive cache=writeback,file="$temp",id=giraff.drive.dev,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.dev \
         -net nic,netdev=giraff.dev,model=virtio \
         -netdev user,id=giraff.dev,hostfwd=tcp::2221-:22,hostfwd=tcp::16686-:16686,hostfwd=tcp::14268-:14268,hostfwd=tcp::4317-:4317,hostfwd=tcp::8080-:8080,hostfwd=tcp::31112-:31112,hostfwd=tcp::9086-:9086,hostfwd=tcp::3128-:3128,hostfwd=tcp::6443-:6443,hostfwd=tcp::5555-:5555\

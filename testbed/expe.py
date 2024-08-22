@@ -6,12 +6,13 @@ import random
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import aiohttp  # type: ignore
 import dill  # type: ignore
-import marshmallow_dataclass  # type: ignore
 import numpy as np  # type: ignore
+
+from function import IMAGE_REGISTRY, FunctionPipeline, load_function_descriptions
 
 port_int = int
 MiB_int = int
@@ -36,25 +37,6 @@ class Function:
     cold_start_overhead: ms_int
     stop_overhead: ms_int
     input_max_size: str
-
-
-@dataclass
-class FunctionPipeline:
-    image: str
-    nextFunction: Optional[str] = None
-    mem: MiB_int = 256
-    cpu: millicpu_int = 100
-    latency: str = "NO_LATENCY"
-    input_max_size: str = "1500 B"
-
-
-@dataclass
-class FunctionPipelineDescription:
-    name: str
-    content: str
-    nbVarName: str
-    pipeline: dict[str, FunctionPipeline]
-
 
 @dataclass
 class FunctionProvisioned:
@@ -116,15 +98,12 @@ TARGET_NODES = os.getenv("TARGET_NODES", "").split()
 TARGET_NODE_NAMES = os.getenv(
     "TARGET_NODE_NAMES", ""
 ).split()  # Should be in the same order than TARGET_NODES
-if len(TARGET_NODES) != 0:
-    assert len(TARGET_NODES) == len(TARGET_NODE_NAMES)
 
 IOT_IP = os.getenv("IOT_IP")
 MARKET_IP = os.getenv("MARKET_IP")
 MARKET_LOCAL_PORT = port_int(os.environ["MARKET_LOCAL_PORT"])
 IOT_LOCAL_PORT = port_int(os.environ["IOT_LOCAL_PORT"])
 NODES_IP = os.getenv("NODES_IP")
-IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]
 
 NO_LATENCY = ms_int(os.environ["NO_LATENCY"])
 HIGH_LATENCY = ms_int(os.environ["HIGH_LATENCY"])
@@ -139,12 +118,6 @@ OVERRIDE_FUNCTION_IP = os.getenv("OVERRIDE_FUNCTION_IP")
 print(f"OVERRIDE_FUNCTION_IP={OVERRIDE_FUNCTION_IP}")
 OVERRIDE_FIRST_NODE_IP = os.getenv("OVERRIDE_FIRST_NODE_IP")
 print(f"OVERRIDE_FIRST_NODE_IP={OVERRIDE_FIRST_NODE_IP}")
-
-FUNCTION_DESCRIPTIONS = os.getenv(
-    "FUNCTION_DESCRIPTIONS", ""
-).split()  # Should be in the same order than TARGET_NODES
-assert len(FUNCTION_DESCRIPTIONS) != 0
-
 
 # IMAGE_REGISTRY is the src and the dest used during run time is DOCKER_REGISTRY
 DOCKER_REGISTRY=os.getenv("DOCKER_REGISTRY")
@@ -372,16 +345,6 @@ async def do_request(functions: List[Function]):
 PERCENTILE_NORMAL_LOW = -2
 PERCENTILE_NORMAL_HIGH = 2
 
-
-def load_function_descriptions() -> List[FunctionPipelineDescription]:
-    ret = []
-    schema = marshmallow_dataclass.class_schema(FunctionPipelineDescription)()
-    for desc_file in FUNCTION_DESCRIPTIONS:
-        with open(desc_file) as ff:
-            ret.append(schema.load(json.load(ff)))
-    return ret
-
-
 async def save_file(filename: str):
     functions: List[List[Function]] = []
 
@@ -470,29 +433,6 @@ def load_functions(filename) -> List[List[Function]]:
         functions = dill.load(inp)
     return functions
 
-
-async def _push_function(function:str):
-    assert(DOCKER_REGISTRY is not None)
-    assert(IMAGE_REGISTRY is not None)
-    print(f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{DOCKER_REGISTRY}/{function}")
-    process = await asyncio.create_subprocess_exec("skopeo", "copy", "--insecure-policy", "--dest-tls-verify=false", "--quiet", f"docker://{IMAGE_REGISTRY}/{function}", f"docker://{DOCKER_REGISTRY}/{function}",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await process.communicate()
-    print(stdout, stderr)
-
-
-async def push_functions_to_registry(functions: List[List[Function]]):
-    unique_functions = set()
-    for parent in functions:
-        for function in parent:
-            unique_functions.add(function.docker_fn_name)
-
-    to_run = [ asyncio.create_task(_push_function(function)) for function in unique_functions]
-    await asyncio.gather(*to_run)
-
-    print("All upload of function to the internal container registry are done")
-
 async def load_file(filename: str):
     nodes = {}
     for ii in range(len(TARGET_NODE_NAMES)):
@@ -500,7 +440,6 @@ async def load_file(filename: str):
             "'", ""
         )
     functions = load_functions(filename)
-    await push_functions_to_registry(functions)
     tasks = []
 
     response = None
@@ -534,6 +473,13 @@ async def main():
     if env_save_file is not None:
         await save_file(env_save_file)
     elif env_load_file is not None:
+        assert len(TARGET_NODES) == len(TARGET_NODE_NAMES)
+        assert(IMAGE_REGISTRY is not None)
+        global DOCKER_REGISTRY
+        if DOCKER_REGISTRY is None:
+            DOCKER_REGISTRY=IMAGE_REGISTRY
+        assert(DOCKER_REGISTRY is not None)
+
         print(f"Using market ({MARKET_IP}) and iot_emulation({IOT_IP})")
         await load_file(env_load_file)
         print(f"--> Did {successes}, failed to provision {errors} functions.")

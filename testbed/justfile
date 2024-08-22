@@ -128,6 +128,7 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py iot-emulation
     timeout 10m {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
+    {{ RUN }} integration.py setup-registry
 
 [private]
 expe env_variation IOT_IP MARKET_IP TARGET_NODES:
@@ -141,7 +142,11 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export MARKET_IP={{ MARKET_IP }}
     export TARGET_NODES="{{ TARGET_NODES }}"
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
-    export DOCKER_REGISTRY=${DOCKER_REGISTRY:-"{{ MARKET_IP }}:5555"}
+    export -p | sed 's/declare -x /export /' > env_checkpoint{{ env_variation }}.sh
+    {{ RUN }} expe.py
+
+expe_from_checkpoint env_variation:
+    source {{ justfile_directory() }}/env_checkpoint{{ env_variation }}.sh
     {{ RUN }} expe.py
 
 [private]
@@ -198,6 +203,7 @@ _scenario archive_name env_variation +city_name_node_targets:
 
     do_expe(){
         set -e
+        export DOCKER_REGISTRY="$MARKET_IP:5555"
         just expe "{{ env_variation }}" $IOT_IP $MARKET_IP "$joined"
     }
     echo "experiment ({{ env_variation }} for $EXPERIMENT_DURATION secs)"
