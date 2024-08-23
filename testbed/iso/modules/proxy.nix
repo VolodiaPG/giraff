@@ -17,7 +17,7 @@ in {
         "INFLUX_ORG=faasfog"
         "INFLUX_BUCKET=faasfog"
         "INFLUX_TOKEN=${toString influxToken}"
-        "DEV=true"
+        #"DEV=true"
       ];
       ExecStart = "${outputs.packages.${pkgs.system}.proxy}/bin/proxy";
       Restart = "on-failure";
