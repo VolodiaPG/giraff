@@ -6,62 +6,48 @@
   ...
 }: let
   readLines = file: lib.strings.splitString "\n" (builtins.readFile file);
-  rootVolume = "disk/by-partlabel/disk-sda-root";
 in {
   boot = {
-    kernelPackages = pkgs.linuxPackages_latest;
+    zfs.extraPools = ["rpool"];
+    kernelPackages = config.boot.zfs.package.latestCompatibleLinuxPackages;
     kernelParams = ["console=ttyS0"]; # "preempt=none"];
     loader.grub = {
       device = "nodev";
     };
     loader.timeout = 0;
-    supportedFilesystems = ["btrfs"];
+    supportedFilesystems = ["zfs"];
+    zfs.devNodes = "/dev/disk/by-partuuid";
     initrd.enable = true;
-    initrd.postDeviceCommands = let
-      directoriesList = config.environment.persistence."/persistent".directories;
-      directories = builtins.map (set: "\"" + set.directory + "\"") directoriesList;
+    initrd.postDeviceCommands = lib.mkAfter ''
+      zfs rollback -r rpool/local/root@blank
+    '';
+  };
+  systemd = {
+    enableEmergencyMode = false;
 
-      dirname = path: let
-        components = lib.strings.splitString "/" path;
-        length = builtins.length components;
-        dirname = builtins.concatStringsSep "/" (lib.lists.take (length - 1) components);
-      in
-        dirname;
-      filesList = map (set: set.file) config.environment.persistence."/persistent".files;
-      files = builtins.map dirname filesList;
+    # Explicitly disable ZFS mount service since we rely on legacy mounts
+    services.zfs-mount.enable = false;
 
-      directoriesToBind = directories ++ files;
-    in
-      lib.mkAfter ''
-        mkdir /btrfs_tmp
-        diskpath=$(realpath /dev/${rootVolume})
-        mount -t btrfs $diskpath /btrfs_tmp
-
-        delete_subvolume_recursively() {
-              IFS=$'\n'
-              for i in $(btrfs subvolume list -o "$1" | cut -f 9- -d ' '); do
-                  delete_subvolume_recursively "/btrfs_tmp/$i"
-              done
-              btrfs subvolume delete "$1"
-          }
-
-          delete_subvolume_recursively /btrfs_tmp/root
-
-          btrfs subvolume create /btrfs_tmp/root
-
-          mkdir -p /btrfs_tmp/root/boot
-          mkdir -p /btrfs_tmp/root/nix
-          mkdir -p /btrfs_tmp/root/persistent
-          ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/root" + dir) directoriesToBind)}
-          ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/persistent" + dir) directoriesToBind)}
-          ${builtins.concatStringsSep "; " (builtins.map (dir: "touch /btrfs_tmp/persistent" + dir) filesList)}
-
-          umount /btrfs_tmp
-      '';
+    extraConfig = ''
+      DefaultTimeoutStartSec=20s
+      DefaultTimeoutStopSec=10s
+    '';
+  };
+  services.zfs = {
+    trim.enable = true;
+    autoScrub = {
+      enable = true;
+      pools = ["rpool"];
+    };
   };
 
   fileSystems = lib.mkMerge [
     {
+      "/var/lib/rancher" = {
+        device = "none";
+        fsType = "tmpfs";
+        options = ["defaults" "size=50%" "mode=755"];
+      };
       "/persistent" = {
         neededForBoot = true;
       };
