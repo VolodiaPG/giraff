@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,7 +88,8 @@ var (
 	errors                    int
 	random                    *rand.Rand
 	functionDescriptions      []string
-	logger                    zap.Logger
+	logger                    otelzap.Logger
+	_Logger                   zap.Logger
 )
 
 // The FunctionPipeline is a description of the functions to deploy on the network
@@ -153,9 +153,8 @@ func init() {
 	} else {
 		config = zap.NewProductionConfig()
 	}
-	var _logger *zap.Logger
-	_logger, err = config.Build()
-	logger = *_logger
+	tmp, err := config.Build()
+	_Logger = *tmp
 	if err != nil {
 		log.Println("Failed to setup the zap logger")
 	}
@@ -213,7 +212,11 @@ func openLoopPoissonProcess(nb int, period int) []float64 {
 	return arrivalTimes[:len(arrivalTimes)-1]
 }
 
-func putRequestFogNode(function Function) ([]byte, int, error) {
+func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, error) {
+	ctx, span := otel.Tracer("").Start(
+		ctx,
+		"put_request_fog_node")
+	defer span.End()
 	url := fmt.Sprintf("http://%s:%d/api/function", marketIP, marketLocalPort)
 	headers := map[string]string{"Content-Type": "application/json"}
 	if function.InputMaxSize == "" {
@@ -238,8 +241,10 @@ func putRequestFogNode(function Function) ([]byte, int, error) {
 		},
 		"targetNode": function.TargetNode,
 	}
+
 	jsonData, _ := json.Marshal(data)
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(jsonData))
+	req.WithContext(ctx)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -254,9 +259,10 @@ func putRequestFogNode(function Function) ([]byte, int, error) {
 	return body, resp.StatusCode, nil
 }
 
-func provisionOneFunction(functionID string) ([]byte, int, error) {
+func provisionOneFunction(ctx context.Context, functionID string) ([]byte, int, error) {
 	url := fmt.Sprintf("http://%s:%d/api/function/%s", marketIP, marketLocalPort, functionID)
 	req, _ := http.NewRequest("POST", url, nil)
+	req = req.WithContext(ctx)
 	client := &http.Client{Timeout: provisionTimeout,
 		Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	resp, err := client.Do(req)
@@ -268,14 +274,14 @@ func provisionOneFunction(functionID string) ([]byte, int, error) {
 	return body, resp.StatusCode, nil
 }
 
-func postProvisionChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, error) {
+func postProvisionChainFunctions(ctx context.Context, urls []FunctionProvisioned) ([][]byte, []int, error) {
 	var responses [][]byte
 	var statusCodes []int
 	var err error
 	for _, url := range urls {
 		var response []byte
 		var statusCode int
-		response, statusCode, err = provisionOneFunction(url.FunctionID)
+		response, statusCode, err = provisionOneFunction(ctx, url.FunctionID)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -285,7 +291,7 @@ func postProvisionChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, e
 	return responses, statusCodes, nil
 }
 
-func postRequestChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, error) {
+func postRequestChainFunctions(ctx context.Context, urls []FunctionProvisioned) ([][]byte, []int, error) {
 	headers := map[string]string{"Content-Type": "application/json"}
 	last := len(urls) - 1
 	if last == 0 {
@@ -300,12 +306,13 @@ func postRequestChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, err
 		}
 		jsonData, err := json.Marshal(data)
 		if err != nil {
-			logger.Sugar().Warn("Something went wrong with the marshalling to on %s: %v", url, err)
+			logger.Ctx(ctx).Sugar().Warnf("Something went wrong with the marshalling to on %s: %v", url, err)
 			return nil, nil, err
 		}
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+		req = req.WithContext(ctx)
 		if err != nil {
-			logger.Sugar().Warn("Something went wrong with the request to on %s: %v", url, err)
+			logger.Ctx(ctx).Sugar().Warnf("Something went wrong with the request to on %s: %v", url, err)
 			return nil, nil, err
 		}
 		for key, value := range headers {
@@ -315,18 +322,18 @@ func postRequestChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, err
 			Transport: otelhttp.NewTransport(http.DefaultTransport)}
 		resp, err := client.Do(req)
 		if err != nil {
-			logger.Sugar().Warn("Something went wrong contacting openfaas on %s: %v", url, err)
+			logger.Ctx(ctx).Sugar().Warnf("Something went wrong contacting openfaas on %s: %v", url, err)
 			return nil, nil, err
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
 			body, _ := io.ReadAll(resp.Body)
-			logger.Sugar().Warn("Status code is not OK", resp.StatusCode, string(body))
+			logger.Ctx(ctx).Sugar().Warnf("Status code is not OK", resp.StatusCode, string(body))
 			return nil, nil, err
 		}
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.Sugar().Warn("Something went wrong with the response body on %s: %v", url, err)
+			logger.Ctx(ctx).Sugar().Warnf("Something went wrong with the response body on %s: %v", url, err)
 			return nil, nil, err
 		}
 		responses = append(responses, body)
@@ -336,7 +343,7 @@ func postRequestChainFunctions(urls []FunctionProvisioned) ([][]byte, []int, err
 	return responses, statusCodes, nil
 }
 
-func putRequestIotEmulation(provisioned FunctionProvisioned, function Function) ([]byte, int, error) {
+func putRequestIotEmulation(ctx context.Context, provisioned FunctionProvisioned, function Function) ([]byte, int, error) {
 	faasIP := function.FirstNodeIP
 	if overrideFirstNodeIP != "" {
 		faasIP = &overrideFirstNodeIP
@@ -360,6 +367,7 @@ func putRequestIotEmulation(provisioned FunctionProvisioned, function Function) 
 		req.Header.Set(key, value)
 	}
 	client := &http.Client{Timeout: putMarketTimeout}
+	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -370,18 +378,28 @@ func putRequestIotEmulation(provisioned FunctionProvisioned, function Function) 
 }
 
 func registerNewFunctions(functions []Function) (bool, error) {
+	ctx, span := otel.Tracer("").Start(context.Background(), "register_new_function_"+strings.Join(func() []string {
+		var functionNames []string
+		for _, ff := range functions {
+			functionNames = append(functionNames, ff.FunctionName)
+		}
+		return functionNames
+	}(), ","))
+	defer span.End()
+
 	time.Sleep(time.Duration(functions[0].Arrival) * time.Second)
+	logger.Ctx(ctx).Info("Starting requests")
 	var responses []FunctionProvisioned
 	var startedAt *time.Time
 	for ii := range functions {
 		function := functions[ii]
-		response, code, err := putRequestFogNode(function)
+		response, code, err := putRequestFogNode(ctx, function)
 		if err != nil {
-			logger.Sugar().Warn("failed to put to the requested fog node")
+			logger.Ctx(ctx).Sugar().Warnf("failed to put to the requested fog node")
 			return false, err
 		}
 		if code != 200 {
-			logger.Sugar().Warn("status failed to put to the requested fog node", string(response))
+			logger.Ctx(ctx).Sugar().Warnw("status failed to put to the requested fog node", string(response))
 			return false, nil
 		}
 		if startedAt == nil {
@@ -394,7 +412,7 @@ func registerNewFunctions(functions []Function) (bool, error) {
 		nodeID := responseJSON["chosen"].(map[string]interface{})["bid"].(map[string]interface{})["nodeId"].(string)
 		faasPort, err := strconv.Atoi(responseJSON["chosen"].(map[string]interface{})["port"].(string))
 		if err != nil {
-			logger.Sugar().Warn("failed to convert the received port to an integer", err)
+			logger.Ctx(ctx).Sugar().Warnw("failed to convert the received port to an integer", err)
 			return false, nil
 		}
 		functionID := responseJSON["sla"].(map[string]interface{})["id"].(string)
@@ -404,62 +422,63 @@ func registerNewFunctions(functions []Function) (bool, error) {
 			functions[ii+1].TargetNode = responseStruct.NodeID
 			functions[ii+1].FirstNodeIP = &responseStruct.FaasIP
 		}
-		//log.Printf("Reserving... %d/%d", ii+1, len(functions))
+		logger.Ctx(ctx).Sugar().Infof("Reserving... %d/%d", ii+1, len(functions))
 	}
-	//log.Printf("Reserved %s", strings.Join(func() []string {
-	//	var functionNames []string
-	//	for _, ff := range functions {
-	//		functionNames = append(functionNames, ff.FunctionName)
-	//	}
-	//	return functionNames
-	//}(), ","))
+	logger.Ctx(ctx).Info(
+		"Reserved", zap.String("functions", strings.Join(func() []string {
+			var functionNames []string
+			for _, ff := range functions {
+				functionNames = append(functionNames, ff.FunctionName)
+			}
+			return functionNames
+		}(), ",")))
 	duration := functions[0].Duration
 	if startedAt == nil || time.Since(*startedAt).Milliseconds()*2 > int64(duration) {
-		logger.Sugar().Warn("Got the reservation, but no time to proceed to use it, stopping there")
+		logger.Ctx(ctx).Sugar().Warnf("Got the reservation, but no time to proceed to use it, stopping there")
 		return false, nil
 	}
-	_, statusCodes, err := postProvisionChainFunctions(responses)
+	_, statusCodes, err := postProvisionChainFunctions(ctx, responses)
 	if err != nil {
-		logger.Sugar().Warn("Failed to provision:", err)
+		logger.Ctx(ctx).Sugar().Warnw("Failed to provision:", err)
 		return false, err
 	}
 	for _, httpCode := range statusCodes {
 		if httpCode != 200 {
-			logger.Sugar().Warn("Provisioning failed %d", httpCode)
+			logger.Ctx(ctx).Sugar().Warnf("Provisioning failed %d", httpCode)
 			return false, nil
 		}
 	}
-	//log.Printf("Provisioned %s", strings.Join(func() []string {
-	//	var functionNames []string
-	//	for _, ff := range functions {
-	//		functionNames = append(functionNames, ff.FunctionName)
-	//	}
-	//	return functionNames
-	//}(), ","))
-	_, statusCodes, err = postRequestChainFunctions(responses)
-	if err != nil {
-		logger.Sugar().Warn("Failed to chain functions: none returned")
-		return false, err
-	}
-	for _, httpCode := range statusCodes {
-		if httpCode != 200 {
-			logger.Sugar().Error("Request failed status chained %d", httpCode)
-			return false, nil
-		}
-	}
-	logger.Info("Chained", zap.String("functions", strings.Join(func() []string {
+	logger.Ctx(ctx).Info("Provisioned", zap.String("functions", strings.Join(func() []string {
 		var functionNames []string
 		for _, ff := range functions {
 			functionNames = append(functionNames, ff.FunctionName)
 		}
 		return functionNames
 	}(), ",")))
-	_, codeIot, err := putRequestIotEmulation(responses[0], functions[0])
+	_, statusCodes, err = postRequestChainFunctions(ctx, responses)
+	if err != nil {
+		logger.Ctx(ctx).Sugar().Warnf("Failed to chain functions: none returned")
+		return false, err
+	}
+	for _, httpCode := range statusCodes {
+		if httpCode != 200 {
+			logger.Ctx(ctx).Sugar().Errorf("Request failed status chained %d", httpCode)
+			return false, nil
+		}
+	}
+	logger.Ctx(ctx).Info("Chained", zap.String("functions", strings.Join(func() []string {
+		var functionNames []string
+		for _, ff := range functions {
+			functionNames = append(functionNames, ff.FunctionName)
+		}
+		return functionNames
+	}(), ",")))
+	_, codeIot, err := putRequestIotEmulation(ctx, responses[0], functions[0])
 	if err != nil {
 		return false, err
 	}
 	if codeIot == 200 {
-		logger.Info("Registered cron", zap.String("function_name", functions[0].FunctionName))
+		logger.Ctx(ctx).Info("Registered cron", zap.String("function_name", functions[0].FunctionName))
 		return true, nil
 	}
 	return false, nil
@@ -468,7 +487,7 @@ func registerNewFunctions(functions []Function) (bool, error) {
 func doRequest(functions []Function) {
 	success, err := registerNewFunctions(functions)
 	if err != nil {
-		logger.Sugar().Warn(err)
+		logger.Sugar().Error(err)
 	}
 	if success {
 		successes++
@@ -492,46 +511,6 @@ func loadFunctionDescriptions() ([]FunctionPipelineDescription, error) {
 		ret = append(ret, desc)
 	}
 	return ret, nil
-}
-
-func pushFunction(function string, dockerRegistry string) error {
-	fmt.Printf("Copying from docker://%s/%s to docker://%s/%s\n", imageRegistry, function, dockerRegistry, function)
-	cmd := exec.Command("skopeo", "copy", "--insecure-policy", "--dest-tls-verify=false", "--quiet", fmt.Sprintf("docker://%s/%s", imageRegistry, function), fmt.Sprintf("docker://%s/%s", dockerRegistry, function))
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-	log.Println(string(output))
-	return nil
-}
-
-func pushFunctionsToRegistry(pipeline []FunctionPipelineDescription, nodes []string) error {
-	uniqueFunctions := make(map[string]bool)
-	for _, pipe := range pipeline {
-		for _, desc := range pipe.Pipeline {
-			uniqueFunctions[desc.Image] = true
-		}
-	}
-	nodeTargets := make(map[string]bool)
-	for _, node := range nodes {
-		nodeTargets[node] = true
-	}
-	var wg sync.WaitGroup
-	for target := range nodeTargets {
-		for function := range uniqueFunctions {
-			wg.Add(1)
-			go func(target, function string) {
-				defer wg.Done()
-				err := pushFunction(function, fmt.Sprintf("%s:5555", target))
-				if err != nil {
-					log.Println(err)
-				}
-			}(target, function)
-		}
-	}
-	wg.Wait()
-	log.Println("All upload of function to the internal container registry are done")
-	return nil
 }
 
 func loadFile(filename string) error {
@@ -675,7 +654,7 @@ func saveFile(filename string) error {
 		return err
 	}
 	err = os.WriteFile(filename, data, 0644)
-	logger.Sugar().Info("Saved to", filename)
+	_Logger.Sugar().Info("Saved to", filename)
 	if err != nil {
 		return err
 	}
@@ -698,11 +677,12 @@ func main() {
 	if collectorURL != "" {
 		shutdown, err := initTracer()
 		if err != nil {
-			logger.Sugar().Fatal("Failed to initialize otel ", err)
+			_Logger.Sugar().Fatal("Failed to initialize otel ", err)
 		}
 
 		defer shutdown(context.Background())
-		logger := otelzap.New(&logger, otelzap.WithMinLevel(logger.Level()))
+		tmp := otelzap.New(&_Logger, otelzap.WithMinLevel(_Logger.Level()))
+		logger = *tmp
 		defer logger.Sync()
 		logger.Info("Initialized otel")
 	}
