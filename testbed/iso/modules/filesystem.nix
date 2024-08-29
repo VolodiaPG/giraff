@@ -60,6 +60,11 @@ in {
       '';
   };
 
+  zramSwap = {
+    enable = true;
+    writebackDevice = "/dev/disk/by-partlabel/disk-sda-zram-writeback";
+  };
+
   fileSystems = lib.mkMerge [
     {
       #"/var/lib/rancher" = {

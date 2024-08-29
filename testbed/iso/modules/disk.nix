@@ -1,4 +1,6 @@
-{
+let
+  mountOptions = ["ssd" "compress=zstd:2" "noatime" "discard=async" "space_cache=v2"];
+in {
   disko.devices = {
     disk = {
       sda = {
@@ -31,12 +33,12 @@
                 subvolumes = {
                   # Subvolume name is different from mountpoint
                   "/root" = {
-                    mountOptions = ["ssd" "compress=zstd:2" "noatime" "discard=async" "space_cache=v2"];
+                    inherit mountOptions;
                     mountpoint = "/";
                   };
                   # Subvolume name is the same as the mountpoint
                   "/nix" = {
-                    mountOptions = ["ssd" "compress=zstd:2" "noatime" "discard=async" "space_cache=v2"];
+                    inherit mountOptions;
                     mountpoint = "/nix";
                   };
                   # Parent is not mounted so the mountpoint must be set
@@ -48,11 +50,8 @@
               };
             };
 
-            plainSwap = {
-              size = "4G";
-              content = {
-                type = "swap";
-              };
+            zram-writeback = {
+              size = "8G";
             };
           };
         };
