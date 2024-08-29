@@ -6,7 +6,7 @@ all_workers <- parallel::detectCores()
 workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
-no_memoization <- TRUE
+no_memoization <- FALSE
 single_graphs <- TRUE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
@@ -26,7 +26,8 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1723473135-fog_node-auction-quadratic_rates-reduction-market-default_strategy-.env.1_2024-08-12-14-58.tar.xz",
   # "metrics_valuation_rates.env_1_1723473135-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-08-12-15-41.tar.xz",
   # "metrics_valuation_rates.env_1_12-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-08-13-11-47.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-08-20-14-04.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-08-26-10-28.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-08-26-13-04.tar.xz",
   #---
   #---
   #---

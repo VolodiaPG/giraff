@@ -276,7 +276,7 @@ expe localhost_ip OFFLINE_MODE="false":
     #!/usr/bin/env bash
     cd {{ justfile_directory() }}/../testbed
     nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_3 node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} "c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
-    nix develop .#testbed -c sh -c "export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=\"node_3 node_34\" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} OFFLINE_MODE={{ OFFLINE_MODE }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} \"c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc\""
+    nix develop .#testbed -c sh -c "export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=\"node_3 node_34\" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} OFFLINE_MODE={{ OFFLINE_MODE }} DEV=true COLLECTOR_URL="localhost:4317"; just expe .env.local 127.0.0.1 {{ localhost_ip }} \"c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc\""
 
 _ghcr user image:
     #!/usr/bin/env bash

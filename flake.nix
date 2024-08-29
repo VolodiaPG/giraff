@@ -20,7 +20,7 @@
     };
     # Made to run at each commit and check
     pre-commit-hooks = {
-      url = "github:cachix/pre-commit-hooks.nix";
+      url = "github:cachix/git-hooks.nix";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         nixpkgs-stable.follows = "nixpkgs";
@@ -160,7 +160,7 @@
             };
             devShells.default = pkgs.mkShell {
               shellHook = (extra.shellHook system) "default";
-              packages = with pkgs; [just cachix];
+              packages = with pkgs; [just cachix go];
             };
             formatter = pkgs.alejandra;
             checks = {
@@ -217,7 +217,7 @@
                   # Go
                   gofmt.enable = true;
                   revive.enable = true;
-                  # staticcheck.enable = true;
+                  staticcheck.enable = true;
                 };
               };
             };

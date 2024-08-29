@@ -5,11 +5,13 @@
       # Load the iso flake
       isoOutputs = (import ./iso/subflake.nix).outputs inputs extra;
       miningOutputs = (import ./mining/subflake.nix).outputs inputs extra;
+      expeOutputs = (import ./expe/subflake.nix).outputs inputs extra;
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
         isoOutputs
         miningOutputs
+        expeOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
             pkgs = import nixpkgs {
@@ -133,6 +135,8 @@
               PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
 
               packages = with pkgs; [
+                outputs.packages.${system}.expe
+                nerdctl
                 just
                 jq
                 ruff
@@ -192,6 +196,7 @@
                 curl
                 moreutils
                 skopeo
+                nerdctl
               ])
               ++ (with outputs.packages.${system}; [
                 # Environment to run enos and stuff

@@ -62,6 +62,11 @@ in {
 
   fileSystems = lib.mkMerge [
     {
+      #"/var/lib/rancher" = {
+      #  device = "none";
+      #  fsType = "tmpfs";
+      #  options = ["defaults" "size=50%" "mode=755"];
+      #};
       "/persistent" = {
         neededForBoot = true;
       };
@@ -84,17 +89,16 @@ in {
       hideMounts = true;
       directories = [
         "/var/lib/chrony"
-        "/var/lib/nixos"
-        "/var/lib/systemd"
-        "/var/lib/containers" # podman caches
-        "/run/k3s/containerd" # K3S caches
-        "/var/lib/rancher/k3s/agent/containerd"
-        "/var/lib/docker/overlay2"
-        "/var/lib/docker/image"
-        "/var/lib/docker/containerd"
+        #"/var/lib/nixos"
+        #"/var/lib/systemd"
+        #"/var/lib/containers" # podman caches
+        #"/run/k3s/containerd" # K3S caches
+        #"/var/lib/rancher/k3s/agent/containerd"
+        #"/var/lib/docker/overlay2"
+        #"/var/lib/docker/image"
+        #"/var/lib/docker/containerd"
         "/var/log"
         "/root"
-        #          "/etc/ssh"
       ];
       files = [
         # Preserve influxdb login information as created initially in Nix

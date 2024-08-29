@@ -425,8 +425,8 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
     group_by(placement_method) %>%
     # filter(n() > 3) %>% # Ensure at least 3 points in each group
     summarise(
-      x_centered = mean(x_centered),
-      y_centered = mean(y_centered),
+      x_centered = mean(x),
+      y_centered = mean(y),
       label = unique(placement_method)
     )
 

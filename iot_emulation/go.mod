@@ -1,4 +1,4 @@
-module github.com/volodiapg/faas_fog/iot_emulation
+module github.com/volodiapg/giraff/iot_emulation
 
 go 1.20
 

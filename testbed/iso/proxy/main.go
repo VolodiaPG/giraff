@@ -203,7 +203,7 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 		map[string]string{"sla_id": slaID, "req_id": requestID, "tags": tags, "first_req_id": strconv.FormatBool(firstRequestID), "service_status": strconv.Itoa(serviceStatus), "status": strconv.Itoa(resp.StatusCode)},
 		map[string]interface{}{"value": proxyRx},
 		proxyTx)
-	(*influxAPI).WritePoint(p)
+	go (*influxAPI).WritePoint(p)
 }
 
 func main() {

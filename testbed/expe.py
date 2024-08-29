@@ -156,6 +156,7 @@ async def put_request_fog_node(function: Function):
         },
         "targetNode": f"{function.target_node}",
     }
+    print(data)
     async with AsyncSession() as session:
         async with session.put(url, headers=headers, json=data) as response:
             http_code = response.status

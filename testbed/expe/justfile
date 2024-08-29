@@ -1,0 +1,8 @@
+_default:
+    PORT="3128" \
+    INFLUX_ADDRESS="127.0.0.1:9086" \
+    INFLUX_TOKEN="xowyTh1iGcNAZsZeydESOHKvENvcyPaWg8hUe3tO4vPOw_buZVwOdUrqG3gwV314aYd9SWKHcxlykcQY_rwYVQ==" \
+    INFLUX_ORG="faasfog" \
+    INFLUX_BUCKET="faasfog" \
+    DEV=True \
+    go run *.go

@@ -20,7 +20,7 @@ update:
     nix flake update --experimental-features "nix-command flakes"
 
 ssh-in:
-    @$SSH_CMD 2221
+    @{{ SSH_CMD }} 2221
 
 upload city="rennes": build-vm
     #!/usr/bin/env bash
@@ -30,7 +30,7 @@ upload city="rennes": build-vm
     qemu-kvm \
         -cpu max \
         -name giraff.fog_node_vm \
-        -m 8000 \
+        -m 16000 \
         -smp 8 \
         -drive cache=writeback,file="$vm_path",id=giraff.drive.fog_node_vm,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.fog_node_vm \
         -net nic,netdev=giraff.fog_node_vm,model=virtio -netdev user,id=giraff.fog_node_vm,hostfwd=tcp::2223-:22 \

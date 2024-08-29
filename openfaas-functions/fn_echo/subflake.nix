@@ -67,7 +67,7 @@
               )
             )
             // {
-              fn_echo = outputs.packages.${system}.fn_echo_jaeger;
+              fn_echo = outputs.packages.${system}.fn_echo_no-telemetry;
             };
           devShells.fn_echo = rust.craneLib.devShell {
             shellHook = (extra.shellHook system) "fn_echo";
