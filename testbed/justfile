@@ -143,7 +143,6 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export TARGET_NODES="{{ TARGET_NODES }}"
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
     export -p | sed 's/declare -x /export /' > env_checkpoint{{ env_variation }}.sh
-    # {{ RUN }} expe.py
     expe
 
 expe_from_checkpoint env_variation:

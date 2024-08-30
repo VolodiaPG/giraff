@@ -196,11 +196,11 @@
                 curl
                 moreutils
                 skopeo
-                nerdctl
               ])
               ++ (with outputs.packages.${system}; [
                 # Environment to run enos and stuff
                 experiments
+                expe
               ]);
           };
         in {

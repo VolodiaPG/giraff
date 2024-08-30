@@ -2,6 +2,7 @@
     "name": "audioSentiment",
     "content": "audio",
     "nbVarName": "NB_AUDIO_FUNCTIONS",
+    "first": "audioToText",
     "pipeline": {
         "audioToText": {
             "nextFunction": "sentimentAnalysis",

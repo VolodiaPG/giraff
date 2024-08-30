@@ -107,6 +107,7 @@ type FunctionPipelineDescription struct {
 	Name      string                      `json:"name"`
 	Content   string                      `json:"content"`
 	NbVarName string                      `json:"nbVarName"`
+	First     string                      `json:"first"`
 	Pipeline  map[string]FunctionPipeline `json:"pipeline"`
 }
 
@@ -501,11 +502,13 @@ func loadFunctionDescriptions() ([]FunctionPipelineDescription, error) {
 	for _, descFile := range functionDescriptions {
 		data, err := os.ReadFile(descFile)
 		if err != nil {
+			logger.Error("Failed to read the file", zap.String("file", descFile))
 			return nil, err
 		}
 		var desc FunctionPipelineDescription
 		err = json.Unmarshal(data, &desc)
 		if err != nil {
+			logger.Error("Failed to unmarshal the file", zap.String("file", descFile))
 			return nil, err
 		}
 		ret = append(ret, desc)
@@ -612,10 +615,9 @@ func saveFile(filename string) error {
 				duration := durations[index]
 				duration = duration + functionColdStartOverhead + functionStopOverhead
 				requestInterval := requestIntervals[index]
-				fnName := ""
-				for key := range fnDesc.Pipeline {
-					fnName = key
-					break
+				fnName := fnDesc.First
+				if fnName == "" {
+					logger.Warn("no first function specified", zap.String("descName", fnDesc.Name))
 				}
 				fnChain := make([]Function, 0)
 				for {
@@ -653,6 +655,21 @@ func saveFile(filename string) error {
 	if err != nil {
 		return err
 	}
+	var functionNames = map[string]int{}
+	for _, ff := range functions {
+		var functionNamesBis []string
+		for _, ii := range ff {
+			functionNamesBis = append(functionNamesBis, ii.DockerFnName)
+		}
+		functionName := fmt.Sprintf("(%s)", strings.Join(functionNamesBis, ","))
+		if val, ok := functionNames[functionName]; ok {
+			functionNames[functionName] = val + 1
+		} else {
+			functionNames[functionName] = 1
+		}
+	}
+	logger.Sugar().Info("Saving functions", functionNames)
+
 	err = os.WriteFile(filename, data, 0644)
 	_Logger.Sugar().Info("Saved to", filename)
 	if err != nil {
@@ -671,6 +688,21 @@ func loadFunctions(filename string) ([][]Function, error) {
 	if err != nil {
 		return nil, err
 	}
+	var functionNames = map[string]int{}
+	for _, ff := range functions {
+		var functionNamesBis []string
+		for _, ii := range ff {
+			functionNamesBis = append(functionNamesBis, ii.DockerFnName)
+		}
+		functionName := fmt.Sprintf("(%s)", strings.Join(functionNamesBis, ","))
+		if val, ok := functionNames[functionName]; ok {
+			functionNames[functionName] = val + 1
+		} else {
+			functionNames[functionName] = 1
+		}
+	}
+	logger.Sugar().Info("Using functions", functionNames)
+
 	return functions, nil
 }
 func main() {
@@ -689,6 +721,7 @@ func main() {
 
 	envSaveFile := os.Getenv("EXPE_SAVE_FILE")
 	envLoadFile := os.Getenv("EXPE_LOAD_FILE")
+	logger.Debug("Load/Save", zap.String("saveFile", envSaveFile), zap.String("loadFile", envLoadFile))
 	if envSaveFile != "" {
 		saveFile(envSaveFile)
 	} else if envLoadFile != "" {
@@ -697,10 +730,9 @@ func main() {
 		}
 		if dockerRegistry == "" {
 			dockerRegistry = os.Getenv("IMAGE_REGISTRY")
+			logger.Sugar().Warn("DOCKER_REGISTRY is not set, using the IMAGE_REGISTRY")
 		}
-		if dockerRegistry == "" {
-			logger.Sugar().Fatal("DOCKER_REGISTRY is not set")
-		}
+		logger.Sugar().Info("Using Docker registry: ", dockerRegistry)
 		logger.Sugar().Info(fmt.Sprintf("Using market (%s) and iot_emulation(%s)", marketIP, iotIP))
 		loadFile(envLoadFile)
 		logger.Sugar().Info(fmt.Sprintf("--> Did %d, failed to provision %d functions.", successes, errors))

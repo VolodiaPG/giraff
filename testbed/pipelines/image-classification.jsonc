@@ -2,6 +2,7 @@
     "name": "image",
     "content": "image",
     "nbVarName": "NB_IMAGE_FUNCTIONS",
+    "first": "imagePreProcessing",
     "pipeline": {
         "imagePreProcessing": {
             "nextFunction": "classif",

@@ -24,7 +24,7 @@
             gotools
             just
             go-tools
-            (pkgs.mkGoEnv {pwd = ./.;})
+            (mkGoEnv {pwd = ./.;})
           ];
         };
       });
