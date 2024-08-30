@@ -7,4 +7,5 @@ default:
     PATH="$PATH:$OLD_PATH"
     export EXPE_LOAD_FILE="$OLD_EXPE_LOAD_FILE"
     export EXPE_SAVE_FILE="$OLD_EXPE_SAVE_FILE"
+    export COLLECTOR_URL=127.0.0.1:4317
     go run main.go

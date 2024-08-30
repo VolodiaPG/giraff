@@ -116,8 +116,8 @@ var imageRegistry string
 func init() {
 	var err error
 	collectorURL = os.Getenv("COLLECTOR_URL")
-	targetNodes = strings.Split(os.Getenv("TARGET_NODES"), " ")
-	targetNodeNames = strings.Split(os.Getenv("TARGET_NODE_NAMES"), " ")
+	targetNodes = strings.Fields(os.Getenv("TARGET_NODES"))
+	targetNodeNames = strings.Fields(os.Getenv("TARGET_NODE_NAMES"))
 	iotIP = os.Getenv("IOT_IP")
 	marketIP = os.Getenv("MARKET_IP")
 	marketLocalPort, err = strconv.Atoi(os.Getenv("MARKET_LOCAL_PORT"))
@@ -132,7 +132,7 @@ func init() {
 	overrideFunctionIP = os.Getenv("OVERRIDE_FUNCTION_IP")
 	overrideFirstNodeIP = os.Getenv("OVERRIDE_FIRST_NODE_IP")
 	dockerRegistry = os.Getenv("DOCKER_REGISTRY")
-	functionDescriptions = strings.Split(os.Getenv("FUNCTION_DESCRIPTIONS"), " ")
+	functionDescriptions = strings.Fields(os.Getenv("FUNCTION_DESCRIPTIONS"))
 
 	randomSeed := os.Getenv("RANDOM_SEED")
 	seed := time.Now().UnixNano()
@@ -219,7 +219,6 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 		"put_request_fog_node")
 	defer span.End()
 	url := fmt.Sprintf("http://%s:%d/api/function", marketIP, marketLocalPort)
-	headers := map[string]string{"Content-Type": "application/json"}
 	if function.InputMaxSize == "" {
 		function.InputMaxSize = "1500 B"
 	}
@@ -245,14 +244,12 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 
 	jsonData, _ := json.Marshal(data)
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(jsonData))
-	req.WithContext(ctx)
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-	client := &http.Client{Timeout: putMarketTimeout,
-		Transport: otelhttp.NewTransport(http.DefaultTransport)}
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctx)
+	client := &http.Client{Timeout: putMarketTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	resp, err := client.Do(req)
 	if err != nil {
+		logger.Ctx(ctx).Error("Failed to put the function")
 		return nil, 0, err
 	}
 	defer resp.Body.Close()
@@ -264,8 +261,8 @@ func provisionOneFunction(ctx context.Context, functionID string) ([]byte, int, 
 	url := fmt.Sprintf("http://%s:%d/api/function/%s", marketIP, marketLocalPort, functionID)
 	req, _ := http.NewRequest("POST", url, nil)
 	req = req.WithContext(ctx)
-	client := &http.Client{Timeout: provisionTimeout,
-		Transport: otelhttp.NewTransport(http.DefaultTransport)}
+	client := &http.Client{Timeout: provisionTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -275,19 +272,46 @@ func provisionOneFunction(ctx context.Context, functionID string) ([]byte, int, 
 	return body, resp.StatusCode, nil
 }
 
+type ProvChain struct {
+	Data   []byte
+	Status int
+	Err    error
+}
+
 func postProvisionChainFunctions(ctx context.Context, urls []FunctionProvisioned) ([][]byte, []int, error) {
+	ctx, span := otel.Tracer("").Start(
+		ctx,
+		"provisionFunctionChain")
+	defer span.End()
+
 	var responses [][]byte
 	var statusCodes []int
-	var err error
+	wg := sync.WaitGroup{}
+	ch := make(chan ProvChain, len(urls))
 	for _, url := range urls {
-		var response []byte
-		var statusCode int
-		response, statusCode, err = provisionOneFunction(ctx, url.FunctionID)
-		if err != nil {
-			return nil, nil, err
+		wg.Add(1)
+		go func() {
+			ctx, span := otel.Tracer("").Start(
+				ctx,
+				url.FunctionID,
+			)
+			defer span.End()
+
+			response, statusCode, err := provisionOneFunction(ctx, url.FunctionID)
+			ch <- ProvChain{Data: response, Status: statusCode, Err: err}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	close(ch)
+
+	for provFunc := range ch {
+		if provFunc.Err != nil {
+			return nil, nil, provFunc.Err
 		}
-		responses = append(responses, response)
-		statusCodes = append(statusCodes, statusCode)
+		responses = append(responses, provFunc.Data)
+		statusCodes = append(statusCodes, provFunc.Status)
 	}
 	return responses, statusCodes, nil
 }
@@ -319,8 +343,8 @@ func postRequestChainFunctions(ctx context.Context, urls []FunctionProvisioned) 
 		for key, value := range headers {
 			req.Header.Set(key, value)
 		}
-		client := &http.Client{Timeout: provisionTimeout,
-			Transport: otelhttp.NewTransport(http.DefaultTransport)}
+		client := &http.Client{Timeout: provisionTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
+
 		resp, err := client.Do(req)
 		if err != nil {
 			logger.Ctx(ctx).Sugar().Warnf("Something went wrong contacting openfaas on %s: %v", url, err)
@@ -379,17 +403,17 @@ func putRequestIotEmulation(ctx context.Context, provisioned FunctionProvisioned
 }
 
 func registerNewFunctions(functions []Function) (bool, error) {
+	time.Sleep(time.Duration(functions[0].Arrival) * time.Second)
 	ctx, span := otel.Tracer("").Start(context.Background(), "register_new_function_"+strings.Join(func() []string {
 		var functionNames []string
 		for _, ff := range functions {
-			functionNames = append(functionNames, ff.FunctionName)
+			functionNames = append(functionNames, ff.DockerFnName)
 		}
 		return functionNames
 	}(), ","))
 	defer span.End()
 
-	time.Sleep(time.Duration(functions[0].Arrival) * time.Second)
-	logger.Ctx(ctx).Info("Starting requests")
+	logger.Ctx(ctx).Info("Starting requests", zap.Int("waited_for", functions[0].Arrival))
 	var responses []FunctionProvisioned
 	var startedAt *time.Time
 	for ii := range functions {
@@ -713,11 +737,13 @@ func main() {
 		}
 
 		defer shutdown(context.Background())
-		tmp := otelzap.New(&_Logger, otelzap.WithMinLevel(_Logger.Level()))
-		logger = *tmp
-		defer logger.Sync()
-		logger.Info("Initialized otel")
+		_Logger.Info("Initialized otel")
+	} else {
+		_Logger.Warn("Otel has not been init")
 	}
+	tmp := otelzap.New(&_Logger, otelzap.WithMinLevel(_Logger.Level()))
+	logger = *tmp
+	defer logger.Sync()
 
 	envSaveFile := os.Getenv("EXPE_SAVE_FILE")
 	envLoadFile := os.Getenv("EXPE_LOAD_FILE")

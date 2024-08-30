@@ -143,11 +143,12 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export TARGET_NODES="{{ TARGET_NODES }}"
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
     export -p | sed 's/declare -x /export /' > env_checkpoint{{ env_variation }}.sh
+    export COLLECTOR_URL="$IOT_IP:4317"
     expe
 
-expe_from_checkpoint env_variation:
+from_checkpoint env_variation *command="expe":
     source {{ justfile_directory() }}/env_checkpoint{{ env_variation }}.sh
-    {{ RUN }} expe.py
+    {{ command }}
 
 [private]
 scenario archive_name env_variation +city_name_node_targets:
@@ -335,7 +336,7 @@ docker_scenarii name expe_dir +city_name_node_targets:
       source "{{ justfile_directory() }}/.env"
       source "{{ justfile_directory() }}/$variation"
       set +o allexport
-      EXPE_SAVE_FILE="{{ expe_dir }}/requests$variation" TARGET_NODE_NAMES="{{ city_name_node_targets }}" {{ RUN }} expe.py
+      EXPE_SAVE_FILE="{{ expe_dir }}/requests$variation" TARGET_NODE_NAMES="{{ city_name_node_targets }}" expe
     )
     done
     just docker_enos {{ name }} {{ expe_dir }} "just _inside_docker_scenearii {{ city_name_node_targets }}"
@@ -680,7 +681,7 @@ test_expe experiments_dotfile=".experiments.env":
     set +o allexport
     export TARGET_NODE_NAMES=toto
     export TARGET_NODES=toto
-    EXPE_SAVE_FILE=toto.txt python expe.py
+    EXPE_SAVE_FILE=toto.txt expe
 
 [private]
 test_definitions experiments_dotfile=".experiments.env":

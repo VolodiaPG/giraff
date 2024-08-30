@@ -505,7 +505,6 @@ def setup_registry(env: EnosEnv = None, **kwargs):
     ips.append(roles["market"][0].address)
 
     function_descriptions = load_function_descriptions()
-
     asyncio.run(push_functions_to_registry(function_descriptions, ips))
 
 

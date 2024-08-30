@@ -31,6 +31,7 @@ class FunctionPipeline:
 @dataclass
 class FunctionPipelineDescription:
     name: str
+    first: str
     content: str
     nbVarName: str
     pipeline: dict[str, FunctionPipeline]
@@ -62,6 +63,7 @@ async def push_functions_to_registry(pipeline: List[FunctionPipelineDescription]
 
     unique_functions = set()
     for pipe in pipeline:
+        print(pipe)
         for desc in pipe.pipeline.values():
             unique_functions.add(desc.image)
 
