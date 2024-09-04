@@ -7,23 +7,23 @@
         "audioToText": {
             "nextFunction": "sentimentAnalysis",
             "image": "giraff:fn_speech_recognition",
-            "mem": 256,
-            "cpu": 200,
+            "mem": 1024,
+            "cpu": 500,
             "input_max_size": "200 KiB",
             "latency": "LOW_LATENCY"
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",
             "image": "giraff:fn_sentiment_analysis",
-            "mem": 500,
-            "cpu": 200,
+            "mem": 512,
+            "cpu": 500,
             "latency": "LOW_LATENCY",
             "input_max_size": "4 KiB"
         },
         "echo": {
             "image": "giraff:fn_echo",
-            "mem": 100,
-            "cpu": 100,
+            "mem": 200,
+            "cpu": 200,
             "latency": "NO_LATENCY"
         }
     }

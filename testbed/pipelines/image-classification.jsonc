@@ -7,23 +7,23 @@
         "imagePreProcessing": {
             "nextFunction": "classif",
             "image": "giraff:fn_image_processing_pillow",
-            "mem": 256,
-            "cpu": 200,
+            "mem": 500,
+            "cpu": 300,
             "input_max_size": "60 KiB",
             "latency": "LOW_LATENCY"
         },
         "classif": {
             "nextFunction": "echo",
             "image": "giraff:fn_image_classification_squeezenet_cpu",
-            "mem": 500,
-            "cpu": 200,
+            "mem": 1024,
+            "cpu": 500,
             "input_max_size": "16 KiB",
             "latency": "HIGH_LATENCY"
         },
         "echo": {
             "image": "giraff:fn_echo",
-            "mem": 100,
-            "cpu": 100,
+            "mem": 200,
+            "cpu": 200,
             "latency": "NO_LATENCY"
         }
     }

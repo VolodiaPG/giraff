@@ -30,8 +30,8 @@ upload city="rennes": build-vm
     qemu-kvm \
         -cpu max \
         -name giraff.fog_node_vm \
-        -m 16000 \
-        -smp 8 \
+        -m 20000 \
+        -smp 16 \
         -drive cache=writeback,file="$vm_path",id=giraff.drive.fog_node_vm,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.fog_node_vm \
         -net nic,netdev=giraff.fog_node_vm,model=virtio -netdev user,id=giraff.fog_node_vm,hostfwd=tcp::2223-:22 \
         -enable-kvm \

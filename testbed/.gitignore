@@ -33,3 +33,4 @@ experiments
 !.experiments.env
 ansible.cfg
 *.raw
+env_checkpoint*

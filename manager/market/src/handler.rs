@@ -4,7 +4,6 @@ use actix_web::web::{self, Data, Json};
 use actix_web::HttpResponse;
 use anyhow::Context;
 use chrono::Utc;
-use helper::log_err;
 use helper::monitoring::MetricsExporter;
 use model::view::node::RegisterNode;
 use model::view::sla::{PutSla, PutSlaRequest};
@@ -67,7 +66,6 @@ pub async fn put_function(
                 .context("Failed to save metrics")?;
         }
     }
-    log_err!(res);
     Ok(HttpResponse::Ok().json(res?))
 }
 
@@ -80,10 +78,8 @@ pub async fn post_provision_function(
     params: web::Path<PostProvisionParams>,
     auction_service: Data<crate::service::auction::Auction>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
-    let res =
-        controller::provision_function(params.id.clone(), &auction_service)
-            .await;
-    log_err!(res);
+    controller::provision_function(params.id.clone(), &auction_service)
+        .await?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -92,9 +88,7 @@ pub async fn post_register_node(
     payload: Json<RegisterNode>,
     node_net: Data<crate::service::fog_node_network::FogNodeNetwork>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
-    let res = controller::register_node(payload.0, &node_net).await;
-    log_err!(res);
-    let _ = res?;
+    controller::register_node(payload.0, &node_net).await?;
     Ok(HttpResponse::Ok().finish())
 }
 

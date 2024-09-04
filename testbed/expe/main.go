@@ -67,29 +67,30 @@ const putMarketTimeout = 30 * time.Second
 const provisionTimeout = 120 * time.Second
 
 var (
-	collectorURL              string
-	targetNodes               []string
-	targetNodeNames           []string
-	iotIP                     string
-	marketIP                  string
-	marketLocalPort           int
-	iotLocalPort              int
-	nodesIP                   string
-	noLatency                 int
-	highLatency               int
-	lowLatency                int
-	functionColdStartOverhead int
-	functionStopOverhead      int
-	experimentDuration        int
-	overrideFunctionIP        string
-	overrideFirstNodeIP       string
-	dockerRegistry            string
-	successes                 int
-	errors                    int
-	random                    *rand.Rand
-	functionDescriptions      []string
-	logger                    otelzap.Logger
-	_Logger                   zap.Logger
+	collectorURL                     string
+	targetNodes                      []string
+	targetNodeNames                  []string
+	iotIP                            string
+	marketIP                         string
+	marketLocalPort                  int
+	iotLocalPort                     int
+	nodesIP                          string
+	noLatency                        int
+	highLatency                      int
+	lowLatency                       int
+	functionColdStartOverhead        int
+	functionStopOverhead             int
+	experimentDuration               int
+	overrideFunctionIP               string
+	overrideFirstNodeIP              string
+	dockerRegistry                   string
+	successes                        int
+	errors                           int
+	random                           *rand.Rand
+	functionDescriptions             []string
+	logger                           otelzap.Logger
+	_Logger                          zap.Logger
+	arrivalRequestIntervalMultiplier float64
 )
 
 // The FunctionPipeline is a description of the functions to deploy on the network
@@ -133,6 +134,16 @@ func init() {
 	overrideFirstNodeIP = os.Getenv("OVERRIDE_FIRST_NODE_IP")
 	dockerRegistry = os.Getenv("DOCKER_REGISTRY")
 	functionDescriptions = strings.Fields(os.Getenv("FUNCTION_DESCRIPTIONS"))
+	arrivals := os.Getenv("ARRIVAL_REQUEST_MULTIPLIER")
+	arrivalsNumber := 1000.0
+	if arrivals != "" {
+		var err error
+		arrivalsNumber, err = strconv.ParseFloat(arrivals, 64)
+		if err != nil {
+			log.Println("There is error converting ARRIVAL_REQUEST_MULTIPLIER to float64, val is %s, err is %s", arrivals, err)
+		}
+	}
+	arrivalRequestIntervalMultiplier = arrivalsNumber
 
 	randomSeed := os.Getenv("RANDOM_SEED")
 	seed := time.Now().UnixNano()
@@ -254,6 +265,9 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		logger.Ctx(ctx).Error("Put request has a status != 200", zap.Int("status", resp.StatusCode), zap.String("body", string(body)))
+	}
 	return body, resp.StatusCode, nil
 }
 
@@ -272,6 +286,7 @@ func provisionOneFunction(ctx context.Context, functionID string) ([]byte, int, 
 	return body, resp.StatusCode, nil
 }
 
+// ProvChain is the format of the data to send via the chan
 type ProvChain struct {
 	Data   []byte
 	Status int
@@ -391,7 +406,7 @@ func putRequestIotEmulation(ctx context.Context, provisioned FunctionProvisioned
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
-	client := &http.Client{Timeout: putMarketTimeout}
+	client := &http.Client{Timeout: putMarketTimeout, Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	req = req.WithContext(ctx)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -624,11 +639,11 @@ func saveFile(filename string) error {
 			nbFunction := nbFunctions[ii]
 			requestIntervals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				requestIntervals[i] = int(math.Ceil(math.Abs(100 * gamma(2.35, 15))))
+				requestIntervals[i] = int(math.Ceil(math.Abs(arrivalRequestIntervalMultiplier * gamma(2.35, 15))))
 			}
 			durations := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				durations[i] = 60 * 4
+				durations[i] = 60 * 4 // TODO That is fixed and shall not
 			}
 			arrivals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {

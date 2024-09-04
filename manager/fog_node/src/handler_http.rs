@@ -2,7 +2,6 @@ use crate::service::function_life::FunctionLife;
 use crate::{controller, NodeLife};
 use actix_web::web::{self, Data};
 use actix_web::HttpResponse;
-use helper::log_err;
 use helper::monitoring::MetricsExporter;
 use model::view::auction::BidRequestOwned;
 use model::view::node::RegisterNode;
@@ -39,7 +38,6 @@ pub async fn post_bid(
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
     let res =
         controller::auction::bid_on(payload.0, &function, &metrics).await;
-    log_err!(res);
     Ok(HttpResponse::Ok().json(res?))
 }
 
@@ -59,7 +57,6 @@ pub async fn post_bid_accept(
     let res =
         controller::auction::set_paid_from_sla(params.id.clone(), &function)
             .await;
-    log_err!(res);
     Ok(HttpResponse::Ok().json(res?))
 }
 
@@ -73,7 +70,6 @@ pub async fn post_provision(
     let res =
         controller::auction::provision_from_sla(params.id.clone(), &function)
             .await;
-    log_err!(res);
     Ok(HttpResponse::Ok().json(res?))
 }
 
@@ -82,9 +78,7 @@ pub async fn post_register_child_node(
     payload: web::Json<RegisterNode>,
     router: Data<NodeLife>,
 ) -> Result<HttpResponse, AnyhowErrorWrapper> {
-    let res = controller::node::register_child_node(payload.0, &router).await;
-    log_err!(res);
-    let _ = res?;
+    controller::node::register_child_node(payload.0, &router).await?;
     Ok(HttpResponse::Ok().finish())
 }
 
