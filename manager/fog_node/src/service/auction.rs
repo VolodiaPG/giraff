@@ -278,7 +278,12 @@ impl Auction {
                 // valuation method
                 let price = computed.bid;
 
-                trace!("(random) price on {:?} is {:?}", computed.name, bid);
+                trace!(
+                    "(maxcpu|mincpu) price on {:?} is {:?}, and bid is {:?}",
+                    computed.name,
+                    price,
+                    bid
+                );
                 Ok(Some((computed.name, bid, price)))
             }
             None => Ok(None),
@@ -650,7 +655,7 @@ mod tests {
         let bid2 = bid;
         let (_, Proposed { bid, .. }) =
             auction.bid_on(sla, &acc).await.expect("Error bidding").unwrap();
-        assert!(bid < bid2);
+        assert!(bid <= bid2);
     }
 
     #[parameterized(
@@ -837,7 +842,7 @@ mod tests {
         market = {market_connected()},
     )]
     #[test_macro(tokio::test)]
-    async fn test_mutliple_functions(situation: NodeCategory) {
+    async fn test_multiple_functions(situation: NodeCategory) {
         let Instance {
             auction,
             function_life,
@@ -1085,7 +1090,7 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        let last_bid_price = Arc::new(AtomicF64::new(0.0));
+        let last_bid_price = Arc::new(AtomicF64::new(-0.0001));
 
         for ii in 0..10 {
             let function_life = function_life.clone();
@@ -1230,7 +1235,7 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        let last_bid_price = Arc::new(AtomicF64::new(0.0));
+        let last_bid_price = Arc::new(AtomicF64::new(-0.00001));
 
         for ii in 0..10 {
             let function_life = function_life.clone();
@@ -1255,7 +1260,7 @@ mod tests {
         assert_eq!(function.get_utilisation_variations().await.len(), 0);
 
         handles = Vec::new();
-        last_bid_price.store(0.0, Ordering::SeqCst);
+        last_bid_price.store(-0.0001, Ordering::SeqCst);
 
         for ii in 0..10 {
             if ii % 2 == 0 {

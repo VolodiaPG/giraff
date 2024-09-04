@@ -24,7 +24,7 @@ pre_commit:
 # Run cargo check
 check subcommand="check":
     #!/usr/bin/env bash
-    set -e
+    set -ex
     just _{{ subcommand }} --features quadratic_rates,auction
     just _{{ subcommand }} --features linear_rates,auction
 
@@ -58,7 +58,7 @@ _test *FLAGS:
     export ELECTRICITY_PRICE=1
 
     export RUST_TEST_THREADS=$(nproc)
-    export RUST_LOG="error"
+    export RUST_LOG=${RUST_LOG:-"error"}
     cargo test {{ FLAGS }}
 
 _flame *FLAGS:

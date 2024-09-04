@@ -75,10 +75,17 @@ impl ResourceTracking {
                             )
                         );
                     }
+                    #[cfg(not(feature = "offline"))]
                     let free_ram =
                         free_ram * num_rational::Ratio::new(90, 100);
+                    #[cfg(not(feature = "offline"))]
                     let free_cpu =
                         free_cpu * num_rational::Ratio::new(90, 100);
+
+                    #[cfg(feature = "offline")]
+                    let free_ram = reserved_memory;
+                    #[cfg(feature = "offline")]
+                    let free_cpu = reserved_cpu;
 
                     //Ok((name.clone(), (reserved_memory, reserved_cpu)))
                     Ok((name.clone(), (free_ram, free_cpu)))
