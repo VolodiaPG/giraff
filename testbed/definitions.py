@@ -262,7 +262,7 @@ NODE_CONNECTED_NODE = """(
     reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_node", "{name}"],
     max_in_flight_functions_proposals: MaxInFlight({max_in_flight}),
-    my_advertised_bandwidth: "{parent_advertised_bandwidth}",
+    my_advertised_bandwidth: "{my_advertised_bandwidth}",
 )
 
 """

@@ -16,7 +16,6 @@ use tracing::{error, info, instrument, trace, warn};
 use uom::si::f64::Time;
 use uom::si::information::byte;
 use uom::si::information_rate::byte_per_second;
-use uom::si::ratio::ratio;
 use uom::si::rational64::Information;
 use uom::si::time::second;
 

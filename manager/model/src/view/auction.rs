@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uom::si::f64::{Ratio, Time};
 use uom::si::information_rate::gigabyte_per_second;
 use uom::si::ratio::ratio;
-use uom::si::rational64::{self, InformationRate};
+use uom::si::rational64::InformationRate;
 use uom::si::time::millisecond;
 
 use super::super::domain::sla::Sla;

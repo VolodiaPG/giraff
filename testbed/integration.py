@@ -609,7 +609,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
         name=node["name"],
         reserved_cpu=node["flavor"]["reserved_core"],
         reserved_memory=node["flavor"]["reserved_mem"],
-        my_advertised_bandwidth=f"{node["flavor"]["rate"]} b/s",
+        my_advertised_bandwidth=f"{node['rate']} b/s",
         max_in_flight=max_in_flight_functions_proposals,
     )
 

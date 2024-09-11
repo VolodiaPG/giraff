@@ -1,6 +1,7 @@
 use super::*;
 use futures::future::try_join_all;
 use model::domain::sla::Sla;
+use model::dto::node::NodeDescription;
 use model::view::auction::{
     BidProposal, BidProposals, BidRequest, BidRequestOwned,
 };
@@ -29,8 +30,15 @@ impl FunctionLife {
             return Ok(None);
         };
 
+        let Some(NodeDescription { advertised_bandwidth, .. }) =
+            self.node_situation.get_fog_node_neighbor(neighbor)
+        else {
+            warn!("Cannot neighbor bandwidth of {}", neighbor);
+            return Ok(None);
+        };
+
         let accumulated_latency_to_next_node =
-            accumulated_latency.accumulate(latency);
+            accumulated_latency.accumulate(latency, advertised_bandwidth);
 
         let worse_lat = self.compute_worse_latency(
             &accumulated_latency_to_next_node,

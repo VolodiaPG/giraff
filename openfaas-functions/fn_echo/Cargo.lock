@@ -1659,6 +1659,7 @@ dependencies = [
  "helper",
  "lazy-regex",
  "lazy_static",
+ "num-rational",
  "nutype",
  "ron",
  "serde",
