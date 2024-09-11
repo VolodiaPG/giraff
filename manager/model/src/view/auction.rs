@@ -1,10 +1,12 @@
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 use std::net::IpAddr;
 
 use crate::FogNodeFaaSPortExternal;
 use serde::{Deserialize, Serialize};
 use uom::si::f64::{Ratio, Time};
+use uom::si::information_rate::gigabyte_per_second;
 use uom::si::ratio::ratio;
+use uom::si::rational64::{self, InformationRate};
 use uom::si::time::millisecond;
 
 use super::super::domain::sla::Sla;
@@ -30,6 +32,8 @@ pub struct AccumulatedLatency {
     pub median_uncertainty: Time,
     #[serde_as(as = "helper::uom_helper::ratio::Helper")]
     pub packet_loss:        Ratio,
+    #[serde_as(as = "helper::uom_helper::information_rate::Helper")]
+    pub bandwidth:          InformationRate,
 }
 
 impl Default for AccumulatedLatency {
@@ -39,12 +43,19 @@ impl Default for AccumulatedLatency {
             average:            Time::new::<millisecond>(0.0),
             median_uncertainty: Time::new::<millisecond>(0.0),
             packet_loss:        uom::si::f64::Ratio::new::<ratio>(0.0),
+            bandwidth:          uom::si::rational64::InformationRate::new::<
+                gigabyte_per_second,
+            >(num_rational::Ratio::new(10, 1)),
         }
     }
 }
 
 impl AccumulatedLatency {
-    pub fn accumulate(&self, latency: Latency) -> Self {
+    pub fn accumulate(
+        &self,
+        latency: Latency,
+        bandwidth: InformationRate,
+    ) -> Self {
         let median = self.median + latency.median;
         let average = self.average + latency.average;
 
@@ -56,8 +67,9 @@ impl AccumulatedLatency {
         );
 
         let packet_loss = self.packet_loss * latency.packet_loss;
+        let bandwidth = min(self.bandwidth, bandwidth);
 
-        Self { median, average, median_uncertainty, packet_loss }
+        Self { median, average, median_uncertainty, packet_loss, bandwidth }
     }
 }
 #[serde_with::serde_as]

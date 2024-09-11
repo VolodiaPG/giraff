@@ -450,7 +450,8 @@ mod tests {
     use std::time::Duration;
     use uom::si::f64::Time;
     use uom::si::information::{gigabyte, megabyte};
-    use uom::si::rational64::{Information, Ratio};
+    use uom::si::information_rate::gigabit_per_second;
+    use uom::si::rational64::{Information, InformationRate, Ratio};
     use uom::si::time::{millisecond, second};
     use yare::parameterized;
 
@@ -494,11 +495,10 @@ mod tests {
 
     fn node_connected() -> NodeCategory {
         NodeCategory::NodeConnected {
-            parent_latency:        Time::new::<second>(15.0),
-            parent_id:             Uuid::new_v4().into(),
-            parent_node_ip:        std::net::IpAddr::V4(Ipv4Addr::new(
-                127, 0, 0, 1,
-            )),
+            parent_latency: Time::new::<second>(15.0),
+            parent_id:      Uuid::new_v4().into(),
+            parent_node_ip: std::net::IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+
             parent_node_port_http: 1234.into(),
         }
     }
@@ -544,6 +544,9 @@ mod tests {
             reserved_cpu,
             max_in_flight_functions_proposals: MaxInFlight::try_new(160)
                 .unwrap(),
+            my_advertised_bandwidth: InformationRate::new::<gigabit_per_second>(
+                num_rational::Ratio::new(1, 1),
+            ),
             children: dashmap::DashMap::new(),
         }));
         let latency_estimation_repo: Arc<Box<dyn LatencyEstimation>> =

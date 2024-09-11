@@ -255,7 +255,9 @@ scenarii +city_name_node_targets:
     #done
 
 collect:
+    #!/usr/bin/env bash
     mkdir -p metrics
+    export COLLECT_ARCHIVE_NAME="local.env_LOCAL-fog_node_local-market_local"
     {{ RUN }} integration.py collect --address $INFLUX_ADDRESS
 
 _collect:

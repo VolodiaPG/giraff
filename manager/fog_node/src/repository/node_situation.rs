@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use std::net::IpAddr;
 #[cfg(feature = "offline")]
 use uom::si::f64::Time;
-use uom::si::rational64::{Information, Ratio};
+use uom::si::rational64::{Information, InformationRate, Ratio};
 
 #[derive(Debug)]
 pub struct NodeSituation {
@@ -42,6 +42,8 @@ impl NodeSituation {
                         Some(NodeDescription {
                             ip: *parent_node_ip,
                             port_http: parent_node_port_http.clone(),
+                            advertised_bandwidth: self
+                                .get_my_advertised_bandwidth(),
                             #[cfg(feature = "offline")]
                             latency: *parent_latency,
                         })
@@ -55,6 +57,10 @@ impl NodeSituation {
     }
 
     pub fn get_my_id(&self) -> NodeId { self.database.my_id.clone() }
+
+    pub fn get_my_advertised_bandwidth(&self) -> InformationRate {
+        self.database.my_advertised_bandwidth.clone()
+    }
 
     pub fn get_max_in_flight_functions_proposals(&self) -> MaxInFlight {
         self.database.max_in_flight_functions_proposals.clone()

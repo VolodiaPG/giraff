@@ -311,13 +311,22 @@ load_respected_sla <- function(ark) {
   cluster_library(cluster, "multidplyr")
   cluster_copy(cluster, "acceptable_chain_cumulative")
 
+  sla_to_function_name <- load_single_csv(ark, "provisioned_function_gauge.csv") %>%
+    prepare() %>%
+    ungroup() %>%
+    select(folder, sla_id, function_name)
+
   respected_sla <- load_single_csv(ark, "proxy.csv") %>%
     prepare() %>%
+    left_join(
+      sla_to_function_name,
+      by = c("folder", "sla_id")
+    ) %>%
     group_by(folder) %>%
     adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
     adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
     mutate(value = value_raw) %>%
-    rename(function_name = tags) %>%
+    # rename(function_name = tags) %>%
     extract_function_name_info() %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     partition(cluster) %>%
@@ -328,9 +337,10 @@ load_respected_sla <- function(ark) {
     mutate(total_process_time = first(ran_for)) %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
-    mutate(prev_sla = lag(ifelse(first_req_id, "<iot_emulation>", sla_id))) %>%
+    mutate(prev_sla = lag(sla_id)) %>%
+    # mutate(prev_sla = lag(ifelse(first_req_id, "<iot_emulation>", sla_id))) %>%
     filter(first_req_id == FALSE) %>%
-    mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.001)) %>%
+    mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
     mutate(acceptable_chained = accumulate(acceptable, `&`)) %>%
     collect() %>%
     group_by(

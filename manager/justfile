@@ -114,6 +114,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "3 GiB",
         tags: ["market connected"],
         max_in_flight_functions_proposals: MaxInFlight(30),
+        my_advertised_bandwidth: "1 Gb/s"
     )''',0)
 
     nodes["node_1"] = ('''(
@@ -130,6 +131,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "2 GiB",
         tags: ["node_connected_1"],
         max_in_flight_functions_proposals: MaxInFlight(20),
+        my_advertised_bandwidth: "1 Gb/s"
     )''',1)
 
     nodes["node_12"] = ('''(
@@ -146,6 +148,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "2 GiB",
         tags: ["node_connected_12"],
         max_in_flight_functions_proposals: MaxInFlight(20),
+        my_advertised_bandwidth: "1 Gb/s"
     )''',2)
 
     nodes["node_2"] = ('''(
@@ -162,6 +165,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1500 MiB",
         tags: ["node_connected_2"],
         max_in_flight_functions_proposals: MaxInFlight(15),
+        my_advertised_bandwidth: "1 Gb/s"
     )''',3)
 
     # Must be that port so expe.sh works magically
@@ -179,6 +183,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_3"],
         max_in_flight_functions_proposals: MaxInFlight(10),
+        my_advertised_bandwidth: "1 Gb/s"
     )''',4)
 
     nodes["node_34"] = ('''(
@@ -195,6 +200,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_34"],
         max_in_flight_functions_proposals: MaxInFlight(10),
+        my_advertised_bandwidth: "100 Mb/s"
     )''',4)
 
 
@@ -212,6 +218,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         reserved_memory: "1 GiB",
         tags: ["node_connected_35"],
         max_in_flight_functions_proposals: MaxInFlight(10),
+        my_advertised_bandwidth: "100 Mb/s"
     )''',4)
 
     if node_type not in nodes:

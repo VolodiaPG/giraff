@@ -252,3 +252,86 @@ pub mod ratio {
 
     impl_serialize_as!(Ratio, basis_point, basis_point);
 }
+
+pub mod information_rate {
+    use super::*;
+    use uom::si::information_rate::bit_per_second;
+    use uom::si::rational64::InformationRate;
+
+    pub fn parse_quantity(quantity: &str) -> Result<InformationRate, Error> {
+        let re = regex!(r"^([0-9\.eE\-+]+)\s*(\w+/\w+)$");
+
+        let captures = re
+            .captures(quantity)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?;
+        let measure = captures
+            .get(1)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
+            .as_str()
+            .parse::<f64>()
+            .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
+        let measure: Ratio<i64> = num_rational::Ratio::from_f64(measure)
+            .ok_or_else(|| {
+                Error::FailedConversion(
+                    quantity.to_string(),
+                    "rational number".to_string(),
+                )
+            })?;
+        let unit = captures
+            .get(2)
+            .ok_or_else(|| Error::QuantityParsing(quantity.to_string()))?
+            .as_str();
+
+        let qty = format!("{} {}", measure, unit)
+            .parse::<InformationRate>()
+            .map_err(|_| Error::QuantityParsing(quantity.to_string()))?;
+
+        Ok(qty)
+    }
+
+    fn serialize_quantity(value: &InformationRate) -> String {
+        format!("{:?} b/s", value.get::<bit_per_second>().numer())
+    }
+
+    impl_serialize_as!(
+        InformationRate,
+        bit_per_second,
+        bit_per_second,
+        parse_quantity,
+        serialize_quantity
+    );
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use anyhow::Result;
+        use yare::parameterized;
+
+        #[parameterized(
+            kilobyte = {"1000 kB/s", 8*1_000_000},
+            bits = {"100 b/s", 100},
+            kilobit = {"1 kb/s", 1_000},
+            gigabyte_floating = {"0.5 kb/s", 500},
+            kilobit_reel = {"7680.0 kb/s", 7_680_000}
+        )]
+        fn test_serialize(ss: &str, qty: i64) -> Result<()> {
+            assert_eq!(
+                parse_quantity(ss)?,
+                InformationRate::new::<bit_per_second>(
+                    num_rational::Ratio::new(qty, 1)
+                )
+            );
+            Ok(())
+        }
+        #[test]
+        fn test_deserialize() -> Result<()> {
+            assert_eq!(
+                serialize_quantity(&InformationRate::new::<bit_per_second>(
+                    num_rational::Ratio::new(1000, 1)
+                )),
+                "1000 b/s"
+            );
+            Ok(())
+        }
+    }
+}

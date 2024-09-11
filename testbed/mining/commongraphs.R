@@ -95,16 +95,16 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
     # filter(n() > 3) %>% # Ensure at least 3 points in each group
     summarise(
       # x_centered = mean(x_centered),
-      y_centered = mean(y_centered),
+      y_centered = mean(y),
       label = unique(placement_method)
     )
 
   jains <- df %>%
-    ggplot(aes(alpha = 1, x = placement_method, y = y_centered, color = env, fill = env)) +
+    ggplot(aes(alpha = 1, x = placement_method, y = y, color = env, fill = env)) +
     # facet_grid(rows = vars(env)) +
     # geom_hline(yintercept = max(earnings$worst_case), color = "black") +
     labs(
-      x = "center reduced placed functions for each pair of (env, run)",
+      x = "placement methods",
       y = "Jain's index"
     ) +
     scale_alpha_continuous(guide = "none") +

@@ -4,7 +4,7 @@ use crate::{
 };
 #[cfg(feature = "offline")]
 use helper::uom_helper::time;
-use helper::uom_helper::{cpu, information};
+use helper::uom_helper::{cpu, information, information_rate};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ use std::fmt;
 use std::net::IpAddr;
 #[cfg(feature = "offline")]
 use uom::si::f64::Time;
-use uom::si::rational64::{Information, Ratio};
+use uom::si::rational64::{Information, InformationRate, Ratio};
 
 #[nutype::nutype(
     derive(Debug, Clone, Deserialize),
@@ -73,10 +73,11 @@ impl From<Vec<NodeId>> for NodeIdList {
 
 #[derive(Debug, Clone)]
 pub struct NodeDescription {
-    pub ip:        IpAddr,
-    pub port_http: FogNodeHTTPPort,
+    pub ip:                   IpAddr,
+    pub port_http:            FogNodeHTTPPort,
+    pub advertised_bandwidth: InformationRate,
     #[cfg(feature = "offline")]
-    pub latency:   Time,
+    pub latency:              Time,
 }
 
 #[serde_with::serde_as]
@@ -107,6 +108,7 @@ pub struct NodeSituationData {
     pub reserved_memory:                   Information,
     pub reserved_cpu:                      Ratio,
     pub max_in_flight_functions_proposals: MaxInFlight,
+    pub my_advertised_bandwidth:           InformationRate,
     pub children: dashmap::DashMap<NodeId, NodeDescription>,
 }
 
@@ -123,6 +125,8 @@ pub struct NodeSituationDisk {
     #[serde_as(as = "cpu::Helper")]
     pub reserved_cpu:                      Ratio,
     pub max_in_flight_functions_proposals: MaxInFlight,
+    #[serde_as(as = "information_rate::Helper")]
+    pub my_advertised_bandwidth:           InformationRate,
 }
 
 /// Loads node configuration from file
@@ -147,6 +151,7 @@ impl NodeSituationData {
             reserved_memory,
             reserved_cpu,
             max_in_flight_functions_proposals,
+            my_advertised_bandwidth,
         } = disk;
 
         Self {
@@ -160,6 +165,7 @@ impl NodeSituationData {
             reserved_cpu,
             max_in_flight_functions_proposals,
             children: dashmap::DashMap::new(),
+            my_advertised_bandwidth,
         }
     }
 }

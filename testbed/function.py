@@ -4,11 +4,9 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional
 
-import marshmallow_dataclass
+import marshmallow_dataclass  # type: ignore
 
-FUNCTION_DESCRIPTIONS = os.getenv(
-    "FUNCTION_DESCRIPTIONS", ""
-).split()  # Should be in the same order than TARGET_NODES
+FUNCTION_DESCRIPTIONS = os.getenv("FUNCTION_DESCRIPTIONS", "").split()  # Should be in the same order than TARGET_NODES
 
 
 port_int = int
@@ -35,9 +33,11 @@ class FunctionPipelineDescription:
     content: str
     nbVarName: str
     pipeline: dict[str, FunctionPipeline]
+    expectedRequestIntervalMs: float
 
 
 IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]
+
 
 def load_function_descriptions() -> List[FunctionPipelineDescription]:
     ret = []
@@ -49,17 +49,25 @@ def load_function_descriptions() -> List[FunctionPipelineDescription]:
     return ret
 
 
-async def _push_function(function:str, docker_registry: str):
+async def _push_function(function: str, docker_registry: str):
     print(f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{docker_registry}/{function}")
-    process = await asyncio.create_subprocess_exec("skopeo", "copy", "--insecure-policy", "--dest-tls-verify=false", "--quiet", f"docker://{IMAGE_REGISTRY}/{function}", f"docker://{docker_registry}/{function}",
+    process = await asyncio.create_subprocess_exec(
+        "skopeo",
+        "copy",
+        "--insecure-policy",
+        "--dest-tls-verify=false",
+        "--quiet",
+        f"docker://{IMAGE_REGISTRY}/{function}",
+        f"docker://{docker_registry}/{function}",
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE)
+        stderr=asyncio.subprocess.PIPE,
+    )
     stdout, stderr = await process.communicate()
     print(stdout, stderr)
 
 
 async def push_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str]):
-    assert(IMAGE_REGISTRY is not None)
+    assert IMAGE_REGISTRY is not None
 
     unique_functions = set()
     for pipe in pipeline:
@@ -69,9 +77,7 @@ async def push_functions_to_registry(pipeline: List[FunctionPipelineDescription]
 
     node_targets = set(nodes)
 
-    to_run = [ asyncio.create_task(_push_function(function, f"{target}:5555")) for target in node_targets for function in unique_functions]
+    to_run = [asyncio.create_task(_push_function(function, f"{target}:5555")) for target in node_targets for function in unique_functions]
     await asyncio.gather(*to_run)
 
     print("All upload of function to the internal container registry are done")
-
-

@@ -166,6 +166,7 @@ if (single_graphs) {
     graphs <- graph("output_latency", graphs, output_latency(latency))
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
+    graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
 
     if (generate_gif) {
       Log("Doing GIF")
@@ -177,7 +178,6 @@ if (single_graphs) {
 
       raw.cpu.observed_from_fog_node <- load_raw_cpu_observed_from_fog_node(ark)
 
-      Log("Producing GIF")
       output_gif(raw.cpu.observed_from_fog_node, bids_won_function)
     }
 

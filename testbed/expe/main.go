@@ -105,11 +105,12 @@ type FunctionPipeline struct {
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
 type FunctionPipelineDescription struct {
-	Name      string                      `json:"name"`
-	Content   string                      `json:"content"`
-	NbVarName string                      `json:"nbVarName"`
-	First     string                      `json:"first"`
-	Pipeline  map[string]FunctionPipeline `json:"pipeline"`
+	Name                      string                      `json:"name"`
+	Content                   string                      `json:"content"`
+	NbVarName                 string                      `json:"nbVarName"`
+	First                     string                      `json:"first"`
+	Pipeline                  map[string]FunctionPipeline `json:"pipeline"`
+	ExpectedRequestIntervalMs int                         `json:"ExpectedRequestIntervalMs"`
 }
 
 var imageRegistry string
@@ -165,6 +166,10 @@ func init() {
 	} else {
 		config = zap.NewProductionConfig()
 	}
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	config.Encoding = "console"
+
 	tmp, err := config.Build()
 	_Logger = *tmp
 	if err != nil {
@@ -643,7 +648,7 @@ func saveFile(filename string) error {
 			}
 			durations := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				durations[i] = 60 * 4 // TODO That is fixed and shall not
+				durations[i] = int(math.Ceil(math.Abs(arrivalRequestIntervalMultiplier * gamma(2.35, 15))))
 			}
 			arrivals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
@@ -659,12 +664,21 @@ func saveFile(filename string) error {
 					logger.Warn("no first function specified", zap.String("descName", fnDesc.Name))
 				}
 				fnChain := make([]Function, 0)
+
+				scalingRatio := float64(fnDesc.ExpectedRequestIntervalMs) / float64(requestInterval)
+				logger.Info("env", zap.Float64("ratio", scalingRatio), zap.Int("requestInterval", requestInterval))
 				for {
 					fn := fnDesc.Pipeline[fnName]
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)
 					latency, _ := strconv.Atoi(latencyStr)
 					latency = int(math.Ceil(math.Abs(rand.NormFloat64()*float64(latency) + float64(latency)/4)))
 					functionName := fnName + "-i" + strconv.Itoa(index) + "-c" + strconv.Itoa(fn.CPU) + "-m" + strconv.Itoa(fn.Mem) + "-l" + strconv.Itoa(latency) + "-a" + strconv.Itoa(arrival) + "-r" + strconv.Itoa(requestInterval) + "-d" + strconv.Itoa(duration)
+
+					if scalingRatio > 1.0 {
+						fn.Mem = int(math.Ceil(float64(fn.Mem) * scalingRatio))
+						fn.CPU = int(math.Ceil(float64(fn.CPU) * scalingRatio))
+					}
+
 					fnChain = append(fnChain, Function{
 						TargetNode:        targetNodeName,
 						Mem:               fn.Mem,

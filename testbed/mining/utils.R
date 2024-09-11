@@ -526,7 +526,7 @@ create_plot <- function(data) {
     ) +
     scale_colour_gradient(low = "white", high = "darkblue", na.value = "grey50") +
     new_scale_color() +
-    geom_nodes(aes(size = provisioned / 16, color = usage),
+    geom_nodes(aes(size = provisioned, color = usage),
       alpha = 1,
     ) +
     scale_colour_gradient(low = "green", high = "red", na.value = "grey50") +
@@ -543,19 +543,19 @@ create_plot <- function(data) {
     labs(
       title = "Time: {as.integer(frame_time)}",
       subtitle = sprintf("'%s'\n
-    sat: satisfaction rate\n
-    ll: low load low lat. ƒ satisfaction rate\n
-    lh: low load high lat. ƒ satisfaction rate\n
-    hh: high load high lat. ƒ satisfaction rate\n
-    hl: high load low lat. ƒ satisfaction rate\n
-    f: <current provisioned>/<total provisioned", name)
+     sat: satisfaction rate\n
+     ll: low load low lat. ƒ satisfaction rate\n
+     lh: low load high lat. ƒ satisfaction rate\n
+     hh: high load high lat. ƒ satisfaction rate\n
+     hl: high load low lat. ƒ satisfaction rate\n
+     f: <current provisioned>/<total provisioned", name)
     ) +
     transition_time(timestamp) +
     ease_aes("linear") +
     enter_fade() +
     exit_fade() +
-    theme_blank() +
-    theme(legend.position = "bottom")
+    theme_blank()
+  # theme(legend.position = "bottom")
   # +
   # facet_grid(cols = vars(folder))
 
@@ -563,9 +563,8 @@ create_plot <- function(data) {
 
   # rows <- max(out$layout$layout$ROW)
   # cols <- max(out$layout$layout$COL)
-  Log(duration)
+  # Log(duration)
 
-  Log(pggnetwork[1])
 
   anim_save(filename = sprintf("out/%s.gif", name), animation = pggnetwork, renderer = magick_renderer(), nframes = duration, height = 1600, width = 2000)
 }

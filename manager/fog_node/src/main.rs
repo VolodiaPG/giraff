@@ -439,9 +439,15 @@ async fn register_to_market(
     let my_ip = node_situation.get_my_public_ip();
     let my_port_http = node_situation.get_my_public_port_http();
     let my_port_faas = node_situation.get_my_public_port_faas();
+    let advertised_bandwidth = node_situation.get_my_advertised_bandwidth();
 
     while let Err(err) = node_life
-        .init_registration(my_ip, my_port_http.clone(), my_port_faas.clone())
+        .init_registration(
+            my_ip,
+            my_port_http.clone(),
+            my_port_faas.clone(),
+            advertised_bandwidth.clone(),
+        )
         .await
     {
         warn!("Failed to register to market: {:?}", err);

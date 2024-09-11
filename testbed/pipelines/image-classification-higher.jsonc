@@ -3,27 +3,28 @@
     "content": "image",
     "nbVarName": "NB_IMAGE_FUNCTIONS",
     "first": "imagePreProcessing",
+    "expectedRequestIntervalMs": 10000,
     "pipeline": {
         "imagePreProcessing": {
             "nextFunction": "classif",
             "image": "giraff:fn_image_processing_pillow",
-            "mem": 500,
-            "cpu": 300,
+            "mem": 400,
+            "cpu": 200,
             "input_max_size": "60 KiB",
             "latency": "HIGHER_LATENCY"
         },
         "classif": {
             "nextFunction": "echo",
             "image": "giraff:fn_image_classification_squeezenet_cpu",
-            "mem": 1024,
-            "cpu": 500,
+            "mem": 500,
+            "cpu": 300,
             "input_max_size": "16 KiB",
             "latency": "NO_LATENCY"
         },
         "echo": {
             "image": "giraff:fn_echo",
-            "mem": 200,
-            "cpu": 200,
+            "mem": 100,
+            "cpu": 100,
             "latency": "NO_LATENCY"
         }
     }

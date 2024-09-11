@@ -15,6 +15,7 @@ use model::SlaId;
 use tracing::{error, info, instrument, trace, warn};
 use uom::si::f64::Time;
 use uom::si::information::byte;
+use uom::si::information_rate::byte_per_second;
 use uom::si::ratio::ratio;
 use uom::si::rational64::Information;
 use uom::si::time::second;
@@ -68,7 +69,8 @@ mod edge_ward_placement_v3;
 use super::function::Function;
 #[allow(dead_code)]
 const DEFAULT_MTU: f64 = 1500.0;
-const TCP_MAX_CONGESTION_WINDOW_SIZE: f64 = 33.0; // In terms of number of MSS
+// MSS
+const DEFAULT_TCP_MSS: f64 = 1460.0; // In terms of number of MSS
 #[allow(dead_code)]
 #[allow(dead_code)]
 const TCP_TIMEOUT_SEC: f64 = 0.020;
@@ -246,10 +248,17 @@ impl FunctionLife {
         data_size: Information,
     ) -> Time {
         let worse = get_tcp_latency(
-            2.0 * (accumulated_latency_to_next_node.median
-                + accumulated_latency_to_next_node.median_uncertainty),
+            accumulated_latency_to_next_node.median
+                + accumulated_latency_to_next_node.median_uncertainty,
             accumulated_latency_to_next_node.packet_loss,
+            accumulated_latency_to_next_node.bandwidth,
             data_size,
+        );
+        trace!(
+            "compute_worse_latency: {:?}, data: {:?}, bandwidth: {:?}",
+            worse,
+            data_size,
+            accumulated_latency_to_next_node.bandwidth
         );
         return worse;
     }
@@ -257,96 +266,58 @@ impl FunctionLife {
 
 #[allow(dead_code)]
 fn get_tcp_latency(
-    rtt: Time,
-    packet_loss: uom::si::f64::Ratio,
+    one_way_latency: Time,
+    _packet_loss: uom::si::f64::Ratio,
+    bandwidth: uom::si::rational64::InformationRate,
     data_size: Information,
 ) -> Time {
     let data_size = *data_size.get::<byte>().numer() as f64
         / *data_size.get::<byte>().denom() as f64;
-    let data_size = uom::si::f64::Information::new::<byte>(data_size);
-    let mtu = uom::si::f64::Information::new::<byte>(DEFAULT_MTU);
-    let mss = mtu - uom::si::f64::Information::new::<byte>(40.0); // mtu - <tcp
-                                                                  // protocol overhead>
-                                                                  //let data_size = if data_size < mss { mss } else { data_size };
-    let mut tcp_max_congestion_window_size = (data_size / mss).get::<ratio>();
-    tcp_max_congestion_window_size =
-        if tcp_max_congestion_window_size < TCP_MAX_CONGESTION_WINDOW_SIZE {
-            tcp_max_congestion_window_size
-        } else {
-            TCP_MAX_CONGESTION_WINDOW_SIZE
-        };
-    let tcp_timeout = Time::new::<second>(TCP_TIMEOUT_SEC);
-    let packet_loss = packet_loss.get::<ratio>();
+    let bandwidth = *bandwidth.get::<byte_per_second>().numer() as f64
+        / *bandwidth.get::<byte_per_second>().denom() as f64;
 
-    let hand1 = tcp_max_congestion_window_size / rtt;
+    let tcp_overhead = DEFAULT_MTU - DEFAULT_TCP_MSS;
+    let nb_segments = data_size / DEFAULT_TCP_MSS;
+    let data_size_to_send = tcp_overhead * nb_segments + data_size;
+    let pure_data_transmission_time = data_size_to_send / bandwidth;
 
-    let subhand1 = 1.0;
-    let subhand2 = 3.0 * f64::sqrt(6.0 * packet_loss / 8.0);
-    let subhand = if subhand1 < subhand2 { subhand1 } else { subhand2 };
-    let hand2 = 1.0
-        / (f64::sqrt(packet_loss * 4.0 / 3.0) * rtt
-            + tcp_timeout
-                * subhand
-                * packet_loss
-                * (1.0 + 32.0 * packet_loss * packet_loss));
-    // going to infity and buffer overflow
-    let tcp_bandwidth = if hand1 < hand2 { hand1 } else { hand2 };
-    let tcp_bandwidth = tcp_bandwidth * mss;
-
-    let transmission_time = data_size / tcp_bandwidth;
-    transmission_time + 0.5 * rtt
+    Time::new::<second>(pure_data_transmission_time) + one_way_latency
 }
 #[cfg(test)]
 mod tests {
-    use uom::si::f64::{Ratio, Time};
-    use uom::si::information::{byte, kilobyte};
-    use uom::si::ratio::ratio;
-    use uom::si::rational64::Information;
-    use uom::si::time::millisecond;
-
     use crate::service::function_life::get_tcp_latency;
-    #[test]
-    fn test_under_mtu_latency() {
-        let rtt = Time::new::<millisecond>(20.0);
-        let data_size =
-            Information::new::<byte>(num_rational::Ratio::new(1000, 1));
-        let packet_loss = Ratio::new::<ratio>(1e-7);
-        let lat = get_tcp_latency(rtt, packet_loss, data_size);
+    use uom::si::f64::{Ratio, Time};
+    use uom::si::information::byte;
+    use uom::si::information_rate::bit_per_second;
+    use uom::si::ratio::ratio;
+    use uom::si::rational64::{Information, InformationRate};
+    use uom::si::time::millisecond;
+    use yare::parameterized;
 
-        println!("(under)lat: {:?}", lat);
-        assert!(lat == 1.5 * rtt);
-    }
-    #[test]
-    fn test_over_mtu_latency() {
-        let rtt = Time::new::<millisecond>(20.0);
+    #[parameterized(
+        small_data_big_bandwidth = { 1000, 1_000_000, 1.0, 1.5 },
+        big_data_small_bandwidth = { 10_000, 400_000, 11.0, 12.0 },
+        bigger_data_small_bandwidth = { 260_000, 100_000, 1069.0, 1070.0 },
+        bigger_data_big_bandwidth = { 260_000, 100_000_000, 2.0, 2.5 },
+        bigger_data_bigger_bandwidth = { 260_000, 1_000_000_000, 1.0, 1.5 },
+    )]
+    fn test_latency_bandwidth(
+        data_size: i64,
+        bandwidth: i64,
+        expected_low: f64,
+        expected_high: f64,
+    ) {
+        let oneway = Time::new::<millisecond>(20.0);
         let data_size =
-            Information::new::<kilobyte>(num_rational::Ratio::new(100, 1));
+            Information::new::<byte>(num_rational::Ratio::new(data_size, 1));
+        let bandwidth = InformationRate::new::<bit_per_second>(
+            num_rational::Ratio::new(bandwidth, 1),
+        );
         let packet_loss = Ratio::new::<ratio>(0.0);
-        let lat = get_tcp_latency(rtt, packet_loss, data_size);
-        println!("(over)lat: {:?}", lat);
-        assert!(lat > 2.0 * rtt);
-    }
+        let lat = get_tcp_latency(oneway, packet_loss, bandwidth, data_size);
 
-    #[test]
-    fn test_over_mtu_latency_loss() {
-        let rtt = Time::new::<millisecond>(20.0);
-        let data_size =
-            Information::new::<kilobyte>(num_rational::Ratio::new(100, 1));
-        let packet_loss = Ratio::new::<ratio>(0.01);
-        let lat = get_tcp_latency(rtt, packet_loss, data_size);
-
-        println!("(over loss)lat: {:?}", lat);
-        assert!(lat > 3.0 * rtt);
-    }
-    #[test]
-    fn test_under_mtu_latency_loss() {
-        let rtt = Time::new::<millisecond>(20.0);
-        let data_size =
-            Information::new::<byte>(num_rational::Ratio::new(100, 1));
-        let packet_loss = Ratio::new::<ratio>(0.01);
-        let lat = get_tcp_latency(rtt, packet_loss, data_size);
-
-        println!("(under loss)lat: {:?}", lat);
-        assert!(lat == 1.5 * rtt);
+        println!("lat: {:?}", lat);
+        assert!(lat > expected_low * oneway);
+        assert!(lat < expected_high * oneway);
     }
 }

@@ -2,9 +2,20 @@ set fallback := true
 
 # -F "file=@toto.jpg" \
 test:
-    curl \
+    curl -s -f \
         -X POST \
         -F "file=@$PATH_AUDIO/3536-23268-0023.wav"  \
         --output tmp.json \
         localhost:8081
 
+test_all:
+    #!/usr/bin/env bash
+    for file in $(ls $PATH_AUDIO/* | head -n 3); do
+      echo $file
+      (curl -s --fail-with-body \
+          -X POST \
+          -F "file=@$file"  \
+          --output tmp.json \
+          localhost:8081 || echo "Failed for $file")&
+    done
+    wait

@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use helper::uom_helper::information_rate;
 #[cfg(feature = "offline")]
 use helper::uom_helper::time;
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 #[cfg(feature = "offline")]
 use uom::si::f64::Time;
+use uom::si::rational64::InformationRate;
 
 use crate::dto::node::NodeRecord;
 use crate::view::auction::AcceptedBid;
@@ -53,22 +55,26 @@ pub struct PostNodeResponse {
 #[serde(rename_all = "camelCase")]
 pub enum RegisterNode {
     MarketNode {
-        node_id:   NodeId,
-        ip:        IpAddr,
-        port_http: FogNodeHTTPPort,
-        port_faas: FogNodeFaaSPortExternal,
-        tags:      Vec<String>,
+        node_id:              NodeId,
+        ip:                   IpAddr,
+        port_http:            FogNodeHTTPPort,
+        port_faas:            FogNodeFaaSPortExternal,
+        tags:                 Vec<String>,
+        #[serde_as(as = "information_rate::Helper")]
+        advertised_bandwidth: InformationRate,
     },
     Node {
-        parent:          NodeId,
-        node_id:         NodeId,
-        ip:              IpAddr,
-        port_http:       FogNodeHTTPPort,
-        port_faas:       FogNodeFaaSPortExternal,
-        tags:            Vec<String>,
+        parent:               NodeId,
+        node_id:              NodeId,
+        ip:                   IpAddr,
+        port_http:            FogNodeHTTPPort,
+        port_faas:            FogNodeFaaSPortExternal,
+        tags:                 Vec<String>,
+        #[serde_as(as = "information_rate::Helper")]
+        advertised_bandwidth: InformationRate,
         #[cfg(feature = "offline")]
         #[serde_as(as = "time::Helper")]
-        offline_latency: Time,
+        offline_latency:      Time,
     },
 }
 

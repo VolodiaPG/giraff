@@ -6,6 +6,7 @@ use model::{FogNodeFaaSPortExternal, FogNodeHTTPPort};
 use std::net::IpAddr;
 use std::sync::Arc;
 use tracing::trace;
+use uom::si::rational64::InformationRate;
 
 #[derive(Debug)]
 pub struct NodeLife {
@@ -32,6 +33,7 @@ impl NodeLife {
                 parent,
                 ip,
                 port_http,
+                advertised_bandwidth,
                 #[cfg(feature = "offline")]
                 offline_latency,
                 ..
@@ -42,6 +44,7 @@ impl NodeLife {
                         NodeDescription {
                             ip: *ip,
                             port_http: port_http.clone(),
+                            advertised_bandwidth: *advertised_bandwidth,
                             #[cfg(feature = "offline")]
                             latency: *offline_latency,
                         },
@@ -68,6 +71,7 @@ impl NodeLife {
         ip: IpAddr,
         port_http: FogNodeHTTPPort,
         port_faas: FogNodeFaaSPortExternal,
+        advertised_bandwidth: InformationRate,
     ) -> Result<()> {
         trace!("Init registration");
         let register = if self.node_situation.is_market() {
@@ -77,6 +81,7 @@ impl NodeLife {
                 port_http,
                 port_faas,
                 tags: self.node_situation.get_my_tags(),
+                advertised_bandwidth,
             }
         } else {
             RegisterNode::Node {
@@ -89,6 +94,7 @@ impl NodeLife {
                     .get_parent_id()
                     .context("Failed to get my parent's id")?,
                 tags: self.node_situation.get_my_tags(),
+                advertised_bandwidth,
                 #[cfg(feature = "offline")]
                 offline_latency: self.node_situation.get_my_offline_latency(),
             }

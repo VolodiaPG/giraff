@@ -10,6 +10,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import dill  # type: ignore
 import randomname  # type: ignore
 
+ONE_GBIT = 1_000_000_000
+ONE_MBIT = 1_000_000
+ONE_KBIT = 1_000
+
 RANDOM_SEED = os.getenv("RANDOM_SEED")
 if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
@@ -258,6 +262,7 @@ NODE_CONNECTED_NODE = """(
     reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_node", "{name}"],
     max_in_flight_functions_proposals: MaxInFlight({max_in_flight}),
+    my_advertised_bandwidth: "{parent_advertised_bandwidth}",
 )
 
 """
@@ -300,8 +305,8 @@ def additional_env_vars(level):
         if level >= 3:
             ret.update(
                 {
-                    "RATIO_AA": random.uniform(0.6, 0.9),
-                    "RATIO_BB": random.uniform(1.0, 1.2),
+                    "RATIO_AA": random.uniform(0.8, 1.2),
+                    "RATIO_BB": random.uniform(1.2, 1.4),
                     "ELECTRICITY_PRICE": 1.0,
                 }
             )
@@ -317,7 +322,7 @@ def additional_env_vars(level):
             ret.update(
                 {
                     "RATIO_AA": 0.01,
-                    "RATIO_BB": 0.9,
+                    "RATIO_BB": 0.2,
                     "ELECTRICITY_PRICE": 0.75,
                 }
             )
@@ -327,32 +332,32 @@ def additional_env_vars(level):
 
 
 TIER_4_FLAVOR = {
-    "core": 4,
-    "mem": 1024 * 6,
-    "reserved_core": 4,
-    "reserved_mem": 1024 * 5.5,
+    "core": 2,
+    "mem": 1024 * 4,
+    "reserved_core": 1.5,
+    "reserved_mem": 1024 * 3,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
-    "core": 6,
-    "mem": 1024 * 8,
-    "reserved_core": 4,
-    "reserved_mem": 1024 * 7.5,
+    "core": 4,
+    "mem": 1024 * 6,
+    "reserved_core": 3.5,
+    "reserved_mem": 1024 * 5,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 8,
-    "mem": 1024 * 16,
-    "reserved_core": 8,
-    "reserved_mem": 1024 * 15.5,
+    "mem": 1024 * 12,
+    "reserved_core": 7,
+    "reserved_mem": 1024 * 11,
     "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
     "core": 16,
     "mem": 1024 * 46,
-    "reserved_core": 16,
-    "reserved_mem": 1024 * 44,
+    "reserved_core": 15,
+    "reserved_mem": 1024 * 42,
     "additional_env_vars": additional_env_vars(0),
 }
 
@@ -376,23 +381,23 @@ def generate_level(
     *,
     nb_nodes: Tuple[int, int],
     latencies: Tuple[int, int],
-    modifiers: Optional[
-        List[Callable[[Dict[str, Any], bool], None]]
-    ] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
+    rates: Tuple[int, int],
+    modifiers: Optional[List[Callable[[Dict[str, Any], bool], None]]] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
     next_lvl: Optional[Callable[[int], List[Dict[str, Any]]]] = None,
 ) -> Callable[[int], List[Dict[str, Any]]]:
     def inner(depth: int = 1) -> List[Dict[str, Any]]:
         ret: List[Dict] = []
         global uuid
         first = True
-        for _ in range(
-            0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))
-        ):
+        for _ in range(0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))):
             uuid += 1
+            rate_min = min(rates[0], rates[1])
+            rate_max = max(rates[0], rates[1])
             city = {
                 "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
                 "flavor": copy.copy(flavor),
                 "latency": random.randint(latencies[0], latencies[1]),
+                "rate": rate_min * random.randint(1, math.ceil(rate_max / rate_min)),
                 "children": next_lvl(depth=depth + 1) if next_lvl else [],  # type: ignore
             }
             if modifiers:
@@ -462,11 +467,13 @@ def network_generation():
             TIER_1_FLAVOR,
             nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
             latencies=(1, 3),
+            rates=(ONE_GBIT, ONE_GBIT),
             modifiers=[set_cloud, drop_children(drop_one_in=2)],
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(6, 32),
+                rates=(100 * ONE_MBIT, ONE_GBIT),
                 modifiers=[
                     drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2, 4]),
@@ -476,6 +483,7 @@ def network_generation():
                     TIER_3_FLAVOR,
                     nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
                     latencies=(7, 64),
+                    rates=(20 * ONE_MBIT, ONE_GBIT),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -485,6 +493,7 @@ def network_generation():
                         TIER_4_FLAVOR,
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 4),
+                        rates=(ONE_MBIT, ONE_GBIT),
                         modifiers=[
                             set_iot_connected(drop_one_in=6),
                             flavor_randomizer_mem([0, 2]),
@@ -492,9 +501,7 @@ def network_generation():
                     ),
                 ),
             ),
-        )(
-            1
-        ),  # depth = 1, because python typesafety stuff wants you to repeat it:'(
+        )(1),  # depth = 1, because python typesafety stuff wants you to repeat it:'(
     }
 
 
@@ -559,7 +566,7 @@ def get_iot_connection(node):
 def adjacency(node):
     children = node["children"] if "children" in node else []
     ret = {}
-    ret[node["name"]] = [(child["name"], child["latency"]) for child in children]
+    ret[node["name"]] = [(child["name"], child["latency"], child["rate"]) for child in children]
     for child in children:
         ret = {**ret, **adjacency(child)}
 
@@ -582,8 +589,8 @@ def adjacency_undirected(node):
     def fun(node):
         children = node["children"] if "children" in node else []
         for child in children:
-            ret[node["name"]] += [(child["name"], child["latency"])]
-            ret[child["name"]] += [(node["name"], child["latency"])]
+            ret[node["name"]] += [(child["name"], child["latency"], child["rate"])]
+            ret[child["name"]] += [(node["name"], child["latency"], child["rate"])]
             fun(child)
 
     fun(node)
@@ -595,7 +602,7 @@ def gen_net(nodes, callback):
 
     for name, latency in IOT_CONNECTION:
         # adjacency[name].append(("iot_emulation", latency))
-        adjacency["iot_emulation"].append((name, latency))
+        adjacency["iot_emulation"].append((name, latency, ONE_GBIT))
     # Convert to matrix
     # Initialize a matrix
 
@@ -614,7 +621,9 @@ def gen_net(nodes, callback):
         # Create a vector for distances and initialize all
         # distances as infinite (INF)
         dist: Dict[str, float] = defaultdict(lambda: float("inf"))
+        rates: Dict[str, float] = defaultdict(lambda: ONE_GBIT)
         dist[src] = 0
+        rates[src] = ONE_GBIT
 
         while pq:
             # The first vertex in pair is the minimum distance
@@ -624,21 +633,24 @@ def gen_net(nodes, callback):
 
             # 'i' is used to get all adjacent vertices of a
             # vertex
-            for v, latency in adjacency[u]:
+            for v, latency, rate in adjacency[u]:
                 # If there is shorted path to v through u.
                 if dist[v] > dist[u] + latency:
                     # Updating distance of v
                     dist[v] = dist[u] + latency
+                    rates[v] = min(rates[u], rate)
                     heapq.heappush(pq, (dist[v], v))
 
-        return dist
+        return (dist, rates)
 
     for node_name in adjacency.keys():
-        latencies = dijkstra(node_name)  # modifies subtree_cumul
+        latencies, rates = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
-            #print(f"{node_name} -> {destination} = {latency}")
-            callback(node_name, destination, latency)
+            rate = rates[destination]
+            # print(f"{node_name} -> {destination} = {latency} ; {rate/ONE_GBIT}G")
+            callback(node_name, destination, latency, rate)
+
 
 def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
     """
@@ -662,9 +674,7 @@ def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
 
             if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
-                    raise Exception(
-                        "The VM requires more resources than the node can provide"
-                    )
+                    raise Exception("The VM requires more resources than the node can provide")
 
                 total_vm_required += 1
                 core_used = 0
@@ -691,22 +701,26 @@ if os.getenv("DEV_NETWORK") == "true":
                 "name": "node_1",
                 "flavor": TIER_3_FLAVOR,
                 "latency": 3,
+                "rate": ONE_GBIT,
                 "children": [
                     {
                         "name": "node_2",
                         "flavor": TIER_3_FLAVOR,
                         "latency": 6,
+                        "rate": 1 * ONE_GBIT,
                         "children": [
                             {
                                 "name": "node_3",
                                 "flavor": TIER_4_FLAVOR,
                                 "latency": 10,
+                                "rate": 1 * ONE_GBIT,
                                 "children": [],
                                 "iot_connected": 0,
                             },
                             {
                                 "name": "node_34",
                                 "flavor": TIER_4_FLAVOR,
+                                "rate": 100 * ONE_KBIT,
                                 "latency": 5,
                                 "children": [],
                                 "iot_connected": 0,
@@ -721,9 +735,7 @@ else:
     save_network_file = os.getenv(SAVE_NETWORK_FILE)
     load_network_file = os.getenv(LOAD_NETWORK_FILE)
     if save_network_file and load_network_file:
-        raise Exception(
-            f"{SAVE_NETWORK_FILE} and {LOAD_NETWORK_FILE} env var should not be set together"
-        )
+        raise Exception(f"{SAVE_NETWORK_FILE} and {LOAD_NETWORK_FILE} env var should not be set together")
     elif save_network_file and not load_network_file:
         NETWORK = network_generation()
         dill.settings["recurse"] = True
@@ -733,24 +745,14 @@ else:
         with open(load_network_file, "rb") as inp:
             NETWORK = dill.load(inp)
     else:
-        raise Exception(
-            f"{SAVE_NETWORK_FILE} or {LOAD_NETWORK_FILE} env vars should be defined to save/load the network configuration"
-        )
+        raise Exception(f"{SAVE_NETWORK_FILE} or {LOAD_NETWORK_FILE} env vars should be defined to save/load the network configuration")
 
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
-fog_nodes_control = set(
-    flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]])
-)
-assert len(FOG_NODES) == len(
-    fog_nodes_control
-), "Some names are identical, each should be a uid"
+fog_nodes_control = set(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
+assert len(FOG_NODES) == len(fog_nodes_control), "Some names are identical, each should be a uid"
 
-EXTREMITIES = list(
-    flatten([get_extremities_name(child) for child in NETWORK["children"]])
-)
-IOT_CONNECTION = list(
-    flatten([get_iot_connection(child) for child in NETWORK["children"]])
-)
+EXTREMITIES = list(flatten([get_extremities_name(child) for child in NETWORK["children"]]))
+IOT_CONNECTION = list(flatten([get_iot_connection(child) for child in NETWORK["children"]]))
 ADJACENCY = adjacency(NETWORK)
 LEVELS = levels(NETWORK)
 

@@ -107,16 +107,12 @@ def log_cmd(env, results_list):
     os.symlink(path, f"{prefix_simlink}/logs-latest")
     aliases = {}
     for results in results_list:
-        for data in results.filter(status=STATUS_OK) + results.filter(
-            status=STATUS_FAILED
-        ):
+        for data in results.filter(status=STATUS_OK) + results.filter(status=STATUS_FAILED):
             host = data.host
             data = data.payload
             alias_name = get_aliases(env).get(host, host)
             aliases[alias_name] = aliases.get(alias_name, -1) + 1
-            alias_name = alias_name + (
-                "" if aliases[alias_name] == 0 else "." + str(aliases[alias_name])
-            )
+            alias_name = alias_name + ("" if aliases[alias_name] == 0 else "." + str(aliases[alias_name]))
 
             if data["stdout"]:
                 # print(data["stdout"])
@@ -143,18 +139,14 @@ def log_cmd(env, results_list):
 
 
 def open_tunnel(address, port, local_port=None, rest_of_url=""):
-    print(
-        f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}"
-    )
+    print(f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}")
     if local_port is None:
         local_port = port
     for i in range(5):
         try:
             tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
             local_address, local_port, _ = tunnel.start()
-            print(
-                f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}"
-            )
+            print(f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}")
             return local_address, local_port
         except Exception as e:
             if i == 4:
@@ -174,11 +166,11 @@ def cli(**kwargs):
     Errors with ssh may arise, consider `ln -s ~/.ssh/id_ed25519.pub ~/.ssh/id_rsa.pub` if necessary.
     """
     en.init_logging(level=logging.INFO)
-    #en.init_logging(level=logging.DEBUG)
+    # en.init_logging(level=logging.DEBUG)
     en.set_config(ansible_stdout="noop")
     en.set_config(g5k_auto_jump=False)
     en.set_config(ansible_forks=100)
-    #en.config._config["ansible_forks"] = 5  # type: ignore
+    # en.config._config["ansible_forks"] = 5  # type: ignore
     # en.config._config["ansible_stdout"] = "console"
 
 
@@ -205,9 +197,7 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
 
             if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
-                    raise Exception(
-                        "The VM requires more resources than the node can provide"
-                    )
+                    raise Exception("The VM requires more resources than the node can provide")
 
                 conf.add_machine(
                     roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
@@ -242,7 +232,7 @@ def attributes_roles(vm_attributions, roles):
         count[instance_id] += 1
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @click.option("--g5k_user", required=True, help="G5K username")
 @click.option("--force", is_flag=True, help="force overwrite")
 def init(g5k_user, force):
@@ -260,7 +250,7 @@ def init(g5k_user, force):
     en.check()
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @click.option("--force", is_flag=True, help="destroy and up")
 @click.option("--name", help="The name of the job")
 @click.option("--walltime", help="The wallime: hh:mm:ss")
@@ -301,7 +291,7 @@ def up(
         walltime=walltime,
         image="/home/volparolguarino/nixos.qcow2",
         reservation=os.environ["RESERVATION"] if "RESERVATION" in os.environ else None,
-        #gateway=True,
+        # gateway=True,
     ).add_machine(
         roles=["prom_agent", "iot_emulation", "ssh"],
         cluster=cluster,
@@ -309,15 +299,11 @@ def up(
         flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
     )
 
-    assignations = assign_vm_to_hosts(
-        NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine
-    )
+    assignations = assign_vm_to_hosts(NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine)
 
     env["assignations"] = assignations
 
-    print(
-        f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs"
-    )
+    print(f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs")
 
     conf.finalize()
 
@@ -351,6 +337,7 @@ def up(
 
     set_sshx(env)
 
+
 def clear_directory(path):
     # Check if the directory exists
     if not os.path.exists(path):
@@ -366,9 +353,10 @@ def clear_directory(path):
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                print(f'Failed to delete {file_path}. Reason: {e}')
+                print(f"Failed to delete {file_path}. Reason: {e}")
 
-@cli.command()# type: ignore
+
+@cli.command()  # type: ignore
 @enostask()
 def restart(env: EnosEnv = None):
     if env is None:
@@ -376,16 +364,16 @@ def restart(env: EnosEnv = None):
         exit(1)
 
     roles = env["roles"]["master"] + env["roles"]["iot_emulation"]
-    #with actions(
+    # with actions(
     #    roles=roles, gather_facts=False, strategy="free", background=True
-    #) as p:
+    # ) as p:
     #    p.shell('nohup sh -c "touch /iwasthere; sleep 1; reboot -ff"', task_name="Rebooting")
     #    results.filter(task="docker_container")[0]
 
     groups = set()
     for role in roles:
         splitted = role.address.split(".")
-        splitted.pop() # remove last bit, keep subnet
+        splitted.pop()  # remove last bit, keep subnet
         group = ".".join(splitted)
         groups.add(group)
 
@@ -394,7 +382,8 @@ def restart(env: EnosEnv = None):
 
     env["reboot_groups"] = groups
 
-@cli.command()# type: ignore
+
+@cli.command()  # type: ignore
 @enostask()
 def ack_reboot(env: EnosEnv):
     if env is None:
@@ -415,7 +404,8 @@ def ack_reboot(env: EnosEnv):
             file_count += len(files)
         print(f"{file_count}/{nb_vms} have been rebooted")
 
-@cli.command()# type: ignore
+
+@cli.command()  # type: ignore
 @enostask()
 def check_rebooted(env: EnosEnv):
     if env is None:
@@ -431,45 +421,45 @@ def check_rebooted(env: EnosEnv):
         )
 
 
-
 def set_sshx(env: EnosEnv):
     if env is None:
         print("env is None")
         exit(1)
 
-    #assignations = env["assignations"]
+    # assignations = env["assignations"]
     roles = env["roles"]
 
-    #for role in roles["market"]:
+    # for role in roles["market"]:
     #    role.set_extra(my_name="market")
-    #concerned_roles = roles["market"]
+    # concerned_roles = roles["market"]
 
-    #for role in roles["iot_emulation"]:
+    # for role in roles["iot_emulation"]:
     #    role.set_extra(my_name="iot_emulation")
-    #concerned_roles += roles["iot_emulation"]
+    # concerned_roles += roles["iot_emulation"]
 
-    #for vm_name in assignations.keys():
+    # for vm_name in assignations.keys():
     #    for role in roles[vm_name]:
     #        role.set_extra(my_name=vm_name)
     #    concerned_roles += roles[vm_name]
 
-    #with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    # with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
     #    p.shell(
     #        f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
     #        task_name="Clearing sshx folder",
     #    )
-    #with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
+    # with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
     #   p.shell(
     #        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
     #        task_name="Setting names",
     #    )
     with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
-       p.shell(
+        p.shell(
             'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
             task_name="Setting names",
         )
 
-@cli.command()# type: ignore
+
+@cli.command()  # type: ignore
 @enostask()
 def k3s_setup(env: EnosEnv = None):
     if env is None:
@@ -488,7 +478,7 @@ def k3s_setup(env: EnosEnv = None):
         )
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def setup_registry(env: EnosEnv = None, **kwargs):
     if env is None:
@@ -508,7 +498,7 @@ def setup_registry(env: EnosEnv = None, **kwargs):
     asyncio.run(push_functions_to_registry(function_descriptions, ips))
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def iot_emulation(env: EnosEnv = None, **kwargs):
     if env is None:
@@ -557,7 +547,7 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         )
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def network(env: EnosEnv = None):
     if env is None:
@@ -568,14 +558,13 @@ def network(env: EnosEnv = None):
     env["netem"] = net
     roles = env["roles"]
 
-    def add_netem_cb(source, destination, delay):
+    def add_netem_cb(source, destination, delay, rate):
         net.add_constraints(
             src=roles[source],
             dest=roles[destination],
-            #delay=str(delay) + "ms",  # That's a really bad fix there...
-            delay=delay,  # That's a really bad fix there...
-            #rate="1gbit",
-            rate = 1_000_000_000, # BPS
+            delay=delay,
+            # rate = 1_000_000_000, # BPS
+            rate=rate,  # BPS
             symmetric=True,
         )
 
@@ -583,11 +572,11 @@ def network(env: EnosEnv = None):
 
     print("deploying network")
     net.deploy(chunk_size=25)
-    #print("validating network")
-    #net.validate()
+    print("validating network")
+    net.validate()
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def k3s_config(env: EnosEnv = None, **kwargs):
     """SCP the remote kubeconfig files"""
@@ -620,6 +609,7 @@ def gen_conf(node, parent_id, parent_ip, ids):
         name=node["name"],
         reserved_cpu=node["flavor"]["reserved_core"],
         reserved_memory=node["flavor"]["reserved_mem"],
+        my_advertised_bandwidth=f"{node["flavor"]["rate"]} b/s",
         max_in_flight=max_in_flight_functions_proposals,
     )
 
@@ -630,7 +620,8 @@ def gen_conf(node, parent_id, parent_ip, ids):
         *[gen_conf(node, my_id, my_ip, ids) for node in children],
     ]
 
-@cli.command()# type: ignore
+
+@cli.command()  # type: ignore
 @click.option(
     "--fog_node_image",
     help="The container image URL. eg. ghcr.io/volodiapg/giraff::fog_node",
@@ -680,10 +671,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         flatten(
             [
                 *confs,
-                *[
-                    gen_conf(child, market_id, market_ip, ids)
-                    for child in NETWORK["children"]
-                ],
+                *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]],
             ]
         )
     )
@@ -701,13 +689,10 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             node_name=name,
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
-            enable_collector = "true" if os.environ["DEV"] == "true" else "false",
-            is_cloud="is_cloud"
-            if tier_flavor.get("is_cloud") is not None
-            and tier_flavor.get("is_cloud") is True
-            else "no_cloud",
+            enable_collector="true" if os.environ["DEV"] == "true" else "false",
+            is_cloud="is_cloud" if tier_flavor.get("is_cloud") is not None and tier_flavor.get("is_cloud") is True else "no_cloud",
             additional_env_vars=additional_env_vars,
-            rust_log = rust_log
+            rust_log=rust_log,
         )
         for role in roles[name]:
             role.set_extra(fog_node_deployment=deployment)
@@ -718,29 +703,23 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         # influx_ip=roles["prom_master"][0].address,
         influx_ip="10.42.0.1",
         collector_ip=roles["iot_emulation"][0].address,
-        enable_collector = "true" if os.environ["DEV"] == "true" else "false",
+        enable_collector="true" if os.environ["DEV"] == "true" else "false",
         market_image=market_image,
-        rust_log = rust_log
+        rust_log=rust_log,
     )
     for role in roles[NETWORK["name"]]:
         role.set_extra(market_deployment=market_deployment)
 
     with actions(roles=fog_node_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
-            "cat << EOF > /tmp/node_conf.yaml\n"
-            "{{ fog_node_deployment }}\n"
-            "EOF\n"
-            "k3s kubectl create -f /tmp/node_conf.yaml",
-            #roles=roles["master"],
+            "cat << EOF > /tmp/node_conf.yaml\n" "{{ fog_node_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/node_conf.yaml",
+            # roles=roles["master"],
             task_name="Deploying fog_node software",
         )
 
     with actions(roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
-            "cat << EOF > /tmp/market.yaml\n"
-            "{{ market_deployment }}\n"
-            "EOF\n"
-            "k3s kubectl create -f /tmp/market.yaml",
+            "cat << EOF > /tmp/market.yaml\n" "{{ market_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/market.yaml",
             task_name="Deploying market software",
         )
 
@@ -761,10 +740,10 @@ def network_shape(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
             writer = csv.writer(file, delimiter="\t")
-            writer.writerow(["source", "destination", "latency"])
+            writer.writerow(["source", "destination", "latency", "rate"])
             for source, tup in ADJACENCY.items():
-                for destination, latency in tup:
-                    writer.writerow([source, destination, latency])
+                for destination, latency, rate in tup:
+                    writer.writerow([source, destination, latency, rate])
         tmpfile.close()  # Close before sending to threads
         queue.put(("network_shape", tmpfile.name))
 
@@ -794,7 +773,7 @@ def _collect(env: EnosEnv, **kwargs):
     return ret
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @click.option("--address", help="A particular address to look at")
 def collect(address=None, **kwargs):
     if address is None:
@@ -802,11 +781,11 @@ def collect(address=None, **kwargs):
     else:
         addresses = set([address])
     token = os.getenv("INFLUX_TOKEN")
-    assert(token is not None)
+    assert token is not None
     org = os.getenv("INFLUX_ORG")
-    assert(org is not None)
+    assert org is not None
     bucket = os.getenv("INFLUX_BUCKET")
-    assert(bucket is not None)
+    assert bucket is not None
 
     today = datetime.today()
     today = today.strftime("%Y-%m-%d-%H-%M")
@@ -840,9 +819,7 @@ def collect(address=None, **kwargs):
 
     jobs = []
     for measurement_name in measurements:
-        job = pool.apply_async(
-            worker, (queue, addresses, token, bucket, org, measurement_name)
-        )
+        job = pool.apply_async(worker, (queue, addresses, token, bucket, org, measurement_name))
         jobs.append(job)
 
     # collect results from the workers through the pool result queue
@@ -863,7 +840,7 @@ def collect(address=None, **kwargs):
     os.symlink(archive, "latest_metrics.tar.xz")
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @click.option("--all", is_flag=True, help="all namespaces")
 @enostask()
 def logs(env: EnosEnv = None, all=False, **kwargs):
@@ -887,9 +864,7 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
             roles=roles["market"],
         )
     )
-    res.append(
-        en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
-    )
+    res.append(en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"]))
     if all:
         res.append(
             en.run_command(
@@ -906,8 +881,8 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
     log_cmd(env, res)
 
 
-#@enostask()
-#def do_open_tunnels(env: EnosEnv = None, **kwargs):
+# @enostask()
+# def do_open_tunnels(env: EnosEnv = None, **kwargs):
 #    if env is None:
 #        print("env is None")
 #        exit(1)
@@ -920,13 +895,13 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
 #        env["agent_tunnels"].append(f"{prom_agent.address}:9086")
 
 
-#@cli.command()# type: ignore
-#@click.option(
+# @cli.command()# type: ignore
+# @click.option(
 #    "--command",
 #    required=False,
 #    help="Pass command to execute once done, will close tunnels after task is exited",
-#)
-#def tunnels(command=None, **kwargs):
+# )
+# def tunnels(command=None, **kwargs):
 #    """Open the tunnels to the K8S UI and to OpenFaaS from the current host."""
 #    # procs = []
 #    # try:
@@ -950,7 +925,7 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
 #    #         )  # Send the signal to all the process groups
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def endpoints(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
@@ -967,7 +942,7 @@ def endpoints(env: EnosEnv = None, **kwargs):
     print(f"---\nIot emulation IP -> {roles['iot_emulation'][0].address}")
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def market_ip(env: EnosEnv = None, **kwargs):
     """List the address of the end-nodes in the Fog network"""
@@ -979,14 +954,14 @@ def market_ip(env: EnosEnv = None, **kwargs):
     print(f"address: {address}")
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 def iot_connections(env: EnosEnv = None, **kwargs):
     """List the endpoints name where IoT Emulation is connected to"""
     for name, _ in IOT_CONNECTION:
         print(f"{name}")
 
 
-@cli.command()# type: ignore
+@cli.command()  # type: ignore
 @enostask()
 def clean(env: EnosEnv = None, **kwargs):
     """Destroy the provided environment"""

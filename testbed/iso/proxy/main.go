@@ -102,6 +102,11 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 	// Create a new HTTP request with the same method, URL, and body as the original request
 	proxyRx := time.Now()
 	requestID := r.Header.Get("GIRAFF-Request-ID")
+	preSetSLAID := r.Header.Get("GIRAFF-Sla-Id")
+	if preSetSLAID == "" {
+		preSetSLAID = "<no-sla-id>"
+	}
+
 	firstRequestID := false
 	if requestID == "" {
 		firstRequestID = true
@@ -136,7 +141,7 @@ func handleRequest(ww *http.ResponseWriter, r *http.Request, env *envVars, influ
 		tags = "<no-tags>"
 	}
 	if slaID == "" {
-		slaID = "<no-sla-id>"
+		slaID = preSetSLAID
 	}
 	serviceStatus := resp.StatusCode
 
