@@ -318,15 +318,15 @@ load_respected_sla <- function(ark) {
 
   respected_sla <- load_single_csv(ark, "proxy.csv") %>%
     prepare() %>%
-    left_join(
-      sla_to_function_name,
-      by = c("folder", "sla_id")
-    ) %>%
+    # left_join(
+    #  sla_to_function_name,
+    #  by = c("folder", "sla_id")
+    # ) %>%
     group_by(folder) %>%
     adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
     adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
     mutate(value = value_raw) %>%
-    # rename(function_name = tags) %>%
+    rename(function_name = tags) %>%
     extract_function_name_info() %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     partition(cluster) %>%
@@ -340,8 +340,10 @@ load_respected_sla <- function(ark) {
     mutate(prev_sla = lag(sla_id)) %>%
     # mutate(prev_sla = lag(ifelse(first_req_id, "<iot_emulation>", sla_id))) %>%
     filter(first_req_id == FALSE) %>%
-    mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
+    mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.01)) %>%
+    mutate(on_time = (in_flight <= latency + 0.01)) %>%
     mutate(acceptable_chained = accumulate(acceptable, `&`)) %>%
+    mutate(on_time_chained = accumulate(on_time, `&`)) %>%
     collect() %>%
     group_by(
       sla_id,
@@ -356,8 +358,10 @@ load_respected_sla <- function(ark) {
     partition(cluster) %>%
     summarise(
       acceptable = sum(acceptable),
+      on_time = sum(on_time),
       all_errors = sum((status != 200) & (service_status != 200)),
       acceptable_chained = sum(acceptable_chained),
+      on_time_chained = sum(on_time_chained),
       total = dplyr::n(),
       measured_latency = mean(in_flight),
       ran_for = max(ran_for),
@@ -374,7 +378,8 @@ load_respected_sla <- function(ark) {
     ) %>%
     filter(!is.na(acceptable)) %>%
     filter(!is.na(acceptable_chained)) %>%
-    collect()
+    collect() %>%
+    ungroup()
 
   # Log(respected_sla %>% group_by(sla_id, folder) %>% filter(is.na(acceptable)) %>% select(sla_id, folder))
   # Log("titi")

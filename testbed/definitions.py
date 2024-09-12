@@ -245,6 +245,7 @@ MARKET_CONNECTED_NODE = """(
     reserved_memory: "{reserved_memory} MiB",
     tags: ["node_to_market", "{name}"],
     max_in_flight_functions_proposals: MaxInFlight({max_in_flight}),
+    my_advertised_bandwidth: "{my_advertised_bandwidth}",
 )
 
 """
@@ -463,6 +464,7 @@ def network_generation():
     return {
         "name": "market",
         "flavor": TIER_1_FLAVOR,
+        "rate": ONE_GBIT,
         "children": generate_level(
             TIER_1_FLAVOR,
             nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
@@ -473,7 +475,7 @@ def network_generation():
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(6, 32),
-                rates=(100 * ONE_MBIT, ONE_GBIT),
+                rates=(500 * ONE_MBIT, ONE_GBIT),
                 modifiers=[
                     drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2, 4]),
@@ -483,7 +485,7 @@ def network_generation():
                     TIER_3_FLAVOR,
                     nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
                     latencies=(7, 64),
-                    rates=(20 * ONE_MBIT, ONE_GBIT),
+                    rates=(100 * ONE_MBIT, ONE_GBIT),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -493,7 +495,7 @@ def network_generation():
                         TIER_4_FLAVOR,
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 4),
-                        rates=(ONE_MBIT, ONE_GBIT),
+                        rates=(10 * ONE_MBIT, ONE_GBIT),
                         modifiers=[
                             set_iot_connected(drop_one_in=6),
                             flavor_randomizer_mem([0, 2]),
@@ -696,6 +698,7 @@ if os.getenv("DEV_NETWORK") == "true":
     NETWORK = {
         "name": "market",
         "flavor": TIER_1_FLAVOR,
+        "rate": ONE_GBIT,
         "children": [
             {
                 "name": "node_1",
@@ -720,7 +723,7 @@ if os.getenv("DEV_NETWORK") == "true":
                             {
                                 "name": "node_34",
                                 "flavor": TIER_4_FLAVOR,
-                                "rate": 100 * ONE_KBIT,
+                                "rate": 100 * ONE_MBIT,
                                 "latency": 5,
                                 "children": [],
                                 "iot_connected": 0,

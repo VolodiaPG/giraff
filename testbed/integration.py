@@ -663,6 +663,7 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
                 reserved_memory=NETWORK["flavor"]["reserved_mem"],
                 reserved_cpu=NETWORK["flavor"]["reserved_core"],
                 max_in_flight=max_in_flight_functions_proposals,
+                my_advertised_bandwidth=f"{NETWORK['rate']} b/s",
             ),
             NETWORK["flavor"],
         )

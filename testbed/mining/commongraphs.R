@@ -203,14 +203,15 @@ output_respected_data_plot_total <- function(respected_sla, functions_all_total,
   df <- respected_sla %>%
     group_by(metric_group, metric_group_group, folder) %>%
     filter(docker_fn_name == "echo") %>%
-    select(metric_group_group, metric_group, folder, acceptable_chained) %>%
-    summarise(acceptable_chained = sum(acceptable_chained)) %>%
+    mutate(chained = acceptable_chained) %>%
+    select(metric_group_group, metric_group, folder, chained) %>%
+    summarise(chained = sum(chained)) %>%
     inner_join(respected_sla %>%
       group_by(metric_group, metric_group_group, folder) %>%
       filter(prev_function == "<iot_emulation>") %>%
       select(metric_group_group, metric_group, folder, total) %>%
       summarise(total = sum(total))) %>%
-    mutate(satisfied_ratio = acceptable_chained / total) %>%
+    mutate(satisfied_ratio = chained / total) %>%
     extract_context() %>%
     left_join(node_levels %>%
       group_by(metric_group, metric_group_group, folder) %>%
@@ -237,7 +238,7 @@ output_respected_data_plot_total <- function(respected_sla, functions_all_total,
     )
 
 
-  p <- ggplot(data = df, aes(alpha = 1, x = x_centered, y = y_centered)) +
+  p <- ggplot(data = df, aes(alpha = 1, x = x, y = y)) +
     # facet_grid(rows = vars(env)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
@@ -248,7 +249,7 @@ output_respected_data_plot_total <- function(respected_sla, functions_all_total,
     ) +
     # geom_line(aes(group = env, linetype = env), alpha = .1) +
     stat_ellipse(aes(color = placement_method, fill = placement_method), type = "norm", geom = "polygon", alpha = .1) +
-    geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
+    # geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
     geom_point(aes(shape = env, size = nodes, color = placement_method, fill = placement_method))
 
   # stat_summary(fun = mean, geom = "bar", alpha = 0.25)

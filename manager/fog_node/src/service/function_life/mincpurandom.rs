@@ -55,11 +55,10 @@ impl FunctionLife {
                     uom::si::time::millisecond,
                     Abbreviation
                 ),
-                (latency_outbound + accumulated_latency.median)
-                    .into_format_args(
-                        uom::si::time::millisecond,
-                        Abbreviation
-                    ),
+                (worse_lat).into_format_args(
+                    uom::si::time::millisecond,
+                    Abbreviation
+                ),
             );
             return Ok(None);
         }

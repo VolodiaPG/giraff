@@ -578,12 +578,15 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
         #left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
         ungroup() %>%
         extract_function_name_info() %>%
-        mutate(some_not_acceptable = acceptable + all_errors != total) %>%
-    mutate(ratio = as.numeric(measured_latency) / as.numeric(latency)) %>%
+        #mutate(some_not_acceptable = acceptable + all_errors != total) %>%
+        mutate(ratio = as.numeric(measured_latency) / as.numeric(latency)) %>%
         {
             .
         }
-  p <- ggplot(data = df, aes(x = docker_fn_name, y = ratio, color = interaction(prev_function, docker_fn_name, some_not_acceptable), alpha = 1)) +
+
+    Log(df %>% select(prev_function, docker_fn_name) %>% distinct())
+
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = ratio, color = interaction(prev_function, docker_fn_name), alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         # scale_y_continuous(trans = "log10") +

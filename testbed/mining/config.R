@@ -40,9 +40,17 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1725969445-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-12-04.tar.xz",
   # "metrics_valuation_rates.env_1_1725969445-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-12-11.tar.xz",
   # "metrics_valuation_rates.env_1_1725969445-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-10-12-18.tar.xz",
-  "metrics_valuation_rates.env_1_1725978602-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-14-45.tar.xz",
-  "metrics_valuation_rates.env_1_1725978602-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-14-51.tar.xz",
-  "metrics_valuation_rates.env_1_1725978602-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-10-14-37.tar.xz",
+  # "metrics_valuation_rates.env_1_1725978602-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-14-45.tar.xz",
+  # "metrics_valuation_rates.env_1_1725978602-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-10-14-51.tar.xz",
+  # "metrics_valuation_rates.env_1_1725978602-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-10-14-37.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.dev_2024-09-12-08-33.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.dev_2024-09-12-09-13.tar.xz",
+  "metrics_valuation_rates.env_1_1726133486-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-12-09-47.tar.xz",
+  "metrics_valuation_rates.env_1_1726133486-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-12-10-03.tar.xz",
+  "metrics_valuation_rates.env_1_1726133486-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-12-10-18.tar.xz",
+  "metrics_valuation_rates.env_1_1726138493-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-12-11-41.tar.xz",
+  "metrics_valuation_rates.env_1_1726138493-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-12-11-21.tar.xz",
+  "metrics_valuation_rates.env_1_1726138493-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-12-12-03.tar.xz",
   #---
   #---
   #---
