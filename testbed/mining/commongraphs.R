@@ -454,7 +454,7 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
   return(p)
 }
 
-output_placement_method_comparison <- function(respected_sla, functions_total, node_levels) {
+output_placement_method_comparison <- function(respected_sla, functions_total, node_levels, bids_won_function) {
   df <- respected_sla %>%
     filter(docker_fn_name == "echo") %>%
     group_by(folder, metric_group, metric_group_group) %>%
@@ -477,25 +477,36 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
         group_by(folder, metric_group, metric_group_group) %>%
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group_group", "metric_group")
-    )
+    ) %>%
+    inner_join(
+      bids_won_function %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(
+          total_cost = sum(cost),
+          total_functions = n_distinct(sla_id),
+          .groups = "drop"
+        ),
+      by = c("folder", "metric_group_group", "metric_group")
+    ) %>%
+    mutate(total_cost = total_cost / total_functions)
 
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes)
+    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost)
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
-    mutate(across(c(respected_slas, functions_deployed, requests_served), 
+    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost), 
                   ~scale(.), .names = "{.col}_scaled"))
 
   # Define the order of metrics
-  metric_order <- c("respected_slas", "functions_deployed", "requests_served")
+  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "total_cost")
 
   # Reshape data for ggplot
   df_long <- df %>%
-    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, nodes) %>%
+    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, nodes) %>%
     pivot_longer(cols = ends_with("_scaled"),
                  names_to = "metric", 
                  values_to = "value") %>%
@@ -504,7 +515,8 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
            raw_value = case_when(
              metric == "respected_slas" ~ respected_slas,
              metric == "functions_deployed" ~ functions_deployed,
-             metric == "requests_served" ~ requests_served
+             metric == "requests_served" ~ requests_served,
+             metric == "total_cost" ~ total_cost
            ))
 
   # Create the parallel coordinates plot
