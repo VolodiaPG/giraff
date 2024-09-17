@@ -78,40 +78,41 @@
             gifski
           ];
           my-R = pkgs.rWrapper.override {packages = R-pkgs;};
+          commonPackages = with pkgs; [
+            just
+            my-R
+            pandoc
+            nodePackages_latest.browser-sync
+            entr
+            rPackages.styler
+            binserve
+            parallel
+          ];
+          FONTCONFIG_FILE = pkgs.makeFontsConf {
+            fontDirectories = [pkgs.freefont_ttf];
+          };
         in {
           devShells.mining = pkgs.mkShell {
+            inherit FONTCONFIG_FILE;
             shellHook =
               (extra.shellHook system) "mining";
 
-            FONTCONFIG_FILE = pkgs.makeFontsConf {
-              fontDirectories = [pkgs.freefont_ttf];
-            };
-
-            packages = with pkgs; [
-              just
-              my-R
-              pandoc
-              nodePackages_latest.browser-sync
-              entr
-              rPackages.styler
-              binserve
-              parallel
-            ];
+            packages = commonPackages;
           };
           devShells.mining-export = pkgs.mkShell {
+            inherit FONTCONFIG_FILE;
             shellHook =
               (extra.shellHook system) "mining-export";
 
-            packages = with pkgs; [
-              just
-              my-R
-              python3
-              pandoc
-
-              texliveMinimal
-              pgf3
-              rPackages.tikzDevice
-            ];
+            packages =
+              commonPackages
+              ++ (with pkgs; [
+                python3
+                (texlive.combine {
+                  inherit (texlive) scheme-basic xetex pgf preview fontspec xunicode;
+                })
+                rPackages.tikzDevice
+              ]);
           };
         }))
       ];

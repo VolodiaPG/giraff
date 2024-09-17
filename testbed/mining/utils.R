@@ -767,14 +767,113 @@ write_multigraphs <- function(graphs) {
 export_graph <- mem(function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
   Log(paste0("Graphing ", callback_name, " ..."))
-  # ggsave(paste0("out/", name, ".png"), ggplot_graph)
+  ggsave(paste0("out/", name, ".png"), ggplot_graph)
   p <- ggplotly(ggplot_graph)
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
   Log(paste0("Graphing ", callback_name, " ...done"))
+  return(ggplot_graph)
 })
 
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
+}
+
+export_graph_tikz <- function(name, plot, width, height) {
+  if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
+    warning("tikzDevice package not found. TikZ export skipped.")
+    Log("tikzDevice package not found. TikZ export skipped.")
+    return()
+  }
+  library(tikzDevice)
+  options(tikzDefaultEngine = "xetex")
+  options(
+    tikzSanitizeCharacters = c("%", "&", "#", "\\$", "\\{", "\\}", "\\^", "\\~", "ƒ", "_"),
+    tikzReplacementCharacters = c("\\%", "\\&", "\\#", "\\\\$", "\\\\{", "\\\\}", "\\\\^", "\\\\~", "$f$", "\\_")
+  )
+  options(tikzXelatexPackages = c(
+    "\\usepackage{tikz}\n",
+    "\\usepackage[active,tightpage,xetex]{preview}\n",
+    "\\usepackage{fontspec,xunicode}\n",
+    "\\PreviewEnvironment{pgfpicture}\n",
+    "\\setlength\\PreviewBorder{0pt}\n",
+    "\\newcommand{\\dash}{-}\n"
+  ))
+  options(
+    tikzMetricPackages = c(
+      "\\usepackage[T1]{fontenc}\n",
+      "\\usetikzlibrary{calc}\n"
+    ),
+    tikzUnicodeMetricPackages = c(
+      "\\usepackage[T1]{fontenc}\n",
+      "\\usetikzlibrary{calc}\n",
+      "\\usepackage{fontspec,xunicode}\n"
+    )
+  )
+
+  tikzDevice::tikzTest()
+
+  tikz_name <- paste0("out/", name, ".tex")
+
+  # Extract title, subtitle, and axis labels from the ggplot object
+  built_plot <- ggplot2::ggplot_build(plot)
+  plot_title <- built_plot$plot$labels$title
+  plot_subtitle <- built_plot$plot$labels$subtitle
+
+  # Remove title, subtitle, and axis labels from the plot
+  plot <- plot + ggplot2::theme(
+    title = ggplot2::element_blank(),
+  )
+  # Determine tex_width based on GRAPH_ONE_COLUMN_WIDTH (assuming it's defined elsewhere)
+  tex_width <- if (width > GRAPH_ONE_COLUMN_WIDTH) 2 else 1
+
+  # Open the file in write mode
+  file_conn <- file(tikz_name, "w")
+  close(file_conn)
+
+  file_conn <- file(tikz_name, "a")
+
+  # Write new content directly to the file
+  cat("\\begin{figure}[htbp]\n", file = file_conn)
+  cat("\\centering\n", file = file_conn)
+  cat(sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width), file = file_conn)
+
+  close(file_conn)
+
+  # Create a temporary file for the tikz content
+  temp_file <- tempfile(fileext = ".tex")
+
+  # Generate the tikz content in the temporary file
+  tikzDevice::tikz(temp_file, width = width, height = height, standAlone = FALSE, sanitize = TRUE)
+  print(plot)
+  dev.off()
+
+  # Read the generated content from the temporary file
+  tikz_content <- readLines(temp_file)
+
+  # Remove the temporary file
+  file.remove(temp_file)
+
+  # Open the target file in write mode to replace its content
+  file_conn <- file(tikz_name, "a")
+  writeLines(tikz_content, file_conn)
+
+  cat("}\n", file = file_conn)
+  # Add extracted information as LaTeX commands
+  if (!is.null(plot_title) || !is.null(plot_subtitle)) {
+    caption <- plot_title
+    if (!is.null(plot_subtitle)) {
+      caption <- paste0(caption, ". \\\\ \\textit{", plot_subtitle, "}")
+    }
+    cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
+  }
+  # Add label for referencing
+  cat(sprintf("\\label{fig:%s}\n", name), file = file_conn)
+
+  # Close the figure environment
+  cat("\\end{figure}\n", file = file_conn)
+
+  # Close the file connection
+  close(file_conn)
 }
 
 do_sankey <- function(f) {

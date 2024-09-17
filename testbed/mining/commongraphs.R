@@ -454,11 +454,15 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
   return(p)
 }
 
-output_placement_method_comparison <- function(respected_sla, functions_total, node_levels, bids_won_function) {
+output_placement_method_comparison <- function(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times) {
   df <- respected_sla %>%
     filter(docker_fn_name == "echo") %>%
     group_by(folder, metric_group, metric_group_group) %>%
-    summarise(respected_slas = sum(acceptable_chained) / sum(total), .groups = "drop") %>%
+    summarise(
+      respected_slas = sum(acceptable_chained) / sum(total),
+      avg_latency = mean(as.numeric(measured_latency), na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
     inner_join(
       functions_total %>%
         filter(status == "provisioned") %>%
@@ -488,50 +492,67 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
         ),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
+    inner_join(
+      raw_deployment_times %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(avg_deployment_time = mean(value, na.rm = TRUE) / 1000, .groups = "drop"),
+      by = c("folder", "metric_group_group", "metric_group")
+    ) %>%
     mutate(total_cost = total_cost / total_functions)
 
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost)
+    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost, avg_latency, avg_deployment_time)
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
-    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost), 
-                  ~scale(.), .names = "{.col}_scaled"))
+    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time),
+      ~ scale(.),
+      .names = "{.col}_scaled"
+    ))
 
   # Define the order of metrics
-  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "total_cost")
+  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "total_cost", "avg_latency", "avg_deployment_time")
 
   # Reshape data for ggplot
   df_long <- df %>%
-    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, nodes) %>%
-    pivot_longer(cols = ends_with("_scaled"),
-                 names_to = "metric", 
-                 values_to = "value") %>%
-    mutate(metric = sub("_scaled$", "", metric),
-           metric = factor(metric, levels = metric_order),
-           raw_value = case_when(
-             metric == "respected_slas" ~ respected_slas,
-             metric == "functions_deployed" ~ functions_deployed,
-             metric == "requests_served" ~ requests_served,
-             metric == "total_cost" ~ total_cost
-           ))
+    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, nodes) %>%
+    pivot_longer(
+      cols = ends_with("_scaled"),
+      names_to = "metric",
+      values_to = "value"
+    ) %>%
+    mutate(
+      metric = sub("_scaled$", "", metric),
+      metric = factor(metric, levels = metric_order),
+      raw_value = case_when(
+        metric == "respected_slas" ~ respected_slas,
+        metric == "functions_deployed" ~ functions_deployed,
+        metric == "requests_served" ~ requests_served,
+        metric == "total_cost" ~ total_cost,
+        metric == "avg_latency" ~ avg_latency,
+        metric == "avg_deployment_time" ~ avg_deployment_time
+      )
+    )
+
+  # Define which metrics are better when higher
+  higher_better <- c("respected_slas", "functions_deployed", "requests_served")
 
   # Create the parallel coordinates plot
   p <- ggplot(df_long, aes(x = metric, y = value, color = placement_method)) +
-    geom_line(aes(group = run), alpha = 0.6) +
+    geom_line(aes(group = interaction(placement_method, env, run)), alpha = 0.6) +
     scale_y_continuous(limits = c(-3, 3)) +
-    scale_color_viridis_d() +  # Use viridis color palette for discrete values
-    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +  # Add name to size legend
+    scale_color_viridis_d() + # Use viridis color palette for discrete values
+    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") + # Add name to size legend
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
-      legend.position = "right",  # Move legend to the right
-      legend.box = "vertical"  # Stack legends vertically
+      legend.position = "right", # Move legend to the right
+      legend.box = "vertical" # Stack legends vertically
     ) +
     labs(
       title = "Placement Method Comparison (Centered and Reduced)",
@@ -542,12 +563,15 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     ) +
     geom_point(aes(size = nodes, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Environment: %s<br>Run: %s<br>Raw Value: %.2f<br>Standardized Value: %.2f<br>Number of Fog Nodes: %d",
-      metric, placement_method, env, run, 
+      metric, placement_method, env, run,
       raw_value,
       value,
       nodes
     ))) +
-    guides(size = guide_legend(title = "Number of Fog Nodes"))  # Ensure size legend has correct title
+    guides(size = guide_legend(title = "Number of Fog Nodes")) + # Ensure size legend has correct title
+    geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dashed", color = "gray", alpha = 0.25) +
+    annotate("text", x = length(higher_better) / 2, y = 3.2, label = "Higher is better", color = "darkgreen") +
+    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 3.2, label = "Lower is better", color = "darkred")
 
   return(p)
 }

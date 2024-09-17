@@ -206,7 +206,7 @@ functions_all_total <- mem(load_functions_all_total)(functions)
 bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids_won_function)
 
-export_graph("spider_chart", mem(output_placement_method_comparison)(respected_sla, functions_total, node_levels, bids_won_function))
+spider_chart <- export_graph("spider_chart", mem(output_placement_method_comparison)(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
 export_graph("provisioned", mem(output_provisioned_simple)(functions_total, node_levels))
 export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total, node_levels))
 export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total, node_levels))
@@ -218,5 +218,6 @@ export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provi
 export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
+export_graph_tikz("spider_chart", spider_chart, 4, 4)
 
 parallel::stopCluster(cl)
