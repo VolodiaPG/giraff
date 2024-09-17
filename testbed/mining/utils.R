@@ -766,10 +766,11 @@ write_multigraphs <- function(graphs) {
 
 export_graph <- mem(function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
-  Log(paste0("Graphing ", callback_name))
+  Log(paste0("Graphing ", callback_name, " ..."))
   # ggsave(paste0("out/", name, ".png"), ggplot_graph)
   p <- ggplotly(ggplot_graph)
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
+  Log(paste0("Graphing ", callback_name, " ...done"))
 })
 
 export_graph_non_ggplot <- function(name, graph) {

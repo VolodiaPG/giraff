@@ -10,14 +10,14 @@
             "image": "giraff:fn_image_processing_pillow",
             "mem": 400,
             "cpu": 200,
-            "input_max_size": "60 KiB",
+            "input_max_size": "52 Kib",
             "latency": "LOW_LATENCY"
         },
         "classif": {
             "nextFunction": "echo",
             "image": "giraff:fn_image_classification_squeezenet_cpu",
-            "mem": 500,
-            "cpu": 300,
+            "mem": 1024,
+            "cpu": 600,
             "input_max_size": "16 KiB",
             "latency": "HIGH_LATENCY"
         },
@@ -25,7 +25,7 @@
             "image": "giraff:fn_echo",
             "mem": 100,
             "cpu": 100,
-            "latency": "NO_LATENCY"
+            "latency": "HIGHER_LATENCY"
         }
     }
 }

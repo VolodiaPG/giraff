@@ -10,8 +10,8 @@
             "image": "giraff:fn_speech_recognition",
             "mem": 500,
             "cpu": 300,
-            "input_max_size": "200 KiB",
-            "latency": "HIGHER_LATENCY"
+            "input_max_size": "32 KiB",
+            "latency": "NO_LATENCY"
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",

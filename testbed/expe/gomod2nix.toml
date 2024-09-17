@@ -58,6 +58,9 @@ schema = 3
   [mod."go.uber.org/zap"]
     version = "v1.26.0"
     hash = "sha256-EUQnALSDtoJryWp01K/PMbRUvQYG1uDbqGnlJ/7thE4="
+  [mod."golang.org/x/exp"]
+    version = "v0.0.0-20231110203233-9a3e6036ecaa"
+    hash = "sha256-m1T4KePBRCJpAjnuq4BnDYXebOHiVI6h2489XD5R9BA="
   [mod."golang.org/x/net"]
     version = "v0.28.0"
     hash = "sha256-WdH/mgsX/CB+CiYtXEwJAXHN8FgtW2YhFcWwrrHNBLo="
@@ -67,6 +70,9 @@ schema = 3
   [mod."golang.org/x/text"]
     version = "v0.17.0"
     hash = "sha256-R8JbsP7KX+KFTHH7SjRnUGCdvtagylVOfngWEnVSqBc="
+  [mod."gonum.org/v1/gonum"]
+    version = "v0.15.1"
+    hash = "sha256-A1KjWeZNRVBENySDQA5WpJBkr8qkPh+kWamUUIMcixE="
   [mod."google.golang.org/genproto/googleapis/api"]
     version = "v0.0.0-20240822170219-fc7c04adadcd"
     hash = "sha256-e9bJpQnQRiQc3EVDhjtD6rDS2mZk38RmRJ13xu9Qt+w="

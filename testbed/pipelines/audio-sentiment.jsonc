@@ -10,7 +10,7 @@
             "image": "giraff:fn_speech_recognition",
             "mem": 500,
             "cpu": 300,
-            "input_max_size": "200 KiB",
+            "input_max_size": "32 KiB",
             "latency": "LOW_LATENCY"
         },
         "sentimentAnalysis": {
@@ -18,14 +18,14 @@
             "image": "giraff:fn_sentiment_analysis",
             "mem": 400,
             "cpu": 300,
-            "latency": "LOW_LATENCY",
+            "latency": "HIGH_LATENCY",
             "input_max_size": "4 KiB"
         },
         "echo": {
             "image": "giraff:fn_echo",
             "mem": 100,
             "cpu": 100,
-            "latency": "NO_LATENCY"
+            "latency": "HIGHER_LATENCY"
         }
     }
 }

@@ -294,10 +294,6 @@ output_number_requests_total <- function(respected_sla, node_levels) {
 }
 
 output_mean_time_to_deploy_simple_total <- function(deployment_times, node_levels, paid_functions) {
-  Log(colnames(deployment_times))
-  Log(colnames(node_levels))
-  Log(colnames(paid_functions))
-
   df <- deployment_times %>%
     inner_join(node_levels %>%
       group_by(metric_group, metric_group_group, folder) %>%
@@ -312,15 +308,22 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
     ungroup() %>%
     mutate(y_centered = (y - mean(y, na.rm = TRUE)) / sd(y, na.rm = TRUE))
 
-  Log(df %>% filter(placement_overhead > 4000) %>% arrange(timestamp) %>% select(placement_overhead, kube_overhaead, value, timestamp_paid, timestamp))
-
-  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = placement_overhead)) +
+  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = placement_overhead, color = placement_method)) +
     facet_grid(cols = vars(placement_method)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
-      y = "Mean time to deploy",
-      x = "fog net size",
+      y = "Mean time to deploy (seconds)",
+      x = "Fog network size (number of nodes)",
+      title = "Single Function Deployment Time vs. Network Size",
+      subtitle = "Comparison across different placement methods",
+      caption = "Lower values indicate faster deployment",
+      color = "Placement Method"
+    ) +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = 8)
     ) +
     # coord_cartesian(ylim = c(-1, 1), clip = "on") +
     guides(colour = guide_legend(ncol = 1)) +
@@ -328,8 +331,8 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
     scale_fill_viridis(discrete = TRUE) +
     # geom_quasirandom(aes(shape = run, color = env, x = as.factor(n), y = value), method = "tukey", alpha = .2) +
     geom_boxplot(aes(alpha = 0.8), outlier.shape = NA) +
-    geom_violin(aes(alpha = 0.8), outlier.shape = NA) +
-    geom_text(data = df %>% filter(y_centered > 1), aes(y = 1, label = "+hidden"), nudge_x = 0.2)
+    geom_violin(aes(alpha = 0.8), outlier.shape = NA)
+  # geom_text(data = df %>% filter(y_centered > 1), aes(y = 1, label = "+hidden"), nudge_x = 0.2)
 
   return(p)
 }
@@ -357,7 +360,6 @@ output_requests_served_v_provisioned <- function(respected_sla, functions_total,
 
   df_centroid <- df %>%
     group_by(placement_method) %>%
-    # filter(n() > 3) %>% # Ensure at least 3 points in each group
     summarise(
       x_centered = mean(x_centered),
       y_centered = mean(y_centered),
@@ -368,26 +370,32 @@ output_requests_served_v_provisioned <- function(respected_sla, functions_total,
     scale_alpha_continuous(guide = "none") +
     scale_size_continuous(guide = "none") +
     labs(
-      x = "total requested functions",
-      y = "total requests",
+      x = "Total Requested Functions (Centered-reduced)",
+      y = "Total Requests (Centered-reduced)",
+      color = "Placement Method",
+      fill = "Placement Method",
+      size = "Number of Nodes"
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
     theme(
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
+      legend.position = "right",
+      legend.box = "vertical",
+      legend.margin = margin(5, 5, 5, 5),
+      legend.box.margin = margin(0, 0, 0, 0),
+      # legend.background = element_rect(fill = "white", color = "gray80"),
+      legend.title = element_text(face = "bold"),
+      legend.text = element_text(size = 8),
       axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
-    # guides(colour = guide_legend(nrow = 1)) +
+    guides(
+      color = guide_legend(order = 1),
+      fill = guide_legend(order = 1),
+      size = guide_legend(order = 2)
+    ) +
     stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
-    geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
+    geom_text(data = df_centroid, aes(label = label, x = x_centered, y = y_centered), check_overlap = TRUE, show.legend = FALSE) +
     geom_point(aes(size = n))
-  # stat_summary(aes(color = placement_method, fill = placement_method), fun = mean, geom = "bar", alpha = 0.5)
 
   return(p)
 }
@@ -443,5 +451,91 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
     geom_point(aes(size = nodes))
   # geom_line(aes(group = run, linetype = run), alpha = .1)
   # stat_summary(fun = mean, geom = "bar", alpha = 0.25)
+  return(p)
+}
+
+output_placement_method_comparison <- function(respected_sla, functions_total, node_levels) {
+  df <- respected_sla %>%
+    filter(docker_fn_name == "echo") %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(respected_slas = sum(acceptable_chained) / sum(total), .groups = "drop") %>%
+    inner_join(
+      functions_total %>%
+        filter(status == "provisioned") %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(functions_deployed = sum(n), .groups = "drop"),
+      by = c("folder", "metric_group_group", "metric_group")
+    ) %>%
+    inner_join(
+      respected_sla %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(requests_served = sum(total), .groups = "drop"),
+      by = c("folder", "metric_group_group", "metric_group")
+    ) %>%
+    inner_join(
+      node_levels %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(nodes = n(), .groups = "drop"),
+      by = c("folder", "metric_group_group", "metric_group")
+    )
+
+  # Explicitly extract placement_method and env
+  df <- df %>%
+    extract_context() %>%
+    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes)
+
+  # Center and reduce the variables
+  df <- df %>%
+    group_by(env, run) %>%
+    mutate(across(c(respected_slas, functions_deployed, requests_served), 
+                  ~scale(.), .names = "{.col}_scaled"))
+
+  # Define the order of metrics
+  metric_order <- c("respected_slas", "functions_deployed", "requests_served")
+
+  # Reshape data for ggplot
+  df_long <- df %>%
+    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, nodes) %>%
+    pivot_longer(cols = ends_with("_scaled"),
+                 names_to = "metric", 
+                 values_to = "value") %>%
+    mutate(metric = sub("_scaled$", "", metric),
+           metric = factor(metric, levels = metric_order),
+           raw_value = case_when(
+             metric == "respected_slas" ~ respected_slas,
+             metric == "functions_deployed" ~ functions_deployed,
+             metric == "requests_served" ~ requests_served
+           ))
+
+  # Create the parallel coordinates plot
+  p <- ggplot(df_long, aes(x = metric, y = value, color = placement_method)) +
+    geom_line(aes(group = run), alpha = 0.6) +
+    scale_y_continuous(limits = c(-3, 3)) +
+    scale_color_viridis_d() +  # Use viridis color palette for discrete values
+    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +  # Add name to size legend
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor = element_blank(),
+      legend.position = "right",  # Move legend to the right
+      legend.box = "vertical"  # Stack legends vertically
+    ) +
+    labs(
+      title = "Placement Method Comparison (Centered and Reduced)",
+      subtitle = "Values represent standard deviations from the mean",
+      x = "Metrics",
+      y = "Standardized Value",
+      color = "Placement Method"
+    ) +
+    geom_point(aes(size = nodes, text = sprintf(
+      "<br>Metric: %s<br>Placement Method: %s<br>Environment: %s<br>Run: %s<br>Raw Value: %.2f<br>Standardized Value: %.2f<br>Number of Fog Nodes: %d",
+      metric, placement_method, env, run, 
+      raw_value,
+      value,
+      nodes
+    ))) +
+    guides(size = guide_legend(title = "Number of Fog Nodes"))  # Ensure size legend has correct title
+
   return(p)
 }

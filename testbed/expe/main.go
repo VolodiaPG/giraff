@@ -29,6 +29,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gonum.org/v1/gonum/stat/distuv"
 )
 
 // A Function on the fog node
@@ -91,6 +92,7 @@ var (
 	logger                           otelzap.Logger
 	_Logger                          zap.Logger
 	arrivalRequestIntervalMultiplier float64
+	durationMultiplier               float64
 )
 
 // The FunctionPipeline is a description of the functions to deploy on the network
@@ -143,8 +145,24 @@ func init() {
 		if err != nil {
 			log.Println("There is error converting ARRIVAL_REQUEST_MULTIPLIER to float64, val is %s, err is %s", arrivals, err)
 		}
+	} else {
+		log.Println("No ARRIVAL_REQUEST_MULTIPLIER has been set, using default value of ", arrivalsNumber)
 	}
+
 	arrivalRequestIntervalMultiplier = arrivalsNumber
+
+	_durationMultiplier := os.Getenv("DURATION_MULTIPLIER")
+	durationMultiplerNumber := 1000.0
+	if _durationMultiplier != "" {
+		var err error
+		durationMultiplerNumber, err = strconv.ParseFloat(_durationMultiplier, 64)
+		if err != nil {
+			log.Println("There is error converting DURATION_MULTIPLIER to float64, val is %s, err is %s", _durationMultiplier, err)
+		}
+	} else {
+		log.Println("No DURATION_MULTIPLIER has been set, using default value of ", durationMultiplerNumber)
+	}
+	durationMultiplier = durationMultiplerNumber
 
 	randomSeed := os.Getenv("RANDOM_SEED")
 	seed := time.Now().UnixNano()
@@ -621,10 +639,8 @@ func loadFile(filename string) error {
 }
 
 func gamma(alpha, beta float64) float64 {
-	u := random.Float64()
-	x := math.Pow(1-u, 1/alpha)
-	y := math.Pow(u, 1/(alpha-1))
-	return beta * x * y
+	dist := distuv.Gamma{Alpha: alpha, Beta: beta}
+	return dist.Rand()
 }
 
 func saveFile(filename string) error {
@@ -648,7 +664,7 @@ func saveFile(filename string) error {
 			}
 			durations := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				durations[i] = int(math.Ceil(math.Abs(arrivalRequestIntervalMultiplier * gamma(2.35, 15))))
+				durations[i] = int(math.Ceil(math.Abs(durationMultiplier * gamma(2.35, 15))))
 			}
 			arrivals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
@@ -666,7 +682,7 @@ func saveFile(filename string) error {
 				fnChain := make([]Function, 0)
 
 				scalingRatio := float64(fnDesc.ExpectedRequestIntervalMs) / float64(requestInterval)
-				logger.Info("env", zap.Float64("ratio", scalingRatio), zap.Int("requestInterval", requestInterval))
+				logger.Info("env", zap.Float64("ratio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
 				for {
 					fn := fnDesc.Pipeline[fnName]
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)

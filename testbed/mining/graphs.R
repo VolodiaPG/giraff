@@ -9,7 +9,7 @@ output_latency <- function(latency) {
         facet_grid(cols = vars(folder)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
         geom_boxplot() +
-        #geom_quasirandom(method='tukey',alpha=.2) +
+        # geom_quasirandom(method='tukey',alpha=.2) +
         theme(legend.position = "none")
 }
 
@@ -23,7 +23,7 @@ output_loss <- function(latency) {
         ggplot(aes(x = sorted_interaction, y = value, color = (interaction(source, destination, sep = "_") == sorted_interaction), group = interaction(source, destination))) +
         facet_grid(cols = vars(folder)) +
         theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-        geom_quasirandom(method='tukey',alpha=.2) +
+        geom_quasirandom(method = "tukey", alpha = .2) +
         theme(legend.position = "none")
 }
 
@@ -145,7 +145,7 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
 
     animations <- lapply(data_grouped, FUN = create_plot)
     animations <- foreach(data = data_grouped, .verbose = FALSE, .combine = bind_rows) %dopar% {
-      create_plot(data)
+        create_plot(data)
     }
     return(animations)
 }
@@ -164,7 +164,7 @@ output_jains <- function(earnings.jains.plot.data.raw) {
         annotate("text", x = "\footnotesize{Edge\\dash{}furthest}", y = max(earnings.jains.plot.data.raw$worst_case) + .05, label = sprintf("$max(1/n)=%s$", max(earnings.jains.plot.data.raw$worst_case)), color = "black") +
         geom_beeswarm() +
         # stat_compare_means(comparisons = my_comparisons, label = "p.signif") +
-        #stat_anova_test() +
+        # stat_anova_test() +
         labs(
             x = "Placement method",
             y = "Jain's index"
@@ -312,11 +312,11 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
 output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
     compute <- function() {
         df <- respected_sla %>%
-            #left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+            # left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
             left_join(bids_won_function %>% ungroup() %>% select(function_name, winner, folder, sla_id) %>% rename(winner_prev = winner, prev_sla = sla_id, prev_function_name = function_name)) %>%
             # left_join(node_levels %>% rename(winner = name)) %>%
             # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
-            #mutate(prev_function = prev_function_name) %>%
+            # mutate(prev_function = prev_function_name) %>%
             ungroup()
 
         links <- df %>%
@@ -355,10 +355,10 @@ output_respected_sla_plot <- function(respected_sla, bids_won_function, node_lev
         df <- respected_sla %>%
             left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
             left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id) %>% rename(winner_prev = winner, prev_sla = sla_id)) %>%
-            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep="")) %>% select(name, folder, level) %>% rename(winner = name)) %>%
-            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep ="")) %>% select(name, folder, level) %>% rename(winner_prev = name, level_prev = level)) %>%
-#            mutate(sla_id = if_else(acceptable_chained == total, docker_fn_name, sla_id)) %>%
-#            mutate(prev_sla = if_else(acceptable_chained == total, prev_function, prev_sla)) %>%
+            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>% select(name, folder, level) %>% rename(winner = name)) %>%
+            left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>% select(name, folder, level) %>% rename(winner_prev = name, level_prev = level)) %>%
+            #            mutate(sla_id = if_else(acceptable_chained == total, docker_fn_name, sla_id)) %>%
+            #            mutate(prev_sla = if_else(acceptable_chained == total, prev_function, prev_sla)) %>%
             mutate(level_docker = paste0(level, docker_fn_name, sep = " ")) %>%
             mutate(level_prev_value = level_prev) %>%
             mutate(level_prev = paste0(level_prev, prev_function, sep = " ")) %>%
@@ -384,30 +384,30 @@ output_respected_sla_plot <- function(respected_sla, bids_won_function, node_lev
             mutate(source = level_prev) %>%
             mutate(target = level_docker) %>%
             mutate(value = acceptable_chained)
-            #mutate(name_source = prev_function) %>%
-            #mutate(name_target = docker_fn_name)
-        #links <- df1 %>%
+        # mutate(name_source = prev_function) %>%
+        # mutate(name_target = docker_fn_name)
+        # links <- df1 %>%
         #    mutate(source = level_docker) %>%
         #    mutate(target = docker_fn_name) %>%
         #    mutate(value = acceptable_chained) %>%
         #    mutate(name_source = level) %>%
         #    mutate(name_target = docker_fn_name) %>%
         #    full_join(links)
-        #links <- df2 %>%
+        # links <- df2 %>%
         #    mutate(source = prev_function) %>%
         #    mutate(target = level_docker) %>%
         #    mutate(value = acceptable_chained) %>%
         #    mutate(name_source = prev_function) %>%
         #    mutate(name_target = level) %>%
         #    full_join(links)
-        #links <- df2 %>%
+        # links <- df2 %>%
         #    mutate(source = level_docker) %>%
         #    mutate(target = sla_id) %>%
         #    mutate(value = acceptable_chained) %>%
         #    mutate(name_source = level) %>%
         #    mutate(name_target = docker_fn_name) %>%
         #    full_join(links)
-        #links <- df3 %>%
+        # links <- df3 %>%
         #    mutate(source = prev_sla) %>%
         #    mutate(target = level_docker) %>%
         #    mutate(value = acceptable_chained) %>%
@@ -419,21 +419,21 @@ output_respected_sla_plot <- function(respected_sla, bids_won_function, node_lev
         links <- df3 %>%
             mutate(source = level_prev) %>%
             mutate(target = "rejected") %>%
-            #mutate(name_source = prev_function) %>%
+            # mutate(name_source = prev_function) %>%
             mutate(value = total - acceptable_chained - all_errors) %>%
             full_join(links)
-        #links <- df3 %>%
+        # links <- df3 %>%
         #   mutate(source = prev_sla) %>%
         #   mutate(target = "errored") %>%
         #   mutate(name_source = prev_function) %>%
         #   mutate(value = all_errors) %>%
         #   full_join(links)
         links <- df1 %>%
-           mutate(source = level_prev) %>%
-           mutate(target = paste0("errored", level_docker, sep = " ")) %>%
-           mutate(name_target = paste0("errored", docker_fn_name, sep = " ")) %>%
-           mutate(value = all_errors) %>%
-           full_join(links)
+            mutate(source = level_prev) %>%
+            mutate(target = paste0("errored", level_docker, sep = " ")) %>%
+            mutate(name_target = paste0("errored", docker_fn_name, sep = " ")) %>%
+            mutate(value = all_errors) %>%
+            full_join(links)
 
         return(links)
     }
@@ -444,19 +444,19 @@ output_respected_sla_plot <- function(respected_sla, bids_won_function, node_lev
 output_respected_data_plot <- function(respected_sla) {
     df <- respected_sla %>%
         mutate(satisfied_ratio = acceptable_chained / total) %>%
-        #group_by(folder, docker_fn_name, metric_group) %>%
-        #summarise(satisfied_ratio = mean(satisfied_ratio) %>%
+        # group_by(folder, docker_fn_name, metric_group) %>%
+        # summarise(satisfied_ratio = mean(satisfied_ratio) %>%
         ungroup()
 
-    p <- ggplot(data = df, aes(alpha = 1, x=satisfied_ratio, color = docker_fn_name)) +
+    p <- ggplot(data = df, aes(alpha = 1, x = satisfied_ratio, color = docker_fn_name)) +
         facet_grid(rows = vars(metric_group)) +
         theme(legend.position = "none") +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         scale_y_continuous(labels = scales::percent) +
-        #geom_quasirandom(method='tukey',alpha=.2) +
-        #geom_boxplot() +
-       stat_ecdf() +
+        # geom_quasirandom(method='tukey',alpha=.2) +
+        # geom_boxplot() +
+        stat_ecdf() +
         labs(
             x = "Satisfaction rate",
             y = "ecdf"
@@ -466,10 +466,10 @@ output_respected_data_plot <- function(respected_sla) {
 
 output_arrival <- function(respected_sla) {
     df <- respected_sla %>%
-      extract_function_name_info() %>%
-#        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
-#        left_join(node_levels %>% rename(winner = name)) %>%
-#        mutate(y = count.acceptable) %>%
+        extract_function_name_info() %>%
+        #        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+        #        left_join(node_levels %>% rename(winner = name)) %>%
+        #        mutate(y = count.acceptable) %>%
         {
             .
         }
@@ -481,7 +481,7 @@ output_arrival <- function(respected_sla) {
             x = "function",
             y = "Inter-arrival of requests (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -499,7 +499,7 @@ output_respected_data_plot_simple <- function(respected_sla, bids_won_function, 
             .
         }
 
-    #print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
+    # print(respected_sla %>% ungroup() %>% select(docker_fn_name) %>% distinct())
     p <- ggplot(data = df, aes(x = factor(level_value), y = y, color = docker_fn_name, alpha = 1)) +
         facet_grid(rows = vars(pipeline)) +
         scale_color_viridis(discrete = TRUE) +
@@ -510,7 +510,7 @@ output_respected_data_plot_simple <- function(respected_sla, bids_won_function, 
             x = "Placement method",
             y = "Mean satisfaction rate"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -550,8 +550,8 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
     df <- respected_sla %>%
         mutate(measured_latency = as.numeric(measured_latency)) %>%
         select(-sla_id) %>%
-        #left_join(bids_won_function %>% ungroup() %>% select(folder, winner, sla_id) %>% distinct()) %>%
-        #left_join(node_levels %>% rename(winner = name)) %>%
+        # left_join(bids_won_function %>% ungroup() %>% select(folder, winner, sla_id) %>% distinct()) %>%
+        # left_join(node_levels %>% rename(winner = name)) %>%
         mutate(some_not_acceptable = acceptable + all_errors != total) %>%
         {
             .
@@ -564,7 +564,7 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
             x = "Placement method",
             y = "measured latency (in_flight) (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -575,28 +575,27 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
 output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_function) {
     df <- respected_sla %>%
         mutate(measured_latency = as.numeric(measured_latency)) %>%
-        #left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
+        # left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
         ungroup() %>%
         extract_function_name_info() %>%
-        #mutate(some_not_acceptable = acceptable + all_errors != total) %>%
+        # mutate(some_not_acceptable = acceptable + all_errors != total) %>%
         mutate(ratio = as.numeric(measured_latency) / as.numeric(latency)) %>%
         {
             .
         }
 
-    Log(df %>% select(prev_function, docker_fn_name) %>% distinct())
 
     p <- ggplot(data = df, aes(x = docker_fn_name, y = ratio, color = interaction(prev_function, docker_fn_name), alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
         # scale_y_continuous(trans = "log10") +
-        geom_abline(slope=0, intercept = 1) +
+        geom_abline(slope = 0, intercept = 1) +
         labs(
             x = "Function",
             y = "measured_latency/latency"
         ) +
         geom_boxplot()
-        #geom_quasirandom(method='tukey',alpha=.2)
+    # geom_quasirandom(method='tukey',alpha=.2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -614,7 +613,40 @@ output_duration_distribution_plot <- function(provisioned_sla) {
             x = "Placement method",
             y = "function duration (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        # geom_quasirandom(method='tukey',alpha=.2)
+        geom_beeswarm()
+
+
+    return(p)
+}
+
+output_request_interval_distribution_plot <- function(provisioned_sla) {
+    df <- provisioned_sla %>%
+        extract_function_name_info()
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = request_interval, color = docker_fn_name, alpha = 1)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        labs(
+            x = "Placement method",
+            y = "Request interval (s)"
+        ) +
+        geom_beeswarm()
+
+
+    return(p)
+}
+
+output_duration_distribution_plot <- function(provisioned_sla) {
+    df <- provisioned_sla %>%
+        extract_function_name_info()
+    p <- ggplot(data = df, aes(x = docker_fn_name, y = duration, color = docker_fn_name, alpha = 1)) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        labs(
+            x = "Placement method",
+            y = "function duration (s)"
+        ) +
+        geom_beeswarm()
 
 
     return(p)
@@ -630,14 +662,13 @@ output_latency_distribution_plot <- function(provisioned_sla) {
             x = "Placement method",
             y = "function required latency (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
-
+        geom_beeswarm()
 
     return(p)
 }
 
 output_request_distribution <- function(respected_sla) {
-  df <- respected_sla
+    df <- respected_sla
     p <- ggplot(data = df, aes(x = total, y = acceptable, color = docker_fn_name, alpha = 1)) +
         scale_color_viridis(discrete = TRUE) +
         scale_fill_viridis(discrete = TRUE) +
@@ -674,7 +705,7 @@ output_faults_per_function_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -683,10 +714,11 @@ output_faults_per_function_plot_simple <- function(respected_sla) {
 }
 
 
-output_ran_for_plot_simple <- function(respected_sla) {
+output_ran_for_plot_simple <- function(respected_sla, bids_won_function) {
     df <- respected_sla %>%
         mutate(ran_for = as.numeric(ran_for)) %>%
-        mutate(some_not_acceptable = acceptable + all_errors != total)
+        mutate(some_not_acceptable = acceptable + all_errors != total) %>%
+        left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id))
 
     p <- ggplot(data = df, aes(x = interaction(prev_function, docker_fn_name), y = ran_for, color = some_not_acceptable, alpha = 1)) +
         #  facet_grid(~var_facet) +
@@ -705,7 +737,8 @@ output_ran_for_plot_simple <- function(respected_sla) {
             x = "Placement method",
             y = "mean ran_for (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        # geom_quasirandom(method='tukey',alpha=.2)+
+        geom_point(aes(text = sprintf("<br>Function is: %s<br>Node is: %s", function_name, winner)))
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -732,9 +765,9 @@ output_function_latency_plot_simple <- function(respected_sla) {
         # scale_y_continuous(labels = scales::percent) +
         labs(
             x = "Placement method",
-            y = "mean ran_for (s)"
+            y = "function latency (s)"
         ) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
 
     mean_cb <- function(Letters, mean) {
         return(sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100))
@@ -840,42 +873,42 @@ output_mean_time_to_deploy_simple <- function(raw.deployment_times) {
         guides(colour = guide_legend(ncol = 1)) +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
     return(p)
 }
 
 output_spending_plot_simple <- function(bids_won, node_levels) {
-  df <- bids_won %>%
-    extract_function_name_info() %>%
-    left_join(node_levels %>% rename(winner = name))
- #   group_by(folder, metric_group, metric_group_group, level_value) %>%
- #   summarise(cost = mean(cost))
-  p <- ggplot(data = df, aes(x = winner, y = cost, alpha = 1)) +
-    theme(legend.position = "none") +
-    #facet_grid(rows = vars(level_value)) +
-    scale_alpha_continuous(guide = "none") +
-    labs(
-      y = "Function cost",
-      x = "Placement method",
-    ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
-    theme(
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
-    ) +
-    scale_color_viridis(discrete = TRUE) +
-    scale_fill_viridis(discrete = TRUE) +
-    guides(colour = guide_legend(nrow = 1)) +
-    geom_quasirandom(aes(color=factor(level_value)), method='tukey',alpha=.2)
-    #geom_line(aes(group = metric_group_group), alpha = .2) +
-    #geom_point(aes(color = metric_group, fill = metric_group, )) +
-    #stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
-  return(p)
+    df <- bids_won %>%
+        extract_function_name_info() %>%
+        left_join(node_levels %>% rename(winner = name))
+    #   group_by(folder, metric_group, metric_group_group, level_value) %>%
+    #   summarise(cost = mean(cost))
+    p <- ggplot(data = df, aes(x = winner, y = cost, alpha = 1)) +
+        theme(legend.position = "none") +
+        # facet_grid(rows = vars(level_value)) +
+        scale_alpha_continuous(guide = "none") +
+        labs(
+            y = "Function cost",
+            x = "Placement method",
+        ) +
+        theme(legend.background = element_rect(
+            fill = alpha("white", .7),
+            size = 0.2, color = alpha("white", .7)
+        )) +
+        theme(
+            legend.spacing.y = unit(0, "cm"),
+            legend.margin = margin(0, 0, 0, 0),
+            legend.box.margin = margin(-10, -10, -10, -10),
+            axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
+        ) +
+        scale_color_viridis(discrete = TRUE) +
+        scale_fill_viridis(discrete = TRUE) +
+        guides(colour = guide_legend(nrow = 1)) +
+        geom_quasirandom(aes(color = factor(level_value)), method = "tukey", alpha = .2)
+    # geom_line(aes(group = metric_group_group), alpha = .2) +
+    # geom_point(aes(color = metric_group, fill = metric_group, )) +
+    # stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
+    return(p)
 }
 
 output_spending_plot <- function(plots.spending.data) {
@@ -915,10 +948,8 @@ output_spending_plot <- function(plots.spending.data) {
     return(plots.spending)
 }
 
-output_raw_cpu_usage <- function(raw_cpu){
+output_raw_cpu_usage <- function(raw_cpu) {
     df <- raw_cpu
-    Log(raw_cpu %>% ungroup() %>% select(used, initial_allocatable, folder))
-    Log(raw_cpu %>% filter(used < 0.0))
 
     p <- ggplot(data = df, aes(x = timestamp, y = used, color = folder, alpha = 1)) +
         theme(legend.position = "none") +
@@ -939,7 +970,6 @@ output_raw_cpu_usage <- function(raw_cpu){
         guides(colour = guide_legend(ncol = 1)) +
         scale_color_viridis(discrete = T) +
         scale_fill_viridis(discrete = T) +
-        geom_quasirandom(method='tukey',alpha=.2)
+        geom_quasirandom(method = "tukey", alpha = .2)
     return(p)
-
 }

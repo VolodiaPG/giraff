@@ -16,13 +16,13 @@ pkgs.stdenv.mkDerivation rec {
   # find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; ffmpeg -i $f -codec:a libmp3lame -qscale:a 2 "''${f%.flac}.mp3"'
   # find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; flac --decode "$f" "''${f%.flac}.wav"'
   buildPhase = ''
-      echo "Converting from FLAC to WAV"
-    find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; ffmpeg -i $f -ar 8000 -ac 1 -c:a pcm_s16le "''${f%.flac}.wav"'
+    echo "Converting from FLAC to WAV"
+    find . -type f -name '*.flac' -print0 | xargs -0 -I {} sh -c 'f="{}"; ffmpeg -i "$f" -ar 8000 -ac 1 -c:a pcm_s16le "''${f%.flac}.wav"'
   '';
 
   installPhase = ''
     mkdir -p $out
-    find -name '*.wav' -type f -size "-200k" -print0 | xargs -0 -r -- cp -t "$out/" --
+    find -name '*.wav' -type f -size "-32k" -print0 | xargs -0 -r -- cp -t "$out/" --
   '';
 
   meta = with pkgs.lib; {

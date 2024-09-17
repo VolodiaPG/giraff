@@ -12,7 +12,7 @@ pkgs.stdenv.mkDerivation rec {
 
   installPhase = ''
     mkdir -p $out
-    find -name '*.JPEG' -type f -size "-64k" -print0 | xargs -0 -r -- cp -t "$out/" --
+    find -name '*.JPEG' -type f -size "-50k" -print0 | xargs -0 -r -- cp -t "$out/" --
   '';
 
   meta = with pkgs.lib; {
