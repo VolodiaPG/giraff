@@ -543,16 +543,20 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Create the parallel coordinates plot
   p <- ggplot(df_long, aes(x = metric, y = value, color = placement_method)) +
     geom_line(aes(group = interaction(placement_method, env, run)), alpha = 0.6) +
-    scale_y_continuous(limits = c(-3, 3)) +
-    scale_color_viridis_d() + # Use viridis color palette for discrete values
-    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") + # Add name to size legend
+    scale_y_continuous(limits = c(-2, 2)) +
+    scale_color_viridis_d() +
+    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +
     theme_minimal() +
     theme(
       axis.text.x = element_text(angle = 45, hjust = 1),
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
-      legend.position = "right", # Move legend to the right
-      legend.box = "vertical" # Stack legends vertically
+      legend.position = "bottom",
+      legend.box = "vertical",
+      legend.direction = "horizontal",
+      legend.spacing.x = unit(0.2, "cm"),
+      plot.margin = margin(5.5, 5.5, 20, 5.5, "pt"),
+      aspect.ratio = 0.4 # Adjusted to make the plot more horizontal
     ) +
     labs(
       title = "Placement Method Comparison (Centered and Reduced)",
@@ -567,11 +571,14 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       raw_value,
       value,
       nodes
-    ))) +
-    guides(size = guide_legend(title = "Number of Fog Nodes")) + # Ensure size legend has correct title
+    )), alpha = 0.6, stroke = 0) +
+    guides(
+      color = guide_legend(title = "Placement Method", ncol = 2, byrow = TRUE),
+      size = guide_legend(title = "Number of Fog Nodes", nrow = 1)
+    ) +
     geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dashed", color = "gray", alpha = 0.25) +
-    annotate("text", x = length(higher_better) / 2, y = 3.2, label = "Higher is better", color = "darkgreen") +
-    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 3.2, label = "Lower is better", color = "darkred")
+    annotate("text", x = length(higher_better) / 2, y = 2.5, label = "Higher is better", color = "darkgreen") +
+    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 2.5, label = "Lower is better", color = "darkred")
 
   return(p)
 }
