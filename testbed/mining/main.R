@@ -218,6 +218,6 @@ export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provi
 export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
-export_graph_tikz("spider_chart", spider_chart, 4, 4)
+export_graph_tikz("spider_chart", spider_chart, 10, 4)
 
 parallel::stopCluster(cl)

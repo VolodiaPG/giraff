@@ -819,7 +819,7 @@ export_graph_tikz <- function(name, plot, width, height) {
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
 
-  # Remove title, subtitle, and axis labels from the plot
+  # Remove title, subtitle
   plot <- plot + ggplot2::theme(
     title = ggplot2::element_blank(),
   )
@@ -832,9 +832,9 @@ export_graph_tikz <- function(name, plot, width, height) {
 
   file_conn <- file(tikz_name, "a")
 
+  fig(width, height)
+
   # Write new content directly to the file
-  cat("\\begin{figure}[htbp]\n", file = file_conn)
-  cat("\\centering\n", file = file_conn)
   cat(sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width), file = file_conn)
 
   close(file_conn)
@@ -868,9 +868,6 @@ export_graph_tikz <- function(name, plot, width, height) {
   }
   # Add label for referencing
   cat(sprintf("\\label{fig:%s}\n", name), file = file_conn)
-
-  # Close the figure environment
-  cat("\\end{figure}\n", file = file_conn)
 
   # Close the file connection
   close(file_conn)

@@ -542,21 +542,20 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
 
   # Create the parallel coordinates plot
   p <- ggplot(df_long, aes(x = metric, y = value, color = placement_method)) +
-    geom_line(aes(group = interaction(placement_method, env, run)), alpha = 0.6) +
     scale_y_continuous(limits = c(-2, 2)) +
     scale_color_viridis_d() +
     scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +
     theme_minimal() +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.x = element_text(angle = 25, hjust = 1),
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
-      legend.position = "bottom",
+      legend.position = "right",
       legend.box = "vertical",
-      legend.direction = "horizontal",
-      legend.spacing.x = unit(0.2, "cm"),
-      plot.margin = margin(5.5, 5.5, 20, 5.5, "pt"),
-      aspect.ratio = 0.4 # Adjusted to make the plot more horizontal
+      legend.direction = "vertical",
+      legend.spacing.y = unit(0.2, "cm"),
+      plot.margin = margin(5.5, 20, 5.5, 5.5, "pt"),
+      aspect.ratio = 0.6 # Adjusted for legend on the right
     ) +
     labs(
       title = "Placement Method Comparison (Centered and Reduced)",
@@ -573,12 +572,47 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       nodes
     )), alpha = 0.6, stroke = 0) +
     guides(
-      color = guide_legend(title = "Placement Method", ncol = 2, byrow = TRUE),
+      color = guide_legend(title = "Placement Method", ncol = 1, byrow = TRUE),
       size = guide_legend(title = "Number of Fog Nodes", nrow = 1)
     ) +
-    geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dashed", color = "gray", alpha = 0.25) +
-    annotate("text", x = length(higher_better) / 2, y = 2.5, label = "Higher is better", color = "darkgreen") +
-    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 2.5, label = "Lower is better", color = "darkred")
+    geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dotted", color = "gray", alpha = 0.25) +
+    annotate("text", x = length(higher_better) / 2, y = 1.9, label = "Higher is better", color = "darkgreen", size = 3, alpha = 0.6, vjust = 1) +
+    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 1.9, label = "Lower is better", color = "darkred", size = 3, alpha = 0.6, vjust = 1) +
+    coord_cartesian(clip = "off") +
+    geom_point(aes(size = nodes, text = sprintf(
+      "<br>Metric: %s<br>Placement Method: %s<br>Environment: %s<br>Run: %s<br>Raw Value: %.2f<br>Standardized Value: %.2f<br>Number of Fog Nodes: %d",
+      metric, placement_method, env, run,
+      raw_value,
+      value,
+      nodes
+    )), alpha = 0.6, stroke = 0)
+
+  p <- p + geom_line(
+    data = df_long %>%
+      filter(metric %in% higher_better) %>%
+      group_by(placement_method, env, run),
+    aes(group = interaction(placement_method, env, run)),
+    alpha = 0.6,
+    size = 0.3
+  )
+  p <- p + geom_line(
+    data = df_long %>%
+      filter(!metric %in% higher_better) %>%
+      group_by(placement_method, env, run),
+    aes(group = interaction(placement_method, env, run)),
+    alpha = 0.6,
+    size = 0.3
+  )
+  p <- p + geom_line(
+    data = df_long %>%
+      filter(metric %in% c(metric_order[length(higher_better)], metric_order[length(higher_better) + 1])) %>%
+      group_by(placement_method, env, run) %>%
+      filter(n() == 2),
+    aes(group = interaction(placement_method, env, run)),
+    alpha = 0.5,
+    linetype = "dotted",
+    size = 0.3
+  )
 
   return(p)
 }
