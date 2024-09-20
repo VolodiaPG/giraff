@@ -862,7 +862,7 @@ export_graph_tikz <- function(name, plot, width, height) {
   if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
-      caption <- paste0(caption, ". \\\\ \\textit{", plot_subtitle, "}")
+      caption <- paste0(caption, ". \\\\ \\small\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
     }
     cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
   }

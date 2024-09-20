@@ -35,6 +35,7 @@ init <- function() {
   # library(ggside)
   library(ggbeeswarm)
   library(multidplyr)
+  library(multcompView)
   # library(ggpubr)
   # library(Hmisc)
   # library(rstatix)
@@ -217,7 +218,10 @@ export_graph("total_requests_served_total", mem(output_number_requests_total)(re
 export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
 export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
+output_mean_respected_slas <- mem(output_mean_respected_slas)(respected_sla, node_levels)
+export_graph("output_mean_respected_slas", output_mean_respected_slas)
 
-export_graph_tikz("spider_chart", spider_chart, 10, 4)
+export_graph_tikz("spider_chart", spider_chart, 15, 4)
+export_graph_tikz("output_mean_respected_slas", output_mean_respected_slas, 5, 4)
 
 parallel::stopCluster(cl)

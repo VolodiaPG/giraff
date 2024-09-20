@@ -35,9 +35,11 @@
             zoo
             #gghighlight
             #ggdist
+            ggrepel
             #ggbreak
             #lemon
             ggforce
+            multcompView
             ggprism
             #ggh4x
             #ggExtra

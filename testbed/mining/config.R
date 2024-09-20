@@ -7,7 +7,7 @@ workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
-single_graphs <- TRUE
+single_graphs <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 5
@@ -77,6 +77,10 @@ METRICS_ARKS <- c(
   "metrics_valuation_rates.env_1_1726745431-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-19-11-55.tar.xz",
   "metrics_valuation_rates.env_1_1726745431-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-19-12-36.tar.xz",
   "metrics_valuation_rates.env_1_1726745431-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-19-12-57.tar.xz",
+  "metrics_valuation_rates.env_1_1726752700-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-19-15-24.tar.xz",
+  "metrics_valuation_rates.env_1_1726752700-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-19-14-48.tar.xz",
+  "metrics_valuation_rates.env_1_1726752700-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-09-19-16-00.tar.xz",
+  "metrics_valuation_rates.env_1_1726752700-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-09-19-14-11.tar.xz",
   #---
   #---
   #---
