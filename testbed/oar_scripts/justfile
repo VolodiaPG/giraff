@@ -75,3 +75,16 @@ watch script args="":
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
     ssh -t -o LogLevel=ERROR $city.grid5000.fr watch -t -n 10 ./{{ script }} {{ args }}
+
+[private]
+show_machine_usage:
+    #!/usr/bin/env bash
+    set -e
+    source ../.env
+    city=`cd ..; just city`
+    ssh -o LogLevel=ERROR $city.grid5000.fr 'oarstat -f | jq -r ".[] | [.owner, .assigned_resources | length] | @tsv" | sort | awk "{sum[\$1] += \$2} END {for (user in sum) print user, sum[user]}" | sort -rnk2' | \
+    awk 'BEGIN {print "User\tMachines"; print "----\t--------"} {printf "%-10s\t%d\n", $1, $2}' | \
+    column -t -s $'\t'
+
+watch_machine_usage:
+    @watch -n 10 just show_machine_usage

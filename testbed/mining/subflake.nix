@@ -21,7 +21,8 @@
                   ]);
               })
             )
-            #cowplot
+            cowplot
+            patchwork
             #reticulate
             vroom
             tidyverse
@@ -52,6 +53,7 @@
             Hmisc
             #rstatix
             #multcompView
+            car
 
             doParallel
             foreach
@@ -111,7 +113,7 @@
               ++ (with pkgs; [
                 python3
                 (texlive.combine {
-                  inherit (texlive) scheme-basic xetex pgf preview fontspec xunicode;
+                  inherit (texlive) scheme-basic xetex pgf preview fontspec xunicode latex-tools-dev ms graphics ec;
                 })
                 rPackages.tikzDevice
               ]);

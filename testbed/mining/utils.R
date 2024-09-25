@@ -300,19 +300,15 @@ remove_new <- function(aes) {
 correct_names <- function(x) {
   return(
     x %>%
-      mutate(metric_group_rich = case_when(
-        metric_group == "auction" ~ "\\footnotesize{\\mbox{\\rmfamily\\bfseries GIRAFF}}",
-        metric_group == "edge_ward" ~ "\\footnotesize{Edge\\dash{}ward}",
-        metric_group == "edge_ward_furthest" ~ "\\footnotesize{Edge\\dash{}ward furthest}",
-        metric_group == "edge_first" ~ "\\footnotesize{Edge\\dash{}first}",
-        # metric_group == "edge_furthest" ~ "Edge furthest",
-        metric_group == "edge_first_v2" ~ "\\footnotesize{Edge\\dash{}furthest}",
-        TRUE ~ metric_group
-      )) %>%
-      # mutate(metric_group = factor(metric_group, levels = c("edge_ward", "edge_ward_furthest", "edge_first", "edge_first_v2", "auction"), ordered = TRUE)) %>%
-      # mutate(metric_group_rich = factor(metric_group_rich, levels = unique(metric_group), ordered = TRUE)) %>%
-      rename(`Placement method` = metric_group_rich)
-    # mutate(`Placement method` = factor(`Placement method`, levels = factor(unique(metric_group), ordered = TRUE), ordered = TRUE))
+      mutate(placement_method = case_when(
+        placement_method == "auctionno_complication" ~ "\\footnotesize{GIRAFF}",
+        placement_method == "auctionreduction" ~ "\\footnotesize{GIRAFF (reduction)}",
+        placement_method == "edge_wardno_complication" ~ "\\footnotesize{Edge\\dash{}ward}",
+        placement_method == "edge_firstno_complication" ~ "\\footnotesize{Edge\\dash{}first}",
+        placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge\\dash{}furthest}",
+        placement_method == "mincpurandomno_complication" ~ "\\footnotesize{MinCPU random}",
+        TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
+      ))
   )
 }
 
@@ -766,25 +762,53 @@ write_multigraphs <- function(graphs) {
 
 export_graph <- mem(function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
-  Log(paste0("Graphing ", callback_name, " ..."))
-  ggsave(paste0("out/", name, ".png"), ggplot_graph)
+  Log(paste0("Graphing (", name, ") ", callback_name, " ..."))
+  # ggsave(paste0("out/", name, ".png"), ggplot_graph)
+
+  # Extract subtitle from the ggplot object
+  plot_subtitle <- ggplot_graph$labels$subtitle
+
+  # Create plotly object
   p <- ggplotly(ggplot_graph)
+
+  # Add subtitle to plotly object if it exists
+  if (!is.null(plot_subtitle)) {
+    p <- p %>% layout(
+      title = list(
+        text = paste0(p$x$layout$title$text, "<br><sub>", plot_subtitle, "</sub>"),
+        font = list(size = 14)
+      )
+    )
+  }
+
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
-  Log(paste0("Graphing ", callback_name, " ...done"))
-  return(ggplot_graph)
+  Log(paste0("Graphing ", name, " ...done"))
+  return(list(name = name, graph = ggplot_graph))
 })
 
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
 }
 
-export_graph_tikz <- function(name, plot, width, height) {
-  if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
-    warning("tikzDevice package not found. TikZ export skipped.")
-    Log("tikzDevice package not found. TikZ export skipped.")
-    return()
-  }
+draw <- function(plot, x_in = 3, y_in = 3) {
+  grid::grid.newpage()
+
+  grid::rectGrob(gp = grid::gpar(fill = "gray")) |>
+    grid::grid.draw()
+
+  grid::viewport(
+    width = 1,
+  ) |>
+    grid::pushViewport()
+
+  ggplot2::ggplot_build(plot) |>
+    ggplot2::ggplot_gtable() |>
+    grid::grid.draw()
+}
+
+load_tikz <- function() {
   library(tikzDevice)
+
   options(tikzDefaultEngine = "xetex")
   options(
     tikzSanitizeCharacters = c("%", "&", "#", "\\$", "\\{", "\\}", "\\^", "\\~", "ƒ", "_"),
@@ -811,66 +835,102 @@ export_graph_tikz <- function(name, plot, width, height) {
   )
 
   tikzDevice::tikzTest()
+}
 
-  tikz_name <- paste0("out/", name, ".tex")
+export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_ratio = 1 / 3, caption = NULL) {
+  if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
+    warning("tikzDevice package not found. TikZ export skipped.")
+    Log("tikzDevice package not found. TikZ export skipped.")
+    return()
+  }
+  load_tikz()
+
+  plot_name <- plot$name
+  plot_graph <- plot$graph
+  tikz_name <- paste0("out/", plot_name, ".tex")
 
   # Extract title, subtitle, and axis labels from the ggplot object
-  built_plot <- ggplot2::ggplot_build(plot)
+  built_plot <- ggplot2::ggplot_build(plot_graph)
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
 
-  # Remove title, subtitle
-  plot <- plot + ggplot2::theme(
+  plot_graph <- plot_graph + ggplot2::theme(
     title = ggplot2::element_blank(),
   )
-  # Determine tex_width based on GRAPH_ONE_COLUMN_WIDTH (assuming it's defined elsewhere)
-  tex_width <- if (width > GRAPH_ONE_COLUMN_WIDTH) 2 else 1
+  if (remove_legend) {
+    plot_graph <- plot_graph + theme(legend.position = "none")
+  }
+  plot_graph <- plot_graph +
+    theme(
+      aspect.ratio = aspect_ratio,
+    ) +
+    coord_cartesian(clip = "off", expand = FALSE)
+
+  tex_width <- 1
 
   # Open the file in write mode
   file_conn <- file(tikz_name, "w")
-  close(file_conn)
 
-  file_conn <- file(tikz_name, "a")
-
-  fig(width, height)
-
-  # Write new content directly to the file
+  # Write the resizebox command
   cat(sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width), file = file_conn)
 
-  close(file_conn)
+  # Capture tikz output
+  capture.output(
+    file = file_conn, append = TRUE,
+    tikz(console = TRUE, width = width, height = height, standAlone = FALSE, sanitize = TRUE),
+    draw(plot_graph, x_in = width, y_in = height),
+    graphics.off()
+  )
 
-  # Create a temporary file for the tikz content
-  temp_file <- tempfile(fileext = ".tex")
-
-  # Generate the tikz content in the temporary file
-  tikzDevice::tikz(temp_file, width = width, height = height, standAlone = FALSE, sanitize = TRUE)
-  print(plot)
-  dev.off()
-
-  # Read the generated content from the temporary file
-  tikz_content <- readLines(temp_file)
-
-  # Remove the temporary file
-  file.remove(temp_file)
-
-  # Open the target file in write mode to replace its content
-  file_conn <- file(tikz_name, "a")
-  writeLines(tikz_content, file_conn)
-
+  # Close the resizebox
   cat("}\n", file = file_conn)
-  # Add extracted information as LaTeX commands
-  if (!is.null(plot_title) || !is.null(plot_subtitle)) {
+
+  # Add caption if provided
+  if (!is.null(caption)) {
+    cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
+  } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
-      caption <- paste0(caption, ". \\\\ \\small\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
+      caption <- paste0(caption, ". \\\\ \\tiny\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
     }
     cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
   }
+
   # Add label for referencing
-  cat(sprintf("\\label{fig:%s}\n", name), file = file_conn)
+  cat(sprintf("\\label{fig:%s}\n", plot_name), file = file_conn)
 
   # Close the file connection
   close(file_conn)
+}
+
+merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, aspect_ratio = 1 / 5) {
+  if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
+    warning("tikzDevice package not found. TikZ export skipped.")
+    Log("tikzDevice package not found. TikZ export skipped.")
+    return()
+  }
+
+  # Extract names and graphs from dummy_graphs
+  graph_names <- lapply(dummy_graphs, function(x) x$name)
+  graphs <- lapply(dummy_graphs, function(x) x$graph)
+
+  combined_legend <- wrap_plots(graphs) + plot_layout(guides = "collect")
+  legend <- cowplot::get_legend(combined_legend)
+
+  empty_plot <- ggplot() +
+    theme_void() +
+    theme(legend.position = "none")
+  legend_plot <- cowplot::plot_grid(empty_plot, legend, ncol = 1, rel_heights = c(1, 0.1))
+
+  Log(paste0("Exporting legend '", legend_name, "' ..."))
+
+  # Create custom captions referencing the LaTeX labels
+  custom_captions <- sapply(graph_names, function(name) {
+    sprintf("fig:%s", name)
+  })
+  custom_caption <- paste0("Legend for \\cref{", paste(custom_captions, collapse = ","), "}")
+
+  export_graph_tikz(list(name = legend_name, graph = legend_plot), width, height, remove_legend = FALSE, caption = custom_caption, aspect_ratio = aspect_ratio)
 }
 
 do_sankey <- function(f) {
@@ -1000,4 +1060,130 @@ Log <- function(text, ...) {
   for (line in captured_output) {
     write.socket(log.socket, paste0(line, "\n"))
   }
+}
+
+create_metric_comparison_plot <- function(data, metric_col, group_col, value_col, node_col,
+                                          title, x_label = NULL, y_label = NULL, y_suffix = "") {
+  # Convert column names to symbols
+  metric_col <- ensym(metric_col)
+  group_col <- ensym(group_col)
+  value_col <- ensym(value_col)
+  node_col <- ensym(node_col)
+
+  # Prepare the data
+  df <- data %>%
+    group_by(!!group_col, !!metric_col) %>%
+    summarise(
+      metric_value = mean(as.numeric(!!value_col)),
+      nodes = mean(!!node_col),
+      .groups = "drop"
+    ) %>%
+    filter(!is.na(metric_value) & is.finite(metric_value))
+
+  # Calculate mean metric values for each group
+  df_mean <- df %>%
+    group_by(!!metric_col) %>%
+    summarise(mean_metric_value = mean(metric_value), .groups = "drop")
+
+  # Check ANOVA assumptions
+  assumptions_met <- TRUE
+  assumption_messages <- c()
+
+  # 1. Normality check using Shapiro-Wilk test (only if sample size is appropriate)
+  if (nrow(df) >= 3 && nrow(df) <= 5000) {
+    normality_test <- shapiro.test(df$metric_value)
+    if (normality_test$p.value < 0.05) {
+      assumptions_met <- FALSE
+      assumption_messages <- c(assumption_messages, "Normality assumption violated (p < 0.05 in Shapiro-Wilk test)")
+    }
+  } else {
+    assumptions_met <- FALSE
+    assumption_messages <- c(assumption_messages, "Sample size not appropriate for Shapiro-Wilk test (should be between 3 and 5000)")
+  }
+
+  # 2. Homogeneity of variances using Levene's test
+  levene_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
+  levene_test <- car::leveneTest(levene_formula, data = df)
+  if (levene_test$`Pr(>F)`[1] < 0.05) {
+    assumptions_met <- FALSE
+    assumption_messages <- c(assumption_messages, "Homogeneity of variances assumption violated (p < 0.05 in Levene's test)")
+  }
+
+  # 3. Independence assumption (cannot be tested statistically, add a note)
+  assumption_messages <- c(assumption_messages, "Note: Independence of observations should be ensured by experimental design")
+
+  # Perform statistical test
+  if (assumptions_met) {
+    anova_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
+    ANOVA <- aov(anova_formula, data = df)
+
+    if (!is.null(ANOVA) && !any(is.na(coef(ANOVA)))) {
+      TUKEY <- TukeyHSD(x = ANOVA, conf.level = 0.95)
+
+      labels <- generate_label_df(TUKEY, as.character(metric_col))
+      names(labels) <- c("Letters", as.character(metric_col))
+
+      df_mean <- df_mean %>%
+        left_join(labels, by = as.character(metric_col))
+
+      anova_results <- summary(ANOVA)
+      test_text <- sprintf(
+        "ANOVA: F = %.2f, p %s",
+        anova_results[[1]][as.character(metric_col), "F value"],
+        ifelse(anova_results[[1]][as.character(metric_col), "Pr(>F)"] < 0.001, "< 0.001",
+          sprintf("= %.3f", anova_results[[1]][as.character(metric_col), "Pr(>F)"])
+        )
+      )
+    }
+  } else {
+    kruskal_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
+    kruskal_test <- kruskal.test(kruskal_formula, data = df)
+    test_text <- sprintf(
+      "Kruskal-Wallis: chi-squared = %.2f, p %s",
+      kruskal_test$statistic,
+      ifelse(kruskal_test$p.value < 0.001, "< 0.001", sprintf("= %.3f", kruskal_test$p.value))
+    )
+  }
+
+  # Create the plot
+  p <- ggplot(df, aes(x = !!metric_col, y = metric_value)) +
+    geom_col(data = df_mean, aes(y = mean_metric_value, fill = !!metric_col), alpha = 0.7) +
+    geom_jitter(aes(size = nodes), width = 0.2, height = 0, alpha = 0.5) +
+    geom_text(
+      data = df_mean,
+      aes(y = mean_metric_value, label = sprintf("%.2f%s", mean_metric_value, y_suffix)),
+      vjust = -0.5, size = 3
+    ) +
+    scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
+    scale_size_continuous(name = "Number of Fog Nodes", range = c(1, 5)) +
+    labs(
+      title = title,
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
+      legend.position = "right",
+      panel.grid.major.x = element_blank(),
+      axis.title.x = element_text(margin = margin(t = 10))
+    ) +
+    scale_fill_viridis_d()
+
+  # Add x and y labels if provided, otherwise disable them
+  p <- p + labs(
+    x = if (!is.null(x_label)) x_label else element_blank(),
+    y = if (!is.null(y_label)) y_label else element_blank()
+  )
+
+  # Add ANOVA letters if available and assumptions are met
+  if (assumptions_met && exists("labels")) {
+    p <- p + geom_text(
+      data = df_mean,
+      aes(y = max(mean_metric_value) * 1.05, label = Letters), vjust = 0, size = 4
+    )
+  }
+
+  # Add test results and assumption messages to the subtitle
+  subtitle <- paste(c(test_text, assumption_messages), collapse = "\n")
+  p <- p + labs(subtitle = subtitle)
+
+  return(p)
 }

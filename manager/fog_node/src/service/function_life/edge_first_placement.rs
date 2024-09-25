@@ -4,8 +4,10 @@ use model::domain::sla::Sla;
 use model::view::auction::{
     BidProposal, BidProposals, BidRequest, BidRequestOwned,
 };
+use model::dto::node::NodeDescription;
 use model::NodeId;
 use uom::fmt::DisplayStyle::Abbreviation;
+
 impl FunctionLife {
     /// Follow up the [Sla] to the neighbors, and ignore the path where it
     /// came from.
@@ -34,8 +36,14 @@ impl FunctionLife {
                 warn!("Cannot get Latency of {}", neighbor);
                 continue;
             };
+            let Some(NodeDescription { advertised_bandwidth, .. }) =
+                self.node_situation.get_fog_node_neighbor(&neighbor)
+            else {
+                warn!("Cannot get neighbor bandwidth of {}", neighbor);
+                continue;
+            };
 
-            let latency = accumulated_latency.accumulate(latency);
+            let latency = accumulated_latency.accumulate(latency, advertised_bandwidth);
 
             let worse_lat =
                 self.compute_worse_latency(&latency, sla.input_max_size);

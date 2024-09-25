@@ -75,6 +75,8 @@ fresh fog_node_image market_image $DEPLOYMENT_NAME:
     {{ RUN }} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
     cp -Lr current current.bak
     just _deploy {{ fog_node_image }} {{ market_image }}
+    # Deploy the images on the registry, but only once since it is cached in the vm between reboots
+    {{ RUN }} integration.py setup-registry
 
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
@@ -128,7 +130,6 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py iot-emulation
     timeout 10m {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
-    {{ RUN }} integration.py setup-registry
 
 [private]
 expe env_variation IOT_IP MARKET_IP TARGET_NODES:

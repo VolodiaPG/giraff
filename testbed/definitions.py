@@ -270,9 +270,9 @@ NODE_CONNECTED_NODE = """(
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": (2 * 18) - 1, "mem": 1024 * (96 - 4)},
-    "paravance": {"core": (2 * 8 * 2) - 1, "mem": 1024 * (128 - 4)},
-    "parasilo": {"core": (2 * 8 * 2) - 1, "mem": 1024 * (128 - 4)},
+    "gros": {"core": (2 * 18), "mem": 1024 * 96 },
+    "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
+    "parasilo": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 

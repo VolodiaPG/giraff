@@ -12,7 +12,21 @@ in {
       http.tls = {
         inherit certificate key;
       };
+      storage = {
+        filesystem = {
+          rootdirectory = "/var/lib/docker-registry";
+        };
+      };
     };
   };
   networking.firewall.allowedTCPPorts = [port];
+  environment.etc."containers/policy.json".text = ''
+    {
+        "default": [
+            {
+                "type": "insecureAcceptAnything"
+            }
+        ]
+    }
+  '';
 }

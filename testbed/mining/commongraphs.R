@@ -554,14 +554,10 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       legend.box = "vertical",
       legend.direction = "vertical",
       legend.spacing.y = unit(0.2, "cm"),
-      plot.margin = margin(5.5, 20, 5.5, 5.5, "pt"),
-      aspect.ratio = 0.6 # Adjusted for legend on the right
     ) +
     labs(
       title = "Placement Method Comparison (Centered and Reduced)",
       subtitle = "Values represent standard deviations from the mean",
-      x = "Metrics",
-      y = "Standardized Value",
       color = "Placement Method"
     ) +
     geom_point(aes(size = nodes, text = sprintf(
@@ -617,6 +613,33 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   return(p)
 }
 
+output_mean_deployment_times <- function(raw_deployment_times, node_levels) {
+  df <- raw_deployment_times %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(
+      deployment_time = mean(value) / 1000, # Convert to seconds
+      .groups = "drop"
+    ) %>%
+    inner_join(
+      node_levels %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(nodes = n(), .groups = "drop"),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    extract_context() %>%
+    correct_names()
+
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "folder",
+    value_col = "deployment_time",
+    node_col = "nodes",
+    title = "Mean Deployment Times by Placement Method",
+    y_suffix = " s"
+  )
+}
+
 output_mean_respected_slas <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group) %>%
@@ -631,94 +654,72 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     extract_context() %>%
-    # Remove any NA or infinite values
-    filter(!is.na(respected_slas) & is.finite(respected_slas))
+    correct_names()
 
-  # Calculate mean respected SLAs for each placement method
-  df_mean <- df %>%
-    group_by(placement_method) %>%
-    summarise(mean_respected_slas = mean(respected_slas), .groups = "drop")
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "folder",
+    value_col = "respected_slas",
+    node_col = "nodes",
+    title = "Mean Respected SLAs by Placement Method",
+    y_suffix = "%"
+  )
+}
 
-  # Perform ANOVA
-  ANOVA <- aov(respected_slas ~ placement_method, data = df)
+output_mean_spending <- function(bids_won_function, node_levels) {
+  df <- bids_won_function %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(
+      total_cost = sum(cost),
+      .groups = "drop"
+    ) %>%
+    inner_join(
+      node_levels %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(nodes = n(), .groups = "drop"),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    mutate(spending_per_node = total_cost / nodes) %>%
+    extract_context() %>%
+    correct_names()
 
-  # Check if ANOVA results are valid before proceeding with Tukey's HSD
-  if (!is.null(ANOVA) && !any(is.na(coef(ANOVA)))) {
-    TUKEY <- tryCatch(
-      {
-        TukeyHSD(x = ANOVA, conf.level = 0.95)
-      },
-      error = function(e) {
-        message("Error in TukeyHSD: ", e$message)
-        return(NULL)
-      }
-    )
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "folder",
+    value_col = "spending_per_node",
+    node_col = "nodes",
+    title = "Mean Spending per Node by Placement Method",
+    y_suffix = " units"
+  )
+}
 
-    if (!is.null(TUKEY)) {
-      # Generate labels for ANOVA results
-      labels <- tryCatch(
-        {
-          generate_label_df(TUKEY, "placement_method")
-        },
-        error = function(e) {
-          message("Error in generate_label_df: ", e$message)
-          return(NULL)
-        }
-      )
+output_mean_placed_functions_per_node <- function(functions_total, node_levels) {
+  df <- functions_total %>%
+    filter(status == "provisioned") %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(
+      placed_functions = sum(n),
+      .groups = "drop"
+    ) %>%
+    inner_join(
+      node_levels %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(nodes = n(), .groups = "drop"),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    mutate(placed_functions_per_node = placed_functions / nodes) %>%
+    extract_context() %>%
+    correct_names()
 
-      if (!is.null(labels)) {
-        names(labels) <- c("Letters", "placement_method")
-
-        # Combine data with ANOVA labels
-        df_mean <- df_mean %>%
-          left_join(labels, by = "placement_method")
-      }
-    }
-  }
-
-  # Create the plot
-  p <- ggplot(df, aes(x = placement_method, y = respected_slas)) +
-    geom_col(data = df_mean, aes(y = mean_respected_slas, fill = placement_method), alpha = 0.7) +
-    geom_jitter(aes(size = nodes), width = 0.2, height = 0, alpha = 0.5) +
-    geom_text(
-      data = df_mean, aes(y = mean_respected_slas, label = sprintf("%.2f%%", mean_respected_slas * 100)),
-      vjust = -0.5, size = 3
-    ) +
-    scale_y_continuous(labels = scales::percent, limits = c(0, 1.1)) +
-    scale_size_continuous(name = "Number of Fog Nodes", range = c(1, 5)) +
-    labs(
-      x = "Placement method",
-      y = "Respected SLAs",
-      title = "Mean Respected SLAs by Placement Method",
-    ) +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-      legend.position = "right",
-      panel.grid.major.x = element_blank(),
-      axis.title.x = element_text(margin = margin(t = 10))
-    ) +
-    scale_fill_viridis_d()
-
-  # Add ANOVA letters if available
-  if (exists("labels") && !is.null(labels)) {
-    p <- p + geom_text(
-      data = df_mean,
-      aes(y = 1.05, label = Letters), vjust = 0, size = 4
-    )
-  }
-
-  # Add ANOVA results to the subtitle if available
-  if (!is.null(ANOVA)) {
-    anova_results <- summary(ANOVA)
-    anova_text <- sprintf(
-      "ANOVA: F = %.2f, p %s",
-      anova_results[[1]]["placement_method", "F value"],
-      ifelse(anova_results[[1]]["placement_method", "Pr(>F)"] < 0.001, "< 0.001",
-        sprintf("= %.3f", anova_results[[1]]["placement_method", "Pr(>F)"])
-      )
-    )
-    p <- p + labs(subtitle = paste(p$labels$subtitle, "\n", anova_text))
-  }
-
-  return(p)
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "folder",
+    value_col = "placed_functions_per_node",
+    node_col = "nodes",
+    title = "Mean Placed Functions per Node by Placement Method",
+    y_suffix = ""
+  )
 }

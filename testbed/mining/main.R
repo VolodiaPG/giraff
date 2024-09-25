@@ -13,6 +13,8 @@ init <- function() {
   library(formattable)
   library(stringr)
   library(viridis)
+  library(patchwork)
+  library(cowplot)
   # library(geomtextpath)
   # library(cowplot)
   library(scales)
@@ -36,6 +38,7 @@ init <- function() {
   library(ggbeeswarm)
   library(multidplyr)
   library(multcompView)
+  library(car)
   # library(ggpubr)
   # library(Hmisc)
   # library(rstatix)
@@ -207,21 +210,39 @@ functions_all_total <- mem(load_functions_all_total)(functions)
 bids_won_function <- mem(load_bids_won_function)(bids_raw, provisioned_sla)
 earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids_won_function)
 
-spider_chart <- export_graph("spider_chart", mem(output_placement_method_comparison)(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
-export_graph("provisioned", mem(output_provisioned_simple)(functions_total, node_levels))
-export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total, node_levels))
-export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total, node_levels))
-export_graph("spending_total", mem(output_spending_plot_simple_total)(bids_won_function, node_levels))
-export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(respected_sla, functions_all_total, node_levels))
-export_graph("requests_served", mem(output_number_requests)(respected_sla, node_levels))
-export_graph("total_requests_served_total", mem(output_number_requests_total)(respected_sla, node_levels))
-export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
-export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
-export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
-output_mean_respected_slas <- mem(output_mean_respected_slas)(respected_sla, node_levels)
-export_graph("output_mean_respected_slas", output_mean_respected_slas)
+# export_graph("provisioned", mem(output_provisioned_simple)(functions_total, node_levels))
+# export_graph("provisioned_total", mem(output_provisioned_simple_total)(functions_total, node_levels))
+# export_graph("jains", mem(output_jains_simple)(earnings_jains_plot_data, functions_all_total, node_levels))
+# export_graph("spending_total", mem(output_spending_plot_simple_total)(bids_won_function, node_levels))
+# export_graph("respected_sla_plot_total", mem(output_respected_data_plot_total)(respected_sla, functions_all_total, node_levels))
+# export_graph("requests_served", mem(output_number_requests)(respected_sla, node_levels))
+# export_graph("total_requests_served_total", mem(output_number_requests_total)(respected_sla, node_levels))
+# export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
+# export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
+# export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
-export_graph_tikz("spider_chart", spider_chart, 15, 4)
-export_graph_tikz("output_mean_respected_slas", output_mean_respected_slas, 5, 4)
+graph_spider_chart <- export_graph("spider_chart", mem(output_placement_method_comparison)(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
+graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", mem(output_mean_respected_slas)(respected_sla, node_levels))
+graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", mem(output_mean_deployment_times)(raw_deployment_times, node_levels))
+graph_output_mean_spending <- export_graph("output_mean_spending", mem(output_mean_spending)(bids_won_function, node_levels))
+
+merge_and_export_legend(
+  list(
+    graph_output_mean_deployment_time,
+    graph_output_mean_spending,
+    graph_output_mean_respected_slas,
+    graph_spider_chart
+  ),
+  "legend",
+  3,
+  3,
+  aspect_ratio = 10 / 3
+)
+export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 8)
+
+export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
+export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
+export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
+
 
 parallel::stopCluster(cl)
