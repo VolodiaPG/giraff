@@ -121,6 +121,37 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
   return(jains)
 }
 
+output_jains_anova_plot <- function(earnings, functions_all_total, node_levels) {
+  df <- earnings %>%
+    left_join(
+      functions_all_total %>%
+        rename(total_requested_functions = total, ratio_requested_functions = ratio),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    left_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    extract_context() %>%
+    ungroup() %>%
+    select(placement_method, env, run, score, nodes) %>%
+    rename(jains_index = score)
+
+  Log(df)
+
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "env",
+    value_col = "jains_index",
+    node_col = "nodes",
+    title = "Jain's Fairness Index by Placement Method",
+    y_label = "Jain's Fairness Index",
+    y_suffix = ""
+  )
+}
 
 output_spending_plot_simple_total <- function(bids_won, node_levels) {
   df <- bids_won %>%
@@ -321,7 +352,7 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
       color = "Placement Method"
     ) +
     theme(
-      legend.position = "bottom",
+      legend.position = "right",
       legend.title = element_text(face = "bold"),
       legend.text = element_text(size = 8)
     ) +
@@ -461,6 +492,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     summarise(
       respected_slas = sum(acceptable_chained) / sum(total),
       avg_latency = mean(as.numeric(measured_latency), na.rm = TRUE),
+      acceptable_requests = sum(acceptable_chained),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -503,22 +535,23 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost, avg_latency, avg_deployment_time)
+    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost, avg_latency, avg_deployment_time, acceptable_requests)
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
-    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time),
+    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, acceptable_requests),
       ~ scale(.),
       .names = "{.col}_scaled"
     ))
 
   # Define the order of metrics
-  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "total_cost", "avg_latency", "avg_deployment_time")
+  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "acceptable_requests", "total_cost", "avg_latency", "avg_deployment_time")
 
   # Reshape data for ggplot
   df_long <- df %>%
-    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, nodes) %>%
+    correct_names() %>%
+    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, acceptable_requests, nodes) %>%
     pivot_longer(
       cols = ends_with("_scaled"),
       names_to = "metric",
@@ -533,91 +566,98 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
         metric == "requests_served" ~ requests_served,
         metric == "total_cost" ~ total_cost,
         metric == "avg_latency" ~ avg_latency,
-        metric == "avg_deployment_time" ~ avg_deployment_time
+        metric == "avg_deployment_time" ~ avg_deployment_time,
+        metric == "acceptable_requests" ~ acceptable_requests
       )
     )
 
   # Define which metrics are better when higher
-  higher_better <- c("respected_slas", "functions_deployed", "requests_served")
+  higher_better <- c("respected_slas", "functions_deployed", "requests_served", "acceptable_requests")
+
+  # Calculate mean values for each placement method
+  df_mean <- df_long %>%
+    group_by(placement_method, metric) %>%
+    summarise(value = mean(value, na.rm = TRUE), raw_value = mean(raw_value, na.rm = TRUE), .groups = "drop")
 
   # Create the parallel coordinates plot
-  p <- ggplot(df_long, aes(x = metric, y = value, color = placement_method)) +
-    scale_y_continuous(limits = c(-2, 2)) +
+  p <- ggplot(df_mean, aes(x = metric, y = value, color = placement_method)) +
+    # scale_y_continuous(limits = c(-2, 2)) +
     scale_color_viridis_d() +
-    scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +
+    # scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +
     theme(
-      axis.text.x = element_text(angle = 25, hjust = 1, vjust = 1),
-      axis.title.x = element_text(margin = margin(t = 10)),
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
       legend.position = "right",
       legend.box = "vertical",
       legend.direction = "vertical",
       legend.spacing.y = unit(0.2, "cm"),
+      axis.title.y = element_blank(),
+      axis.title.x = element_blank(),
+    ) +
+    scale_x_discrete(
+      guide = guide_axis(n.dodge = 2)
     ) +
     labs(
-      title = "Placement Method Comparison (Centered and Reduced)",
-      subtitle = "Values represent standard deviations from the mean",
+      title = "Mean placement Method Comparison (Centered and Reduced)",
+      subtitle = "Values represent standard deviations from the mean, averaged across environments and runs",
       color = "Placement Method"
     ) +
-    geom_point(aes(size = nodes, text = sprintf(
-      "<br>Metric: %s<br>Placement Method: %s<br>Environment: %s<br>Run: %s<br>Raw Value: %.2f<br>Standardized Value: %.2f<br>Number of Fog Nodes: %d",
-      metric, placement_method, env, run,
-      raw_value,
-      value,
-      nodes
-    )), alpha = 0.6, stroke = 0) +
+    geom_point(aes(text = sprintf(
+      "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f<br>Raw Value: %.2f",
+      metric, placement_method,
+      value, raw_value
+    )), alpha = 0.6, stroke = 0, size = 3) +
     guides(
-      color = guide_legend(title = "Placement Method", ncol = 1, byrow = TRUE),
-      size = guide_legend(title = "Number of Fog Nodes", nrow = 1)
+      color = guide_legend(title = "Placement Method", nrow = 2)
+      # size = guide_legend(title = "Number of Fog Nodes", nrow = 1)
     ) +
     geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dotted", color = "gray", alpha = 0.25) +
     annotate("text", x = length(higher_better) / 2, y = 1.9, label = "Higher is better", color = "darkgreen", size = 3, alpha = 0.6, vjust = 1) +
-    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 1.9, label = "Lower is better", color = "darkred", size = 3, alpha = 0.6, vjust = 1) +
-    coord_cartesian(clip = "off") +
-    geom_point(aes(size = nodes, text = sprintf(
-      "<br>Metric: %s<br>Placement Method: %s<br>Environment: %s<br>Run: %s<br>Raw Value: %.2f<br>Standardized Value: %.2f<br>Number of Fog Nodes: %d",
-      metric, placement_method, env, run,
-      raw_value,
-      value,
-      nodes
-    )), alpha = 0.6, stroke = 0)
+    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 1.9, label = "Lower is better", color = "darkred", size = 3, alpha = 0.6, vjust = 1)
 
   p <- p + geom_line(
-    data = df_long %>%
-      filter(metric %in% higher_better) %>%
-      group_by(placement_method, env, run),
-    aes(group = interaction(placement_method, env, run)),
-    alpha = 0.6,
-    size = 0.3
+    data = df_mean %>%
+      filter(metric %in% higher_better),
+    aes(group = placement_method),
+    alpha = 0.6, # Reduced alpha for dimmer lines
   )
   p <- p + geom_line(
-    data = df_long %>%
-      filter(!metric %in% higher_better) %>%
-      group_by(placement_method, env, run),
-    aes(group = interaction(placement_method, env, run)),
-    alpha = 0.6,
-    size = 0.3
+    data = df_mean %>%
+      filter(!metric %in% higher_better),
+    aes(group = placement_method),
+    alpha = 0.3, # Reduced alpha for dimmer lines
   )
   p <- p + geom_line(
-    data = df_long %>%
-      filter(metric %in% c(metric_order[length(higher_better)], metric_order[length(higher_better) + 1])) %>%
-      group_by(placement_method, env, run) %>%
-      filter(n() == 2),
-    aes(group = interaction(placement_method, env, run)),
-    alpha = 0.5,
+    data = df_mean %>%
+      filter(metric %in% c(metric_order[length(higher_better)], metric_order[length(higher_better) + 1])),
+    aes(group = placement_method),
+    alpha = 0.6, # Reduced alpha for dimmer lines
     linetype = "dotted",
-    size = 0.3
   )
+
+  # Add mean line for each placement method
+  # p <- p + geom_line(
+  #   data = df_mean,
+  #   aes(group = placement_method),
+  #   size = 1,
+  #   alpha = 0.8
+  # )
 
   return(p)
 }
 
-output_mean_deployment_times <- function(raw_deployment_times, node_levels) {
+output_mean_deployment_times <- function(raw_deployment_times, node_levels, respected_sla) {
   df <- raw_deployment_times %>%
-    group_by(folder, metric_group, metric_group_group) %>%
+    # Join with respected_sla to get the chain information
+    inner_join(
+      respected_sla %>%
+        select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+      by = c("folder", "metric_group", "metric_group_group", "sla_id")
+    ) %>%
+    # Group by folder, metric_group, metric_group_group, and chain_id
+    group_by(folder, metric_group, metric_group_group, chain_id) %>%
     summarise(
-      deployment_time = mean(value) / 1000, # Convert to seconds
+      deployment_time = sum(value) / 1000, # Convert to seconds and sum for the entire chain
       .groups = "drop"
     ) %>%
     inner_join(
@@ -626,6 +666,7 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
+    mutate(deployment_time_per_function = deployment_time) %>%
     extract_context() %>%
     correct_names()
 
@@ -633,9 +674,9 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels) {
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "deployment_time",
+    value_col = "deployment_time_per_function",
     node_col = "nodes",
-    title = "Mean Deployment Times by Placement Method",
+    title = "Mean Deployment Time per Function in Chain by Placement Method",
     y_suffix = " s"
   )
 }
@@ -653,6 +694,7 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
+    mutate(respected_slas = respected_slas * 100) %>%
     extract_context() %>%
     correct_names()
 
@@ -667,11 +709,19 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
   )
 }
 
-output_mean_spending <- function(bids_won_function, node_levels) {
+output_mean_spending <- function(bids_won_function, node_levels, respected_sla) {
   df <- bids_won_function %>%
-    group_by(folder, metric_group, metric_group_group) %>%
+    # Join with respected_sla to get the chain information
+    inner_join(
+      respected_sla %>%
+        select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+      by = c("folder", "metric_group", "metric_group_group", "sla_id")
+    ) %>%
+    # Group by folder, metric_group, metric_group_group, and chain_id
+    group_by(folder, metric_group, metric_group_group, chain_id) %>%
     summarise(
       total_cost = sum(cost),
+      chain_length = n_distinct(docker_fn_name),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -680,7 +730,7 @@ output_mean_spending <- function(bids_won_function, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    mutate(spending_per_node = total_cost / nodes) %>%
+    mutate(spending_per_chain = total_cost) %>%
     extract_context() %>%
     correct_names()
 
@@ -688,9 +738,9 @@ output_mean_spending <- function(bids_won_function, node_levels) {
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "spending_per_node",
+    value_col = "spending_per_chain",
     node_col = "nodes",
-    title = "Mean Spending per Node by Placement Method",
+    title = "Mean Spending per Function Chain by Placement Method",
     y_suffix = " units"
   )
 }

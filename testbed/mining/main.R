@@ -221,28 +221,27 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
-graph_spider_chart <- export_graph("spider_chart", mem(output_placement_method_comparison)(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
-graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", mem(output_mean_respected_slas)(respected_sla, node_levels))
-graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", mem(output_mean_deployment_times)(raw_deployment_times, node_levels))
-graph_output_mean_spending <- export_graph("output_mean_spending", mem(output_mean_spending)(bids_won_function, node_levels))
+graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
+graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(respected_sla, node_levels))
+graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
+graph_output_mean_spending <- export_graph("output_mean_spending", output_mean_spending(bids_won_function, node_levels, respected_sla))
+# graph_outpumean_spendingns <- export_graph("outpumean_spendingns", outpumean_spending(bids_won_, functial, node_leve, respected_slals))
 
 merge_and_export_legend(
   list(
     graph_output_mean_deployment_time,
     graph_output_mean_spending,
-    graph_output_mean_respected_slas,
-    graph_spider_chart
+    graph_output_mean_respected_slas
   ),
   "legend",
-  3,
-  3,
-  aspect_ratio = 10 / 3
+  GRAPH_ONE_COLUMN_WIDTH,
+  GRAPH_ONE_COLUMN_HEIGHT,
+  aspect_ratio = 2 / 1
 )
-export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 8)
-
-export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
-export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
-export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2)
+export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, 2.5, aspect_ratio = 1 / 4.5)
+export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
+export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
+export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 
 
 parallel::stopCluster(cl)

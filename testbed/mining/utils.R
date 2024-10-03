@@ -303,9 +303,9 @@ correct_names <- function(x) {
       mutate(placement_method = case_when(
         placement_method == "auctionno_complication" ~ "\\footnotesize{GIRAFF}",
         placement_method == "auctionreduction" ~ "\\footnotesize{GIRAFF (reduction)}",
-        placement_method == "edge_wardno_complication" ~ "\\footnotesize{Edge\\dash{}ward}",
-        placement_method == "edge_firstno_complication" ~ "\\footnotesize{Edge\\dash{}first}",
-        placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge\\dash{}furthest}",
+        placement_method == "edge_wardno_complication" ~ "\\footnotesize{Edge ward}",
+        placement_method == "edge_firstno_complication" ~ "\\footnotesize{Edge first}",
+        placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge furthest}",
         placement_method == "mincpurandomno_complication" ~ "\\footnotesize{MinCPU random}",
         TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
       ))
@@ -793,12 +793,14 @@ export_graph_non_ggplot <- function(name, graph) {
 draw <- function(plot, x_in = 3, y_in = 3) {
   grid::grid.newpage()
 
-  grid::rectGrob(gp = grid::gpar(fill = "gray")) |>
-    grid::grid.draw()
+  # grid::rectGrob(gp = grid::gpar(fill = "gray")) |>
+  #   grid::grid.draw()
 
-  grid::viewport(
-    width = 1,
-  ) |>
+
+  # grid::rectGrob() |>
+  #   grid::grid.draw()
+
+  grid::viewport() |>
     grid::pushViewport()
 
   ggplot2::ggplot_build(plot) |>
@@ -863,8 +865,7 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   plot_graph <- plot_graph +
     theme(
       aspect.ratio = aspect_ratio,
-    ) +
-    coord_cartesian(clip = "off", expand = FALSE)
+    )
 
   tex_width <- 1
 
@@ -917,10 +918,14 @@ merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, as
   combined_legend <- wrap_plots(graphs) + plot_layout(guides = "collect")
   legend <- cowplot::get_legend(combined_legend)
 
-  empty_plot <- ggplot() +
+  # Create a plot with the extracted legend
+  legend_plot <- ggplot() +
     theme_void() +
-    theme(legend.position = "none")
-  legend_plot <- cowplot::plot_grid(empty_plot, legend, ncol = 1, rel_heights = c(1, 0.1))
+    theme(legend.position = "right", aspect.ratio = aspect_ratio) +
+    annotation_custom(grob = legend)
+
+
+  ggsave("out/legend.png", legend_plot, width = width, height = height)
 
   Log(paste0("Exporting legend '", legend_name, "' ..."))
 
@@ -928,7 +933,7 @@ merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, as
   custom_captions <- sapply(graph_names, function(name) {
     sprintf("fig:%s", name)
   })
-  custom_caption <- paste0("Legend for \\cref{", paste(custom_captions, collapse = ","), "}")
+  custom_caption <- paste0("Legend for~\\cref{", paste(custom_captions, collapse = ","), "} ")
 
   export_graph_tikz(list(name = legend_name, graph = legend_plot), width, height, remove_legend = FALSE, caption = custom_caption, aspect_ratio = aspect_ratio)
 }
@@ -1160,12 +1165,13 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       title = title,
     ) +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
       legend.position = "right",
       panel.grid.major.x = element_blank(),
-      axis.title.x = element_text(margin = margin(t = 10))
     ) +
-    scale_fill_viridis_d()
+    scale_fill_viridis_d() +
+    scale_x_discrete(
+      guide = guide_axis(n.dodge = 2)
+    )
 
   # Add x and y labels if provided, otherwise disable them
   p <- p + labs(

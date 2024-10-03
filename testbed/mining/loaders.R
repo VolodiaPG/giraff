@@ -318,10 +318,6 @@ load_respected_sla <- function(ark) {
 
   respected_sla <- load_single_csv(ark, "proxy.csv") %>%
     prepare() %>%
-    # left_join(
-    #  sla_to_function_name,
-    #  by = c("folder", "sla_id")
-    # ) %>%
     group_by(folder) %>%
     adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
     adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
@@ -338,13 +334,18 @@ load_respected_sla <- function(ark) {
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
     mutate(prev_sla = lag(sla_id)) %>%
-    # mutate(prev_sla = lag(ifelse(first_req_id, "<iot_emulation>", sla_id))) %>%
     filter(first_req_id == FALSE) %>%
-    mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.01)) %>%
-    mutate(on_time = (in_flight <= latency + 0.01)) %>%
+    mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
+    mutate(on_time = (in_flight <= latency)) %>%
     mutate(acceptable_chained = accumulate(acceptable, `&`)) %>%
     mutate(on_time_chained = accumulate(on_time, `&`)) %>%
     collect() %>%
+    # New code to extract chain information
+    group_by(folder, req_id) %>%
+    mutate(chain_id = paste(sla_id, collapse = "_")) %>%
+    ungroup() %>%
+    select(folder, req_id, chain_id, sla_id, everything()) %>%
+    # End of new code
     group_by(
       sla_id,
       folder,
@@ -353,7 +354,8 @@ load_respected_sla <- function(ark) {
       function_name,
       docker_fn_name,
       prev_function,
-      prev_sla
+      prev_sla,
+      chain_id # Add chain_id to group_by
     ) %>%
     partition(cluster) %>%
     summarise(
@@ -380,11 +382,6 @@ load_respected_sla <- function(ark) {
     filter(!is.na(acceptable_chained)) %>%
     collect() %>%
     ungroup()
-
-  # Log(respected_sla %>% group_by(sla_id, folder) %>% filter(is.na(acceptable)) %>% select(sla_id, folder))
-  # Log("titi")
-  # Log(respected_sla %>% filter(req_id == "3ad1345e-56db-4655-8f09-d70707f08786") %>% select(sla_id, req_id, value, timestamp, acceptable, docker_fn_name, in_flight, first_req_id))
-  # Log(respected_sla %>% filter(req_id == "59e081e1-0240-4b4f-a3f4-afaf53e6972f") %>% select(sla_id, req_id, value, timestamp, acceptable, docker_fn_name, in_flight, first_req_id))
 
   return(respected_sla)
 }
