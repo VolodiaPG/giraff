@@ -773,3 +773,33 @@ output_mean_placed_functions_per_node <- function(functions_total, node_levels) 
     y_suffix = ""
   )
 }
+
+output_deployed_functions_ratio_anova_plot <- function(functions_total, node_levels) {
+  df <- functions_total %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    summarise(
+      deployed = sum(n[status == "provisioned"]),
+      asked = sum(n),
+      .groups = "drop"
+    ) %>%
+    mutate(ratio = deployed / asked) %>%
+    inner_join(
+      node_levels %>%
+        group_by(folder, metric_group, metric_group_group) %>%
+        summarise(nodes = n(), .groups = "drop"),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    extract_context() %>%
+    correct_names()
+
+  create_metric_comparison_plot(
+    data = df,
+    metric_col = "placement_method",
+    group_col = "folder",
+    value_col = "ratio",
+    node_col = "nodes",
+    title = "Ratio of Deployed Functions to Asked Functions by Placement Method",
+    y_label = "Ratio of Deployed to Asked Functions",
+    y_suffix = ""
+  )
+}

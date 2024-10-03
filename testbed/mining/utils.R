@@ -1080,15 +1080,27 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     group_by(!!group_col, !!metric_col) %>%
     summarise(
       metric_value = mean(as.numeric(!!value_col)),
+      metric_sd = sd(as.numeric(!!value_col)),
       nodes = mean(!!node_col),
       .groups = "drop"
     ) %>%
-    filter(!is.na(metric_value) & is.finite(metric_value))
+    filter(!is.na(metric_value) & is.finite(metric_value)) %>%
+    mutate(
+      ci_lower = metric_value - qt(0.975, df = n() - 1) * (metric_sd / sqrt(n())),
+      ci_upper = metric_value + qt(0.975, df = n() - 1) * (metric_sd / sqrt(n())),
+      x_jitter = as.numeric(factor(!!metric_col)) + seq(-0.3, 0.3, length.out = n())
+    )
 
   # Calculate mean metric values for each group
   df_mean <- df %>%
     group_by(!!metric_col) %>%
-    summarise(mean_metric_value = mean(metric_value), .groups = "drop")
+    summarise(
+      mean_metric_value = mean(metric_value),
+      se = sd(metric_value) / sqrt(n()),
+      ci_lower = mean_metric_value - qt(0.975, df = n() - 1) * se,
+      ci_upper = mean_metric_value + qt(0.975, df = n() - 1) * se,
+      .groups = "drop"
+    )
 
   # Check ANOVA assumptions
   assumptions_met <- TRUE
@@ -1153,7 +1165,13 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   # Create the plot
   p <- ggplot(df, aes(x = !!metric_col, y = metric_value)) +
     geom_col(data = df_mean, aes(y = mean_metric_value, fill = !!metric_col), alpha = 0.7) +
-    geom_jitter(aes(size = nodes), width = 0.2, height = 0, alpha = 0.5) +
+    geom_errorbar(
+      data = df_mean,
+      aes(y = mean_metric_value, ymin = ci_lower, ymax = ci_upper),
+      width = 0.2, color = "black"
+    ) +
+    geom_point(aes(x = x_jitter, size = nodes), width = 0.2, height = 0, alpha = 0.5) +
+    geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper), width = 0.1, alpha = 0.3) +
     geom_text(
       data = df_mean,
       aes(y = mean_metric_value, label = sprintf("%.2f%s", mean_metric_value, y_suffix)),

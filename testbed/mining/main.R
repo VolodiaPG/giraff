@@ -225,6 +225,7 @@ graph_spider_chart <- export_graph("output_spider_chart", output_placement_metho
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(respected_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
 graph_output_mean_spending <- export_graph("output_mean_spending", output_mean_spending(bids_won_function, node_levels, respected_sla))
+graph_output_deployed_functions_ratio_anova_plot <- export_graph("output_deployed_functions_ratio_anova_plot", output_deployed_functions_ratio_anova_plot(functions_total, node_levels))
 # graph_outpumean_spendingns <- export_graph("outpumean_spendingns", outpumean_spending(bids_won_, functial, node_leve, respected_slals))
 
 merge_and_export_legend(
@@ -242,6 +243,7 @@ export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, 2.5, aspect_ratio 
 export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
+export_graph_tikz(graph_output_deployed_functions_ratio_anova_plot, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 
 
 parallel::stopCluster(cl)
