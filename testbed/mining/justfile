@@ -9,6 +9,9 @@ run:
     @echo -e "\033[1;32mdone\033[0m"
     @echo -e "\033[1;32mdone\033[0m" | nc -N localhost 4000
 
+export:
+    nix develop .#mining-export -c just watch
+
 logs:
     #! /usr/bin/env bash
     touch logs.txt

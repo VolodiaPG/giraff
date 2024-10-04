@@ -139,8 +139,6 @@ output_jains_anova_plot <- function(earnings, functions_all_total, node_levels) 
     select(placement_method, env, run, score, nodes) %>%
     rename(jains_index = score)
 
-  Log(df)
-
   create_metric_comparison_plot(
     data = df,
     metric_col = "placement_method",
@@ -574,16 +572,23 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Define which metrics are better when higher
   higher_better <- c("respected_slas", "functions_deployed", "requests_served", "acceptable_requests")
 
-  # Calculate mean values for each placement method
+  # Calculate mean values and confidence intervals for each placement method
   df_mean <- df_long %>%
     group_by(placement_method, metric) %>%
-    summarise(value = mean(value, na.rm = TRUE), raw_value = mean(raw_value, na.rm = TRUE), .groups = "drop")
+    summarise(
+      raw_value = mean(raw_value, na.rm = TRUE),
+      se = sd(value, na.rm = TRUE) / sqrt(n()),
+      value = mean(value, na.rm = TRUE),
+      ci_lower = value - qt((1 - 0.05) / 2 + .5, df = n() - 1) * se,
+      ci_upper = value + qt((1 - 0.05) / 2 + .5, df = n() - 1) * se,
+      .groups = "drop"
+    ) %>%
+    mutate(x_jitter = as.numeric(factor(metric)) + seq(-0.1, 0.1, length.out = n()))
 
   # Create the parallel coordinates plot
-  p <- ggplot(df_mean, aes(x = metric, y = value, color = placement_method)) +
-    # scale_y_continuous(limits = c(-2, 2)) +
+  p <- ggplot(df_mean, aes(x = x_pos, y = value, color = placement_method, group = placement_method)) +
     scale_color_viridis_d() +
-    # scale_size_continuous(range = c(1, 5), name = "Number of Fog Nodes") +
+    scale_fill_viridis_d() +
     theme(
       panel.grid.major.x = element_blank(),
       panel.grid.minor = element_blank(),
@@ -598,50 +603,26 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       guide = guide_axis(n.dodge = 2)
     ) +
     labs(
-      title = "Mean placement Method Comparison (Centered and Reduced)",
+      title = "Mean Placement Method Comparison (Centered and Reduced)",
       subtitle = "Values represent standard deviations from the mean, averaged across environments and runs",
       color = "Placement Method"
     ) +
-    geom_point(aes(text = sprintf(
+    geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method, color = placement_method), alpha = 0.2) +
+    geom_line(aes(x = metric), alpha = 0.8) +
+    geom_point(aes(x = metric, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f<br>Raw Value: %.2f",
       metric, placement_method,
       value, raw_value
     )), alpha = 0.6, stroke = 0, size = 3) +
     guides(
-      color = guide_legend(title = "Placement Method", nrow = 2)
-      # size = guide_legend(title = "Number of Fog Nodes", nrow = 1)
+      color = guide_legend(title = "Placement Method", nrow = 2),
+      fill = "none"
     ) +
     geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dotted", color = "gray", alpha = 0.25) +
     annotate("text", x = length(higher_better) / 2, y = 1.9, label = "Higher is better", color = "darkgreen", size = 3, alpha = 0.6, vjust = 1) +
     annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 1.9, label = "Lower is better", color = "darkred", size = 3, alpha = 0.6, vjust = 1)
 
-  p <- p + geom_line(
-    data = df_mean %>%
-      filter(metric %in% higher_better),
-    aes(group = placement_method),
-    alpha = 0.6, # Reduced alpha for dimmer lines
-  )
-  p <- p + geom_line(
-    data = df_mean %>%
-      filter(!metric %in% higher_better),
-    aes(group = placement_method),
-    alpha = 0.3, # Reduced alpha for dimmer lines
-  )
-  p <- p + geom_line(
-    data = df_mean %>%
-      filter(metric %in% c(metric_order[length(higher_better)], metric_order[length(higher_better) + 1])),
-    aes(group = placement_method),
-    alpha = 0.6, # Reduced alpha for dimmer lines
-    linetype = "dotted",
-  )
-
-  # Add mean line for each placement method
-  # p <- p + geom_line(
-  #   data = df_mean,
-  #   aes(group = placement_method),
-  #   size = 1,
-  #   alpha = 0.8
-  # )
+  # We don't need separate geom_line calls anymore, as we're using a single geom_line with geom_ribbon
 
   return(p)
 }
@@ -667,6 +648,11 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     mutate(deployment_time_per_function = deployment_time) %>%
+    group_by(folder, metric_group, metric_group_group) %>%
+    mutate(
+      nodes2 = n() # Calculate the mean number of functions deployed per node
+    ) %>%
+    ungroup() %>%
     extract_context() %>%
     correct_names()
 

@@ -360,7 +360,6 @@ extract_context <- function(x) {
   # The first element is the input string
   info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
   info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+")
-  Log(x$metric_group)
   return(
     x %>%
       ungroup() %>%
@@ -498,7 +497,7 @@ create_plot <- function(data) {
   net <- ggnetwork(net)
   name <- as.character(data$folder[1])
   duration <- max(data$timestamp) / time_interval
-  Log(duration)
+  # Log(duration)
 
   nudge_offset_x <- 0.05
   nudge_offset_y <- -0.3 / 2
@@ -1082,24 +1081,32 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       metric_value = mean(as.numeric(!!value_col)),
       metric_sd = sd(as.numeric(!!value_col)),
       nodes = mean(!!node_col),
+      n = n(),
       .groups = "drop"
     ) %>%
     filter(!is.na(metric_value) & is.finite(metric_value)) %>%
     mutate(
-      ci_lower = metric_value - qt(0.975, df = n() - 1) * (metric_sd / sqrt(n())),
-      ci_upper = metric_value + qt(0.975, df = n() - 1) * (metric_sd / sqrt(n())),
+      se = metric_sd / sqrt(n),
+      ic = se * qt((1 - 0.05) / 2 + .5, n - 1),
+      ci_lower = metric_value - ic,
+      ci_upper = metric_value + ic,
       x_jitter = as.numeric(factor(!!metric_col)) + seq(-0.3, 0.3, length.out = n())
     )
 
-  # Calculate mean metric values for each group
+
   df_mean <- df %>%
     group_by(!!metric_col) %>%
     summarise(
       mean_metric_value = mean(metric_value),
-      se = sd(metric_value) / sqrt(n()),
-      ci_lower = mean_metric_value - qt(0.975, df = n() - 1) * se,
-      ci_upper = mean_metric_value + qt(0.975, df = n() - 1) * se,
+      metric_sd = sd(metric_value),
+      n = n(),
       .groups = "drop"
+    ) %>%
+    mutate(
+      se = metric_sd / sqrt(n),
+      t_value = qt((1 - 0.05) / 2 + .5, n - 1), # Use t-distribution for each group
+      ci_lower = mean_metric_value - t_value * se,
+      ci_upper = mean_metric_value + t_value * se
     )
 
   # Check ANOVA assumptions
@@ -1191,8 +1198,8 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     )
 
 
-  if (any(!is.na(df$ci_lower) & !is.na(df$ci_upper) & 
-          (df$ci_lower != df$metric_value | df$ci_upper != df$metric_value)))  {
+  if (any(!is.na(df$ci_lower) & !is.na(df$ci_upper) &
+    (df$ci_lower != df$metric_value | df$ci_upper != df$metric_value))) {
     p <- p + geom_errorbar(
       data = df %>% filter(ci_lower != metric_value | ci_upper != metric_value),
       aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper),
