@@ -1171,7 +1171,6 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       width = 0.2, color = "black"
     ) +
     geom_point(aes(x = x_jitter, size = nodes), width = 0.2, height = 0, alpha = 0.5) +
-    geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper), width = 0.1, alpha = 0.3) +
     geom_text(
       data = df_mean,
       aes(y = mean_metric_value, label = sprintf("%.2f%s", mean_metric_value, y_suffix)),
@@ -1190,6 +1189,16 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     scale_x_discrete(
       guide = guide_axis(n.dodge = 2)
     )
+
+
+  if (any(!is.na(df$ci_lower) & !is.na(df$ci_upper) & 
+          (df$ci_lower != df$metric_value | df$ci_upper != df$metric_value)))  {
+    p <- p + geom_errorbar(
+      data = df %>% filter(ci_lower != metric_value | ci_upper != metric_value),
+      aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper),
+      width = 0.1, alpha = 0.3
+    )
+  }
 
   # Add x and y labels if provided, otherwise disable them
   p <- p + labs(
