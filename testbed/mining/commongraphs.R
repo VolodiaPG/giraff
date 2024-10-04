@@ -607,7 +607,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       subtitle = "Values represent standard deviations from the mean, averaged across environments and runs",
       color = "Placement Method"
     ) +
-    geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method, color = placement_method), alpha = 0.2) +
+    geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
     geom_line(aes(x = metric), alpha = 0.8) +
     geom_point(aes(x = metric, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f<br>Raw Value: %.2f",
@@ -726,7 +726,8 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
     group_col = "folder",
     value_col = "spending_per_chain",
     node_col = "nodes",
-    title = "Mean Spending per Function Chain by Placement Method",
+    title = "Mean Spending per Function Chain by Placement Method and Network Size",
+    y_label = "Spending per Chain",
     y_suffix = " units"
   )
 }

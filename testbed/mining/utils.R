@@ -70,7 +70,7 @@ bump_aes.Layer <- function(layer, new_aes) {
 
   old_geom <- layer$geom
 
-  old_setup <- old_geom$handle_n
+  old_setup <- old_geom$handle_na
   new_setup <- function(self, data, params) {
     colnames(data)[colnames(data) %in% new_aes] <- original_aes
     old_setup(data, params)
@@ -1076,154 +1076,39 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
 
   # Prepare the data
   df <- data %>%
-    group_by(!!group_col, !!metric_col) %>%
+    group_by(!!group_col, !!metric_col, !!node_col) %>%
     summarise(
       metric_value = mean(as.numeric(!!value_col)),
       metric_sd = sd(as.numeric(!!value_col)),
-      nodes = mean(!!node_col),
       n = n(),
       .groups = "drop"
     ) %>%
     filter(!is.na(metric_value) & is.finite(metric_value)) %>%
     mutate(
       se = metric_sd / sqrt(n),
-      ic = se * qt((1 - 0.05) / 2 + .5, n - 1),
-      ci_lower = metric_value - ic,
-      ci_upper = metric_value + ic,
-      x_jitter = as.numeric(factor(!!metric_col)) + seq(-0.3, 0.3, length.out = n())
+      ci = se * qt((1 - 0.05) / 2 + .5, n - 1),
+      ci_lower = metric_value - ci,
+      ci_upper = metric_value + ci
     )
 
-
-  df_mean <- df %>%
-    group_by(!!metric_col) %>%
-    summarise(
-      mean_metric_value = mean(metric_value),
-      metric_sd = sd(metric_value),
-      n = n(),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      se = metric_sd / sqrt(n),
-      t_value = qt((1 - 0.05) / 2 + .5, n - 1), # Use t-distribution for each group
-      ci_lower = mean_metric_value - t_value * se,
-      ci_upper = mean_metric_value + t_value * se
-    )
-
-  # Check ANOVA assumptions
-  assumptions_met <- TRUE
-  assumption_messages <- c()
-
-  # 1. Normality check using Shapiro-Wilk test (only if sample size is appropriate)
-  if (nrow(df) >= 3 && nrow(df) <= 5000) {
-    normality_test <- shapiro.test(df$metric_value)
-    if (normality_test$p.value < 0.05) {
-      assumptions_met <- FALSE
-      assumption_messages <- c(assumption_messages, "Normality assumption violated (p < 0.05 in Shapiro-Wilk test)")
-    }
-  } else {
-    assumptions_met <- FALSE
-    assumption_messages <- c(assumption_messages, "Sample size not appropriate for Shapiro-Wilk test (should be between 3 and 5000)")
-  }
-
-  # 2. Homogeneity of variances using Levene's test
-  levene_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
-  levene_test <- car::leveneTest(levene_formula, data = df)
-  if (levene_test$`Pr(>F)`[1] < 0.05) {
-    assumptions_met <- FALSE
-    assumption_messages <- c(assumption_messages, "Homogeneity of variances assumption violated (p < 0.05 in Levene's test)")
-  }
-
-  # 3. Independence assumption (cannot be tested statistically, add a note)
-  assumption_messages <- c(assumption_messages, "Note: Independence of observations should be ensured by experimental design")
-
-  # Perform statistical test
-  if (assumptions_met) {
-    anova_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
-    ANOVA <- aov(anova_formula, data = df)
-
-    if (!is.null(ANOVA) && !any(is.na(coef(ANOVA)))) {
-      TUKEY <- TukeyHSD(x = ANOVA, conf.level = 0.95)
-
-      labels <- generate_label_df(TUKEY, as.character(metric_col))
-      names(labels) <- c("Letters", as.character(metric_col))
-
-      df_mean <- df_mean %>%
-        left_join(labels, by = as.character(metric_col))
-
-      anova_results <- summary(ANOVA)
-      test_text <- sprintf(
-        "ANOVA: F = %.2f, p %s",
-        anova_results[[1]][as.character(metric_col), "F value"],
-        ifelse(anova_results[[1]][as.character(metric_col), "Pr(>F)"] < 0.001, "< 0.001",
-          sprintf("= %.3f", anova_results[[1]][as.character(metric_col), "Pr(>F)"])
-        )
-      )
-    }
-  } else {
-    kruskal_formula <- as.formula(paste("metric_value ~", as.character(metric_col)))
-    kruskal_test <- kruskal.test(kruskal_formula, data = df)
-    test_text <- sprintf(
-      "Kruskal-Wallis: chi-squared = %.2f, p %s",
-      kruskal_test$statistic,
-      ifelse(kruskal_test$p.value < 0.001, "< 0.001", sprintf("= %.3f", kruskal_test$p.value))
-    )
-  }
-
-  # Create the plot
-  p <- ggplot(df, aes(x = !!metric_col, y = metric_value)) +
-    geom_col(data = df_mean, aes(y = mean_metric_value, fill = !!metric_col), alpha = 0.7) +
-    geom_errorbar(
-      data = df_mean,
-      aes(y = mean_metric_value, ymin = ci_lower, ymax = ci_upper),
-      width = 0.2, color = "black"
-    ) +
-    geom_point(aes(x = x_jitter, size = nodes), width = 0.2, height = 0, alpha = 0.5) +
-    geom_text(
-      data = df_mean,
-      aes(y = mean_metric_value, label = sprintf("%.2f%s", mean_metric_value, y_suffix)),
-      vjust = -0.5, size = 3
-    ) +
+  # Create the scatter plot
+  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(method = "lm", se = TRUE, linetype = "dashed", alpha = 0.3) +
+    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
-    scale_size_continuous(name = "Number of Fog Nodes", range = c(1, 5)) +
+    scale_size_continuous(range = c(2, 8), name = "Number of Runs") +
     labs(
       title = title,
+      x = x_label,
+      y = y_label,
+      color = "Placement Method"
     ) +
     theme(
       legend.position = "right",
-      panel.grid.major.x = element_blank(),
     ) +
-    scale_fill_viridis_d() +
-    scale_x_discrete(
-      guide = guide_axis(n.dodge = 2)
-    )
-
-
-  if (any(!is.na(df$ci_lower) & !is.na(df$ci_upper) &
-    (df$ci_lower != df$metric_value | df$ci_upper != df$metric_value))) {
-    p <- p + geom_errorbar(
-      data = df %>% filter(ci_lower != metric_value | ci_upper != metric_value),
-      aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper),
-      width = 0.1, alpha = 0.3
-    )
-  }
-
-  # Add x and y labels if provided, otherwise disable them
-  p <- p + labs(
-    x = if (!is.null(x_label)) x_label else element_blank(),
-    y = if (!is.null(y_label)) y_label else element_blank()
-  )
-
-  # Add ANOVA letters if available and assumptions are met
-  if (assumptions_met && exists("labels")) {
-    p <- p + geom_text(
-      data = df_mean,
-      aes(y = max(mean_metric_value) * 1.05, label = Letters), vjust = 0, size = 4
-    )
-  }
-
-  # Add test results and assumption messages to the subtitle
-  subtitle <- paste(c(test_text, assumption_messages), collapse = "\n")
-  p <- p + labs(subtitle = subtitle)
+    scale_color_viridis_d() +
+    scale_fill_viridis_d()
 
   return(p)
 }
