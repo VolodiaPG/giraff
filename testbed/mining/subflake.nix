@@ -49,6 +49,7 @@
             reshape2
             #ggside
             ggbeeswarm
+            purrr
             #ggpubr
             Hmisc
             #rstatix

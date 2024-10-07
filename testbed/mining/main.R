@@ -39,6 +39,7 @@ init <- function() {
   library(multidplyr)
   library(multcompView)
   library(car)
+  library(purrr)
   # library(ggpubr)
   # library(Hmisc)
   # library(rstatix)

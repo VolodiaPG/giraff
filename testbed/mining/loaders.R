@@ -310,6 +310,7 @@ load_respected_sla <- function(ark) {
   cluster_library(cluster, "dplyr")
   cluster_library(cluster, "multidplyr")
   cluster_copy(cluster, "acceptable_chain_cumulative")
+  cluster_copy(cluster, "Log")
 
   sla_to_function_name <- load_single_csv(ark, "provisioned_function_gauge.csv") %>%
     prepare() %>%
@@ -326,26 +327,65 @@ load_respected_sla <- function(ark) {
     extract_function_name_info() %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     partition(cluster) %>%
-    arrange(desc(first_req_id), value) %>%
+    arrange(desc(first_req_id), value_raw) %>%
     mutate(ran_for = timestamp - value) %>%
     mutate(prev = ifelse(first_req_id == TRUE, value, timestamp)) %>%
-    mutate(in_flight = value - lag(prev)) %>%
+    mutate(prev = lag(prev)) %>%
+    mutate(in_flight = value - prev) %>%
     mutate(total_process_time = first(ran_for)) %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
     mutate(prev_sla = lag(sla_id)) %>%
     filter(first_req_id == FALSE) %>%
     mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
-    mutate(on_time = (in_flight <= latency)) %>%
-    mutate(acceptable_chained = accumulate(acceptable, `&`)) %>%
-    mutate(on_time_chained = accumulate(on_time, `&`)) %>%
+    mutate(on_time = in_flight <= latency) %>%
+    group_by(folder, metric_group, metric_group_group, req_id) %>%
+    mutate(acceptable_chained = Reduce(`&`, acceptable, accumulate = TRUE)) %>%
+    mutate(on_time_chained = Reduce(`&`, on_time, accumulate = TRUE)) %>%
+    ungroup() %>%
+    filter(function_name != "<no-tags>") %>%
+    filter(!is.na(prev)) %>%
     collect() %>%
+    {
+      check_na_and_negative <- function(df, column_name) {
+        na_count <- sum(is.na(df[[column_name]]))
+        negative_count <- sum(df[[column_name]] < 0, na.rm = TRUE)
+
+        if (na_count > 0 || negative_count > 0) {
+          Log(paste("Error in column", column_name, ":"))
+          if (na_count > 0) {
+            Log(paste("  Found", na_count, "NA values"))
+          }
+          if (negative_count > 0) {
+            Log(paste("  Found", negative_count, "negative values"))
+          }
+
+          # Log a sample of the problematic data
+          sample_size <- min(5, nrow(df))
+          sample_data <- df %>%
+            filter(is.na(!!sym(column_name)) | !!sym(column_name) < 0) %>%
+            select(folder, prev, req_id, sla_id, function_name, docker_fn_name, latency, value, in_flight, on_time, acceptable, acceptable_chained, on_time_chained, ran_for) %>%
+            head(sample_size)
+
+          Log("Sample of problematic data:")
+          Log(sample_data)
+
+          quit()
+        }
+      }
+
+      columns_to_check <- c("in_flight", "on_time", "acceptable", "acceptable_chained", "on_time_chained")
+
+      for (col in columns_to_check) {
+        check_na_and_negative(., col)
+      }
+      .
+    } %>%
     # New code to extract chain information
     group_by(folder, req_id) %>%
     mutate(chain_id = paste(sla_id, collapse = "_")) %>%
     ungroup() %>%
-    select(folder, req_id, chain_id, sla_id, everything()) %>%
-    # End of new code
+    # select(folder, req_id, chain_id, sla_id, everything()) %>%
     group_by(
       sla_id,
       folder,

@@ -669,9 +669,18 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
 
 output_mean_respected_slas <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
+    group_by(chain_id, folder, metric_group, metric_group_group) %>%
+    summarise(
+      all_on_time = sum(acceptable_chained),
+      total = sum(total),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      respected_sla = all_on_time == total,
+    ) %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
-      respected_slas = sum(acceptable_chained) / sum(total),
+      respected_slas = sum(respected_sla) / n(),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -683,6 +692,8 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     mutate(respected_slas = respected_slas * 100) %>%
     extract_context() %>%
     correct_names()
+
+  Log(df)
 
   create_metric_comparison_plot(
     data = df,
