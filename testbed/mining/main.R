@@ -237,7 +237,7 @@ merge_and_export_legend(
   ),
   "legend",
   GRAPH_ONE_COLUMN_WIDTH,
-  GRAPH_ONE_COLUMN_HEIGHT,
+  GRAPH_ONE_COLUMN_HEIGHT / 2,
   aspect_ratio = 2 / 1
 )
 export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, 2.5, aspect_ratio = 1 / 4.5)
@@ -248,3 +248,11 @@ export_graph_tikz(graph_output_deployed_functions_ratio_anova_plot, GRAPH_ONE_CO
 
 
 parallel::stopCluster(cl)
+
+# Count the number of metric groups
+run_count <- node_levels %>%
+  extract_context() %>%
+  pull(run) %>%
+  unique() %>%
+  length()
+write(run_count, file = "out/run_count.txt")

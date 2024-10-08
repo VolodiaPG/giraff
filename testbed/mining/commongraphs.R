@@ -586,7 +586,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     mutate(x_jitter = as.numeric(factor(metric)) + seq(-0.1, 0.1, length.out = n()))
 
   # Create the parallel coordinates plot
-  p <- ggplot(df_mean, aes(x = x_pos, y = value, color = placement_method, group = placement_method)) +
+  p <- ggplot(df_mean, aes(x = x_pos, y = value, color = placement_method, fill = placement_method, group = placement_method)) +
     scale_color_viridis_d() +
     scale_fill_viridis_d() +
     theme(

@@ -1094,21 +1094,22 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   # Create the scatter plot
   p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
     geom_point(alpha = 0.7) +
-    geom_smooth(aes(fill = !!metric_col), method = "lm", se = TRUE, linetype = "dashed", alpha = 0.3) +
+    geom_smooth(method = "lm", se = TRUE, level = 0.95, linetype = "dashed", alpha = 0.3) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
-    scale_size_continuous(range = c(2, 8), name = "Number of Runs") +
     labs(
       title = title,
       x = x_label,
       y = y_label,
-      color = "Placement Method"
+      color = "Placement Method",
+      fill = "Placement Method" # Add this line to set the fill legend title
     ) +
     theme(
       legend.position = "right",
     ) +
     scale_color_viridis_d() +
-    scale_fill_viridis_d()
+    scale_fill_viridis_d() +
+    guides(color = guide_legend(override.aes = list(linetype = 0)))
 
   return(p)
 }
