@@ -1,9 +1,12 @@
-*.png
-*.pdf
-*.htm
-cache
-tmp
-vroom
-out
-logs.txt
+*
+!*/
+!.gitignore
 
+!.envrc
+!.lintr
+!.vscode/settings.json
+!binserve.json
+!justfile
+
+!*.R
+!*.nix
