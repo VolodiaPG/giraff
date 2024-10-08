@@ -485,25 +485,31 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
 
 output_placement_method_comparison <- function(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times) {
   df <- respected_sla %>%
-    filter(docker_fn_name == "echo") %>%
+    group_by(chain_id, folder, metric_group, metric_group_group) %>%
+    summarise(
+      all_on_time = sum(acceptable_chained),
+      avg_latency = mean(as.numeric(measured_latency)),
+      total = sum(total),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      respected_sla = all_on_time == total,
+    ) %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
-      respected_slas = sum(acceptable_chained) / sum(total),
-      avg_latency = mean(as.numeric(measured_latency), na.rm = TRUE),
-      acceptable_requests = sum(acceptable_chained),
+      not_respected_slas = 1 - (sum(respected_sla) / n()),
+      avg_latency = mean(avg_latency),
       .groups = "drop"
     ) %>%
     inner_join(
       functions_total %>%
-        filter(status == "provisioned") %>%
         group_by(folder, metric_group, metric_group_group) %>%
-        summarise(functions_deployed = sum(n), .groups = "drop"),
-      by = c("folder", "metric_group_group", "metric_group")
-    ) %>%
-    inner_join(
-      respected_sla %>%
-        group_by(folder, metric_group, metric_group_group) %>%
-        summarise(requests_served = sum(total), .groups = "drop"),
+        summarise(
+          total_requested = sum(n),
+          provisioned = sum(n[status == "provisioned"]),
+          .groups = "drop"
+        ) %>%
+        mutate(functions_not_deployed = total_requested - provisioned),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
     inner_join(
@@ -533,23 +539,23 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, respected_slas, functions_deployed, requests_served, nodes, total_cost, avg_latency, avg_deployment_time, acceptable_requests)
+    select(placement_method, env, run, not_respected_slas, functions_not_deployed, nodes, total_cost, avg_latency, avg_deployment_time)
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
-    mutate(across(c(respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, acceptable_requests),
+    mutate(across(c(not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time),
       ~ scale(.),
       .names = "{.col}_scaled"
     ))
 
   # Define the order of metrics
-  metric_order <- c("respected_slas", "functions_deployed", "requests_served", "acceptable_requests", "total_cost", "avg_latency", "avg_deployment_time")
+  metric_order <- c("not_respected_slas", "functions_not_deployed", "total_cost", "avg_latency", "avg_deployment_time")
 
   # Reshape data for ggplot
   df_long <- df %>%
     correct_names() %>%
-    select(placement_method, env, run, ends_with("_scaled"), respected_slas, functions_deployed, requests_served, total_cost, avg_latency, avg_deployment_time, acceptable_requests, nodes) %>%
+    select(placement_method, env, run, ends_with("_scaled"), not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time, nodes) %>%
     pivot_longer(
       cols = ends_with("_scaled"),
       names_to = "metric",
@@ -559,18 +565,13 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       metric = sub("_scaled$", "", metric),
       metric = factor(metric, levels = metric_order),
       raw_value = case_when(
-        metric == "respected_slas" ~ respected_slas,
-        metric == "functions_deployed" ~ functions_deployed,
-        metric == "requests_served" ~ requests_served,
+        metric == "not_respected_slas" ~ not_respected_slas,
+        metric == "functions_not_deployed" ~ functions_not_deployed,
         metric == "total_cost" ~ total_cost,
         metric == "avg_latency" ~ avg_latency,
-        metric == "avg_deployment_time" ~ avg_deployment_time,
-        metric == "acceptable_requests" ~ acceptable_requests
+        metric == "avg_deployment_time" ~ avg_deployment_time
       )
     )
-
-  # Define which metrics are better when higher
-  higher_better <- c("respected_slas", "functions_deployed", "requests_served", "acceptable_requests")
 
   # Calculate mean values and confidence intervals for each placement method
   df_mean <- df_long %>%
@@ -617,12 +618,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     guides(
       color = guide_legend(title = "Placement Method", nrow = 2),
       fill = "none"
-    ) +
-    geom_vline(xintercept = length(higher_better) + 0.5, linetype = "dotted", color = "gray", alpha = 0.25) +
-    annotate("text", x = length(higher_better) / 2, y = 1.9, label = "Higher is better", color = "darkgreen", size = 3, alpha = 0.6, vjust = 1) +
-    annotate("text", x = length(higher_better) + (length(metric_order) - length(higher_better)) / 2, y = 1.9, label = "Lower is better", color = "darkred", size = 3, alpha = 0.6, vjust = 1)
-
-  # We don't need separate geom_line calls anymore, as we're using a single geom_line with geom_ribbon
+    )
 
   return(p)
 }
