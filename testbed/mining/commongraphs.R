@@ -544,10 +544,19 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
+    group_by(env, run) %>%
     mutate(across(c(not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time),
-      ~ scale(.),
-      .names = "{.col}_scaled"
-    ))
+      list(scaled = ~ {
+        ref_mean <- mean(.[placement_method == "auctionno_complication"], na.rm = TRUE)
+        ref_sd <- sd(., na.rm = TRUE)
+        (. - ref_mean) / ref_sd
+      }),
+      .names = "{col}_{fn}"
+    )) %>%
+    ungroup()
+
+
+  Log(df)
 
   # Define the order of metrics
   metric_order <- c("not_respected_slas", "functions_not_deployed", "total_cost", "avg_latency", "avg_deployment_time")
@@ -601,24 +610,34 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       axis.title.x = element_blank(),
     ) +
     scale_x_discrete(
+      labels = c(
+        "not_respected_slas" = "\\footnotesize{SLA Violations}",
+        "functions_not_deployed" = "\\footnotesize{Undeployed Functions}",
+        "total_cost" = "\\footnotesize{Total Cost}",
+        "avg_latency" = "\\footnotesize{Avg. Latency}",
+        "avg_deployment_time" = "\\footnotesize{Avg. Deployment Time}"
+      ),
       guide = guide_axis(n.dodge = 2)
     ) +
+    scale_y_continuous(labels = function(x) paste0(x, " SD")) +
     labs(
-      title = "Mean Placement Method Comparison (Centered and Reduced)",
-      subtitle = "Values represent standard deviations from the mean, averaged across environments and runs",
+      title = "Mean Placement Method Comparison (Centered around GIRAFF and Reduced)",
+      subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation.",
       color = "Placement Method"
     ) +
     geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
-    geom_line(aes(x = metric), alpha = 0.8) +
+    geom_line(aes(x = metric, linetype = ifelse(placement_method == "\\footnotesize{GIRAFF}", "solid", "dashed")), alpha = 0.8) +
     geom_point(aes(x = metric, text = sprintf(
-      "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f<br>Raw Value: %.2f",
+      "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
       metric, placement_method,
       value, raw_value
     )), alpha = 0.6, stroke = 0, size = 3) +
     guides(
       color = guide_legend(title = "Placement Method", nrow = 2),
-      fill = "none"
-    )
+      fill = "none",
+      linetype = "none"
+    ) +
+    scale_linetype_identity()
 
   return(p)
 }

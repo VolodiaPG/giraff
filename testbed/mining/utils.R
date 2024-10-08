@@ -308,7 +308,15 @@ correct_names <- function(x) {
         placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge furthest}",
         placement_method == "mincpurandomno_complication" ~ "\\footnotesize{MinCPU random}",
         TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
-      ))
+      )) %>%
+      mutate(placement_method = factor(placement_method, levels = c(
+        "\\footnotesize{GIRAFF}",
+        "\\footnotesize{GIRAFF (reduction)}",
+        "\\footnotesize{Edge ward}",
+        "\\footnotesize{Edge first}",
+        "\\footnotesize{Edge furthest}",
+        "\\footnotesize{MinCPU random}"
+      )))
   )
 }
 
