@@ -620,7 +620,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     scale_y_continuous(labels = function(x) paste0(x, " SD")) +
     labs(
       title = "Mean Placement Method Comparison (Centered around GIRAFF and Reduced)",
-      subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation.",
+      subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation (SD).",
       color = "Placement Method"
     ) +
     geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
