@@ -240,7 +240,7 @@ merge_and_export_legend(
   GRAPH_ONE_COLUMN_HEIGHT / 2,
   aspect_ratio = 2 / 1
 )
-export_graph_tikz(graph_spider_chart, GRAPH_TWO_COLUMN_WIDTH, 2.5, aspect_ratio = 1 / 4.5)
+export_graph_tikz(graph_spider_chart, 7, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 3)
 export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)

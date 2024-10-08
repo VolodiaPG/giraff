@@ -857,6 +857,7 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   plot_name <- plot$name
   plot_graph <- plot$graph
   tikz_name <- paste0("out/", plot_name, ".tex")
+  caption_name <- paste0("out/", plot_name, "_caption.tex")
 
   # Extract title, subtitle, and axis labels from the ggplot object
   built_plot <- ggplot2::ggplot_build(plot_graph)
@@ -893,22 +894,24 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   # Close the resizebox
   cat("}\n", file = file_conn)
 
-  # Add caption if provided
-  if (!is.null(caption)) {
-    cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
-  } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
-    caption <- plot_title
-    if (!is.null(plot_subtitle)) {
-      caption <- paste0(caption, ". \\\\ \\tiny\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
-    }
-    cat(sprintf("\\caption{%s}\n", caption), file = file_conn)
-  }
-
   # Add label for referencing
   cat(sprintf("\\label{fig:%s}\n", plot_name), file = file_conn)
 
   # Close the file connection
   close(file_conn)
+
+  # Export caption to a separate file
+  caption_conn <- file(caption_name, "w")
+  if (!is.null(caption)) {
+    cat(sprintf("\\captionof{figure}{%s}\n", caption), file = caption_conn)
+  } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
+    caption <- plot_title
+    if (!is.null(plot_subtitle)) {
+      caption <- paste0(caption, ". \\\\ \\tiny\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
+    }
+    cat(sprintf("\\captionof{figure}{%s}\n", caption), file = caption_conn)
+  }
+  close(caption_conn)
 }
 
 merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, aspect_ratio = 1 / 5) {

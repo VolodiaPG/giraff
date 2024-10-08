@@ -675,7 +675,7 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
     group_col = "folder",
     value_col = "deployment_time_per_function",
     node_col = "nodes",
-    title = "Mean Deployment Time per Function in Chain by Placement Method",
+    title = "Mean Deployment Time per Function in Chain by Network Size",
     y_suffix = " s"
   )
 }
@@ -712,7 +712,7 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     group_col = "folder",
     value_col = "respected_slas",
     node_col = "nodes",
-    title = "Mean Respected SLAs by Placement Method",
+    title = "Mean Respected SLAs by Network Size",
     y_suffix = "%"
   )
 }
@@ -748,7 +748,7 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
     group_col = "folder",
     value_col = "spending_per_chain",
     node_col = "nodes",
-    title = "Mean Spending per Function Chain by Placement Method and Network Size",
+    title = "Mean Spending per Function Chain by Network Size",
     y_label = "Spending per Chain",
     y_suffix = " units"
   )
@@ -778,7 +778,7 @@ output_mean_placed_functions_per_node <- function(functions_total, node_levels) 
     group_col = "folder",
     value_col = "placed_functions_per_node",
     node_col = "nodes",
-    title = "Mean Placed Functions per Node by Placement Method",
+    title = "Mean Placed Functions per Node by Network Size",
     y_suffix = ""
   )
 }
@@ -807,7 +807,7 @@ output_deployed_functions_ratio_anova_plot <- function(functions_total, node_lev
     group_col = "folder",
     value_col = "ratio",
     node_col = "nodes",
-    title = "Ratio of Deployed Functions to Asked Functions by Placement Method",
+    title = "Ratio of Deployed Functions to Asked Functions by Network Size",
     y_label = "Ratio of Deployed to Asked Functions",
     y_suffix = ""
   )
