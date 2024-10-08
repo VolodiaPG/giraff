@@ -556,8 +556,6 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     ungroup()
 
 
-  Log(df)
-
   # Define the order of metrics
   metric_order <- c("not_respected_slas", "functions_not_deployed", "total_cost", "avg_latency", "avg_deployment_time")
 
@@ -707,8 +705,6 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     mutate(respected_slas = respected_slas * 100) %>%
     extract_context() %>%
     correct_names()
-
-  Log(df)
 
   create_metric_comparison_plot(
     data = df,
