@@ -530,6 +530,13 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     ) %>%
     inner_join(
       raw_deployment_times %>%
+        inner_join(
+          respected_sla %>%
+            select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+          by = c("folder", "metric_group", "metric_group_group", "sla_id")
+    ) %>%
+        group_by(folder, metric_group, metric_group_group, chain_id) %>%
+        summarise(value = sum(value), .groups = "drop") %>%
         group_by(folder, metric_group, metric_group_group) %>%
         summarise(avg_deployment_time = mean(value, na.rm = TRUE) / 1000, .groups = "drop"),
       by = c("folder", "metric_group_group", "metric_group")
@@ -586,15 +593,20 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     summarise(
       raw_value = mean(raw_value, na.rm = TRUE),
       se = sd(value, na.rm = TRUE) / sqrt(n()),
+      percentile_lower = quantile(value, 0.025, na.rm = TRUE),
+      percentile_upper = quantile(value, 0.975, na.rm = TRUE),
       value = mean(value, na.rm = TRUE),
       ci_lower = value - qt((1 - 0.05) / 2 + .5, df = n() - 1) * se,
       ci_upper = value + qt((1 - 0.05) / 2 + .5, df = n() - 1) * se,
       .groups = "drop"
     ) %>%
-    mutate(x_jitter = as.numeric(factor(metric)) + seq(-0.1, 0.1, length.out = n()))
+    mutate(x_jitter = as.numeric(factor(metric)) + as.numeric(factor(placement_method)) * 0.05 - 0.2)
+
+  df_long <- df_long %>%
+    mutate(x_jitter = as.numeric(factor(metric)) + as.numeric(factor(placement_method)) * 0.05 - 0.2)
 
   # Create the parallel coordinates plot
-  p <- ggplot(df_mean, aes(x = x_pos, y = value, color = placement_method, fill = placement_method, group = placement_method)) +
+  p <- ggplot(df_mean, aes(x = metric, y = value, color = placement_method, fill = placement_method, group = placement_method)) +
     scale_color_viridis_d() +
     scale_fill_viridis_d() +
     theme(
@@ -617,19 +629,32 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       ),
       guide = guide_axis(n.dodge = 2)
     ) +
-    scale_y_continuous(labels = function(x) paste0(x, " SD")) +
+    scale_y_continuous(labels = function(x) paste0(x, " $\\sigma$")) +
     labs(
       title = "Mean Placement Method Comparison (Centered around GIRAFF and Reduced)",
-      subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation (SD).",
+      subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation ($\\sigma$).",
       color = "Placement Method"
     ) +
-    geom_ribbon(aes(x = metric, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
-    geom_line(aes(x = metric, linetype = ifelse(placement_method == "\\footnotesize{GIRAFF}", "solid", "dashed")), alpha = 0.8) +
-    geom_point(aes(x = metric, text = sprintf(
+    geom_point(data = data.frame(
+      metric = unique(df_mean$metric),
+      value = min(df_mean$value) - 0.5,
+      placement_method = "phantom"
+    ), aes(x = metric, y = value), alpha = 0) +
+    # geom_ribbon(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
+    geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, color = placement_method), width = 0.2, alpha = 0.5) +
+    geom_line(aes(x = x_jitter), size = 0.4, alpha = 0.8) +
+    geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{GIRAFF}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
+    geom_point(data = df_long, aes(x = x_jitter, y = value, color = placement_method, 
+               text = sprintf(
+                 "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
+                 metric, placement_method, value, raw_value
+               )), 
+               alpha = 0.5, stroke = 0, size = 1) +
+    geom_point(aes(x = x_jitter, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
       metric, placement_method,
       value, raw_value
-    )), alpha = 0.6, stroke = 0, size = 3) +
+    )), alpha = 1, stroke = 0, size = 2) +
     guides(
       color = guide_legend(title = "Placement Method", nrow = 2),
       fill = "none",
@@ -684,16 +709,16 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
     group_by(chain_id, folder, metric_group, metric_group_group) %>%
     summarise(
-      all_on_time = sum(acceptable_chained),
+      violations = sum(total) - sum(acceptable_chained),
       total = sum(total),
       .groups = "drop"
     ) %>%
     mutate(
-      respected_sla = all_on_time == total,
+      sla_violation_rate = violations / total,
     ) %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
-      respected_slas = sum(respected_sla) / n(),
+      mean_sla_violations = mean(sla_violation_rate),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -702,7 +727,7 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    mutate(respected_slas = respected_slas * 100) %>%
+    mutate(mean_sla_violations = mean_sla_violations * 100) %>%
     extract_context() %>%
     correct_names()
 
@@ -710,9 +735,9 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "respected_slas",
+    value_col = "mean_sla_violations",
     node_col = "nodes",
-    title = "Mean Respected SLAs by Network Size",
+    title = "Mean SLA Violations by Network Size",
     y_suffix = "%"
   )
 }

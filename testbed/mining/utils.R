@@ -907,7 +907,7 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
-      caption <- paste0(caption, ". \\\\ \\tiny\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
+      caption <- paste0(caption, ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
     }
     cat(sprintf("\\captionof{figure}{%s}\n", caption), file = caption_conn)
   }
@@ -1103,9 +1103,14 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     )
 
   # Create the scatter plot
-  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
-    geom_point(alpha = 0.7) +
-    geom_smooth(method = "lm", se = TRUE, level = 0.95, linetype = "dashed", alpha = 0.3) +
+   p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
+    geom_point(alpha = 0.7, aes(text = sprintf(
+      "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
+      !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
+    ))) +
+    geom_smooth(method = "lm", se = TRUE, level=0.95, linetype = "dashed", alpha = 0.3,
+                aes(group = !!metric_col), 
+                show.legend = TRUE) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
     labs(
@@ -1113,14 +1118,33 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       x = x_label,
       y = y_label,
       color = "Placement Method",
-      fill = "Placement Method" # Add this line to set the fill legend title
+      fill = "Placement Method"
     ) +
     theme(
       legend.position = "right",
     ) +
     scale_color_viridis_d() +
-    scale_fill_viridis_d() +
-    guides(color = guide_legend(override.aes = list(linetype = 0)))
+    scale_fill_viridis_d() 
+    # geom_text(
+    #   data = df %>% 
+    #     group_by(!!metric_col) %>% 
+    #     summarise(
+    #       x = max(!!node_col),
+    #       y = predict(lm(metric_value ~ !!node_col), newdata = tibble(!!node_col := max(!!node_col))),
+    #       equation = sprintf(
+    #         "y = %.4fx + %.4f\nR² = %.4f\nmean = %.4f",
+    #         coef(lm(metric_value ~ !!node_col))[2],
+    #         coef(lm(metric_value ~ !!node_col))[1],
+    #         summary(lm(metric_value ~ !!node_col))$r.squared,
+    #         mean(metric_value)
+    #       ),
+    #       .groups = "drop"
+    #     ),
+    #   aes(x = x, y = y, label = equation, color = !!metric_col),
+    #   hjust = 0, vjust = 0.5, show.legend = FALSE,
+    #   lineheight = 0.8,
+    #   check_overlap = TRUE
+    # ) 
 
   return(p)
 }
