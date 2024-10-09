@@ -894,22 +894,19 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   # Close the resizebox
   cat("}\n", file = file_conn)
 
-  # Add label for referencing
-  cat(sprintf("\\label{fig:%s}\n", plot_name), file = file_conn)
-
   # Close the file connection
   close(file_conn)
 
   # Export caption to a separate file
   caption_conn <- file(caption_name, "w")
   if (!is.null(caption)) {
-    cat(sprintf("\\captionof{figure}{%s}\n", caption), file = caption_conn)
+    cat(sprintf("\\captionof{figure}{%s\\label{fig:%s}}\n", caption, plot_name), file = caption_conn)
   } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
       caption <- paste0(caption, ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
     }
-    cat(sprintf("\\captionof{figure}{%s}\n", caption), file = caption_conn)
+    cat(sprintf("\\captionof{figure}{%s\\label{fig:%s}}\n", caption, plot_name), file = caption_conn)
   }
   close(caption_conn)
 }
