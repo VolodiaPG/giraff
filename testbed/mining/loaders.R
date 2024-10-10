@@ -107,6 +107,41 @@ load_functions <- function(ark) {
   return(functions)
 }
 
+load_provisioned_functions <- function(functions) {
+  load_csv_with_error_handling <- function(ark, csv_filename, log_message) {
+    tryCatch(
+      {
+        load_single_csv(ark, csv_filename) %>%
+          prepare() %>%
+          prepare_convert() %>%
+          extract_function_name_info() %>%
+          select(instance, sla_id, folder, metric_group, metric_group_group, latency)
+      },
+      error = function(cond) {
+        df <- data.frame(instance = character(0), sla_id = character(0), folder = character(0), 
+                         metric_group = character(0), metric_group_group = character(0), latency = as.duration(numeric(0)))
+        Log(paste0(log_message, ark))
+        return(df)
+      }
+    )
+  }
+
+  refused <- load_csv_with_error_handling(ark, "refused_function_gauge.csv", "cannot get refused gauge functions for ") %>%
+  mutate(status = "refused")
+
+  failed <- load_csv_with_error_handling(ark, "send_fails", "cannot get send_fails functions for ") %>%
+  mutate(status = "failed")
+
+  provisioned <- load_csv_with_error_handling(ark, "provisioned_function_gauge.csv", "cannot get provisioned gauge functions for ") %>%
+  mutate(status = "provisioned")
+
+  functions <- provisioned %>%
+    full_join(refused) %>%
+    full_join(failed)
+
+  return(functions)
+}
+
 load_functions_all_total <- function(functions) {
   total <- functions %>%
     filter(status == "provisioned") %>%

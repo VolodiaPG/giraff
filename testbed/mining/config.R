@@ -10,7 +10,7 @@ no_memoization <- FALSE
 single_graphs <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
-GRAPH_ONE_COLUMN_WIDTH <- 3.5
+GRAPH_ONE_COLUMN_WIDTH <- 3.6
 GRAPH_HALF_COLUMN_WIDTH <- 2.5
 GRAPH_TWO_COLUMN_WIDTH <- 9
 
@@ -110,6 +110,12 @@ METRICS_ARKS <- c(
   "metrics_valuation_rates.env_1_1728304420-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-07-12-59.tar.xz",
   "metrics_valuation_rates.env_1_1728304420-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-07-13-46.tar.xz",
   "metrics_valuation_rates.env_1_1728304420-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-07-14-02.tar.xz",
+"metrics_valuation_rates.env_1_1728482274-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-09-15-59.tar.xz",
+"metrics_valuation_rates.env_1_1728482274-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-09-16-52.tar.xz",
+"metrics_valuation_rates.env_1_1728482274-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-09-15-36.tar.xz",
+"metrics_valuation_rates.env_1_1728482274-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-09-16-28.tar.xz",
+"metrics_valuation_rates.env_1_1728482274-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-09-15-12.tar.xz",
+
   #---
   #---
   #---

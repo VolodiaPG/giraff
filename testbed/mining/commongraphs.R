@@ -638,8 +638,8 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     geom_point(data = data.frame(
       metric = unique(df_mean$metric),
       value = min(df_mean$value) - 0.5,
-      placement_method = "phantom"
-    ), aes(x = metric, y = value), alpha = 0) +
+      placement_method = "\\footnotesize{GIRAFF}"
+    ), aes(x = metric, y = value), alpha = 0, show.legend = FALSE) +
     # geom_ribbon(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
     geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, color = placement_method), width = 0.2, alpha = 0.5) +
     geom_line(aes(x = x_jitter), size = 0.4, alpha = 0.8) +
@@ -719,6 +719,8 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
       mean_sla_violations = mean(sla_violation_rate),
+      sd_sla_violations = sd(sla_violation_rate),
+      n = n(),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -727,7 +729,12 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    mutate(mean_sla_violations = mean_sla_violations * 100) %>%
+    mutate(
+      mean_sla_violations = mean_sla_violations * 100,
+      se = sd_sla_violations / sqrt(n),
+      ci_lower = (mean_sla_violations / 100 - qt(0.975, n - 1) * se) * 100,
+      ci_upper = (mean_sla_violations / 100 + qt(0.975, n - 1) * se) * 100
+    ) %>%
     extract_context() %>%
     correct_names()
 
@@ -779,12 +786,12 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
   )
 }
 
-output_mean_placed_functions_per_node <- function(functions_total, node_levels) {
-  df <- functions_total %>%
-    filter(status == "provisioned") %>%
-    group_by(folder, metric_group, metric_group_group) %>%
+output_mean_latency <- function(respected_sla, node_levels) {
+  df <- respected_sla %>%
+    # Group by folder, metric_group, metric_group_group, and chain_id
+    group_by(folder, metric_group, metric_group_group, chain_id) %>%
     summarise(
-      placed_functions = sum(n),
+      avg_latency = mean(measured_latency, na.rm = TRUE),
       .groups = "drop"
     ) %>%
     inner_join(
@@ -793,7 +800,6 @@ output_mean_placed_functions_per_node <- function(functions_total, node_levels) 
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    mutate(placed_functions_per_node = placed_functions / nodes) %>%
     extract_context() %>%
     correct_names()
 
@@ -801,22 +807,47 @@ output_mean_placed_functions_per_node <- function(functions_total, node_levels) 
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "placed_functions_per_node",
+    value_col = "avg_latency",
     node_col = "nodes",
-    title = "Mean Placed Functions per Node by Network Size",
-    y_suffix = ""
+    title = "Mean Latency between Functions by Network Size",
+    y_label = "Mean Latency",
+    y_suffix = " s"
   )
 }
 
-output_deployed_functions_ratio_anova_plot <- function(functions_total, node_levels) {
-  df <- functions_total %>%
+output_mean_placed_functions_per_node <- function(provisioned_functions, node_levels) {
+  # Compute median latency separately
+  # Calculate quantiles
+  df <- provisioned_functions %>%
     group_by(folder, metric_group, metric_group_group) %>%
+    mutate(
+      total_count = n(),
+      latency_type = case_when(
+        latency < 0.015 ~ "Low lat. ($<$ 15ms)",
+        latency >= 0.015 & latency < 0.150 ~ "Med. lat. (15ms - 150ms)",
+        latency >= 0.150 ~ "High lat. ($>$ 150ms)"
+      )
+    ) %>%
+    mutate(
+      latency_type = factor(latency_type, levels = c(
+        "Low lat. ($<$ 15ms)",
+        "Med. lat. (15ms - 150ms)",
+        "High lat. ($>$ 150ms)"
+      ))
+    ) %>%
+    group_by(folder, metric_group, metric_group_group, latency_type) %>%
     summarise(
-      deployed = sum(n[status == "provisioned"]),
-      asked = sum(n),
+      provisioned = n_distinct(sla_id[status == "provisioned"]),
+      total = n_distinct(sla_id),
       .groups = "drop"
     ) %>%
-    mutate(ratio = deployed / asked) %>%
+    mutate(
+      functions_not_deployed = (total - provisioned) / total * 100,
+      se = sqrt((functions_not_deployed * (100 - functions_not_deployed)) / total),
+      margin_of_error = qt(0.975, df = total - 1) * se,
+      ci_lower = functions_not_deployed - margin_of_error,
+      ci_upper = functions_not_deployed + margin_of_error
+    ) %>%
     inner_join(
       node_levels %>%
         group_by(folder, metric_group, metric_group_group) %>%
@@ -830,10 +861,10 @@ output_deployed_functions_ratio_anova_plot <- function(functions_total, node_lev
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "ratio",
+    value_col = "functions_not_deployed",
     node_col = "nodes",
-    title = "Ratio of Deployed Functions to Asked Functions by Network Size",
-    y_label = "Ratio of Deployed to Asked Functions",
-    y_suffix = ""
+    title = "Mean Relative Difference of Unplaced Functions per Node by Network Size and Latency Type",
+    y_suffix = " %",
+    facet_col = "latency_type"
   )
 }

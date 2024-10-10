@@ -201,6 +201,7 @@ bids_raw <- combine(METRICS_ARKS, load_bids_raw)
 provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
 
 functions <- combine(METRICS_ARKS, load_functions)
+provisioned_functions <- combine(METRICS_ARKS, load_provisioned_functions)
 respected_sla <- combine(METRICS_ARKS, load_respected_sla)
 raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
 paid_functions <- combine(METRICS_ARKS, load_paid_functions)
@@ -226,8 +227,8 @@ graph_spider_chart <- export_graph("output_spider_chart", output_placement_metho
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(respected_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
 graph_output_mean_spending <- export_graph("output_mean_spending", output_mean_spending(bids_won_function, node_levels, respected_sla))
-graph_output_deployed_functions_ratio_anova_plot <- export_graph("output_deployed_functions_ratio_anova_plot", output_deployed_functions_ratio_anova_plot(functions_total, node_levels))
-# graph_outpumean_spendingns <- export_graph("outpumean_spendingns", outpumean_spending(bids_won_, functial, node_leve, respected_slals))
+graph_output_mean_placed_functions_per_node <- export_graph("output_mean_placed_functions_per_node", output_mean_placed_functions_per_node(provisioned_functions, node_levels))
+graph_output_mean_latency <- export_graph("output_mean_latency", output_mean_latency(respected_sla, node_levels))
 
 merge_and_export_legend(
   list(
@@ -236,7 +237,7 @@ merge_and_export_legend(
     graph_output_mean_respected_slas
   ),
   "legend",
-  GRAPH_ONE_COLUMN_WIDTH,
+  1.25,
   GRAPH_ONE_COLUMN_HEIGHT / 2,
   aspect_ratio = 2 / 1
 )
@@ -244,8 +245,8 @@ export_graph_tikz(graph_spider_chart, 6, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio =
 export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
-export_graph_tikz(graph_output_deployed_functions_ratio_anova_plot, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
-
+export_graph_tikz(graph_output_mean_placed_functions_per_node, 6, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1.25)
+export_graph_tikz(graph_output_mean_latency, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 
 parallel::stopCluster(cl)
 

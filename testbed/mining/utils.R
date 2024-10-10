@@ -928,7 +928,12 @@ merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, as
   # Create a plot with the extracted legend
   legend_plot <- ggplot() +
     theme_void() +
-    theme(legend.position = "right", aspect.ratio = aspect_ratio) +
+    theme(
+      legend.position = "right",
+      legend.box.margin = margin(0, 95, 0, 0, "pt"),
+      aspect.ratio = aspect_ratio,
+      plot.margin = margin(0, 0, 0, 95, "pt")
+    ) +
     annotation_custom(grob = legend)
 
 
@@ -1075,40 +1080,63 @@ Log <- function(text, ...) {
 }
 
 create_metric_comparison_plot <- function(data, metric_col, group_col, value_col, node_col,
-                                          title, x_label = NULL, y_label = NULL, y_suffix = "") {
+                                          title, x_label = NULL, y_label = NULL, y_suffix = "",
+                                          facet_col = NULL) {
+
+  empty_facet_col <- is.null(facet_col)
+
   # Convert column names to symbols
   metric_col <- ensym(metric_col)
   group_col <- ensym(group_col)
   value_col <- ensym(value_col)
   node_col <- ensym(node_col)
+  if (!empty_facet_col) {
+    facet_col <- ensym(facet_col)
+  }
+
+  # Prepare the data
+  group_vars <- c(quo_name(group_col), quo_name(metric_col), quo_name(node_col))
+  if (!empty_facet_col) {
+    group_vars <- c(group_vars, quo_name(facet_col))
+  }
+
+  # Check if ci_lower and ci_upper exist in the data
+  if ("ci_lower" %in% names(data) && "ci_upper" %in% names(data)) {
+    group_vars <- c(group_vars, "ci_lower", "ci_upper")
+  }
+
 
   # Prepare the data
   df <- data %>%
-    group_by(!!group_col, !!metric_col, !!node_col) %>%
+    group_by(across(all_of(group_vars))) %>%
     summarise(
       metric_value = mean(as.numeric(!!value_col)),
       metric_sd = sd(as.numeric(!!value_col)),
       n = n(),
       .groups = "drop"
     ) %>%
-    filter(!is.na(metric_value) & is.finite(metric_value)) %>%
-    mutate(
-      se = metric_sd / sqrt(n),
-      ci = se * qt((1 - 0.05) / 2 + .5, n - 1),
-      ci_lower = metric_value - ci,
-      ci_upper = metric_value + ci
-    )
+    filter(!is.na(metric_value) & is.finite(metric_value))
+
+  if (!("ci_lower" %in% names(data) && "ci_upper" %in% names(data))) {
+    df <- df %>%
+      mutate(
+        se = metric_sd / sqrt(n),
+        ci = se * qt((1 - 0.05) / 2 + .5, n - 1),
+        ci_lower = metric_value - ci,
+        ci_upper = metric_value + ci
+      )
+  }
 
   # Create the scatter plot
-   p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
+  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
     geom_point(alpha = 0.7, aes(text = sprintf(
       "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
       !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
     ))) +
     geom_smooth(method = "lm", se = TRUE, level=0.95, linetype = "dashed", alpha = 0.3,
-                aes(group = !!metric_col), 
+                aes(group = interaction(!!metric_col)), 
                 show.legend = TRUE) +
-    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, alpha = 0.5) +
+    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper, ), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
     labs(
       title = title,
@@ -1122,26 +1150,11 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     ) +
     scale_color_viridis_d() +
     scale_fill_viridis_d() 
-    # geom_text(
-    #   data = df %>% 
-    #     group_by(!!metric_col) %>% 
-    #     summarise(
-    #       x = max(!!node_col),
-    #       y = predict(lm(metric_value ~ !!node_col), newdata = tibble(!!node_col := max(!!node_col))),
-    #       equation = sprintf(
-    #         "y = %.4fx + %.4f\nR² = %.4f\nmean = %.4f",
-    #         coef(lm(metric_value ~ !!node_col))[2],
-    #         coef(lm(metric_value ~ !!node_col))[1],
-    #         summary(lm(metric_value ~ !!node_col))$r.squared,
-    #         mean(metric_value)
-    #       ),
-    #       .groups = "drop"
-    #     ),
-    #   aes(x = x, y = y, label = equation, color = !!metric_col),
-    #   hjust = 0, vjust = 0.5, show.legend = FALSE,
-    #   lineheight = 0.8,
-    #   check_overlap = TRUE
-    # ) 
+
+  # Add faceting if facet_col is provided
+  if (!empty_facet_col) {
+    p <- p + facet_wrap(vars(!!facet_col))
+  }
 
   return(p)
 }
