@@ -245,7 +245,7 @@ export_graph_tikz(graph_spider_chart, 6, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio =
 export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_deployment_time, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_spending, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
-export_graph_tikz(graph_output_mean_placed_functions_per_node, 6, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1.25)
+export_graph_tikz(graph_output_mean_placed_functions_per_node, 8, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 export_graph_tikz(graph_output_mean_latency, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
 
 parallel::stopCluster(cl)
