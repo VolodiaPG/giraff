@@ -257,3 +257,21 @@ run_count <- node_levels %>%
   unique() %>%
   length()
 write(run_count, file = "out/run_count.txt")
+
+# Get the maximum number of functions hosted
+max_functions_hosted <- provisioned_functions %>%
+  filter(status == "provisioned") %>%
+  group_by(folder, metric_group, metric_group_group) %>%
+  summarise(functions_hosted = n_distinct(sla_id), .groups = "drop") %>%
+  summarise(max_functions = max(functions_hosted), .groups = "drop") %>%
+  pull(max_functions) %>%
+  max()
+
+# Write the result to a file
+write(max_functions_hosted, file = "out/max_functions_hosted.txt")
+
+# Print the result to console
+cat("Maximum number of functions hosted on a single node:", max_functions_hosted, "\n")
+
+# Log the result
+Log(paste("Maximum number of functions hosted on a single node:", max_functions_hosted))
