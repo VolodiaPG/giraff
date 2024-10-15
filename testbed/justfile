@@ -145,7 +145,6 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export EXPE_LOAD_FILE="{{ justfile_directory() }}/requests{{ env_variation }}"
     export -p | sed 's/declare -x /export /' > env_checkpoint{{ env_variation }}.sh
     export COLLECTOR_URL="$IOT_IP:4317"
-    export ARRIVAL_REQUEST_MULTIPLIER="700.0"
     expe
 
 from_checkpoint env_variation *command="expe":
@@ -311,6 +310,10 @@ docker_enos name expe_dir cmd="bash":
             --cgroup-manager=cgroupfs \
             enos_deployment:latest bash -c -E "{{ cmd }}"
         fi
+
+ssh_into_expe hostname name:
+    #!/usr/bin/env bash
+    ssh root@{{ hostname }} {{ DOCKER }} exec -it {{ name }} bash --init-file <(echo 'source \"$HOME/.bashrc\"; source env.source;  exec bash -i')
 
 [private]
 _inside_docker_scenearii +city_name_node_targets:

@@ -259,6 +259,7 @@
             [
               base
               filesystem
+              master
             ]
             ++ [
               outputs.nixosModules.enosvm

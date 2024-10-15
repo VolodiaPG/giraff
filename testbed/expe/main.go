@@ -79,6 +79,7 @@ var (
 	noLatency                        int
 	highLatency                      int
 	lowLatency                       int
+	functionMinDuration              int
 	functionColdStartOverhead        int
 	functionStopOverhead             int
 	experimentDuration               int
@@ -137,6 +138,10 @@ func init() {
 	overrideFirstNodeIP = os.Getenv("OVERRIDE_FIRST_NODE_IP")
 	dockerRegistry = os.Getenv("DOCKER_REGISTRY")
 	functionDescriptions = strings.Fields(os.Getenv("FUNCTION_DESCRIPTIONS"))
+	functionMinDuration, err = strconv.Atoi(os.Getenv("FUNCTION_MIN_DURATION"))
+	if err != nil {
+		log.Println("There is error converting FUNCTION_MIN_DURATION to int, val is %s, err is %s", os.Getenv("FUNCTION_MIN_DURATION"), err)
+	}
 	arrivals := os.Getenv("ARRIVAL_REQUEST_MULTIPLIER")
 	arrivalsNumber := 1000.0
 	if arrivals != "" {
@@ -673,7 +678,7 @@ func saveFile(filename string) error {
 			for index := 0; index < nbFunction; index++ {
 				arrival := arrivals[index]
 				duration := durations[index]
-				duration = duration + functionColdStartOverhead + functionStopOverhead
+				duration = max(duration+functionColdStartOverhead+functionStopOverhead, functionMinDuration)
 				requestInterval := requestIntervals[index]
 				fnName := fnDesc.First
 				if fnName == "" {

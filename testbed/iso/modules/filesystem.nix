@@ -123,40 +123,42 @@ in {
 
   # useful for debugging
   systemd.services = {
-    sshx = {
-      description = "sshx";
-      wantedBy = ["multi-user.target"];
-      script = ''
-        dir=$(mktemp -d)
-        ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
+    # sshx = {
+    #   description = "sshx";
+    #   wantedBy = ["multi-user.target"];
+    #   script = ''
+    #     dir=$(mktemp -d)
+    #     ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
 
-        while ! [ -f "/my_group" ] ; do
+    #     while ! [ -f "/my_group" ] ; do
+    #       sleep 1
+    #     done
+    #     while ! [ -f "/my_name" ] ; do
+    #       sleep 1
+    #     done
+    #     mkdir -p "$dir/sshx/$(cat /my_group)"
+    #     export PATH=/run/current-system/sw/bin:$PATH
+    #     export SHELL="fish"
+    #     ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
+    #   '';
+    #   serviceConfig = {
+    #     Type = "oneshot";
+    #     RemainAfterExit = "yes";
+    #     Restart = "on-failure";
+    #     RestartSec = "3";
+    #   };
+    # };
+
+    # # useful for debugging
+    tailscale-connect-iot = {
+      description = "tailscale-connect-iot";
+      wantedBy = ["multi-user.target"];
+      after = ["mountNfs.service"];
+      script = ''
+        dir=/nfs
+        while ! [ -e "$dir" ] ; do
           sleep 1
         done
-        while ! [ -f "/my_name" ] ; do
-          sleep 1
-        done
-        mkdir -p "$dir/sshx/$(cat /my_group)"
-        export PATH=/run/current-system/sw/bin:$PATH
-        export SHELL="fish"
-        ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".sshx} -q | while IFS= read -r line; do printf "%-15s %s\n" "$(cat /my_name)" "$line"; done >> "$dir/sshx/$(cat /my_group)/$(cat /my_name).sshx"
-      '';
-      serviceConfig = {
-        Type = "oneshot";
-        RemainAfterExit = "yes";
-        Restart = "on-failure";
-        RestartSec = "3";
-      };
-    };
-
-    # useful for debugging
-    tailscale-connect = {
-      description = "tailscale-connect";
-      wantedBy = ["multi-user.target"];
-      script = ''
-        dir=$(mktemp -d)
-        ${pkgs.mount}/bin/mount ${builtins.elemAt (readLines ../config/g5k.nfs.txt) 0} $dir
-
         while ! [ -f "/my_name" ] ; do
           sleep 1
         done
@@ -166,7 +168,7 @@ in {
           done
           AUTH_KEY=$(cat "$dir/tailscale_authkey")
 
-          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY --advertise-tags=tag:grid5000
+          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY --accept-dns=false --advertise-tags=tag:grid5000
         fi
       '';
       serviceConfig = {
@@ -202,4 +204,5 @@ in {
       };
     };
   };
+  services.tailscale.enable = true;
 }

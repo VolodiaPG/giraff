@@ -7,6 +7,7 @@
   proxy = import ./proxy.nix;
   disk = import ./disk.nix;
   registry = import ./registry.nix;
+  master = import ./master.nix;
 
   # tools
   make-disk-image-stateless = import ./make-disk-image-stateless.nix;
