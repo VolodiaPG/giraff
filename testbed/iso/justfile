@@ -33,7 +33,7 @@ upload city="rennes": build-vm
         -m 20000 \
         -smp 16 \
         -drive cache=writeback,file="$vm_path",id=giraff.drive.fog_node_vm,if=none,index=1,werror=report -device virtio-blk-pci,drive=giraff.drive.fog_node_vm \
-        -net nic,netdev=giraff.fog_node_vm,model=virtio -netdev user,id=giraff.fog_node_vm,hostfwd=tcp::2223-:22 \
+        -net nic,netdev=giraff.fog_node_vm,model=virtio -netdev user,id=giraff.fog_node_vm,hostfwd=tcp::2223-:22,hostfwd=tcp::5555-:5555 \
         -enable-kvm \
         -nographic > /dev/null&
     VM_PID=$!
@@ -53,6 +53,8 @@ upload city="rennes": build-vm
         sleep 5
     done
 
+    just cache_functions
+
     $SSH_CMD 2223 "poweroff -ff" || true
 
     wait $VM_PID || true
@@ -61,6 +63,23 @@ upload city="rennes": build-vm
     qemu-img convert -c -f raw -O qcow2 $vm_path $temp
 
     rsync -chavzq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+rwx "$temp" {{ city }}.grid5000.fr:~/nixos.qcow2
+
+
+cache_functions:
+    #!/usr/bin/env bash
+    export IMAGE_REGISTRY=localhost:5555
+    export FUNCTION_DESCRIPTIONS=$(find "{{justfile_directory() / '..' / 'pipelines'}}" -name *.jsonc)
+    nix develop --extra-experimental-features 'nix-command flakes' .#testbed -c just _cache_functions
+
+_cache_functions:
+    #!/usr/bin/env python
+    import sys
+    sys.path.append('../')
+    from function import load_function_descriptions, build_functions_to_registry
+    import asyncio
+    ips = ["localhost"]
+    function_descriptions = load_function_descriptions()
+    asyncio.run(build_functions_to_registry(function_descriptions, ips))
 
 _run_vm disk="sda.raw":
     #!/usr/bin/env bash
