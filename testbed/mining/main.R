@@ -222,6 +222,22 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
 # export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
+max_avg_throughput <- respected_sla %>%
+  group_by(folder, metric_group, metric_group_group) %>%
+  summarise(throughput = sum(total) , .groups = "drop") %>%
+  summarise(max_avg_throughput = max(throughput, na.rm = TRUE), .groups = "drop") %>%
+  pull(max_avg_throughput)
+
+# Write the result to a file
+write(max_avg_throughput, file = "out/max_avg_throughput.txt")
+
+# Print the result to console
+cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
+
+# Log the result
+Log(paste("Maximum average throughput:", max_avg_throughput, "requests per second"))
+
+
 
 graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(respected_sla, node_levels))
@@ -271,7 +287,8 @@ max_functions_hosted <- provisioned_functions %>%
 write(max_functions_hosted, file = "out/max_functions_hosted.txt")
 
 # Print the result to console
-cat("Maximum number of functions hosted on a single node:", max_functions_hosted, "\n")
+cat("Maximum number of functions hosted on the network:", max_functions_hosted, "\n")
 
 # Log the result
-Log(paste("Maximum number of functions hosted on a single node:", max_functions_hosted))
+Log(paste("Maximum number of functions hosted on the network:", max_functions_hosted))
+# Calculate the maximum average throughput
