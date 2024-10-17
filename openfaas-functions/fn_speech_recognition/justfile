@@ -1,16 +1,18 @@
 set fallback := true
 
-# -F "file=@toto.jpg" \
+run:
+    DEBUG=TRUE python main.py
+
 test:
-    curl -s -f \
+    curl -f \
         -X POST \
-        -F "file=@$PATH_AUDIO/3536-23268-0023.wav"  \
+        -F "file=@$PATH_AUDIO/1272-135031-0014.wav"  \
         --output tmp.json \
         localhost:8081
 
 test_all:
     #!/usr/bin/env bash
-    for file in $(ls $PATH_AUDIO/* | head -n 3); do
+    for file in $(ls $PATH_AUDIO/* | head -n 6); do
       echo $file
       (curl -s --fail-with-body \
           -X POST \

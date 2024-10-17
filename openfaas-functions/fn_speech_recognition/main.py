@@ -56,6 +56,10 @@ def add_headers(response):
         response.headers["GIRAFF-Redirect-Proxy"] = f"http://{hostname}:3128/"
     return response
 
+r = Recognizer()
+from threading import Lock
+
+global_lock = Lock()
 
 @app.route("/", methods=["POST"])
 def handle():
@@ -68,11 +72,11 @@ def handle():
 
         finalData = ""
         try:
-            r = Recognizer()
-            with AudioFile(file) as source:
-                audio_data = r.listen(source)
-                finalData = r.recognize_vosk(audio_data)
-                print("\nThis is the output:", finalData)
+            with global_lock:
+                with AudioFile(file) as source:
+                    audio_data = r.listen(source)
+                    finalData = r.recognize_vosk(audio_data)
+                    print("\nThis is the output:", finalData)
         except Exception as e:
             print("Following error was observed:", e)
             print("Exiting the code.")

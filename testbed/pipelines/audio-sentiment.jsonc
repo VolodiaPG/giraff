@@ -3,21 +3,21 @@
     "content": "audio",
     "nbVarName": "NB_AUDIO_FUNCTIONS",
     "first": "audioToText",
-    "expectedRequestIntervalMs": 10000,
+    "expectedRequestIntervalMs": 200,
     "pipeline": {
         "audioToText": {
             "nextFunction": "sentimentAnalysis",
             "image": "giraff:fn_speech_recognition",
-            "mem": 500,
-            "cpu": 300,
+            "mem": 300,
+            "cpu": 100,
             "input_max_size": "32 KiB",
             "latency": "LOW_LATENCY"
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",
             "image": "giraff:fn_sentiment_analysis",
-            "mem": 400,
-            "cpu": 300,
+            "mem": 100,
+            "cpu": 50,
             "latency": "HIGH_LATENCY",
             "input_max_size": "4 KiB"
         },
