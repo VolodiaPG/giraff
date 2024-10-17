@@ -1,0 +1,21 @@
+*
+!*/
+!.gitignore
+
+!*.nix
+!src/*.rs
+!*.py
+
+#Still blacklisted
+.venv
+
+!Cargo.lock
+!Cargo.toml
+!README.MD
+!pyproject.toml
+!rustfmt.toml
+!justfile
+!fn_echo/model
+!fn_echo/helper
+!fn_echo/helper_derive
+!fn_echo/rust-toolchain
