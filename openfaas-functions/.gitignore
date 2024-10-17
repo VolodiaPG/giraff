@@ -1,19 +1,20 @@
 *
 !*/
-!.gitignore
+!/.gitignore
 
-!*.nix
 !src/*.rs
-!*.py
+!fn_*/*.py
 
 #Still blacklisted
 .venv
+.direnv
 
-!Cargo.lock
-!Cargo.toml
+!subflake.nix
+!fn_*/Cargo.toml
+!fn_*/Cargo.lock
 !README.MD
-!pyproject.toml
-!rustfmt.toml
+!fn_*/pyproject.toml
+!fn_*/rustfmt.toml
 !justfile
 !fn_echo/model
 !fn_echo/helper
