@@ -100,7 +100,10 @@ async fn reconfigure(
     HttpResponse::Ok().finish()
 }
 
-async fn health() -> HttpResponse { HttpResponse::Ok().finish() }
+async fn health() -> HttpResponse {
+    debug!("Health check");
+    HttpResponse::Ok().finish()
+}
 
 /// Compose multiple layers into a `tracing`'s subscriber.
 pub fn get_subscriber(
@@ -184,6 +187,7 @@ async fn main() -> Result<()> {
             // Store the instant when the first byte was received in
             // request extensions
             req.extensions_mut().insert(Utc::now());
+            debug!("Request received");
 
             // Call the next middleware or handler
             srv.call(req)
@@ -197,8 +201,8 @@ async fn main() -> Result<()> {
                 .route("/health", web::get().to(health)),
         )
     });
-
-    server.bind(("0.0.0.0", 3000))?.run().await?;
+    debug!("Starting server on port 5000");
+    server.bind(("0.0.0.0", 5000))?.run().await?;
 
     // Ensure all spans have been reported
     #[cfg(feature = "jaeger")]

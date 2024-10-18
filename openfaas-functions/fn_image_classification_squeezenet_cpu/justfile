@@ -10,7 +10,7 @@ test:
 
 test_all:
     #!/usr/bin/env bash
-    for file in $(ls $PATH_IMAGE/*.JPEG | head -n 100); do
+    for file in $(ls $PATH_IMAGE/*.JPEG | head -n 10); do
         echo $file
         (curl -s --fail-with-body \
             -X POST \

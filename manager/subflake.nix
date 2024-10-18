@@ -102,7 +102,7 @@
             shellHook =
               (extra.shellHook system) "manager";
 
-            LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
+            #LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
 
             packages = with pkgs;
               [
@@ -113,7 +113,7 @@
                 pkg-config
                 jq
                 mprocs
-                openssl
+                #openssl
                 rust-analyzer-nightly
                 cargo-outdated
                 cargo-udeps

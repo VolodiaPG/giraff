@@ -1,0 +1,20 @@
+set fallback := true
+
+test:
+    curl -f \
+        -H "Content-Type: application/json" \
+        -d '{"text": "hello world"}' \
+        --output tmp.json \
+        localhost:8081
+
+test_all:
+    #!/usr/bin/env bash
+    for i in {1..5}; do
+      (curl -s --fail-with-body \
+          -H "Content-Type: application/json" \
+          -d '{"text": "you are objectively not useful"}' \
+          --output tmp.json \
+          localhost:8081)&
+    done
+    wait
+

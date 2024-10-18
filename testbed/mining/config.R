@@ -121,11 +121,8 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1728632352-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-11-09-58.tar.xz",
   # "metrics_valuation_rates.env_1_1728632352-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-11-10-48.tar.xz",
   #---
-  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-15-07-52.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-15-12-05.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-15-12-30.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-15-13-30.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-15-14-08.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-18-14-15.tar.xz",
+"metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-18-15-49.tar.xz",
 
   #---
   #---

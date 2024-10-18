@@ -55,7 +55,7 @@
                   "http_upstream_url=http://127.0.0.1:5000"
                   "SQUEEZENET_MODEL=${squeezenetModel}"
                   "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true"
-                  "ready_path=http://127.0.0.1:3000/health"
+                  "ready_path=http://127.0.0.1:5000/health"
                 ]
                 ++ extra.openfaas_env;
               ExposedPorts = {
@@ -72,6 +72,7 @@
             SQUEEZENET_MODEL = squeezenetModel;
             # Fixes https://github.com/python-poetry/poetry/issues/1917 (collection failed to unlock)
             PYTHON_KEYRING_BACKEND = "keyring.backends.null.Keyring";
+            PATH_IMAGE = outputs.packages.${system}.dataset_image;
             packages = with pkgs; [
               just
               skopeo

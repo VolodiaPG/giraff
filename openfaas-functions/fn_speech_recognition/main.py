@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from io import BytesIO
+from threading import Lock
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -16,6 +17,9 @@ from opentelemetry.sdk.trace import TracerProvider  # type: ignore
 from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
 from speech_recognition import AudioFile, Recognizer  # type: ignore
 from waitress import serve  # type: ignore
+
+r = Recognizer()
+global_lock = Lock()
 
 my_sla_id = os.environ.get("ID", "dev")
 resource = {
@@ -57,6 +61,7 @@ def add_headers(response):
     return response
 
 
+
 @app.route("/", methods=["POST"])
 def handle():
     with tracer.start_as_current_span("speech_recognition"):
@@ -68,11 +73,11 @@ def handle():
 
         finalData = ""
         try:
-            r = Recognizer()
-            with AudioFile(file) as source:
-                audio_data = r.listen(source)
-                finalData = r.recognize_vosk(audio_data)
-                print("\nThis is the output:", finalData)
+            with global_lock:
+                with AudioFile(file) as source:
+                    audio_data = r.listen(source)
+                    finalData = r.recognize_vosk(audio_data)
+                    print("\nThis is the output:", finalData)
         except Exception as e:
             print("Following error was observed:", e)
             print("Exiting the code.")

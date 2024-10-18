@@ -2,7 +2,6 @@
   outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
-      inherit (nixpkgs) lib;
     in
       flake-utils.lib.eachDefaultSystem (
         system: let
@@ -32,14 +31,15 @@
                     "RUST_LOG=warn,echo=trace"
                     "fprocess=${echo}/bin/echo"
                     "mode=http"
-                    "http_upstream_url=http://127.0.0.1:3000"
-                    "ready_path=http://127.0.0.1:3000/health"
-                    "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
+                    "http_upstream_url=http://127.0.0.1:5000"
+                    "ready_path=http://127.0.0.1:5000/health"
+                    "LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath [pkgs.openssl]}"
                   ]
                   ++ extra.openfaas_env;
                 ExposedPorts = {
                   "8080/tcp" = {};
                 };
+                # Cmd = ["${echo}/bin/echo"];
                 Cmd = ["${outputs.packages.${system}.fwatchdog}/bin/of-watchdog"];
               };
             };
@@ -72,12 +72,11 @@
           devShells.fn_echo = rust.craneLib.devShell {
             shellHook = (extra.shellHook system) "fn_echo";
 
-            LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
+            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
 
             packages = with pkgs; [
               just
               pkg-config
-              openssl
               rust-analyzer
               skopeo
               (rustfmt.override {asNightly = true;})
