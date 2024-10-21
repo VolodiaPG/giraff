@@ -7,7 +7,7 @@ workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
-single_graphs <- FALSE
+single_graphs <- TRUE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 3.6
@@ -123,6 +123,17 @@ METRICS_ARKS <- c(
   #---
   "metrics_valuation_rates.env_DEV-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-18-14-15.tar.xz",
 "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-18-15-49.tar.xz",
+# "metrics_valuation_rates.env_1_1729494677-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-07-30.tar.xz",
+# "metrics_valuation_rates.env_1_1729494677-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-08-34.tar.xz",
+"metrics_valuation_rates.env_1_1729494677-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-08-18.tar.xz",
+"metrics_valuation_rates.env_1_1729494677-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-08-02.tar.xz",
+"metrics_valuation_rates.env_1_1729494677-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-21-07-47.tar.xz",
+"metrics_valuation_rates.env_1_1729505187-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-11-26.tar.xz",
+"metrics_valuation_rates.env_1_1729505187-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-10-57.tar.xz",
+"metrics_valuation_rates.env_1_1729505187-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-10-27.tar.xz",
+"metrics_valuation_rates.env_1_1729505187-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-21-10-43.tar.xz",
+"metrics_valuation_rates.env_1_1729505187-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-21-11-12.tar.xz",
+
 
   #---
   #---
@@ -150,3 +161,19 @@ options(width = 10000)
 
 # Not scientific notations
 options(scipen = 10000)
+
+options(error = function() {
+  calls <- sys.calls()
+  if (length(calls) >= 2L) {
+    sink(stderr())
+    on.exit(sink(NULL))
+    cat("Backtrace:\n")
+    calls <- rev(calls[-length(calls)])
+    for (i in seq_along(calls)) {
+      cat(i, ": ", deparse(calls[[i]], nlines = 1L), "\n", sep = "")
+    }
+  }
+  if (!interactive()) {
+    q(status = 1)
+  }
+})

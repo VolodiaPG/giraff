@@ -103,7 +103,8 @@ type FunctionPipeline struct {
 	Mem          int     `json:"mem,omitempty"`
 	CPU          int     `json:"cpu,omitempty"`
 	Latency      string  `json:"latency,omitempty"`
-	InputMaxSize string  `json:"input_max_size,omitempty"`
+	InputMaxSize                string  `json:"input_max_size,omitempty"`
+	ExpectedRequestIntervalMs int     `json:"expectedRequestIntervalMs"`
 }
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
@@ -113,7 +114,6 @@ type FunctionPipelineDescription struct {
 	NbVarName                 string                      `json:"nbVarName"`
 	First                     string                      `json:"first"`
 	Pipeline                  map[string]FunctionPipeline `json:"pipeline"`
-	ExpectedRequestIntervalMs int                         `json:"ExpectedRequestIntervalMs"`
 }
 
 var imageRegistry string
@@ -686,10 +686,10 @@ func saveFile(filename string) error {
 				}
 				fnChain := make([]Function, 0)
 
-				scalingRatio := float64(fnDesc.ExpectedRequestIntervalMs) / float64(requestInterval)
-				logger.Info("env", zap.Float64("ratio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
 				for {
 					fn := fnDesc.Pipeline[fnName]
+					scalingRatio := float64(fn.ExpectedRequestIntervalMs) / float64(requestInterval)
+					logger.Info("env", zap.Float64("scalingRatio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)
 					latency, _ := strconv.Atoi(latencyStr)
 					latency = int(math.Ceil(math.Abs(rand.NormFloat64()*float64(latency) + float64(latency)/4)))

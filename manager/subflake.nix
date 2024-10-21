@@ -100,9 +100,13 @@
             );
           devShells.manager = rust.craneLib.devShell {
             shellHook =
-              (extra.shellHook system) "manager";
+              (extra.shellHook system) "manager" +
+            ''
+              mkdir -p .venv/bin
+              ln -s ${pkgs.python3}/bin/python .venv/bin/python
+            '';
 
-            #LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
+            LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
 
             packages = with pkgs;
               [
@@ -113,7 +117,7 @@
                 pkg-config
                 jq
                 mprocs
-                #openssl
+                openssl
                 rust-analyzer-nightly
                 cargo-outdated
                 cargo-udeps

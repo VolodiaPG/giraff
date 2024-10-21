@@ -24,6 +24,7 @@ class FunctionPipeline:
     cpu: millicpu_int = 100
     latency: str = "NO_LATENCY"
     input_max_size: str = "1500 B"
+    expectedRequestIntervalMs: float
 
 
 @dataclass
@@ -33,7 +34,6 @@ class FunctionPipelineDescription:
     content: str
     nbVarName: str
     pipeline: dict[str, FunctionPipeline]
-    expectedRequestIntervalMs: float
 
 
 IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]

@@ -140,6 +140,8 @@ if (single_graphs) {
   m_load_raw_cpu_all <- mem(load_raw_cpu_all)
   m_load_paid_functions <- mem(load_paid_functions)
 
+  Log("Done memoizing loaders")
+
   graphs <- foreach(ark = METRICS_ARKS, .verbose = FALSE, .combine = bind_rows) %dopar% {
     graphs <- NULL
     # raw_cpu_all <- m_load_raw_cpu_all(ark)
@@ -158,6 +160,8 @@ if (single_graphs) {
     raw_latency <- m_load_raw_latency(ark)
     raw_deployment_times <- m_load_raw_deployment_times(ark)
 
+    Log(paste0("Done loading data ", ark))
+
     graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
     graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
 
@@ -173,6 +177,8 @@ if (single_graphs) {
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
     graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
+
+    Log(paste0("Done generating graphs ", ark))
 
     if (generate_gif) {
       Log("Doing GIF")
@@ -222,21 +228,6 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("requests_served_v_provisioned", mem(output_requests_served_v_provisioned)(respected_sla, functions_total, node_levels))
 # export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
-max_avg_throughput <- respected_sla %>%
-  group_by(folder, metric_group, metric_group_group) %>%
-  summarise(throughput = sum(total) , .groups = "drop") %>%
-  summarise(max_avg_throughput = max(throughput, na.rm = TRUE), .groups = "drop") %>%
-  pull(max_avg_throughput)
-
-# Write the result to a file
-write(max_avg_throughput, file = "out/max_avg_throughput.txt")
-
-# Print the result to console
-cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
-
-# Log the result
-Log(paste("Maximum average throughput:", max_avg_throughput, "requests per second"))
-
 
 
 graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
@@ -292,3 +283,19 @@ cat("Maximum number of functions hosted on the network:", max_functions_hosted, 
 # Log the result
 Log(paste("Maximum number of functions hosted on the network:", max_functions_hosted))
 # Calculate the maximum average throughput
+
+max_avg_throughput <- respected_sla %>%
+  group_by(folder, metric_group, metric_group_group) %>%
+  summarise(throughput = sum(total) , .groups = "drop") %>%
+  summarise(max_avg_throughput = max(throughput, na.rm = TRUE), .groups = "drop") %>%
+  pull(max_avg_throughput)
+
+# Write the result to a file
+write(max_avg_throughput, file = "out/max_avg_throughput.txt")
+
+# Print the result to console
+cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
+
+# Log the result
+Log(paste("Maximum average throughput:", max_avg_throughput, "requests per second"))
+

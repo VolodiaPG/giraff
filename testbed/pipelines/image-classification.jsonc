@@ -3,7 +3,6 @@
     "content": "image",
     "nbVarName": "NB_IMAGE_FUNCTIONS",
     "first": "imagePreProcessing",
-    "expectedRequestIntervalMs": 100,
     "pipeline": {
         "imagePreProcessing": {
             "nextFunction": "classif",
@@ -11,7 +10,8 @@
             "mem": 120,
             "cpu": 100,
             "input_max_size": "52 Kib",
-            "latency": "LOW_LATENCY"
+            "latency": "LOW_LATENCY",
+            "expectedRequestIntervalMs": 200
         },
         "classif": {
             "nextFunction": "echo",
@@ -19,13 +19,15 @@
             "mem": 600,
             "cpu": 600,
             "input_max_size": "16 KiB",
-            "latency": "HIGH_LATENCY"
+            "latency": "HIGH_LATENCY",
+            "expectedRequestIntervalMs": 200
         },
         "echo": {
             "image": "giraff:fn_echo",
             "mem": 40,
             "cpu": 10,
-            "latency": "HIGHER_LATENCY"
+            "latency": "HIGHER_LATENCY",
+            "expectedRequestIntervalMs": 100
         }
     }
 }
