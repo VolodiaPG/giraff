@@ -372,7 +372,7 @@ load_respected_sla <- function(ark) {
     mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
     mutate(prev_sla = lag(sla_id)) %>%
     filter(first_req_id == FALSE) %>%
-    mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
+    mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.001)) %>%
     mutate(on_time = in_flight <= latency) %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     mutate(acceptable_chained = Reduce(`&`, acceptable, accumulate = TRUE)) %>%
