@@ -14,6 +14,7 @@
           overlay = self: super: {
             myFunction = self.python312.withPackages (
               ps: (with ps; [
+                psutil
                 waitress
                 flask
                 pillow

@@ -103,6 +103,7 @@ macro_rules! impl_serialize_as {
 pub mod information {
     use super::*;
     use std::str::FromStr;
+    use uom::num_traits::ToPrimitive;
     use uom::si::information::megabyte;
     use uom::si::rational64::Information;
 
@@ -141,7 +142,7 @@ pub mod information {
     }
 
     fn serialize_quantity(value: &Information) -> String {
-        format!("{:?} MB", value.get::<megabyte>().numer())
+        format!("{:?} MB", value.get::<megabyte>().to_f64().unwrap())
     }
 
     impl_serialize_as!(
@@ -156,19 +157,21 @@ pub mod information {
     mod tests {
         use super::*;
         use anyhow::Result;
+        use uom::si::information::byte;
         use yare::parameterized;
 
         #[parameterized(
-            byte = {"1000 kilobytes", 1},
-            megabyte = {"1 MB", 1},
-            gigabyte = {"1 GB", 1_000},
-            gigabyte_floating = {"0.5 gigabytes", 500},
-            megabyte_reel = {"7680.0 MB", 7680}
+            byte = {"1000 kilobytes", 1_000_000},
+            kibibyte = {"48 KiB", 49152},
+            megabyte = {"1 MB", 1_000_000},
+            gigabyte = {"1 GB", 1_000_000_000},
+            gigabyte_floating = {"0.5 gigabytes", 500*1_000_000},
+            megabyte_reel = {"7680.0 MB", 7_680*1_000_000}
         )]
         fn test_serialize(ss: &str, qty: i64) -> Result<()> {
             assert_eq!(
                 parse_quantity::<Information>(ss)?,
-                Information::new::<megabyte>(num_rational::Ratio::new(qty, 1))
+                Information::new::<byte>(num_rational::Ratio::new(qty, 1))
             );
             Ok(())
         }

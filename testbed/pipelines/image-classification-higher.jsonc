@@ -10,7 +10,7 @@
             "mem": 120,
             "cpu": 100,
             "input_max_size": "52 KiB",
-            "latency": "NO_LATENCY",
+            "latency": "SUPER_NO_LATENCY",
             "expectedRequestIntervalMs": 200
         },
         "classif": {

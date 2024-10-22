@@ -7,8 +7,8 @@
         "audioToText": {
             "nextFunction": "sentimentAnalysis",
             "image": "giraff:fn_speech_recognition",
-            "mem": 300,
-            "cpu": 300,
+            "mem": 1000,
+            "cpu": 1000,
             "input_max_size": "32 KiB",
             "latency": "LOW_LATENCY",
             "expectedRequestIntervalMs": 2000

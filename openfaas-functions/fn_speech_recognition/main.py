@@ -1,11 +1,14 @@
 import json
 import logging
+import math
 import os
+import socket
 from io import BytesIO
-from threading import Lock
+from threading import Semaphore
 from typing import Optional
 from urllib.parse import urlparse
 
+import psutil
 from flask import Flask, abort, request  # type: ignore
 from opentelemetry import trace  # type: ignore
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore
@@ -18,8 +21,60 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
 from speech_recognition import AudioFile, Recognizer  # type: ignore
 from waitress import serve  # type: ignore
 
-r = Recognizer()
-global_lock = Lock()
+FREE_MEM_FOR_MODEL = 350 * 1024 * 1024  # MB
+
+
+class Pool:
+    def __init__(self) -> None:
+        self.pool = []
+        self.busy = Semaphore()
+        nb = math.floor(psutil.virtual_memory().free / FREE_MEM_FOR_MODEL)
+        print("Spawning {nb} workers")
+        for _ii in range(0, nb):
+            self.pool.append(self._new())
+
+    def _new(self):
+        parent, child = socket.socketpair()  # type: ignore
+        pid = os.fork()
+        if pid:
+            child.close()
+            return parent
+        else:
+            parent.close()
+            self.childProcess(child)
+
+    def pop(self):
+        if psutil.virtual_memory().free > FREE_MEM_FOR_MODEL:
+            return self._new()
+        else:
+            if len(self.pool) == 0:
+                self.busy.acquire()
+            return self.pool.pop()
+
+    def give_back(self, element):
+        self.pool.append(element)
+        self.busy.release()
+
+    def childProcess(self, child):
+        r = Recognizer()
+        while True:
+            try:
+                recvfilesize = child.recv(2048)
+                child.sendall(recvfilesize)
+                filesize = int(recvfilesize.decode("utf-8"))
+                print(filesize)
+                file = child.recv(filesize)
+                print("got the file")
+                file = BytesIO(file)
+                with AudioFile(file) as source:
+                    audio_data = r.listen(source)
+                finalData = r.recognize_vosk(audio_data)
+                child.sendall(finalData.encode("utf-8"))
+            except Exception as e:
+                child.sendall(f"exception: {e}")
+
+
+pool = Pool()
 
 my_sla_id = os.environ.get("ID", "dev")
 resource = {
@@ -43,7 +98,6 @@ provider.add_span_processor(processor)
 trace.set_tracer_provider(provider)
 tracer = trace.get_tracer(__name__)
 
-
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
@@ -61,7 +115,6 @@ def add_headers(response):
     return response
 
 
-
 @app.route("/", methods=["POST"])
 def handle():
     with tracer.start_as_current_span("speech_recognition"):
@@ -69,19 +122,24 @@ def handle():
             file = request.get_data()
             file = BytesIO(file)
         else:
-            file = request.files["file"]
+            rawfile = request.files["file"]
+            file = BytesIO()
+            rawfile.save(file)
 
-        finalData = ""
-        try:
-            with global_lock:
-                with AudioFile(file) as source:
-                    audio_data = r.listen(source)
-                    finalData = r.recognize_vosk(audio_data)
-                    print("\nThis is the output:", finalData)
-        except Exception as e:
-            print("Following error was observed:", e)
+        child = pool.pop()
+        child.sendall(str(file.getbuffer().nbytes).encode("utf-8"))
+        data = child.recv(1024)
+        print(data)
+        child.sendall(file.getvalue())
+        print("file sent")
+
+        finalData = child.recv(2048).decode("utf-8")
+        pool.give_back(child)
+
+        if finalData.startswith("exception"):
+            print("Following error was observed:", finalData)
             print("Exiting the code.")
-            abort(500, e)
+            abort(500, finalData)
         return json.loads(finalData)
 
 
@@ -100,5 +158,6 @@ def reconfigure():
 def health():
     return ("", 200)
 
+
 if __name__ == "__main__":
-    serve(app, host="0.0.0.0", port=5000)
+    serve(app, host="0.0.0.0", port=5000, threads=20)

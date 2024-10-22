@@ -264,6 +264,7 @@ impl FunctionLife {
 }
 
 #[allow(dead_code)]
+#[instrument(level = "trace")]
 fn get_tcp_latency(
     one_way_latency: Time,
     _packet_loss: uom::si::f64::Ratio,
@@ -297,6 +298,7 @@ mod tests {
         small_data_big_bandwidth = { 1000, 1_000_000, 1.0, 1.5 },
         big_data_small_bandwidth = { 10_000, 400_000, 11.0, 12.0 },
         bigger_data_small_bandwidth = { 260_000, 100_000, 1069.0, 1070.0 },
+        normal_payload = { 48_000, 100_000_0000, 1.0, 1.1 },
         bigger_data_big_bandwidth = { 260_000, 100_000_000, 2.0, 2.5 },
         bigger_data_bigger_bandwidth = { 260_000, 1_000_000_000, 1.0, 1.5 },
     )]
