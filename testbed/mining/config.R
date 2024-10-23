@@ -7,7 +7,9 @@ workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
-single_graphs <- TRUE
+single_graphs <- FALSE
+
+CHAIN_LENGTH <- 3
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 3.6
@@ -138,6 +140,15 @@ METRICS_ARKS <- c(
   "metrics_valuation_rates.env_1_1729605644-fog_node-edge_furthest-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-22-14-30.tar.xz",
   "metrics_valuation_rates.env_1_1729605644-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-22-14-11.tar.xz",
   "metrics_valuation_rates.env_1_1729605644-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-10-22-14-17.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-07-54.tar.xz",
+  #  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-08-54.tar.xz",
+
+  #--
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-09-55.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-12-21.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-12-52.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-13-34.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2024-10-23-15-32.tar.xz",
   #---
   #---
   #---

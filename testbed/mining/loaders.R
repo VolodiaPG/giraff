@@ -118,8 +118,10 @@ load_provisioned_functions <- function(functions) {
           select(instance, sla_id, folder, metric_group, metric_group_group, latency)
       },
       error = function(cond) {
-        df <- data.frame(instance = character(0), sla_id = character(0), folder = character(0), 
-                         metric_group = character(0), metric_group_group = character(0), latency = as.duration(numeric(0)))
+        df <- data.frame(
+          instance = character(0), sla_id = character(0), folder = character(0),
+          metric_group = character(0), metric_group_group = character(0), latency = as.duration(numeric(0))
+        )
         Log(paste0(log_message, ark))
         return(df)
       }
@@ -127,13 +129,13 @@ load_provisioned_functions <- function(functions) {
   }
 
   refused <- load_csv_with_error_handling(ark, "refused_function_gauge.csv", "cannot get refused gauge functions for ") %>%
-  mutate(status = "refused")
+    mutate(status = "refused")
 
   failed <- load_csv_with_error_handling(ark, "send_fails", "cannot get send_fails functions for ") %>%
-  mutate(status = "failed")
+    mutate(status = "failed")
 
   provisioned <- load_csv_with_error_handling(ark, "provisioned_function_gauge.csv", "cannot get provisioned gauge functions for ") %>%
-  mutate(status = "provisioned")
+    mutate(status = "provisioned")
 
   functions <- provisioned %>%
     full_join(refused) %>%
@@ -334,7 +336,81 @@ load_earnings_jains_plot_data <- function(node_levels, bids_won_function) {
   return(earnings)
 }
 
+load_acceptable_from_respected_slas <- function(ark) {
+  cluster <- new_cluster(4)
 
+  cluster_library(cluster, "purrr")
+  cluster_library(cluster, "dplyr")
+  cluster_library(cluster, "multidplyr")
+  cluster_copy(cluster, "Log")
+
+  sla_to_function_name <- load_single_csv(ark, "provisioned_function_gauge.csv") %>%
+    prepare() %>%
+    ungroup() %>%
+    select(folder, sla_id, function_name)
+
+  respected_sla <- load_single_csv(ark, "proxy.csv") %>%
+    prepare() %>%
+    group_by(folder) %>%
+    adjust_timestamps(var_name = "timestamp", reference = "value_raw") %>%
+    adjust_timestamps(var_name = "value_raw", reference = "value_raw") %>%
+    mutate(value = value_raw) %>%
+    rename(function_name = tags) %>%
+    extract_function_name_info() %>%
+    group_by(folder, metric_group, metric_group_group, req_id) %>%
+    # partition(cluster) %>%
+    arrange(desc(first_req_id), value_raw) %>%
+    mutate(prev = ifelse(first_req_id == TRUE, value, timestamp)) %>%
+    mutate(prev = lag(prev)) %>%
+    mutate(in_flight = value - prev) %>%
+    group_by(folder, metric_group, metric_group_group, req_id) %>%
+    filter(first_req_id == FALSE) %>%
+    mutate(latency = latency + as.difftime(0.001, units = "secs")) %>%
+    mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
+    mutate(on_time = in_flight <= latency) %>%
+    mutate(nf = service_status >= 400 & service_status < 500) %>%
+    mutate(nalat = is.na(latency))
+
+  Log(respected_sla %>% filter(!on_time) %>% filter(!nalat))
+
+  respected_sla <- respected_sla %>%
+    group_by(folder, metric_group, metric_group_group, req_id) %>%
+    summarise(
+      nf = sum(nf, na.rm = TRUE),
+      nalat = sum(nalat, na.rm = TRUE),
+      chain_id = paste(sla_id, collapse = "_"),
+      raw_acceptable = sum(acceptable, na.rm = TRUE),
+      raw_on_time = sum(on_time, na.rm = TRUE),
+      total = n(),
+    ) %>%
+    # Remove all elements with latnecy NA
+    filter(nalat == 0) %>%
+    filter(nf == 0) %>%
+    mutate(raw_acceptable_chained = raw_acceptable == CHAIN_LENGTH) %>%
+    mutate(raw_on_time_chained = raw_on_time == CHAIN_LENGTH) %>%
+    ungroup()
+
+  Log(respected_sla)
+
+  # collect() %>%
+  respected_sla <- respected_sla %>%
+    group_by(
+      chain_id,
+      folder,
+      metric_group,
+      metric_group_group,
+    ) %>%
+    summarise(
+      total = n(),
+      acceptable = sum(raw_acceptable_chained),
+      on_time = sum(raw_on_time_chained),
+    ) %>%
+    mutate(on_time_chained = on_time == total) %>%
+    mutate(acceptable_chained = acceptable == total) %>%
+    ungroup()
+
+  return(respected_sla)
+}
 load_respected_sla <- function(ark) {
   acceptable_chain_cumulative <- function(prev, current) {
     return(prev & current)

@@ -706,20 +706,16 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
 }
 
 output_mean_respected_slas <- function(respected_sla, node_levels) {
+
+  #Log(df %>% ungroup() %>% select(folder, chain_id, violated, acceptable_chained, total))
+  Log(respected_sla)
   df <- respected_sla %>%
-    group_by(chain_id, folder, metric_group, metric_group_group) %>%
-    summarise(
-      violations = sum(total) - sum(acceptable_chained),
-      total = sum(total),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      sla_violation_rate = violations / total,
-    ) %>%
+     #group_by(chain_id, folder, metric_group, metric_group_group) %>%
+    #mutate(violated = Reduce(`&`, acceptable_chained, accumulate = FALSE)) %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
-      mean_sla_violations = mean(sla_violation_rate),
-      sd_sla_violations = sd(sla_violation_rate),
+      violations = (n() - sum(on_time_chained))/n() ,
+      #sd_sla_violations = sd(correct),
       n = n(),
       .groups = "drop"
     ) %>%
@@ -729,20 +725,22 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    mutate(
-      mean_sla_violations = mean_sla_violations * 100,
-      se = sd_sla_violations / sqrt(n),
-      ci_lower = (mean_sla_violations / 100 - qt(0.975, n - 1) * se) * 100,
-      ci_upper = (mean_sla_violations / 100 + qt(0.975, n - 1) * se) * 100
-    ) %>%
+    #mutate(
+    #  mean_sla_violations = mean_sla_violations * 100,
+    #  se = sd_sla_violations / sqrt(n),
+    #  ci_lower = (mean_sla_violations / 100 - qt(0.975, n - 1) * se) * 100,
+    #  ci_upper = (mean_sla_violations / 100 + qt(0.975, n - 1) * se) * 100
+    #) %>%
     extract_context() %>%
     correct_names()
+
+  Log(df)
 
   create_metric_comparison_plot(
     data = df,
     metric_col = "placement_method",
     group_col = "folder",
-    value_col = "mean_sla_violations",
+    value_col = "violations",
     node_col = "nodes",
     title = "Mean SLA Violations by Network Size",
     y_suffix = "%"

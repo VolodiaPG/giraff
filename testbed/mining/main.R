@@ -209,6 +209,7 @@ provisioned_sla <- combine(METRICS_ARKS, load_provisioned_sla)
 functions <- combine(METRICS_ARKS, load_functions)
 provisioned_functions <- combine(METRICS_ARKS, load_provisioned_functions)
 respected_sla <- combine(METRICS_ARKS, load_respected_sla)
+accetable_sla <- combine(METRICS_ARKS, load_acceptable_from_respected_slas)
 raw_deployment_times <- combine(METRICS_ARKS, load_raw_deployment_times)
 paid_functions <- combine(METRICS_ARKS, load_paid_functions)
 
@@ -230,8 +231,8 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
 
-graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
-graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(respected_sla, node_levels))
+# graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
+graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(accetable_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
 graph_output_mean_spending <- export_graph("output_mean_spending", output_mean_spending(bids_won_function, node_levels, respected_sla))
 graph_output_mean_placed_functions_per_node <- export_graph("output_mean_placed_functions_per_node", output_mean_placed_functions_per_node(provisioned_functions, node_levels))
@@ -286,7 +287,11 @@ Log(paste("Maximum number of functions hosted on the network:", max_functions_ho
 
 max_avg_throughput <- respected_sla %>%
   group_by(folder, metric_group, metric_group_group) %>%
-  summarise(throughput = sum(total) , .groups = "drop") %>%
+  summarise(throughput = sum(total), .groups = "drop") %>%
+  select(folder, throughput)
+Log(max_avg_throughput)
+
+max_avg_throughput <- max_avg_throughput %>%
   summarise(max_avg_throughput = max(throughput, na.rm = TRUE), .groups = "drop") %>%
   pull(max_avg_throughput)
 
@@ -298,4 +303,3 @@ cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
 
 # Log the result
 Log(paste("Maximum average throughput:", max_avg_throughput, "requests per second"))
-
