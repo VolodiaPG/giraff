@@ -24,7 +24,7 @@ class FunctionPipeline:
     cpu: millicpu_int = 100
     latency: str = "NO_LATENCY"
     input_max_size: str = "1500 B"
-    expectedRequestIntervalMs: float
+    expectedRequestIntervalMs: float = 1000.0
 
 
 @dataclass
@@ -48,11 +48,12 @@ def load_function_descriptions() -> List[FunctionPipelineDescription]:
             ret.append(schema.load(json.load(ff)))
     return ret
 
+
 async def _build_push_function(function: str, docker_registry: str):
     print(f"Building and copying to docker://{docker_registry}/{function}")
     max_retries = 3
     retry_delay = 5  # seconds
-    
+
     for attempt in range(max_retries):
         try:
             nix_function = function.split(":")[1]
@@ -109,7 +110,7 @@ async def _build_push_function(function: str, docker_registry: str):
             print(f"Timeout while copying {function}")
         except Exception as e:
             print(f"Unexpected error while copying {function}: {str(e)}")
-        
+
         if attempt < max_retries - 1:
             print(f"Retrying in {retry_delay} seconds...")
             await asyncio.sleep(retry_delay)
@@ -121,7 +122,7 @@ async def _push_function(function: str, docker_registry: str):
     print(f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{docker_registry}/{function}")
     max_retries = 3
     retry_delay = 5  # seconds
-    
+
     for attempt in range(max_retries):
         try:
             process = await asyncio.create_subprocess_exec(
@@ -146,12 +147,13 @@ async def _push_function(function: str, docker_registry: str):
             print(f"Timeout while copying {function}")
         except Exception as e:
             print(f"Unexpected error while copying {function}: {str(e)}")
-        
+
         if attempt < max_retries - 1:
             print(f"Retrying in {retry_delay} seconds...")
             await asyncio.sleep(retry_delay)
     else:
         print(f"Failed to copy {function} after {max_retries} attempts")
+
 
 async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str], callback):
     assert IMAGE_REGISTRY is not None
@@ -164,7 +166,7 @@ async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription],
     node_targets = set(nodes)
 
     tasks = [callback(function, f"{target}:5555") for target in node_targets for function in unique_functions]
-    
+
     # Use a semaphore to limit concurrent tasks
     semaphore = asyncio.Semaphore(50)
 
@@ -184,6 +186,6 @@ async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription],
 async def push_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str]):
     await _do_functions_to_registry(pipeline, nodes, _push_function)
 
+
 async def build_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str]):
     await _do_functions_to_registry(pipeline, nodes, _build_push_function)
-

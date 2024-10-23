@@ -100,11 +100,11 @@
             );
           devShells.manager = rust.craneLib.devShell {
             shellHook =
-              (extra.shellHook system) "manager" +
-            ''
-              mkdir -p .venv/bin
-              ln -s ${pkgs.python3}/bin/python .venv/bin/python
-            '';
+              (extra.shellHook system) "manager"
+              + ''
+                mkdir -p .venv/bin
+                ln -s ${pkgs.python3}/bin/python .venv/bin/python
+              '';
 
             LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl];
 

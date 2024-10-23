@@ -11,7 +11,7 @@
             "cpu": 1000,
             "input_max_size": "32 KiB",
             "latency": "SUPER_NO_LATENCY",
-            "expectedRequestIntervalMs": 2000
+            "expectedRequestIntervalMs": 3500
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",

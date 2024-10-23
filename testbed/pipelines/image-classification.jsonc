@@ -11,16 +11,16 @@
             "cpu": 100,
             "input_max_size": "52 Kib",
             "latency": "LOW_LATENCY",
-            "expectedRequestIntervalMs": 200
+            "expectedRequestIntervalMs": 500
         },
         "classif": {
             "nextFunction": "echo",
             "image": "giraff:fn_image_classification_squeezenet_cpu",
-            "mem": 600,
-            "cpu": 600,
+            "mem": 800,
+            "cpu": 700,
             "input_max_size": "16 KiB",
             "latency": "HIGH_LATENCY",
-            "expectedRequestIntervalMs": 200
+            "expectedRequestIntervalMs": 2000
         },
         "echo": {
             "image": "giraff:fn_echo",

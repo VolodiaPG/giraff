@@ -11,7 +11,7 @@
             "cpu": 100,
             "input_max_size": "52 KiB",
             "latency": "SUPER_NO_LATENCY",
-            "expectedRequestIntervalMs": 200
+            "expectedRequestIntervalMs": 500
         },
         "classif": {
             "nextFunction": "echo",
@@ -20,7 +20,7 @@
             "cpu": 600,
             "input_max_size": "16 KiB",
             "latency": "NO_LATENCY",
-            "expectedRequestIntervalMs": 200
+            "expectedRequestIntervalMs": 2000
         },
         "echo": {
             "image": "giraff:fn_echo",
