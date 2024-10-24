@@ -1133,7 +1133,7 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
       !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
     ))) +
-    geom_smooth(method = "lm", se = TRUE, level=0.95, linetype = "dashed", alpha = 0.3,
+    geom_smooth(method = "lm", se = FALSE, level=0.95, linetype = "dashed", alpha = 0.3,
                 aes(group = interaction(!!metric_col)), 
                 show.legend = TRUE) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper, ), width = 0.2, alpha = 0.5) +

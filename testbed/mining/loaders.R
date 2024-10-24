@@ -368,10 +368,11 @@ load_acceptable_from_respected_slas <- function(ark) {
     mutate(latency = latency + as.difftime(0.001, units = "secs")) %>%
     mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
     mutate(on_time = in_flight <= latency) %>%
+    mutate(error = (as.numeric(latency) - as.numeric(in_flight)) / as.numeric(latency)) %>%
     mutate(nf = service_status >= 400 & service_status < 500) %>%
     mutate(nalat = is.na(latency))
-
-  Log(respected_sla %>% filter(!on_time) %>% filter(!nalat))
+  # %>% filter(!(docker_fn_name %in% c("audioToText", "classif")))
+  Log(respected_sla %>% filter(error < 0) %>% filter(!nalat) %>% filter(metric_group == "auction-quadratic_rates-no_complication"))
 
   respected_sla <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
@@ -381,16 +382,15 @@ load_acceptable_from_respected_slas <- function(ark) {
       chain_id = paste(sla_id, collapse = "_"),
       raw_acceptable = sum(acceptable, na.rm = TRUE),
       raw_on_time = sum(on_time, na.rm = TRUE),
-      total = n(),
+      total = n_distinct(sla_id, na.rm = TRUE)
     ) %>%
     # Remove all elements with latnecy NA
-    filter(nalat == 0) %>%
-    filter(nf == 0) %>%
-    mutate(raw_acceptable_chained = raw_acceptable == CHAIN_LENGTH) %>%
-    mutate(raw_on_time_chained = raw_on_time == CHAIN_LENGTH) %>%
+    # filter(nalat == 0) %>%
+    mutate(raw_acceptable_chained = raw_acceptable == total) %>%
+    mutate(raw_on_time_chained = raw_on_time == total) %>%
     ungroup()
 
-  Log(respected_sla)
+  Log(respected_sla %>% filter(raw_acceptable_chained == FALSE))
 
   # collect() %>%
   respected_sla <- respected_sla %>%
@@ -401,12 +401,14 @@ load_acceptable_from_respected_slas <- function(ark) {
       metric_group_group,
     ) %>%
     summarise(
-      total = n(),
+      total_respected = sum(total),
+      respected = sum(raw_acceptable),
+      total = n_distinct(req_id),
       acceptable = sum(raw_acceptable_chained),
       on_time = sum(raw_on_time_chained),
     ) %>%
-    mutate(on_time_chained = on_time == total) %>%
-    mutate(acceptable_chained = acceptable == total) %>%
+    mutate(on_time_chained = on_time >= total) %>%
+    mutate(acceptable_chained = acceptable >= total) %>%
     ungroup()
 
   return(respected_sla)
