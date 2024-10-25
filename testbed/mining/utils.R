@@ -1081,8 +1081,7 @@ Log <- function(text, ...) {
 
 create_metric_comparison_plot <- function(data, metric_col, group_col, value_col, node_col,
                                           title, x_label = NULL, y_label = NULL, y_suffix = "",
-                                          facet_col = NULL) {
-
+                                          facet_col = NULL, se = FALSE) {
   empty_facet_col <- is.null(facet_col)
 
   # Convert column names to symbols
@@ -1133,9 +1132,11 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
       !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
     ))) +
-    geom_smooth(method = "lm", se = TRUE, level=0.95, linetype = "dashed", alpha = 0.3,
-                aes(group = interaction(!!metric_col)), 
-                show.legend = TRUE) +
+    geom_smooth(
+      method = "lm", se = se, level = 0.95, linetype = "dashed", alpha = 0.3,
+      aes(group = interaction(!!metric_col)),
+      show.legend = TRUE
+    ) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper, ), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
     labs(
@@ -1149,7 +1150,7 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       legend.position = "right",
     ) +
     scale_color_viridis_d() +
-    scale_fill_viridis_d() 
+    scale_fill_viridis_d()
 
   # Add faceting if facet_col is provided
   if (!empty_facet_col) {

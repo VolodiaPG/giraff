@@ -534,7 +534,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
           respected_sla %>%
             select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
           by = c("folder", "metric_group", "metric_group_group", "sla_id")
-    ) %>%
+        ) %>%
         group_by(folder, metric_group, metric_group_group, chain_id) %>%
         summarise(value = sum(value), .groups = "drop") %>%
         group_by(folder, metric_group, metric_group_group) %>%
@@ -644,12 +644,16 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, color = placement_method), width = 0.2, alpha = 0.5) +
     geom_line(aes(x = x_jitter), size = 0.4, alpha = 0.8) +
     geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{GIRAFF}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
-    geom_point(data = df_long, aes(x = x_jitter, y = value, color = placement_method, 
-               text = sprintf(
-                 "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
-                 metric, placement_method, value, raw_value
-               )), 
-               alpha = 0.5, stroke = 0, size = 1) +
+    geom_point(
+      data = df_long, aes(
+        x = x_jitter, y = value, color = placement_method,
+        text = sprintf(
+          "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
+          metric, placement_method, value, raw_value
+        )
+      ),
+      alpha = 0.5, stroke = 0, size = 1
+    ) +
     geom_point(aes(x = x_jitter, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
       metric, placement_method,
@@ -701,21 +705,27 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
     value_col = "deployment_time_per_function",
     node_col = "nodes",
     title = "Mean Deployment Time per Function in Chain by Network Size",
-    y_suffix = " s"
+    y_suffix = " s",
+    se = TRUE,
   )
 }
 
 output_mean_respected_slas <- function(respected_sla, node_levels) {
-
-  #Log(df %>% ungroup() %>% select(folder, chain_id, violated, acceptable_chained, total))
+  # Log(df %>% ungroup() %>% select(folder, chain_id, violated, acceptable_chained, total))
   Log(respected_sla)
   df <- respected_sla %>%
-     #group_by(chain_id, folder, metric_group, metric_group_group) %>%
-    #mutate(violated = Reduce(`&`, acceptable_chained, accumulate = FALSE)) %>%
+    # group_by(chain_id, folder, metric_group, metric_group_group) %>%
+    # mutate(violated = Reduce(`&`, acceptable_chained, accumulate = FALSE)) %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(
-      violations = (n() - sum(on_time_chained))/n() ,
-      #sd_sla_violations = sd(correct),
+      chain_violations = (n() - sum(acceptable_chained)) / n() * 100,
+      # chain_violations = (n() - sum(on_time_chained)) / n() * 100,
+      respected = sum(respected),
+      total_respected = sum(total_respected),
+      violations = 100 * (1 - respected / total_respected),
+      violations = (chain_violations - violations) / chain_violations,
+      violations = chain_violations,
+      # sd_sla_violations = sd(correct),
       n = n(),
       .groups = "drop"
     ) %>%
@@ -725,12 +735,12 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
         summarise(nodes = n(), .groups = "drop"),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
-    #mutate(
+    # mutate(
     #  mean_sla_violations = mean_sla_violations * 100,
     #  se = sd_sla_violations / sqrt(n),
     #  ci_lower = (mean_sla_violations / 100 - qt(0.975, n - 1) * se) * 100,
     #  ci_upper = (mean_sla_violations / 100 + qt(0.975, n - 1) * se) * 100
-    #) %>%
+    # ) %>%
     extract_context() %>%
     correct_names()
 
@@ -780,7 +790,8 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
     node_col = "nodes",
     title = "Mean Spending per Function Chain by Network Size",
     y_label = "Spending per Chain",
-    y_suffix = " units"
+    y_suffix = " units",
+    se = TRUE,
   )
 }
 
@@ -809,7 +820,8 @@ output_mean_latency <- function(respected_sla, node_levels) {
     node_col = "nodes",
     title = "Mean Latency between Functions by Network Size",
     y_label = "Mean Latency",
-    y_suffix = " s"
+    y_suffix = " s",
+    se = TRUE
   )
 }
 
@@ -861,8 +873,9 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     group_col = "folder",
     value_col = "functions_not_deployed",
     node_col = "nodes",
-    title = "Mean Relative Difference of Unplaced Functions per Node by Network Size and Latency Type",
+    title = "Unplaced Functions per Node by Network Size and Latency Type",
     y_suffix = " %",
-    facet_col = "latency_type"
+    facet_col = "latency_type",
+    se = FALSE,
   )
 }
