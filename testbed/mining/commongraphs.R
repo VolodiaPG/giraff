@@ -638,12 +638,12 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     geom_point(data = data.frame(
       metric = unique(df_mean$metric),
       value = min(df_mean$value) - 0.5,
-      placement_method = "\\footnotesize{GIRAFF}"
+      placement_method = "\\footnotesize{\\anon{GIRAFF}}"
     ), aes(x = metric, y = value), alpha = 0, show.legend = FALSE) +
     # geom_ribbon(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
     geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, color = placement_method), width = 0.2, alpha = 0.5) +
     geom_line(aes(x = x_jitter), size = 0.4, alpha = 0.8) +
-    geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{GIRAFF}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
+    geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{\\anon{GIRAFF}}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
     geom_point(
       data = df_long, aes(
         x = x_jitter, y = value, color = placement_method,
@@ -752,8 +752,9 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     group_col = "folder",
     value_col = "violations",
     node_col = "nodes",
-    title = "Mean SLA Violations by Network Size",
-    y_suffix = "%"
+    title = "SLA Violations by Network Size",
+    y_suffix = "%",
+    se = TRUE,
   )
 }
 
@@ -853,10 +854,10 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     ) %>%
     mutate(
       functions_not_deployed = (total - provisioned) / total * 100,
-      se = sqrt((functions_not_deployed * (100 - functions_not_deployed)) / total),
-      margin_of_error = qt(0.975, df = total - 1) * se,
-      ci_lower = functions_not_deployed - margin_of_error,
-      ci_upper = functions_not_deployed + margin_of_error
+      #  se = sqrt((functions_not_deployed * (100 - functions_not_deployed)) / total),
+      #  margin_of_error = qt(0.975, df = total - 1) * se,
+      #  ci_lower = functions_not_deployed - margin_of_error,
+      #  ci_upper = functions_not_deployed + margin_of_error
     ) %>%
     inner_join(
       node_levels %>%
@@ -876,6 +877,6 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     title = "Unplaced Functions per Node by Network Size and Latency Type",
     y_suffix = " %",
     facet_col = "latency_type",
-    se = FALSE,
+    se = TRUE,
   )
 }

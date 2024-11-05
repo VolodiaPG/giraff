@@ -23,6 +23,7 @@
             )
             cowplot
             patchwork
+            dlookr
             #reticulate
             vroom
             tidyverse

@@ -6,6 +6,7 @@ init <- function() {
   # To call python from R
   library(archive)
   library(dplyr)
+  loadNamespace("dlookr")
   # library(reticulate)
   library(tidyverse)
   library(igraph)
@@ -230,7 +231,7 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("mean_time_to_deploy_total", mem(output_mean_time_to_deploy_simple_total)(raw_deployment_times, node_levels, paid_functions))
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
-
+#
 graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(accetable_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
@@ -240,9 +241,9 @@ graph_output_mean_latency <- export_graph("output_mean_latency", output_mean_lat
 
 merge_and_export_legend(
   list(
-    graph_output_mean_deployment_time,
+    # graph_output_mean_respected_slas,
     graph_output_mean_spending,
-    graph_output_mean_respected_slas
+    graph_output_mean_deployment_time
   ),
   "legend",
   1.25,
@@ -283,12 +284,32 @@ cat("Maximum number of functions hosted on the network:", max_functions_hosted, 
 
 # Log the result
 Log(paste("Maximum number of functions hosted on the network:", max_functions_hosted))
+
+
+# Get the maximum number of nodes
+max_nodes <- node_levels %>%
+  group_by(folder, metric_group, metric_group_group) %>%
+  summarise(nodes = n_distinct(name), .groups = "drop") %>%
+  summarise(max_nodes = max(nodes), .groups = "drop") %>%
+  pull(max_nodes) %>%
+  max()
+
+# Write the result to a file
+write(max_nodes, file = "out/max_nodes.txt")
+
+# Print the result to console
+cat("Maximum number of nodes in the network:", max_nodes, "\n")
+
+# Log the result
+Log(paste("Maximum number of nodes in the network:", max_nodes))
+
 # Calculate the maximum average throughput
 
 max_avg_throughput <- respected_sla %>%
   group_by(folder, metric_group, metric_group_group) %>%
   summarise(throughput = sum(total), .groups = "drop") %>%
-  select(folder, throughput)
+  select(folder, throughput) %>%
+  arrange(desc(throughput))
 Log(max_avg_throughput)
 
 max_avg_throughput <- max_avg_throughput %>%

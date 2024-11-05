@@ -301,8 +301,8 @@ correct_names <- function(x) {
   return(
     x %>%
       mutate(placement_method = case_when(
-        placement_method == "auctionno_complication" ~ "\\footnotesize{GIRAFF}",
-        placement_method == "auctionreduction" ~ "\\footnotesize{GIRAFF (reduction)}",
+        placement_method == "auctionno_complication" ~ "\\footnotesize{\\anon{GIRAFF}}",
+        placement_method == "auctionreduction" ~ "\\footnotesize{\\anon{GIRAFF} (reduction)}",
         placement_method == "edge_wardno_complication" ~ "\\footnotesize{Edge ward}",
         placement_method == "edge_firstno_complication" ~ "\\footnotesize{Edge first}",
         placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge furthest}",
@@ -310,8 +310,8 @@ correct_names <- function(x) {
         TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
       )) %>%
       mutate(placement_method = factor(placement_method, levels = c(
-        "\\footnotesize{GIRAFF}",
-        "\\footnotesize{GIRAFF (reduction)}",
+        "\\footnotesize{\\anon{GIRAFF}}",
+        "\\footnotesize{\\anon{GIRAFF} (reduction)}",
         "\\footnotesize{Edge ward}",
         "\\footnotesize{Edge first}",
         "\\footnotesize{Edge furthest}",
@@ -829,7 +829,8 @@ load_tikz <- function() {
     "\\usepackage{fontspec,xunicode}\n",
     "\\PreviewEnvironment{pgfpicture}\n",
     "\\setlength\\PreviewBorder{0pt}\n",
-    "\\newcommand{\\dash}{-}\n"
+    "\\newcommand{\\dash}{-}\n",
+    "\\newcommand{\\anon}[1]{ANON}\n"
   ))
   options(
     tikzMetricPackages = c(
@@ -882,6 +883,7 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
 
   # Write the resizebox command
   cat(sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width), file = file_conn)
+  cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
 
   # Capture tikz output
   capture.output(
@@ -1133,12 +1135,12 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
       !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
     ))) +
     geom_smooth(
-      method = "lm", se = se, level = 0.95, linetype = "dashed", alpha = 0.3,
-      aes(group = interaction(!!metric_col)),
+      method = "lm", se = se, level = 0.95, alpha = 0.1,
       show.legend = TRUE
     ) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper, ), width = 0.2, alpha = 0.5) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
+    coord_cartesian(ylim = c(0, NA)) +
     labs(
       title = title,
       x = x_label,
@@ -1152,10 +1154,33 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     scale_color_viridis_d() +
     scale_fill_viridis_d()
 
+
   # Add faceting if facet_col is provided
   if (!empty_facet_col) {
     p <- p + facet_wrap(vars(!!facet_col))
   }
+
+  file <- paste0("out/", title, ".txt", sep = "")
+  file_conn <- file(file, "w")
+  capture.output(
+    file = file_conn, append = TRUE,
+    df %>%
+      group_by(!!metric_col, ) %>%
+      select(!!metric_col, metric_value) %>%
+      dlookr::describe(),
+    graphics.off()
+  )
+  if (!empty_facet_col) {
+    capture.output(
+      file = file_conn, append = TRUE,
+      df %>%
+        group_by(!!metric_col, !!facet_col) %>%
+        select(!!metric_col, !!facet_col, metric_value) %>%
+        dlookr::describe(),
+      graphics.off()
+    )
+  }
+  close(file_conn)
 
   return(p)
 }
