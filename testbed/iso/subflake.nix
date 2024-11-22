@@ -2,6 +2,7 @@
   outputs = inputs: extra:
     with inputs; let
       inherit (self) outputs;
+      inherit (nixpkgs) lib;
       proxyFlakeOutputs = (import ./proxy/subflake.nix).outputs inputs extra;
     in
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
@@ -68,6 +69,11 @@
                         cp -r $src/chart/openfaas/ $out
                       '';
                     };
+                  };
+                  kubernetes.resources.deployments = {
+                    gateway.spec.template.spec.containers.gateway.image = lib.mkForce "ghcr.io/volodiapg/openfaas/gateway:0.27.2";
+                    gateway.spec.template.spec.containers.faas-netes.image = lib.mkForce "ghcr.io/volodiapg/openfaas/faas-netes:0.17.1";
+                    queue-worker.spec.template.spec.containers.queue-worker.image = lib.mkForce "ghcr.io/volodiapg/openfaas/queue-worker:0.14.0";
                   };
                 };
               })
