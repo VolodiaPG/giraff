@@ -58,19 +58,26 @@ in {
         "*":
           endpoint:
             - "https://127.0.0.1:5555"
-      configs:
-        "ghcr.io":
-        "docker.io":
-        "*":
-          tls:
-            insecure_skip_verify: true
-
     '';
 
-    # Tell the Nix evaluator to garbage collect morke aggressively.
+    # etc."containerd/certs.d/local".text = ''
+    #   server = "https://127.0.0.1:5555"
+    #
+    #   [host."https://127.0.0.1:5555"]
+    #     capabilities = ["pull", "resolve"]
+    #     skip_verify = true
+    #   '';
+    # # Tell the Nix evaluator to garbage collect morke aggressively.
     # This is desirable in memory-constrained environments that don't
     # (yet) have swap set up.
     variables.GC_INITIAL_HEAP_SIZE = "1M";
+  };
+
+  virtualisation.containerd = {
+    enable = true;
+    settings = {
+      config_path = "/etc/containerd/certs.d";
+    };
   };
 
   networking = {

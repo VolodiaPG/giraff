@@ -77,7 +77,7 @@
                       config = {
                         Env = [
                           "FUNCTION_LIVE_TIMEOUT_MSECS=120000"
-                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
+                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl_3_2]}"
                         ];
                       };
                       features =
@@ -117,7 +117,7 @@
                 pkg-config
                 jq
                 mprocs
-                openssl
+                openssl_3_2
                 rust-analyzer-nightly
                 cargo-outdated
                 cargo-udeps

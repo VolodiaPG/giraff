@@ -12,6 +12,7 @@
   certificate = "${cert}/cert.crt";
   key = "${cert}/cert.key";
 in {
+  security.pki.certificateFiles = [certificate];
   services.dockerRegistry = {
     enable = true;
     inherit port;
