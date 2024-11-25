@@ -11,7 +11,8 @@
             "cpu": 100,
             "input_max_size": "52 KiB",
             "latency": "SUPER_NO_LATENCY",
-            "expectedRequestIntervalMs": 500
+            "expectedRequestIntervalMs": 500,
+            "replicas": 1
         },
         "classif": {
             "nextFunction": "echo",
@@ -20,14 +21,16 @@
             "cpu": 600,
             "input_max_size": "16 KiB",
             "latency": "NO_LATENCY",
-            "expectedRequestIntervalMs": 2000
+            "expectedRequestIntervalMs": 2000,
+            "replicas": 2
         },
         "echo": {
             "image": "giraff:fn_echo",
             "mem": 40,
             "cpu": 10,
             "latency": "NO_LATENCY",
-            "expectedRequestIntervalMs": 100
+            "expectedRequestIntervalMs": 100,
+            "replicas": 1
         }
     }
 }

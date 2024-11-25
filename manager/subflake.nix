@@ -47,7 +47,7 @@
                       config = {
                         Env = [
                           "SERVER_PORT=3003"
-                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl]}"
+                          "LD_LIBRARY_PATH=${lib.makeLibraryPath [pkgs.openssl_3_2]}"
                         ];
                       };
                       features =

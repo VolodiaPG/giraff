@@ -48,6 +48,7 @@ type Function struct {
 	ColdStartOverhead int
 	StopOverhead      int
 	InputMaxSize      string
+	Replicas          int
 }
 
 // The FunctionProvisioned response of the function being provisioned
@@ -98,22 +99,23 @@ var (
 
 // The FunctionPipeline is a description of the functions to deploy on the network
 type FunctionPipeline struct {
-	Image        string  `json:"image"`
-	NextFunction *string `json:"nextFunction,omitempty"`
-	Mem          int     `json:"mem,omitempty"`
-	CPU          int     `json:"cpu,omitempty"`
-	Latency      string  `json:"latency,omitempty"`
-	InputMaxSize                string  `json:"input_max_size,omitempty"`
+	Image                     string  `json:"image"`
+	NextFunction              *string `json:"nextFunction,omitempty"`
+	Mem                       int     `json:"mem,omitempty"`
+	CPU                       int     `json:"cpu,omitempty"`
+	Latency                   string  `json:"latency,omitempty"`
+	InputMaxSize              string  `json:"input_max_size,omitempty"`
 	ExpectedRequestIntervalMs int     `json:"expectedRequestIntervalMs"`
+	Replicas                  int     `json:"replicas"`
 }
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
 type FunctionPipelineDescription struct {
-	Name                      string                      `json:"name"`
-	Content                   string                      `json:"content"`
-	NbVarName                 string                      `json:"nbVarName"`
-	First                     string                      `json:"first"`
-	Pipeline                  map[string]FunctionPipeline `json:"pipeline"`
+	Name      string                      `json:"name"`
+	Content   string                      `json:"content"`
+	NbVarName string                      `json:"nbVarName"`
+	First     string                      `json:"first"`
+	Pipeline  map[string]FunctionPipeline `json:"pipeline"`
 }
 
 var imageRegistry string
@@ -266,7 +268,7 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			"memory":           fmt.Sprintf("%d MB", function.Mem),
 			"cpu":              fmt.Sprintf("%d millicpu", function.CPU),
 			"latencyMax":       fmt.Sprintf("%d ms", function.Latency),
-			"maxReplica":       1,
+			"replicas":         function.Replicas,
 			"duration":         fmt.Sprintf("%d ms", function.Duration),
 			"functionImage":    fmt.Sprintf("%s/%s", dockerRegistry, function.DockerFnName),
 			"functionLiveName": function.FunctionName,
@@ -715,6 +717,7 @@ func saveFile(filename string) error {
 						ColdStartOverhead: functionColdStartOverhead,
 						StopOverhead:      functionStopOverhead,
 						InputMaxSize:      fn.InputMaxSize,
+						Replicas:          fn.Replicas,
 					})
 					if fn.NextFunction == nil {
 						break

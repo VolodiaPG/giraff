@@ -31,7 +31,7 @@ pub struct SlaRequest {
     #[serde_as(as = "time::Helper")]
     pub duration:       Time,
 
-    pub max_replica: u64,
+    pub replicas: u64,
 
     pub function_image: String,
 
@@ -50,7 +50,7 @@ impl From<SlaRequest> for Sla {
             cpu:                val.cpu,
             latency_max:        val.latency_max,
             duration:           val.duration,
-            max_replica:        val.max_replica,
+            replicas:           val.replicas,
             function_image:     val.function_image,
             function_live_name: val.function_live_name,
             data_flow:          val.data_flow,

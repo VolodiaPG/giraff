@@ -11,7 +11,8 @@
             "cpu": 1000,
             "input_max_size": "32 KiB",
             "latency": "SUPER_NO_LATENCY",
-            "expectedRequestIntervalMs": 3500
+            "expectedRequestIntervalMs": 3500,
+            "replicas": 2
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",
@@ -20,14 +21,16 @@
             "cpu": 50,
             "latency": "NO_LATENCY",
             "input_max_size": "4 KiB",
-            "expectedRequestIntervalMs": 200
+            "expectedRequestIntervalMs": 200,
+            "replicas": 1
         },
         "echo": {
             "image": "giraff:fn_echo",
             "mem": 40,
             "cpu": 10,
             "latency": "NO_LATENCY",
-            "expectedRequestIntervalMs": 100
+            "expectedRequestIntervalMs": 100,
+            "replicas": 1
         }
     }
 }
