@@ -23,7 +23,7 @@ pub struct Sla {
     #[serde_as(as = "time::Helper")]
     pub duration: Time,
 
-    pub max_replica: u64,
+    pub replicas: u64,
 
     pub function_image: String,
 

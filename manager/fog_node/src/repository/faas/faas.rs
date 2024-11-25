@@ -87,10 +87,16 @@ impl FaaSBackend for FaaSBackendImpl {
                 cpu:    bid.sla.cpu,
             }),
             env_vars: Some(env_vars),
-            labels: Some(HashMap::from([(
-                "com.openfaas.scale.max".to_string(),
-                bid.sla.max_replica.to_string(),
-            )])),
+            labels: Some(HashMap::from([
+                (
+                    "com.openfaas.scale.max".to_string(),
+                    bid.sla.replicas.to_string(),
+                ),
+                (
+                    "com.openfaas.scale.min".to_string(),
+                    bid.sla.replicas.to_string(),
+                ),
+            ])),
             ..Default::default()
         };
 

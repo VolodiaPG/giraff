@@ -56,9 +56,9 @@ pub(in crate::service) fn satisfiability_check(
     sla: &Sla,
 ) -> bool {
     let would_be_used_ram = *used_ram
-        + (sla.memory * num_rational::Ratio::new(sla.max_replica as i64, 1));
+        + (sla.memory * num_rational::Ratio::new(sla.replicas as i64, 1));
     let would_be_used_cpu = *used_cpu
-        + (sla.cpu * num_rational::Ratio::new(sla.max_replica as i64, 1));
+        + (sla.cpu * num_rational::Ratio::new(sla.replicas as i64, 1));
 
     would_be_used_cpu < *available_cpu && would_be_used_ram < *available_ram
 }
