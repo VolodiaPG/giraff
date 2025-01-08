@@ -1,4 +1,5 @@
 use super::{FaaSBackend, RemovableFunctionRecord};
+use crate::repository::node_situation::{self, NodeSituation};
 use crate::{
     INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN,
     OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION,
@@ -17,18 +18,22 @@ use std::collections::HashMap;
 use std::env;
 use std::fmt::Debug;
 use std::sync::Arc;
-use tracing::{info, instrument};
+use tracing::{info, instrument, trace};
 
 const ENV_VAR_SLA: &str = "SLA";
 #[derive(Debug)]
 pub struct FaaSBackendImpl {
-    client: Arc<DefaultApiClient>,
+    client:         Arc<DefaultApiClient>,
+    node_situation: Arc<NodeSituation>,
 }
 
 impl FaaSBackendImpl {
-    pub fn new(client: Arc<DefaultApiClient>) -> Self {
+    pub fn new(
+        client: Arc<DefaultApiClient>,
+        node_situation: Arc<NodeSituation>,
+    ) -> Self {
         info!("Using online faas backend");
-        Self { client }
+        Self { client, node_situation }
     }
 }
 #[async_trait::async_trait]
@@ -65,6 +70,10 @@ impl FaaSBackend for FaaSBackendImpl {
             "NAME".to_string(),
             bid.sla.function_live_name.to_string(),
         );
+        env_vars.insert(
+            "PRIVATE_IP".to_string(),
+            self.node_situation.get_my_public_ip().to_string(),
+        );
 
         let otel_endpoint_function =
             env::var(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION.to_string());
@@ -87,6 +96,7 @@ impl FaaSBackend for FaaSBackendImpl {
                 cpu:    bid.sla.cpu,
             }),
             env_vars: Some(env_vars),
+            env_process: bid.sla.env_process.clone(),
             labels: Some(HashMap::from([
                 (
                     "com.openfaas.scale.max".to_string(),
@@ -100,9 +110,16 @@ impl FaaSBackend for FaaSBackendImpl {
             ..Default::default()
         };
 
+        trace!(
+            "Provisioned {} with definition {:?}",
+            function_name,
+            definition
+        );
+
         self.client.system_functions_post(definition).await?;
 
         let bid = bid.to_provisioned(function_name);
+
         Ok(bid)
     }
 

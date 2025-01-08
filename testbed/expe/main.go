@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/montanaflynn/stats"
+	json5 "github.com/titanous/json5"
 	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
@@ -49,6 +50,7 @@ type Function struct {
 	StopOverhead      int
 	InputMaxSize      string
 	Replicas          int
+	EnvProcess        *string
 }
 
 // The FunctionProvisioned response of the function being provisioned
@@ -107,6 +109,7 @@ type FunctionPipeline struct {
 	InputMaxSize              string  `json:"input_max_size,omitempty"`
 	ExpectedRequestIntervalMs int     `json:"expectedRequestIntervalMs"`
 	Replicas                  int     `json:"replicas"`
+	EnvProcess                *string `json:"envProcess"`
 }
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
@@ -272,6 +275,7 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			"duration":         fmt.Sprintf("%d ms", function.Duration),
 			"functionImage":    fmt.Sprintf("%s/%s", dockerRegistry, function.DockerFnName),
 			"functionLiveName": function.FunctionName,
+			"envVars":          [][]string{{"RELEASE_COOKIE", strconv.Itoa(random.Intn(99999999))}},
 			"dataFlow": []map[string]interface{}{
 				{
 					"from": map[string]string{"dataSource": function.TargetNode},
@@ -281,6 +285,10 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			"inputMaxSize": function.InputMaxSize,
 		},
 		"targetNode": function.TargetNode,
+	}
+
+	if function.EnvProcess != nil {
+		data["sla"].(map[string]interface{})["envProcess"] = *function.EnvProcess
 	}
 
 	jsonData, _ := json.Marshal(data)
@@ -477,7 +485,7 @@ func registerNewFunctions(functions []Function) (bool, error) {
 			startedAt = &now
 		}
 		var responseJSON map[string]interface{}
-		json.Unmarshal(response, &responseJSON)
+		json5.Unmarshal(response, &responseJSON)
 		faasIP := responseJSON["chosen"].(map[string]interface{})["ip"].(string)
 		nodeID := responseJSON["chosen"].(map[string]interface{})["bid"].(map[string]interface{})["nodeId"].(string)
 		faasPort, err := strconv.Atoi(responseJSON["chosen"].(map[string]interface{})["port"].(string))
@@ -571,13 +579,13 @@ func loadFunctionDescriptions() ([]FunctionPipelineDescription, error) {
 	for _, descFile := range functionDescriptions {
 		data, err := os.ReadFile(descFile)
 		if err != nil {
-			logger.Error("Failed to read the file", zap.String("file", descFile))
+			logger.Error("Failed to read the file", zap.String("file", descFile), zap.String("err", err.Error()))
 			return nil, err
 		}
 		var desc FunctionPipelineDescription
-		err = json.Unmarshal(data, &desc)
+		err = json5.Unmarshal(data, &desc)
 		if err != nil {
-			logger.Error("Failed to unmarshal the file", zap.String("file", descFile))
+			logger.Error("Failed to unmarshal the file", zap.String("file", descFile), zap.String("err", err.Error()))
 			return nil, err
 		}
 		ret = append(ret, desc)
@@ -607,16 +615,16 @@ func loadFile(filename string) error {
 		logger.Sugar().Error("Error after reading the body from the fog node", err)
 		return err
 	}
-	var fognet []json.RawMessage
+	var fognet []json5.RawMessage
 	fognetwork := map[string]string{}
-	err = json.Unmarshal(body, &fognet)
+	err = json5.Unmarshal(body, &fognet)
 	if err != nil {
 		logger.Sugar().Error("Error unmarshalling the body from the fog node", err)
 		return err
 	}
 	for _, val := range fognet {
 		var node FogNode
-		err = json.Unmarshal(val, &node)
+		err = json5.Unmarshal(val, &node)
 		if err != nil {
 			logger.Sugar().Error("Error unmarshalling the rest of the body from the fog node", err)
 			return err
@@ -718,6 +726,7 @@ func saveFile(filename string) error {
 						StopOverhead:      functionStopOverhead,
 						InputMaxSize:      fn.InputMaxSize,
 						Replicas:          fn.Replicas,
+						EnvProcess:        fn.EnvProcess,
 					})
 					if fn.NextFunction == nil {
 						break
@@ -761,7 +770,7 @@ func loadFunctions(filename string) ([][]Function, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(data, &functions)
+	err = json5.Unmarshal(data, &functions)
 	if err != nil {
 		return nil, err
 	}

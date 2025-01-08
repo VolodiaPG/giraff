@@ -1,0 +1,18 @@
+{
+    "name": "giraff_app",
+    "content": "ping",
+    "nbVarName": "NB_GIRAFF_APP_FUNCTIONS",
+    "first": "app",
+    "pipeline": {
+        "app": {
+            "image": "giraff:giraff_app",
+            "mem": 256,
+            "cpu": 200,
+            "input_max_size": "1 Kib",
+            "latency": "LOW_LATENCY",
+            "expectedRequestIntervalMs": 500,
+            "replicas": 1,
+            "envProcess": "server",
+        },
+    },
+}

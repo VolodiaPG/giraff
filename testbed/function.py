@@ -25,6 +25,7 @@ class FunctionPipeline:
     latency: str = "NO_LATENCY"
     input_max_size: str = "1500 B"
     expectedRequestIntervalMs: float = 1000.0
+    replicas: int = 1
 
 
 @dataclass

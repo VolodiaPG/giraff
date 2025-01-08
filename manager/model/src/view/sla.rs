@@ -40,6 +40,8 @@ pub struct SlaRequest {
     pub data_flow: Vec<DataFlow>,
 
     pub env_vars: Option<Vec<(String, String)>>,
+
+    pub env_process: Option<String>,
 }
 
 impl From<SlaRequest> for Sla {
@@ -55,6 +57,7 @@ impl From<SlaRequest> for Sla {
             function_live_name: val.function_live_name,
             data_flow:          val.data_flow,
             env_vars:           val.env_vars.unwrap_or_default(),
+            env_process:        val.env_process,
             input_max_size:     val.input_max_size,
         }
     }

@@ -149,6 +149,7 @@ pub fn init_subscriber(
 #[cfg(not(feature = "offline"))]
 async fn connect_openfaas(
     http_client: Arc<reqwest_middleware::ClientWithMiddleware>,
+    node_situation: Arc<NodeSituation>,
     port_openfaas_external: FogNodeFaaSPortExternal,
 ) -> Arc<Box<dyn FaaSBackend>> {
     let port_openfaas_internal = env::var("OPENFAAS_PORT_INTERNAL")
@@ -183,7 +184,10 @@ async fn connect_openfaas(
         http_client.clone(),
     ));
 
-    Arc::new(Box::new(repository::faas::FaaSBackendImpl::new(client.clone())))
+    Arc::new(Box::new(repository::faas::FaaSBackendImpl::new(
+        client.clone(),
+        node_situation.clone(),
+    )))
 }
 
 #[cfg(feature = "offline")]
@@ -327,8 +331,12 @@ async fn main() -> anyhow::Result<()> {
     let neighbor_monitor_service =
         Arc::new(NeighborMonitor::new(latency_estimation_repo));
 
-    let faas_service =
-        connect_openfaas(http_client, port_openfaas_external).await;
+    let faas_service = connect_openfaas(
+        http_client,
+        node_situation.clone(),
+        port_openfaas_external,
+    )
+    .await;
     let function = Arc::new(Function::new(
         faas_service.clone(),
         node_situation.clone(),

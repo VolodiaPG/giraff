@@ -12,7 +12,7 @@
             "input_max_size": "32 KiB",
             "latency": "LOW_LATENCY",
             "expectedRequestIntervalMs": 3500,
-            "replicas": 2
+            "replicas": 2,
         },
         "sentimentAnalysis": {
             "nextFunction": "echo",
@@ -22,7 +22,7 @@
             "latency": "HIGH_LATENCY",
             "input_max_size": "4 KiB",
             "expectedRequestIntervalMs": 200,
-            "replicas": 1
+            "replicas": 1,
         },
         "echo": {
             "image": "giraff:fn_echo",
@@ -30,7 +30,7 @@
             "cpu": 10,
             "latency": "HIGHER_LATENCY",
             "expectedRequestIntervalMs": 100,
-            "replicas": 1
-        }
-    }
+            "replicas": 1,
+        },
+    },
 }
