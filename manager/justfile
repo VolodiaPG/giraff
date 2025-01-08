@@ -1,7 +1,7 @@
 #KUBECONFIG :=  env_var('HOME') / ".kube" / "config"
 
 KUBECONFIG := ".." / "testbed" / "iso" / "vm.kubeconfig"
-RUST_LOG := "warn,fog_node=trace,openfaas=trace,kube_metrics=warn,helper=warn,market=trace,actix=warn"
+RUST_LOG := "warn,fog_node=trace,faas=trace,openfaas=trace,kube_metrics=warn,helper=warn,market=trace,actix=warn"
 DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
 PROMETHEUS_PORT := "3090"
@@ -108,7 +108,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             market_port: "{{ MARKET_PORT }}",
         ),
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3030",
         reserved_cpu: "8 cpus",
         reserved_memory: "3 GiB",
@@ -125,7 +125,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "2 ms"
         ),
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3032",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -142,7 +142,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "4 ms"
         ),
         my_id: "fd4f121d-6b3d-44ca-8b82-90695aabaa3f",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3050",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -159,7 +159,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "20 ms"
         ),
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3034",
         reserved_cpu: "2 cpu",
         reserved_memory: "1500 MiB",
@@ -177,10 +177,10 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "10 ms"
         ),
         my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3036",
-        reserved_cpu: "1 cpu",
-        reserved_memory: "1 GiB",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
         tags: ["node_connected_3"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "1 Gb/s"
@@ -194,10 +194,10 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "6 ms"
         ),
         my_id: "d132ee95-5368-4bc8-9dfd-227eb77da5fc",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3038",
-        reserved_cpu: "1 cpu",
-        reserved_memory: "1 GiB",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
         tags: ["node_connected_34"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "100 Mb/s"
@@ -212,10 +212,10 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
             parent_latency: "1 ms"
         ),
         my_id: "e132ee95-5368-4bc8-9dfd-227eb77da5fc",
-        my_public_ip: "127.0.0.1",
+        my_public_ip: "{{MY_IP_ADDRESS}}",
         my_public_port_http: "3037",
-        reserved_cpu: "1 cpu",
-        reserved_memory: "1 GiB",
+        reserved_cpu: "2 cpu",
+        reserved_memory: "2 GiB",
         tags: ["node_connected_35"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "100 Mb/s"
@@ -282,8 +282,8 @@ run MY_IP_ADDRESS jaeger="false" *FLAGS="": (build FLAGS)
 expe localhost_ip OFFLINE_MODE="false":
     #!/usr/bin/env bash
     cd {{ justfile_directory() }}/../testbed
-    nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_3 node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} "c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
-    nix develop .#testbed -c sh -c "export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=\"node_3 node_34\" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} OFFLINE_MODE={{ OFFLINE_MODE }} DEV=true COLLECTOR_URL="localhost:4317"; just expe .env.local 127.0.0.1 {{ localhost_ip }} \"c132ee95-5368-4bc8-9dfd-227eb77da5fc d132ee95-5368-4bc8-9dfd-227eb77da5fc\""
+    nix develop .#testbed -c sh -c 'export EXPE_SAVE_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES="node_34" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }}; just expe .env.local 127.0.0.1 {{ localhost_ip }} "d132ee95-5368-4bc8-9dfd-227eb77da5fc"'
+    nix develop .#testbed -c sh -c "export EXPE_LOAD_FILE=./requests.env.local NODES_IP=127.0.0.1 TARGET_NODE_NAMES=\"node_34\" OVERRIDE_FIRST_NODE_IP=127.0.0.1 OVERRIDE_FUNCTION_IP=127.0.0.1 MARKET_LOCAL_PORT={{ MARKET_PORT }} OFFLINE_MODE={{ OFFLINE_MODE }} DEV=true COLLECTOR_URL="localhost:4317"; just expe .env.local 127.0.0.1 {{ localhost_ip }} \"d132ee95-5368-4bc8-9dfd-227eb77da5fc\""
 
 _ghcr user image:
     #!/usr/bin/env bash

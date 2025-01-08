@@ -14,7 +14,7 @@ pub struct FunctionDefinition {
     pub image:                     String,
     /// Process for watchdog to fork
     #[serde(rename = "envProcess")]
-    pub env_process:               String,
+    pub env_process:               Option<String>,
     /// Overrides to environmental variables
     #[serde(rename = "envVars")]
     pub env_vars: Option<::std::collections::HashMap<String, String>>,

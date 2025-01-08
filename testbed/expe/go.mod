@@ -20,6 +20,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
+	github.com/titanous/json5 v1.0.0 // indirect
 	github.com/uptrace/opentelemetry-go-extra/otelutil v0.2.3 // indirect
 	go.opentelemetry.io/otel/metric v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect

@@ -33,6 +33,8 @@ pub struct Sla {
 
     pub env_vars: Vec<(String, String)>,
 
+    pub env_process: Option<String>,
+
     #[serde_as(as = "information::Helper")]
     pub input_max_size: Information,
 }

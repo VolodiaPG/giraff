@@ -134,6 +134,8 @@ spec:
           value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
           value: "120000"
+        - name: PRIVATE_IP
+          value: "{private_ip}"
 {additional_env_vars}
         ports:
         - containerPort: 30003

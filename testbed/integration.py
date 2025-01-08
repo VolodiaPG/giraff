@@ -340,6 +340,7 @@ def up(
 
 def clear_directory(path):
     # Check if the directory exists
+    os.stat(path)
     if not os.path.exists(path):
         # Create the directory if it does not exist
         os.makedirs(path)

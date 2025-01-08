@@ -38,17 +38,23 @@ upload city="rennes": build-vm
         -nographic > /dev/null&
     VM_PID=$!
 
-    until $SSH_CMD 2223 "k3s kubectl get pods -A" 2> /dev/null
-    do
-        sleep 5
-    done
+    # until $SSH_CMD 2223 "k3s kubectl get pods -A" 2> /dev/null
+    # do
+    #     sleep 5
+    # done
+    #
+    # until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
+    # do
+    #     sleep 5
+    # done
+    #
+    # until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
+    # do
+    #     sleep 5
+    # done
 
-    until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=gateway --for condition=Ready --timeout=120s" 2> /dev/null
-    do
-        sleep 5
-    done
 
-    until $SSH_CMD 2223 "k3s kubectl wait pods -n openfaas -l app=prometheus --for condition=Ready --timeout=120s" 2> /dev/null
+    until curl -s localhost:5555/v2/_catalog > /dev/null
     do
         sleep 5
     done

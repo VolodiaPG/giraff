@@ -22,6 +22,9 @@ schema = 3
   [mod."github.com/montanaflynn/stats"]
     version = "v0.7.1"
     hash = "sha256-0QXUA/syOtDSBooh3isAffrVAjpSoBmSMMuZfO5maHg="
+  [mod."github.com/titanous/json5"]
+    version = "v1.0.0"
+    hash = "sha256-aQLm+r/MM/bcRFeNJzQqI8IJVjOdTy+nnIirkrJL6iQ="
   [mod."github.com/uptrace/opentelemetry-go-extra/otelutil"]
     version = "v0.2.3"
     hash = "sha256-fEHqHUvCvJTfNFkh4HioOuLA+eKipCGXW04a0l4iSAM="
