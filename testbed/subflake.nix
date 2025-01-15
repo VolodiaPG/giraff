@@ -88,6 +88,7 @@
                 influxdb-client
                 marshmallow-dataclass
                 randomname
+                pyjson5
                 numpy
                 (buildPythonPackage {
                   pname = "enoslib";

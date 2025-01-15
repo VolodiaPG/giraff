@@ -107,12 +107,16 @@ def log_cmd(env, results_list):
     os.symlink(path, f"{prefix_simlink}/logs-latest")
     aliases = {}
     for results in results_list:
-        for data in results.filter(status=STATUS_OK) + results.filter(status=STATUS_FAILED):
+        for data in results.filter(status=STATUS_OK) + results.filter(
+            status=STATUS_FAILED
+        ):
             host = data.host
             data = data.payload
             alias_name = get_aliases(env).get(host, host)
             aliases[alias_name] = aliases.get(alias_name, -1) + 1
-            alias_name = alias_name + ("" if aliases[alias_name] == 0 else "." + str(aliases[alias_name]))
+            alias_name = alias_name + (
+                "" if aliases[alias_name] == 0 else "." + str(aliases[alias_name])
+            )
 
             if data["stdout"]:
                 # print(data["stdout"])
@@ -139,14 +143,18 @@ def log_cmd(env, results_list):
 
 
 def open_tunnel(address, port, local_port=None, rest_of_url=""):
-    print(f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}")
+    print(
+        f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}"
+    )
     if local_port is None:
         local_port = port
     for i in range(5):
         try:
             tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
             local_address, local_port, _ = tunnel.start()
-            print(f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}")
+            print(
+                f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}"
+            )
             return local_address, local_port
         except Exception as e:
             if i == 4:
@@ -197,7 +205,9 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
 
             if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
-                    raise Exception("The VM requires more resources than the node can provide")
+                    raise Exception(
+                        "The VM requires more resources than the node can provide"
+                    )
 
                 conf.add_machine(
                     roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
@@ -299,11 +309,15 @@ def up(
         flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
     )
 
-    assignations = assign_vm_to_hosts(NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine)
+    assignations = assign_vm_to_hosts(
+        NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine
+    )
 
     env["assignations"] = assignations
 
-    print(f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs")
+    print(
+        f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs"
+    )
 
     conf.finalize()
 
@@ -453,7 +467,9 @@ def set_sshx(env: EnosEnv):
     #        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
     #        task_name="Setting names",
     #    )
-    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
             'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
             task_name="Setting names",
@@ -469,7 +485,9 @@ def k3s_setup(env: EnosEnv = None):
     roles = env["roles"]
     print("Checking up on k3s and FaaS...")
 
-    with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
             (
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
@@ -507,7 +525,9 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         exit(1)
     roles = env["roles"]
     # Deploy the echo node
-    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
             """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
@@ -601,7 +621,9 @@ def aliases(env: EnosEnv = None, **kwargs):
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
     # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
-    max_in_flight_functions_proposals = math.ceil(int(node["flavor"]["reserved_mem"]) / 100)
+    max_in_flight_functions_proposals = math.ceil(
+        int(node["flavor"]["reserved_mem"]) / 100
+    )
     conf = NODE_CONNECTED_NODE.format(
         parent_id=parent_id,
         parent_ip=parent_ip,
@@ -652,7 +674,9 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
     # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
-    max_in_flight_functions_proposals = math.ceil(int(NETWORK["flavor"]["reserved_mem"]) / 100)
+    max_in_flight_functions_proposals = math.ceil(
+        int(NETWORK["flavor"]["reserved_mem"]) / 100
+    )
     confs = [
         (
             NETWORK["name"],
@@ -673,7 +697,10 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         flatten(
             [
                 *confs,
-                *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]],
+                *[
+                    gen_conf(child, market_id, market_ip, ids)
+                    for child in NETWORK["children"]
+                ],
             ]
         )
     )
@@ -692,7 +719,12 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
             enable_collector="true" if os.environ["DEV"] == "true" else "false",
-            is_cloud="is_cloud" if tier_flavor.get("is_cloud") is not None and tier_flavor.get("is_cloud") is True else "no_cloud",
+            is_cloud=(
+                "is_cloud"
+                if tier_flavor.get("is_cloud") is not None
+                and tier_flavor.get("is_cloud") is True
+                else "no_cloud"
+            ),
             additional_env_vars=additional_env_vars,
             rust_log=rust_log,
         )
@@ -714,14 +746,22 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
 
     with actions(roles=fog_node_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
-            "cat << EOF > /tmp/node_conf.yaml\n" "{{ fog_node_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/node_conf.yaml",
+            "cat << EOF > /tmp/node_conf.yaml\n"
+            "{{ fog_node_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/node_conf.yaml",
             # roles=roles["master"],
             task_name="Deploying fog_node software",
         )
 
-    with actions(roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
-            "cat << EOF > /tmp/market.yaml\n" "{{ market_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/market.yaml",
+            "cat << EOF > /tmp/market.yaml\n"
+            "{{ market_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/market.yaml",
             task_name="Deploying market software",
         )
 
@@ -821,7 +861,9 @@ def collect(address=None, **kwargs):
 
     jobs = []
     for measurement_name in measurements:
-        job = pool.apply_async(worker, (queue, addresses, token, bucket, org, measurement_name))
+        job = pool.apply_async(
+            worker, (queue, addresses, token, bucket, org, measurement_name)
+        )
         jobs.append(job)
 
     # collect results from the workers through the pool result queue
@@ -866,7 +908,9 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
             roles=roles["market"],
         )
     )
-    res.append(en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"]))
+    res.append(
+        en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
+    )
     if all:
         res.append(
             en.run_command(

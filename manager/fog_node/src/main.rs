@@ -150,6 +150,7 @@ pub fn init_subscriber(
 async fn connect_openfaas(
     http_client: Arc<reqwest_middleware::ClientWithMiddleware>,
     node_situation: Arc<NodeSituation>,
+    k8s: Arc<K8s>,
     port_openfaas_external: FogNodeFaaSPortExternal,
 ) -> Arc<Box<dyn FaaSBackend>> {
     let port_openfaas_internal = env::var("OPENFAAS_PORT_INTERNAL")
@@ -187,6 +188,7 @@ async fn connect_openfaas(
     Arc::new(Box::new(repository::faas::FaaSBackendImpl::new(
         client.clone(),
         node_situation.clone(),
+        k8s.clone(),
     )))
 }
 
@@ -334,6 +336,7 @@ async fn main() -> anyhow::Result<()> {
     let faas_service = connect_openfaas(
         http_client,
         node_situation.clone(),
+        k8s_repo.clone(),
         port_openfaas_external,
     )
     .await;

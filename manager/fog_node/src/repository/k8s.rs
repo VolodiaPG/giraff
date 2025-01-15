@@ -1,7 +1,9 @@
 use anyhow::Result;
+use kube::api::PostParams;
 use model::dto::k8s::{Allocatable, Metrics, Usage};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct K8s;
 
 #[cfg(feature = "offline")]
@@ -90,6 +92,84 @@ impl K8s {
         }
 
         Ok(aggregated_metrics)
+    }
+
+    pub async fn create_service(
+        &self,
+        function_name: String,
+    ) -> anyhow::Result<(i32, i32)> {
+        use anyhow::Context;
+        use k8s_openapi::api::core::v1::Service;
+        use kube::{Api, Client};
+
+        let client = Client::try_default()
+            .await
+            .context("Failed to create the K8S client")?;
+        let services: Api<Service> =
+            Api::namespaced(client.clone(), "openfaas-fn");
+
+        let service_name =
+            format!("dynamic-service-{}", function_name.clone());
+
+        let target_port = 30432;
+
+        let service = serde_json::from_value(serde_json::json!({
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": service_name
+            },
+            "spec": {
+                "type": "NodePort",
+                "ports": [{
+                    "protocol": "TCP",
+                    "port": target_port,
+                    "targetPort": target_port,
+                }],
+                "selector": {
+                    "faas_function": function_name
+                }
+            }
+        }))?;
+
+        // Create the service
+        let created =
+            services.create(&PostParams::default(), &service).await?;
+
+        // Extract the allocated port
+        let allocated_port = created
+            .spec
+            .unwrap()
+            .ports
+            .unwrap()
+            .first()
+            .unwrap()
+            .node_port
+            .unwrap();
+
+        Ok((target_port, allocated_port))
+    }
+
+    pub async fn delete_service(
+        &self,
+        function_name: String,
+    ) -> anyhow::Result<()> {
+        use anyhow::Context;
+        use k8s_openapi::api::core::v1::Service;
+        use kube::{Api, Client};
+
+        let client = Client::try_default()
+            .await
+            .context("Failed to create the K8S client")?;
+        let services: Api<Service> =
+            Api::namespaced(client.clone(), "openfaas-fn");
+
+        let service_name =
+            format!("dynamic-service-{}", function_name.clone());
+
+        services.delete(&service_name, &Default::default()).await?;
+
+        Ok(())
     }
 
     #[cfg(feature = "offline")]

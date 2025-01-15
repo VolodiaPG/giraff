@@ -92,7 +92,7 @@ run_market jaeger *FLAGS:
      cargo run --bin market {{ FLAGS }}
 
 # Run the node, type is market or else (generic fog_node)
-run_fog_node node_type MY_IP_ADDRESS jaeger="false":
+run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
     #!.venv/bin/python
     import os
     import base64
@@ -109,6 +109,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "d2f7de01-d7e5-4afc-bc76-fb5c0e79ec7a",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3030",
         reserved_cpu: "8 cpus",
         reserved_memory: "3 GiB",
@@ -126,6 +127,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "fd4f121d-6b3d-44ca-8b82-906959abaa3f",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3032",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -143,6 +145,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "fd4f121d-6b3d-44ca-8b82-90695aabaa3f",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3050",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -160,6 +163,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "4b1a3a31-8130-431a-8a08-8a5be3becc3b",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3034",
         reserved_cpu: "2 cpu",
         reserved_memory: "1500 MiB",
@@ -178,6 +182,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "c132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3036",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -195,6 +200,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "d132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3038",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -213,6 +219,7 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
         ),
         my_id: "e132ee95-5368-4bc8-9dfd-227eb77da5fc",
         my_public_ip: "{{MY_IP_ADDRESS}}",
+        my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3037",
         reserved_cpu: "2 cpu",
         reserved_memory: "2 GiB",
@@ -269,14 +276,14 @@ run_fog_node node_type MY_IP_ADDRESS jaeger="false":
     print(cmd)
     os.system(cmd)
 
-run MY_IP_ADDRESS jaeger="false" *FLAGS="": (build FLAGS)
-    mprocs "just run_fog_node market {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_2 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_3 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_1 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_12 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_34 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
-      "just run_fog_node node_35 {{ MY_IP_ADDRESS }} {{ jaeger }}" \
+run MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false" *FLAGS="": (build FLAGS)
+    mprocs "just run_fog_node market {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_2 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_3 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_1 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_12 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_34 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
+      "just run_fog_node node_35 {{ MY_IP_ADDRESS }} {{MY_IP_ADDRESS_PRIVATE}} {{ jaeger }}" \
       "just run_market {{ jaeger }}  {{ FLAGS }}"
 
 expe localhost_ip OFFLINE_MODE="false":

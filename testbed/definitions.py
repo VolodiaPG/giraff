@@ -35,6 +35,16 @@ rules:
     resources: ["pods", "nodes"]
     verbs: ["get", "list", "watch"]
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fog-node-service-creation
+  namespace: openfaas-fn
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create"]
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -47,6 +57,20 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: fog-node
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fog-node-service-creation
+  namespace: openfaas-fn
+subjects:
+- kind: ServiceAccount
+  name: fog-node
+  namespace: openfaas
+roleRef:
+  kind: Role
+  name: fog-node-service-creation
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
@@ -134,8 +158,6 @@ spec:
           value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
           value: "120000"
-        - name: PRIVATE_IP
-          value: "{private_ip}"
 {additional_env_vars}
         ports:
         - containerPort: 30003
@@ -242,6 +264,7 @@ MARKET_CONNECTED_NODE = """(
     ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
+    my_private_ip: "{my_public_ip}",
     my_public_port_http: "30003",
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",
@@ -260,6 +283,7 @@ NODE_CONNECTED_NODE = """(
     ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
+    my_private_ip: "{my_public_ip}",
     my_public_port_http: "30003",
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",
@@ -272,7 +296,7 @@ NODE_CONNECTED_NODE = """(
 
 # Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": (2 * 18), "mem": 1024 * 96 },
+    "gros": {"core": (2 * 18), "mem": 1024 * 96},
     "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     "parasilo": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
@@ -385,14 +409,18 @@ def generate_level(
     nb_nodes: Tuple[int, int],
     latencies: Tuple[int, int],
     rates: Tuple[int, int],
-    modifiers: Optional[List[Callable[[Dict[str, Any], bool], None]]] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
+    modifiers: Optional[
+        List[Callable[[Dict[str, Any], bool], None]]
+    ] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
     next_lvl: Optional[Callable[[int], List[Dict[str, Any]]]] = None,
 ) -> Callable[[int], List[Dict[str, Any]]]:
     def inner(depth: int = 1) -> List[Dict[str, Any]]:
         ret: List[Dict] = []
         global uuid
         first = True
-        for _ in range(0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))):
+        for _ in range(
+            0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))
+        ):
             uuid += 1
             rate_min = min(rates[0], rates[1])
             rate_max = max(rates[0], rates[1])
@@ -505,7 +533,9 @@ def network_generation():
                     ),
                 ),
             ),
-        )(1),  # depth = 1, because python typesafety stuff wants you to repeat it:'(
+        )(
+            1
+        ),  # depth = 1, because python typesafety stuff wants you to repeat it:'(
     }
 
 
@@ -570,7 +600,9 @@ def get_iot_connection(node):
 def adjacency(node):
     children = node["children"] if "children" in node else []
     ret = {}
-    ret[node["name"]] = [(child["name"], child["latency"], child["rate"]) for child in children]
+    ret[node["name"]] = [
+        (child["name"], child["latency"], child["rate"]) for child in children
+    ]
     for child in children:
         ret = {**ret, **adjacency(child)}
 
@@ -678,7 +710,9 @@ def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
 
             if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
-                    raise Exception("The VM requires more resources than the node can provide")
+                    raise Exception(
+                        "The VM requires more resources than the node can provide"
+                    )
 
                 total_vm_required += 1
                 core_used = 0
@@ -740,7 +774,9 @@ else:
     save_network_file = os.getenv(SAVE_NETWORK_FILE)
     load_network_file = os.getenv(LOAD_NETWORK_FILE)
     if save_network_file and load_network_file:
-        raise Exception(f"{SAVE_NETWORK_FILE} and {LOAD_NETWORK_FILE} env var should not be set together")
+        raise Exception(
+            f"{SAVE_NETWORK_FILE} and {LOAD_NETWORK_FILE} env var should not be set together"
+        )
     elif save_network_file and not load_network_file:
         NETWORK = network_generation()
         dill.settings["recurse"] = True
@@ -750,14 +786,24 @@ else:
         with open(load_network_file, "rb") as inp:
             NETWORK = dill.load(inp)
     else:
-        raise Exception(f"{SAVE_NETWORK_FILE} or {LOAD_NETWORK_FILE} env vars should be defined to save/load the network configuration")
+        raise Exception(
+            f"{SAVE_NETWORK_FILE} or {LOAD_NETWORK_FILE} env vars should be defined to save/load the network configuration"
+        )
 
 FOG_NODES = list(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
-fog_nodes_control = set(flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]]))
-assert len(FOG_NODES) == len(fog_nodes_control), "Some names are identical, each should be a uid"
+fog_nodes_control = set(
+    flatten([gen_fog_nodes_names(child) for child in NETWORK["children"]])
+)
+assert len(FOG_NODES) == len(
+    fog_nodes_control
+), "Some names are identical, each should be a uid"
 
-EXTREMITIES = list(flatten([get_extremities_name(child) for child in NETWORK["children"]]))
-IOT_CONNECTION = list(flatten([get_iot_connection(child) for child in NETWORK["children"]]))
+EXTREMITIES = list(
+    flatten([get_extremities_name(child) for child in NETWORK["children"]])
+)
+IOT_CONNECTION = list(
+    flatten([get_iot_connection(child) for child in NETWORK["children"]])
+)
 ADJACENCY = adjacency(NETWORK)
 LEVELS = levels(NETWORK)
 

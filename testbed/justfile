@@ -147,7 +147,9 @@ expe env_variation IOT_IP MARKET_IP TARGET_NODES:
     export COLLECTOR_URL="$IOT_IP:4317"
     expe
 
-from_checkpoint env_variation *command="expe":
+# Runs a command (default to expe) from the checkpoint saved with all the environment variables set for the current container the command will run in
+from_checkpoint env_variation=".env.dev" *command="expe":
+    #!/usr/bin/env bash
     source {{ justfile_directory() }}/env_checkpoint{{ env_variation }}.sh
     {{ command }}
 
@@ -311,9 +313,10 @@ docker_enos name expe_dir cmd="bash":
             enos_deployment:latest bash -c -E "{{ cmd }}"
         fi
 
-ssh_into_expe hostname name:
-    #!/usr/bin/env bash
-    ssh root@{{ hostname }} {{ DOCKER }} exec -it {{ name }} bash --init-file <(echo 'source \"$HOME/.bashrc\"; source env.source;  exec bash -i')
+
+ssh_into_expe city master_node_ip:
+    ssh -tt {{city}}.grid5000.fr 'exec ssh -tt root@{{ master_node_ip }} '\''cd /home/enos && source env.source && exec {{ DOCKER }} exec -it $({{ DOCKER }} ps -q | head -n1) bash --init-file "<(echo \"source env.source ; exec bash -i\")" '\'''
+
 
 [private]
 _inside_docker_scenearii +city_name_node_targets:

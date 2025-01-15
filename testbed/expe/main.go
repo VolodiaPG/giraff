@@ -275,7 +275,10 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			"duration":         fmt.Sprintf("%d ms", function.Duration),
 			"functionImage":    fmt.Sprintf("%s/%s", dockerRegistry, function.DockerFnName),
 			"functionLiveName": function.FunctionName,
-			"envVars":          [][]string{{"RELEASE_COOKIE", strconv.Itoa(random.Intn(99999999))}},
+			"envVars": [][]string{{
+				"RELEASE_COOKIE", strconv.Itoa(random.Intn(99999999))}, {
+				"MARKET_URL", fmt.Sprintf("%s:%d", marketIP, marketLocalPort),
+			}},
 			"dataFlow": []map[string]interface{}{
 				{
 					"from": map[string]string{"dataSource": function.TargetNode},
@@ -515,14 +518,15 @@ func registerNewFunctions(functions []Function) (bool, error) {
 		logger.Ctx(ctx).Sugar().Warnf("Got the reservation, but no time to proceed to use it, stopping there")
 		return false, nil
 	}
-	_, statusCodes, err := postProvisionChainFunctions(ctx, responses)
+	bodies, statusCodes, err := postProvisionChainFunctions(ctx, responses)
 	if err != nil {
 		logger.Ctx(ctx).Sugar().Warnw("Failed to provision:", err)
 		return false, err
 	}
-	for _, httpCode := range statusCodes {
+	for ii, httpCode := range statusCodes {
 		if httpCode != 200 {
-			logger.Ctx(ctx).Sugar().Warnf("Provisioning failed %d", httpCode)
+			body := bodies[ii]
+			logger.Ctx(ctx).Sugar().Warnf("Provisioning failed %d with reason: %s", httpCode, string(body))
 			return false, nil
 		}
 	}

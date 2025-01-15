@@ -1,4 +1,5 @@
 use super::{FaaSBackend, RemovableFunctionRecord};
+use crate::repository::k8s::K8s;
 use crate::repository::node_situation::{self, NodeSituation};
 use crate::{
     INFLUX_ADDRESS, INFLUX_BUCKET, INFLUX_ORG, INFLUX_TOKEN,
@@ -9,6 +10,8 @@ use helper::env_load;
 use helper::monitoring::{
     InfluxAddress, InfluxBucket, InfluxOrg, InfluxToken,
 };
+use k8s_openapi::api::core::v1::Service;
+use kube::Api;
 use model::dto::function::{Paid, Provisioned};
 use model::SlaId;
 use openfaas::models::delete_function_request::DeleteFunctionRequest;
@@ -25,15 +28,17 @@ const ENV_VAR_SLA: &str = "SLA";
 pub struct FaaSBackendImpl {
     client:         Arc<DefaultApiClient>,
     node_situation: Arc<NodeSituation>,
+    k8s:            Arc<K8s>,
 }
 
 impl FaaSBackendImpl {
     pub fn new(
         client: Arc<DefaultApiClient>,
         node_situation: Arc<NodeSituation>,
+        k8s: Arc<K8s>,
     ) -> Self {
         info!("Using online faas backend");
-        Self { client, node_situation }
+        Self { client, node_situation, k8s }
     }
 }
 #[async_trait::async_trait]
@@ -45,6 +50,9 @@ impl FaaSBackend for FaaSBackendImpl {
         bid: Paid,
     ) -> Result<Provisioned> {
         let function_name = format!("fogfn-{}", id); // Respect DNS-1035 formatting (letter as first char of name)
+
+        let (internal_opened_port, external_opened_port) =
+            self.k8s.create_service(function_name.clone()).await?;
 
         let mut env_vars = HashMap::new();
         env_vars.insert(
@@ -67,12 +75,24 @@ impl FaaSBackend for FaaSBackendImpl {
         env_vars.insert(INFLUX_TOKEN.to_string(), token.into_inner());
         env_vars.insert("ID".to_string(), id.to_string());
         env_vars.insert(
+            "GIRAFF_NODE_ID".to_string(),
+            self.node_situation.get_my_id().to_string(),
+        );
+        env_vars.insert(
             "NAME".to_string(),
             bid.sla.function_live_name.to_string(),
         );
         env_vars.insert(
             "PRIVATE_IP".to_string(),
-            self.node_situation.get_my_public_ip().to_string(),
+            self.node_situation.get_my_private_ip().to_string(),
+        );
+        env_vars.insert(
+            "OPENED_PORT".to_string(),
+            external_opened_port.to_string(),
+        );
+        env_vars.insert(
+            "INTERNAL_OPENED_PORT".to_string(),
+            internal_opened_port.to_string(),
         );
 
         let otel_endpoint_function =
@@ -118,7 +138,7 @@ impl FaaSBackend for FaaSBackendImpl {
 
         self.client.system_functions_post(definition).await?;
 
-        let bid = bid.to_provisioned(function_name);
+        let bid = bid.to_provisioned(function_name, external_opened_port);
 
         Ok(bid)
     }
@@ -144,6 +164,8 @@ impl FaaSBackend for FaaSBackendImpl {
                     function.function_name
                 )
             })?;
+
+        self.k8s.delete_service(function.function_name.clone()).await?;
         Ok(())
     }
 }
