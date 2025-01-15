@@ -35,6 +35,16 @@ rules:
     resources: ["pods", "nodes"]
     verbs: ["get", "list", "watch"]
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fog-node-service-creation
+  namespace: openfaas-fn
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create"]
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -47,6 +57,20 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: fog-node
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fog-node-service-creation
+  namespace: openfaas-fn
+subjects:
+- kind: ServiceAccount
+  name: fog-node
+  namespace: openfaas
+roleRef:
+  kind: Role
+  name: fog-node-service-creation
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: v1
@@ -134,8 +158,6 @@ spec:
           value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
           value: "120000"
-        - name: PRIVATE_IP
-          value: "{private_ip}"
 {additional_env_vars}
         ports:
         - containerPort: 30003
@@ -242,6 +264,7 @@ MARKET_CONNECTED_NODE = """(
     ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
+    my_private_ip: "{my_public_ip}",
     my_public_port_http: "30003",
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",
@@ -260,6 +283,7 @@ NODE_CONNECTED_NODE = """(
     ),
     my_id: "{my_id}",
     my_public_ip: "{my_public_ip}",
+    my_private_ip: "{my_public_ip}",
     my_public_port_http: "30003",
     reserved_cpu: "{reserved_cpu} cpus",
     reserved_memory: "{reserved_memory} MiB",

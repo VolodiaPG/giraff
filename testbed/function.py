@@ -1,12 +1,14 @@
 import asyncio
-import json
 import os
 from dataclasses import dataclass
 from typing import List, Optional
 
 import marshmallow_dataclass  # type: ignore
+import pyjson5 as json5
 
-FUNCTION_DESCRIPTIONS = os.getenv("FUNCTION_DESCRIPTIONS", "").split()  # Should be in the same order than TARGET_NODES
+FUNCTION_DESCRIPTIONS = os.getenv(
+    "FUNCTION_DESCRIPTIONS", ""
+).split()  # Should be in the same order than TARGET_NODES
 
 
 port_int = int
@@ -26,6 +28,7 @@ class FunctionPipeline:
     input_max_size: str = "1500 B"
     expectedRequestIntervalMs: float = 1000.0
     replicas: int = 1
+    envProcess: str = ""
 
 
 @dataclass
@@ -46,7 +49,7 @@ def load_function_descriptions() -> List[FunctionPipelineDescription]:
     assert len(FUNCTION_DESCRIPTIONS) != 0
     for desc_file in FUNCTION_DESCRIPTIONS:
         with open(desc_file) as ff:
-            ret.append(schema.load(json.load(ff)))
+            ret.append(schema.load(json5.load(ff)))  # type: ignore
     return ret
 
 
@@ -70,7 +73,9 @@ async def _build_push_function(function: str, docker_registry: str):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=300)  # 5 minutes timeout
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=300
+            )  # 5 minutes timeout
             if process.returncode == 0:
                 print(f"Successfully built {function}")
             else:
@@ -101,12 +106,16 @@ async def _build_push_function(function: str, docker_registry: str):
             )
             os.close(read)
 
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=300)  # 5 minutes timeout
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=300
+            )  # 5 minutes timeout
             if process.returncode == 0:
                 print(f"Successfully copied {function}")
                 break
             else:
-                print(f"Error copying {function} from {function_path} to docker://{docker_registry}/{function}: {stderr.decode()}")
+                print(
+                    f"Error copying {function} from {function_path} to docker://{docker_registry}/{function}: {stderr.decode()}"
+                )
         except asyncio.TimeoutError:
             print(f"Timeout while copying {function}")
         except Exception as e:
@@ -120,7 +129,9 @@ async def _build_push_function(function: str, docker_registry: str):
 
 
 async def _push_function(function: str, docker_registry: str):
-    print(f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{docker_registry}/{function}")
+    print(
+        f"Copying from docker://{IMAGE_REGISTRY}/{function} to docker://{docker_registry}/{function}"
+    )
     max_retries = 3
     retry_delay = 5  # seconds
 
@@ -138,7 +149,9 @@ async def _push_function(function: str, docker_registry: str):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=300)  # 5 minutes timeout
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=300
+            )  # 5 minutes timeout
             if process.returncode == 0:
                 print(f"Successfully copied {function}")
                 break
@@ -156,7 +169,9 @@ async def _push_function(function: str, docker_registry: str):
         print(f"Failed to copy {function} after {max_retries} attempts")
 
 
-async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str], callback):
+async def _do_functions_to_registry(
+    pipeline: List[FunctionPipelineDescription], nodes: List[str], callback
+):
     assert IMAGE_REGISTRY is not None
 
     unique_functions = set()
@@ -166,7 +181,11 @@ async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription],
 
     node_targets = set(nodes)
 
-    tasks = [callback(function, f"{target}:5555") for target in node_targets for function in unique_functions]
+    tasks = [
+        callback(function, f"{target}:5555")
+        for target in node_targets
+        for function in unique_functions
+    ]
 
     # Use a semaphore to limit concurrent tasks
     semaphore = asyncio.Semaphore(50)
@@ -184,9 +203,13 @@ async def _do_functions_to_registry(pipeline: List[FunctionPipelineDescription],
     print("All uploads of functions to the internal container registry are done")
 
 
-async def push_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str]):
+async def push_functions_to_registry(
+    pipeline: List[FunctionPipelineDescription], nodes: List[str]
+):
     await _do_functions_to_registry(pipeline, nodes, _push_function)
 
 
-async def build_functions_to_registry(pipeline: List[FunctionPipelineDescription], nodes: List[str]):
+async def build_functions_to_registry(
+    pipeline: List[FunctionPipelineDescription], nodes: List[str]
+):
     await _do_functions_to_registry(pipeline, nodes, _build_push_function)

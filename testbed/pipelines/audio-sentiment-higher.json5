@@ -1,0 +1,36 @@
+{
+    "name": "audioSentiment",
+    "content": "audio",
+    "nbVarName": "NB_AUDIO_FUNCTIONS",
+    "first": "audioToText",
+    "pipeline": {
+        "audioToText": {
+            "nextFunction": "sentimentAnalysis",
+            "image": "giraff:fn_speech_recognition",
+            "mem": 1000,
+            "cpu": 1000,
+            "input_max_size": "32 KiB",
+            "latency": "SUPER_NO_LATENCY",
+            "expectedRequestIntervalMs": 3500,
+            "replicas": 2
+        },
+        "sentimentAnalysis": {
+            "nextFunction": "echo",
+            "image": "giraff:fn_sentiment_analysis",
+            "mem": 100,
+            "cpu": 50,
+            "latency": "NO_LATENCY",
+            "input_max_size": "4 KiB",
+            "expectedRequestIntervalMs": 200,
+            "replicas": 1
+        },
+        "echo": {
+            "image": "giraff:fn_echo",
+            "mem": 40,
+            "cpu": 10,
+            "latency": "NO_LATENCY",
+            "expectedRequestIntervalMs": 100,
+            "replicas": 1
+        }
+    }
+}

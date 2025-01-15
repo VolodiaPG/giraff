@@ -1,0 +1,36 @@
+{
+    "name": "image",
+    "content": "image",
+    "nbVarName": "NB_IMAGE_FUNCTIONS",
+    "first": "imagePreProcessing",
+    "pipeline": {
+        "imagePreProcessing": {
+            "nextFunction": "classif",
+            "image": "giraff:fn_image_processing_pillow",
+            "mem": 120,
+            "cpu": 100,
+            "input_max_size": "52 KiB",
+            "latency": "SUPER_NO_LATENCY",
+            "expectedRequestIntervalMs": 500,
+            "replicas": 1
+        },
+        "classif": {
+            "nextFunction": "echo",
+            "image": "giraff:fn_image_classification_squeezenet_cpu",
+            "mem": 600,
+            "cpu": 600,
+            "input_max_size": "16 KiB",
+            "latency": "NO_LATENCY",
+            "expectedRequestIntervalMs": 2000,
+            "replicas": 2
+        },
+        "echo": {
+            "image": "giraff:fn_echo",
+            "mem": 40,
+            "cpu": 10,
+            "latency": "NO_LATENCY",
+            "expectedRequestIntervalMs": 100,
+            "replicas": 1
+        }
+    }
+}

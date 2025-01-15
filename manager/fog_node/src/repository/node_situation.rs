@@ -115,6 +115,9 @@ impl NodeSituation {
 
     pub fn get_my_public_ip(&self) -> IpAddr { self.database.my_public_ip }
 
+    /// The ip that any pod will think is the cluster's/server's ip
+    pub fn get_my_private_ip(&self) -> IpAddr { self.database.my_private_ip }
+
     pub fn get_my_public_port_http(&self) -> FogNodeHTTPPort {
         self.database.my_public_port_http.clone()
     }

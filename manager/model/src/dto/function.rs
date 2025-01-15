@@ -21,6 +21,7 @@ pub struct Provisioned {
     pub sla:           Sla,
     pub node:          String,
     pub function_name: String,
+    pub opened_port:   i32,
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +30,7 @@ pub struct Live {
     pub sla:           Sla,
     pub node:          String,
     pub function_name: String,
+    pub opened_port:   i32,
 }
 
 #[derive(Debug, Clone)]
@@ -53,12 +55,17 @@ impl Proposed {
 }
 
 impl Paid {
-    pub fn to_provisioned(self, function_name: String) -> Provisioned {
+    pub fn to_provisioned(
+        self,
+        function_name: String,
+        opened_port: i32,
+    ) -> Provisioned {
         Provisioned {
             function_name,
             bid: self.bid,
             sla: self.sla,
             node: self.node,
+            opened_port,
         }
     }
 }
@@ -78,6 +85,7 @@ impl Provisioned {
             bid:           self.bid,
             sla:           self.sla,
             node:          self.node,
+            opened_port:   self.opened_port,
         }
     }
 }
