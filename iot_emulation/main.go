@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"math"
@@ -15,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +53,7 @@ type envContext struct {
 	InfluxClient            influxdb2.Client
 	Logger                  *otelzap.Logger
 	Validator               *validator.Validate
+	Timeout                 time.Duration
 }
 
 type cronConfig struct {
@@ -179,6 +182,14 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 	if err != nil {
 		return envContext{}, err
 	}
+	pingRequestTimeoutStr, err := lookupVar("PING_REQUEST_TIMEOUT_SEC")
+	if err != nil {
+		return envContext{}, err
+	}
+	pingRequestTimeout, err := strconv.Atoi(pingRequestTimeoutStr)
+	if err != nil {
+		return envContext{}, fmt.Errorf("invalid PING_REQUEST_TIMEOUT value: %w", err)
+	}
 	influxAddress, err := lookupVar("INFLUX_ADDRESS")
 	if err != nil {
 		return envContext{}, err
@@ -255,6 +266,7 @@ func initEnvContext(logger *zap.Logger) (envContext, error) {
 		FolderResourcesAudioEnv: folderResourcesAudioEnv,
 		FolderResourcesImageEnv: folderResourcesImageEnv,
 		FolderResourcesImage:    folderResourcesImage,
+		Timeout:                 time.Duration(pingRequestTimeout) * time.Second,
 	}, nil
 }
 
@@ -280,7 +292,10 @@ func ping(env *envContext, config *cronConfig, client *http.Client, ctx *context
 	}
 	req.Header.Set("GIRAFF-Tags", config.Tags)
 	req.Header.Set("GIRAFF-Sla-Id", config.FunctionID)
-	req = req.WithContext(*ctx)
+	req.Header.Set("X-Timeout", fmt.Sprintf("%ds", env.Timeout.Seconds()))
+	timeoutCtx, cancel := context.WithTimeout(*ctx, env.Timeout)
+	defer cancel()
+	req = req.WithContext(timeoutCtx)
 	resp, err := client.Do(req)
 	if err != nil {
 		env.Logger.Error("HTTP POST failed:", zap.Error(err))

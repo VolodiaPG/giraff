@@ -1,6 +1,6 @@
 {
     "name": "giraff_app",
-    "content": "ping",
+    "content": "audio",
     "nbVarName": "NB_GIRAFF_APP_FUNCTIONS",
     "first": "app",
     "pipeline": {
