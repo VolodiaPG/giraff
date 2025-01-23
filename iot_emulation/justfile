@@ -9,6 +9,7 @@ _default:
     PROXY_PORT="3128" \
     COLLECTOR_URL="127.0.0.1:4317" \
     DEV=TRUE \
+    PING_REQUEST_TIMEOUT_SEC=100 \
     go run *.go
 
 update:
