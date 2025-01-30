@@ -23,6 +23,8 @@ pkgs.stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out
     find -name '*.wav' -type f -size "-32k" -print0 | xargs -0 -r -- cp -t "$out/" --
+    # This one seems to be corrupted
+    rm $out/1272-141231-0016.wav
   '';
 
   meta = with pkgs.lib; {
