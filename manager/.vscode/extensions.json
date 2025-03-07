@@ -1,8 +1,6 @@
 {
     "recommendations": [
         "rust-lang.rust-analyzer",
-        "vadimcn.vscode-lldb",
-        "iliazeus.vscode-ansi",
         "skellock.just",
         "tamasfe.even-better-toml",
         "serayuzgur.crates"

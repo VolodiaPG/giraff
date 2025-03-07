@@ -296,6 +296,8 @@ fn get_tcp_latency(
     bandwidth: uom::si::rational64::InformationRate,
     data_size: Information,
 ) -> Time {
+    // Modeling TCP Throughput: A Simple Model and its Empirical Validation *
+    // Jitendra Padhye Victor Firoiu Don Towsley Jim Kurose
     trace!(
         "latency (one_way): {:?} ms",
         one_way.get::<millisecond>().to_f64()

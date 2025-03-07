@@ -112,7 +112,7 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3030",
         reserved_cpu: "8 cpus",
-        reserved_memory: "3 GiB",
+        reserved_memory: "4 GiB",
         tags: ["market connected"],
         max_in_flight_functions_proposals: MaxInFlight(30),
         my_advertised_bandwidth: "1 Gb/s"
@@ -129,8 +129,8 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_public_ip: "{{MY_IP_ADDRESS}}",
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3032",
-        reserved_cpu: "2 cpu",
-        reserved_memory: "2 GiB",
+        reserved_cpu: "3 cpu",
+        reserved_memory: "4 GiB",
         tags: ["node_connected_1"],
         max_in_flight_functions_proposals: MaxInFlight(20),
         my_advertised_bandwidth: "1 Gb/s"
@@ -147,8 +147,8 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_public_ip: "{{MY_IP_ADDRESS}}",
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3050",
-        reserved_cpu: "2 cpu",
-        reserved_memory: "2 GiB",
+        reserved_cpu: "3 cpu",
+        reserved_memory: "4 GiB",
         tags: ["node_connected_12"],
         max_in_flight_functions_proposals: MaxInFlight(20),
         my_advertised_bandwidth: "1 Gb/s"
@@ -184,8 +184,8 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_public_ip: "{{MY_IP_ADDRESS}}",
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3036",
-        reserved_cpu: "2 cpu",
-        reserved_memory: "2 GiB",
+        reserved_cpu: "3 cpu",
+        reserved_memory: "4 GiB",
         tags: ["node_connected_3"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "1 Gb/s"
@@ -202,8 +202,8 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_public_ip: "{{MY_IP_ADDRESS}}",
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3038",
-        reserved_cpu: "2 cpu",
-        reserved_memory: "2 GiB",
+        reserved_cpu: "3 cpu",
+        reserved_memory: "4 GiB",
         tags: ["node_connected_34"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "100 Mb/s"
@@ -221,8 +221,8 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
         my_public_ip: "{{MY_IP_ADDRESS}}",
         my_private_ip: "{{MY_IP_ADDRESS_PRIVATE}}",
         my_public_port_http: "3037",
-        reserved_cpu: "2 cpu",
-        reserved_memory: "2 GiB",
+        reserved_cpu: "3 cpu",
+        reserved_memory: "4 GiB",
         tags: ["node_connected_35"],
         max_in_flight_functions_proposals: MaxInFlight(10),
         my_advertised_bandwidth: "100 Mb/s"

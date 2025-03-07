@@ -94,6 +94,7 @@ impl FaaSBackend for FaaSBackendImpl {
             "INTERNAL_OPENED_PORT".to_string(),
             internal_opened_port.to_string(),
         );
+        env_vars.insert("PAID_AT".to_string(), bid.paid_at.to_rfc3339());
 
         let otel_endpoint_function =
             env::var(OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION.to_string());

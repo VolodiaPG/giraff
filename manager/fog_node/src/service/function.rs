@@ -226,7 +226,7 @@ impl Function<Locked> {
         let sla_cpu = proposal.sla.cpu;
         let sla_memory = proposal.sla.memory;
 
-        let paid = proposal.to_paid();
+        let paid = proposal.to_paid(Utc::now());
 
         self.metrics
             .observe(PaidFunctions {

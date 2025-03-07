@@ -201,7 +201,14 @@ impl Auction {
             self.function.get_utilisation_variations().await.iter()
         {
             let duration = if *timestamp > now {
-                *timestamp - now
+                let duration = *timestamp - now;
+                tracing::trace!(
+                    "timestamp: {:?}, now: {:?}, duration: {:?}",
+                    *timestamp,
+                    now,
+                    duration
+                );
+                duration
             } else {
                 Duration::microseconds(0)
             };
@@ -240,7 +247,10 @@ impl Auction {
             bid,
             sla_cpu,
             sla_duration,
-            electricity_price
+            electricity_price,
+            utilisation,
+            aa,
+            bb
         );
 
         trace!("(quadratic) price on is {:?}", bid);

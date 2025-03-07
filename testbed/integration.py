@@ -39,6 +39,7 @@ from definitions import (
     NB_CPU_PER_MACHINE_PER_CLUSTER,
     NETWORK,
     NODE_CONNECTED_NODE,
+    PING_REQUEST_TIMEOUT_SEC,
     flatten,
     gen_net,
     gen_vm_conf,
@@ -529,7 +530,7 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
     ) as p:
         p.shell(
-            """(docker stop iot_emulation || true) \
+            f"""(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
                 && docker pull ghcr.io/volodiapg/giraff:iot_emulation \
                 && docker run --name iot_emulation \
@@ -541,6 +542,7 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
                     --env INSTANCE_NAME="iot_emulation" \
                     --env PROXY_PORT="3128" \
                     --env COLLECTOR_URL="10.42.0.1:4317" \
+                    --env PING_REQUEST_TIMEOUT_SEC="{PING_REQUEST_TIMEOUT_SEC}" \
                     -p 3003:3003 ghcr.io/volodiapg/giraff:iot_emulation""",
             task_name="Run iot_emulation on the endpoints",
             background=True,

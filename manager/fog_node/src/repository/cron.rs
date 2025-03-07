@@ -74,6 +74,7 @@ impl Cron {
         T: 'static,
         T: Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync,
     {
+        let created_at = Utc::now();
         let tasks = self.tasks.clone();
         tokio::spawn(async move {
             tokio::time::sleep(Duration::from_millis(
@@ -85,7 +86,7 @@ impl Cron {
             callback().await
         });
 
-        let entry = TaskEntry { task, created_at: Utc::now() };
+        let entry = TaskEntry { task, created_at };
         self.tasks.lock().await.push_back(entry);
         Ok(())
     }
