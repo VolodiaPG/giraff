@@ -1,4 +1,5 @@
 use crate::domain::sla::Sla;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -10,9 +11,10 @@ pub struct Proposed {
 
 #[derive(Debug, Clone)]
 pub struct Paid {
-    pub bid:  f64,
-    pub sla:  Sla,
-    pub node: String,
+    pub bid:     f64,
+    pub sla:     Sla,
+    pub node:    String,
+    pub paid_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,8 +51,8 @@ impl Proposed {
         Self { bid, sla, node }
     }
 
-    pub fn to_paid(self) -> Paid {
-        Paid { bid: self.bid, sla: self.sla, node: self.node }
+    pub fn to_paid(self, paid_at: DateTime<Utc>) -> Paid {
+        Paid { bid: self.bid, sla: self.sla, node: self.node, paid_at }
     }
 }
 

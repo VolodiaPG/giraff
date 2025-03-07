@@ -84,6 +84,11 @@ fresh fog_node_image market_image $DEPLOYMENT_NAME:
     # Deploy the images on the registry, but only once since it is cached in the vm between reboots
     {{ RUN }} integration.py setup-registry
 
+refresh_registry env_variation=".env.dev":
+    #!/usr/bin/env bash
+    source {{ justfile_directory() }}/env_checkpoint{{ env_variation }}.sh
+    {{ RUN }} integration.py setup-registry
+
 [private]
 refresh fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash

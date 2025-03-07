@@ -7,7 +7,7 @@ workers <- min(all_workers, 6)
 time_interval <- 15 # secs
 
 no_memoization <- FALSE
-single_graphs <- FALSE
+single_graphs <- TRUE
 
 CHAIN_LENGTH <- 3
 

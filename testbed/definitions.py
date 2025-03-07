@@ -19,6 +19,8 @@ if RANDOM_SEED is not None and RANDOM_SEED != "":
     random.seed(int(RANDOM_SEED))
 
 
+PING_REQUEST_TIMEOUT_SEC = os.getenv("PING_REQUEST_TIMEOUT_SEC", "30")
+
 FOG_NODE_DEPLOYMENT = """apiVersion: v1
 kind: ServiceAccount
 metadata:

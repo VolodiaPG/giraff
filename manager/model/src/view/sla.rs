@@ -1,10 +1,13 @@
 use super::super::domain::sla::Sla;
 use super::super::NodeId;
 use crate::domain::sla::DataFlow;
+use helper::uom_helper::cpu_ratio::millicpu;
 use helper::uom_helper::{cpu, information, time};
 use serde::{Deserialize, Serialize};
 use uom::si::f64::Time;
+use uom::si::information::byte;
 use uom::si::rational64::{Information, Ratio};
+use uom::si::time::second;
 
 /// Describe the SLA of a function submitted to be provisioned
 #[serde_with::serde_as]
@@ -46,6 +49,19 @@ pub struct SlaRequest {
 
 impl From<SlaRequest> for Sla {
     fn from(val: SlaRequest) -> Self {
+        assert!(val.duration > Time::new::<second>(0.0));
+        assert!(val.latency_max > Time::new::<second>(0.0));
+        assert!(
+            val.input_max_size
+                > Information::new::<byte>(num_rational::Ratio::new(0, 1))
+        );
+        assert!(
+            val.cpu > Ratio::new::<millicpu>(num_rational::Ratio::new(0, 1))
+        );
+        assert!(
+            val.memory
+                > Information::new::<byte>(num_rational::Ratio::new(0, 1))
+        );
         Sla {
             id:                 uuid::Uuid::new_v4().into(),
             memory:             val.memory,

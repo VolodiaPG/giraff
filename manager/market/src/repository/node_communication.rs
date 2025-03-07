@@ -89,13 +89,23 @@ impl NodeCommunication {
                 format!("Failed to send an offering to {}", to)
             })?;
 
-        resp.error_for_status().with_context(|| {
-            format!(
-                "Failed to send an offering to {}, the response errored",
-                to
-            )
-        })?;
-
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let error_message = resp.text().await.with_context(|| {
+                format!(
+                    "Failed to send an offering to {}, the response errored \
+                     ({}) (no body can be read)",
+                    to, status
+                )
+            })?;
+            bail!(
+                "Failed to send an offering to {}, the response errored ({}) \
+                 with {}",
+                to,
+                status,
+                error_message
+            );
+        }
         Ok(())
     }
 
