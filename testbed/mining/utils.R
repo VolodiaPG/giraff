@@ -770,7 +770,7 @@ write_multigraphs <- function(graphs) {
 export_graph <- mem(function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
   Log(paste0("Graphing (", name, ") ", callback_name, " ..."))
-  # ggsave(paste0("out/", name, ".png"), ggplot_graph)
+  ggsave(paste0("out/", name, ".png"), ggplot_graph)
 
   # Extract subtitle from the ggplot object
   plot_subtitle <- ggplot_graph$labels$subtitle
@@ -864,9 +864,18 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   built_plot <- ggplot2::ggplot_build(plot_graph)
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
+  plot_x_label <- built_plot$plot$labels$x
+  plot_y_label <- built_plot$plot$labels$y
 
   plot_graph <- plot_graph + ggplot2::theme(
     title = ggplot2::element_blank(),
+   
+  # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+  # panel.spacing = ggplot2::unit(0, "pt"),
+  # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+  # legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+  # legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt")
+  # legend.spacing = ggplot2::unit(0, "pt")
   )
   if (remove_legend) {
     plot_graph <- plot_graph + theme(legend.position = "none")
@@ -874,6 +883,12 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   plot_graph <- plot_graph +
     theme(
       aspect.ratio = aspect_ratio,
+       axis.title.x = ggplot2::element_text(plot_x_label),
+    axis.title.y = ggplot2::element_text(plot_y_label),
+    panel.border = ggplot2::element_blank(),
+    panel.background = ggplot2::element_blank(),
+    axis.line = ggplot2::element_line(color = "black"),
+    
     )
 
   tex_width <- 1
@@ -902,13 +917,13 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   # Export caption to a separate file
   caption_conn <- file(caption_name, "w")
   if (!is.null(caption)) {
-    cat(sprintf("\\captionof{figure}{%s\\label{fig:%s}}\n", caption, plot_name), file = caption_conn)
+    cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
   } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
       caption <- paste0(caption, ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
     }
-    cat(sprintf("\\captionof{figure}{%s\\label{fig:%s}}\n", caption, plot_name), file = caption_conn)
+    cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
   }
   close(caption_conn)
 }
@@ -1082,7 +1097,7 @@ Log <- function(text, ...) {
 }
 
 create_metric_comparison_plot <- function(data, metric_col, group_col, value_col, node_col,
-                                          title, x_label = NULL, y_label = NULL, y_suffix = "",
+                                          title, x_label = NULL, x_suffix = NULL, y_label = NULL, y_suffix = "",
                                           facet_col = NULL, se = FALSE) {
   empty_facet_col <- is.null(facet_col)
 
@@ -1129,24 +1144,30 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   }
 
   # Create the scatter plot
-  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col)) +
+  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col, linetype = !!metric_col, shape = !!metric_col)) +
     geom_point(alpha = 0.7, aes(text = sprintf(
       "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
       !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
-    ))) +
+    )), alpha = 0.7) +
     geom_smooth(
       method = "lm", se = se, level = 0.95, alpha = 0.1,
       show.legend = TRUE
     ) +
-    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper, ), width = 0.2, alpha = 0.5) +
+    geom_errorbar(
+      aes(ymin = ci_lower, ymax = ci_upper, color = !!metric_col),
+      width = 0.2, alpha = 0.5
+    ) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
+    scale_x_continuous(labels = scales::number_format(suffix = x_suffix)) +
     coord_cartesian(ylim = c(0, NA)) +
     labs(
       title = title,
       x = x_label,
       y = y_label,
       color = "Placement Method",
-      fill = "Placement Method"
+      fill = "Placement Method",
+      linetype = "Placement Method",
+      shape = "Placement Method",
     ) +
     theme(
       legend.position = "right",

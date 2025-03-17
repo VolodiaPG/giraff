@@ -341,9 +341,11 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
     facet_grid(cols = vars(placement_method)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
+    scale_x_continuous(labels = scales::number_format(suffix = " nodes")) +
+    scale_y_continuous(labels = scales::number_format(suffix = " seconds")) +
     labs(
-      y = "Mean time to deploy (seconds)",
-      x = "Fog network size (number of nodes)",
+      y = "Mean time to deploy",
+      x = "Network size",
       title = "Single Function Deployment Time vs. Network Size",
       subtitle = "Comparison across different placement methods",
       caption = "Lower values indicate faster deployment",
@@ -546,13 +548,19 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, not_respected_slas, functions_not_deployed, nodes, total_cost, avg_latency, avg_deployment_time)
+    group_by(env, run, folder) %>%
+    mutate(across(c(not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time),
+    list(preped = ~ {
+      .
+      }),
+      .names = "{col}_{fn}"
+    )) %>%
+    select(placement_method, env, run,  ends_with("_preped"), nodes, not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time)
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
-    group_by(env, run) %>%
-    mutate(across(c(not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time),
+    mutate(across(ends_with("_preped"),
       list(scaled = ~ {
         ref_mean <- mean(.[placement_method == "auctionno_complication"], na.rm = TRUE)
         ref_sd <- sd(., na.rm = TRUE)
@@ -560,6 +568,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       }),
       .names = "{col}_{fn}"
     )) %>%
+    select(-ends_with("_preped")) %>%
     ungroup()
 
 
@@ -576,7 +585,7 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       values_to = "value"
     ) %>%
     mutate(
-      metric = sub("_scaled$", "", metric),
+      metric = sub("_preped_scaled$", "", metric),  # Updated to handle the new suffix pattern
       metric = factor(metric, levels = metric_order),
       raw_value = case_when(
         metric == "not_respected_slas" ~ not_respected_slas,
@@ -646,13 +655,13 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
     geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{\\anon{GIRAFF}}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
     geom_point(
       data = df_long, aes(
-        x = x_jitter, y = value, color = placement_method,
+        x = x_jitter, y = value, color = placement_method, size = nodes,
         text = sprintf(
           "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
           metric, placement_method, value, raw_value
         )
       ),
-      alpha = 0.5, stroke = 0, size = 1
+      alpha = 0.5, stroke = 0
     ) +
     geom_point(aes(x = x_jitter, text = sprintf(
       "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
@@ -705,7 +714,9 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
     value_col = "deployment_time_per_function",
     node_col = "nodes",
     title = "Mean Deployment Time per Function in Chain by Network Size",
+    y_label = "Deployment Time",
     y_suffix = " s",
+    x_label = "Network Size (nodes)",
     se = TRUE,
   )
 }
@@ -753,7 +764,9 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     value_col = "violations",
     node_col = "nodes",
     title = "SLA Violations by Network Size",
+    y_label = "SLA Violations",
     y_suffix = "%",
+    x_label = "Network Size (nodes)",
     se = TRUE,
   )
 }
@@ -790,8 +803,8 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
     value_col = "spending_per_chain",
     node_col = "nodes",
     title = "Mean Spending per Function Chain by Network Size",
-    y_label = "Spending per Chain",
-    y_suffix = " units",
+    y_label = "Spending per Chain (units)",
+    x_label = "Network Size (nodes)",
     se = TRUE,
   )
 }
@@ -822,6 +835,7 @@ output_mean_latency <- function(respected_sla, node_levels) {
     title = "Mean Latency between Functions by Network Size",
     y_label = "Mean Latency",
     y_suffix = " s",
+    x_label = "Network Size (nodes)",
     se = TRUE
   )
 }
@@ -875,8 +889,10 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     value_col = "functions_not_deployed",
     node_col = "nodes",
     title = "Unplaced Functions per Node by Network Size and Latency Type",
+    y_label = "Unplaced Functions",
     y_suffix = " %",
     facet_col = "latency_type",
     se = TRUE,
+    x_label = "Network Size (nodes)",
   )
 }

@@ -93,7 +93,6 @@ mem <- function(cb) {
 
 source("utils.R")
 
-
 graph <- mem(function(name, graphs, graph) {
   df <- data.frame(name = name, type = "ggplot", graph = I(list(graph)))
   return(bind_rows(graphs, df))
@@ -233,6 +232,7 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 
 #
 graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
+
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(accetable_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))
 graph_output_mean_spending <- export_graph("output_mean_spending", output_mean_spending(bids_won_function, node_levels, respected_sla))
@@ -246,9 +246,9 @@ merge_and_export_legend(
     graph_output_mean_deployment_time
   ),
   "legend",
-  1.25,
+  2,
   GRAPH_ONE_COLUMN_HEIGHT / 2,
-  aspect_ratio = 2 / 1
+  aspect_ratio = 1 / 1
 )
 export_graph_tikz(graph_spider_chart, 6, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 2.5)
 export_graph_tikz(graph_output_mean_respected_slas, GRAPH_ONE_COLUMN_WIDTH, GRAPH_ONE_COLUMN_HEIGHT, aspect_ratio = 1 / 1)
