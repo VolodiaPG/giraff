@@ -707,7 +707,8 @@ func saveFile(filename string) error {
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)
 					latency, _ := strconv.Atoi(latencyStr)
 					latency = int(math.Ceil(math.Abs(rand.NormFloat64()*float64(latency) + float64(latency)/4)))
-					functionName := fnName + "-i" + strconv.Itoa(index) + "-c" + strconv.Itoa(fn.CPU) + "-m" + strconv.Itoa(fn.Mem) + "-l" + strconv.Itoa(latency) + "-a" + strconv.Itoa(arrival) + "-r" + strconv.Itoa(requestInterval) + "-d" + strconv.Itoa(duration)
+					t := time.Now()
+					functionName := fnName + t.Format("20060102150405") + "-i" + strconv.Itoa(index) + "-c" + strconv.Itoa(fn.CPU) + "-m" + strconv.Itoa(fn.Mem) + "-l" + strconv.Itoa(latency) + "-a" + strconv.Itoa(arrival) + "-r" + strconv.Itoa(requestInterval) + "-d" + strconv.Itoa(duration)
 
 					if scalingRatio > 1.0 {
 						fn.Mem = int(math.Ceil(float64(fn.Mem) * scalingRatio))

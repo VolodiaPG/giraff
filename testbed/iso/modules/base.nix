@@ -100,6 +100,8 @@ in {
     "net.ipv4.tcp_ecn" = 1;
     "net.ipv4.tcp_sack" = 1;
     "net.ipv4.tcp_dsack" = 1;
+    "net.ipv4.ip_forward" = 1;
+    "net.ipv6.conf.all.forwarding" = 1;
   };
 
   services = {

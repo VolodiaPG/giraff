@@ -590,3 +590,10 @@ load_spending_plot_data <- function(bids_won_function) {
     correct_names()
   return(plot)
 }
+
+load_otel <- function(ark) {
+  load_single_csv(ark, "spans.csv") %>%
+    prepare() %>%
+    adjust_timestamps() %>%
+    ungroup()
+}

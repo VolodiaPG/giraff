@@ -155,7 +155,7 @@ spec:
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
-          value: "http://{collector_ip}:4317"
+          value: "http://{influx_ip}:4317"
         - name: ENABLE_COLLECTOR
           value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
@@ -294,6 +294,26 @@ NODE_CONNECTED_NODE = """(
     my_advertised_bandwidth: "{my_advertised_bandwidth}",
 )
 
+"""
+
+OPENTELEMETRY_CONFIG = """
+exporters:
+  otlp/jaeger:
+    endpoint: http://{collector_ip}:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
+    traces:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
+    logs:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
 """
 
 # Remove a unit so that the hosts are not saturated

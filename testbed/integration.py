@@ -39,6 +39,7 @@ from definitions import (
     NB_CPU_PER_MACHINE_PER_CLUSTER,
     NETWORK,
     NODE_CONNECTED_NODE,
+    OPENTELEMETRY_CONFIG,
     PING_REQUEST_TIMEOUT_SEC,
     flatten,
     gen_net,
@@ -489,9 +490,9 @@ def restart(env: EnosEnv = None):
 
     groups = set()
     for role in roles:
-        splitted = role.address.split(".")
-        splitted.pop()  # remove last bit, keep subnet
-        group = ".".join(splitted)
+        split = role.address.split(".")
+        split.pop()  # remove last bit, keep subnet
+        group = ".".join(split)
         groups.add(group)
 
     for group in groups:
@@ -768,6 +769,11 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             ]
         )
     )
+
+    opentelemetry_config = OPENTELEMETRY_CONFIG.format(
+        collector_ip=roles["iot_emulation"][0].address
+    )
+
     fog_node_roles = []
     for name, conf, tier_flavor in confs:
         additional_env_vars = ""
@@ -782,7 +788,8 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             node_name=name,
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
-            enable_collector="true" if os.environ["DEV"] == "true" else "false",
+            # enable_collector="true" if os.environ["DEV"] == "true" else "false",
+            enable_collector="true",
             is_cloud=(
                 "is_cloud"
                 if tier_flavor.get("is_cloud") is not None
@@ -818,6 +825,13 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             task_name="Deploying fog_node software",
         )
 
+        p.shell(
+            "mkdir -p /etc/opentelemetry-config; cat << EOF > /etc/opentelemetry-config/collector.yaml\n"
+            f"{ opentelemetry_config }\n"
+            "EOF\n",
+            task_name="Deploying opentelemetry collector config",
+        )
+
     with actions(
         roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE
     ) as p:
@@ -827,6 +841,13 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             "EOF\n"
             "k3s kubectl create -f /tmp/market.yaml",
             task_name="Deploying market software",
+        )
+
+        p.shell(
+            "mkdir -p /etc/opentelemetry-config; cat << EOF > /etc/opentelemetry-config/collector.yaml\n"
+            f"{ opentelemetry_config }\n"
+            "EOF\n",
+            task_name="Deploying opentelemetry collector config",
         )
 
 

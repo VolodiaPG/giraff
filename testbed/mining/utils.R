@@ -76,12 +76,18 @@ bump_aes.Layer <- function(layer, new_aes) {
     old_setup(data, params)
   }
 
-  new_geom <- ggplot2::ggproto(paste0("New", class(old_geom)[1]), old_geom,
+  new_geom <- ggplot2::ggproto(
+    paste0("New", class(old_geom)[1]),
+    old_geom,
     handle_na = new_setup
   )
 
   new_geom$default_aes <- change_name(new_geom$default_aes, old_aes, new_aes)
-  new_geom$non_missing_aes <- change_name(new_geom$non_missing_aes, old_aes, new_aes)
+  new_geom$non_missing_aes <- change_name(
+    new_geom$non_missing_aes,
+    old_aes,
+    new_aes
+  )
   new_geom$required_aes <- change_name(new_geom$required_aes, old_aes, new_aes)
   new_geom$optional_aes <- change_name(new_geom$optional_aes, old_aes, new_aes)
 
@@ -95,12 +101,18 @@ bump_aes.Layer <- function(layer, new_aes) {
     old_setup2(data, params)
   }
 
-  new_stat <- ggplot2::ggproto(paste0("New", class(old_stat)[1]), old_stat,
+  new_stat <- ggplot2::ggproto(
+    paste0("New", class(old_stat)[1]),
+    old_stat,
     handle_na = new_setup
   )
 
   new_stat$default_aes <- change_name(new_stat$default_aes, old_aes, new_aes)
-  new_stat$non_missing_aes <- change_name(new_stat$non_missing_aes, old_aes, new_aes)
+  new_stat$non_missing_aes <- change_name(
+    new_stat$non_missing_aes,
+    old_aes,
+    new_aes
+  )
   new_stat$required_aes <- change_name(new_stat$required_aes, old_aes, new_aes)
   new_stat$optional_aes <- change_name(new_stat$optional_aes, old_aes, new_aes)
 
@@ -231,12 +243,18 @@ bump_aes.Layer <- function(layer, new_aes) {
     old_setup(data, params)
   }
 
-  new_geom <- ggplot2::ggproto(paste0("New", class(old_geom)[1]), old_geom,
+  new_geom <- ggplot2::ggproto(
+    paste0("New", class(old_geom)[1]),
+    old_geom,
     handle_na = new_setup
   )
 
   new_geom$default_aes <- change_name(new_geom$default_aes, old_aes, new_aes)
-  new_geom$non_missing_aes <- change_name(new_geom$non_missing_aes, old_aes, new_aes)
+  new_geom$non_missing_aes <- change_name(
+    new_geom$non_missing_aes,
+    old_aes,
+    new_aes
+  )
   new_geom$required_aes <- change_name(new_geom$required_aes, old_aes, new_aes)
   new_geom$optional_aes <- change_name(new_geom$optional_aes, old_aes, new_aes)
 
@@ -250,12 +268,18 @@ bump_aes.Layer <- function(layer, new_aes) {
     old_setup2(data, params)
   }
 
-  new_stat <- ggplot2::ggproto(paste0("New", class(old_stat)[1]), old_stat,
+  new_stat <- ggplot2::ggproto(
+    paste0("New", class(old_stat)[1]),
+    old_stat,
     handle_na = new_setup
   )
 
   new_stat$default_aes <- change_name(new_stat$default_aes, old_aes, new_aes)
-  new_stat$non_missing_aes <- change_name(new_stat$non_missing_aes, old_aes, new_aes)
+  new_stat$non_missing_aes <- change_name(
+    new_stat$non_missing_aes,
+    old_aes,
+    new_aes
+  )
   new_stat$required_aes <- change_name(new_stat$required_aes, old_aes, new_aes)
   new_stat$optional_aes <- change_name(new_stat$optional_aes, old_aes, new_aes)
 
@@ -300,29 +324,46 @@ remove_new <- function(aes) {
 correct_names <- function(x) {
   return(
     x %>%
-      mutate(placement_method = case_when(
-        placement_method == "auctionno_complication" ~ "\\footnotesize{\\anon{GIRAFF}}",
-        placement_method == "auctionreduction" ~ "\\footnotesize{\\anon{GIRAFF} (reduction)}",
-        placement_method == "edge_wardno_complication" ~ "\\footnotesize{Edge ward}",
-        placement_method == "edge_firstno_complication" ~ "\\footnotesize{Edge first}",
-        placement_method == "edge_furthestno_complication" ~ "\\footnotesize{Edge furthest}",
-        placement_method == "mincpurandomno_complication" ~ "\\footnotesize{MinCPU random}",
-        TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
-      )) %>%
-      mutate(placement_method = factor(placement_method, levels = c(
-        "\\footnotesize{\\anon{GIRAFF}}",
-        "\\footnotesize{\\anon{GIRAFF} (reduction)}",
-        "\\footnotesize{Edge ward}",
-        "\\footnotesize{Edge first}",
-        "\\footnotesize{Edge furthest}",
-        "\\footnotesize{MinCPU random}"
-      )))
+      mutate(
+        placement_method = case_when(
+          placement_method == "auctionno_complication" ~
+            "\\footnotesize{\\anon{GIRAFF}}",
+          placement_method == "auctionreduction" ~
+            "\\footnotesize{\\anon{GIRAFF} (reduction)}",
+          placement_method == "edge_wardno_complication" ~
+            "\\footnotesize{Edge ward}",
+          placement_method == "edge_firstno_complication" ~
+            "\\footnotesize{Edge first}",
+          placement_method == "edge_furthestno_complication" ~
+            "\\footnotesize{Edge furthest}",
+          placement_method == "mincpurandomno_complication" ~
+            "\\footnotesize{MinCPU random}",
+          TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
+        )
+      ) %>%
+      mutate(
+        placement_method = factor(
+          placement_method,
+          levels = c(
+            "\\footnotesize{\\anon{GIRAFF}}",
+            "\\footnotesize{\\anon{GIRAFF} (reduction)}",
+            "\\footnotesize{Edge ward}",
+            "\\footnotesize{Edge first}",
+            "\\footnotesize{Edge furthest}",
+            "\\footnotesize{MinCPU random}"
+          )
+        )
+      )
   )
 }
 
 fig(20, 20)
 
-adjust_timestamps <- function(x, var_name = "timestamp", reference = "timestamp") {
+adjust_timestamps <- function(
+  x,
+  var_name = "timestamp",
+  reference = "timestamp"
+) {
   # Careful where we put this, as the first measurement may not be the same accross all of the combined values for the same folder
 
   var_sym <- ensym(var_name)
@@ -367,7 +408,10 @@ prepare_convert <- function(x) {
 extract_context <- function(x) {
   # The first element is the input string
   info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
-  info2 <- stringr::str_match(x$folder, ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+")
+  info2 <- stringr::str_match(
+    x$folder,
+    ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+"
+  )
   return(
     x %>%
       ungroup() %>%
@@ -381,36 +425,70 @@ extract_context <- function(x) {
 
 extract_function_name_info <- function(x) {
   # The first element is the input string
-  info <- stringr::str_match(x$function_name, "(.+)-i([0-9]+)-c([0-9]+)-m([0-9]+)-l([0-9]+)-a([0-9]+)-r([0-9]+)-d([0-9]+)")
+  info <- stringr::str_match(
+    x$function_name,
+    "(.+)-i([0-9]+)-c([0-9]+)-m([0-9]+)-l([0-9]+)-a([0-9]+)-r([0-9]+)-d([0-9]+)"
+  )
   return(
     x %>%
       ungroup() %>%
       mutate(docker_fn_name = info[, 2]) %>%
-      mutate(docker_fn_name = ifelse(is.na(docker_fn_name), function_name, docker_fn_name)) %>%
+      mutate(
+        docker_fn_name = ifelse(
+          is.na(docker_fn_name),
+          function_name,
+          docker_fn_name
+        )
+      ) %>%
       mutate(function_index = info[, 3]) %>%
       mutate(cpu = as.numeric(info[, 4])) %>%
       mutate(mem = as.numeric(info[, 5])) %>%
-      mutate(latency = as.difftime(as.numeric(info[, 6]) / 1000, units = "secs")) %>%
-      mutate(arrival = as.difftime(as.numeric(info[, 7]) / 1000, units = "secs")) %>%
-      mutate(request_interval = as.difftime(as.numeric(info[, 8]) / 1000, units = "secs")) %>%
-      mutate(duration = as.difftime(as.numeric(info[, 9]) / 1000, units = "secs"))
+      mutate(
+        latency = as.difftime(as.numeric(info[, 6]) / 1000, units = "secs")
+      ) %>%
+      mutate(
+        arrival = as.difftime(as.numeric(info[, 7]) / 1000, units = "secs")
+      ) %>%
+      mutate(
+        request_interval = as.difftime(
+          as.numeric(info[, 8]) / 1000,
+          units = "secs"
+        )
+      ) %>%
+      mutate(
+        duration = as.difftime(as.numeric(info[, 9]) / 1000, units = "secs")
+      )
   )
 }
 
 extract_functions_pipeline <- function(x) {
-  return(x %>%
-    group_by(folder, metric_group, metric_group_group, req_id) %>%
-    arrange(timestamp) %>%
-    mutate(pipeline = paste0(docker_fn_name, collapse = "\n")) %>%
-    ungroup())
+  return(
+    x %>%
+      group_by(folder, metric_group, metric_group_group, req_id) %>%
+      arrange(timestamp) %>%
+      mutate(pipeline = paste0(docker_fn_name, collapse = "\n")) %>%
+      ungroup()
+  )
 }
 
 load_csv <- function(filename) {
-  all_data <- purrr::map_df(METRICS_ARKS, ~ mutate(vroom(archive_read(paste(METRICS_PATH, .x, sep = "/"), file = filename), progress = FALSE, col_types = cols(), col_names = TRUE, delim = "\t", .name_repair = "unique") %>% distinct(),
-    folder = tools::file_path_sans_ext(tools::file_path_sans_ext(.x)),
-    metric_group = METRICS_GROUP[which(METRICS_ARKS == .x)],
-    metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == .x)]
-  ))
+  all_data <- purrr::map_df(
+    METRICS_ARKS,
+    ~ mutate(
+      vroom(
+        archive_read(paste(METRICS_PATH, .x, sep = "/"), file = filename),
+        progress = FALSE,
+        col_types = cols(),
+        col_names = TRUE,
+        delim = "\t",
+        .name_repair = "unique"
+      ) %>%
+        distinct(),
+      folder = tools::file_path_sans_ext(tools::file_path_sans_ext(.x)),
+      metric_group = METRICS_GROUP[which(METRICS_ARKS == .x)],
+      metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == .x)]
+    )
+  )
   return(all_data)
 }
 
@@ -424,12 +502,23 @@ load_single_csv <- function(arkfile, filename) {
   connection <- archive_read(archive, file = filename)
   tryCatch(
     {
-      all_data <- vroom(connection, progress = FALSE, col_types = cols(), col_names = TRUE, delim = "\t", .name_repair = "unique") %>%
+      all_data <- vroom(
+        connection,
+        progress = FALSE,
+        col_types = cols(),
+        col_names = TRUE,
+        delim = "\t",
+        .name_repair = "unique"
+      ) %>%
         distinct() %>%
         mutate(
-          folder = tools::file_path_sans_ext(tools::file_path_sans_ext(arkfile)),
+          folder = tools::file_path_sans_ext(tools::file_path_sans_ext(
+            arkfile
+          )),
           metric_group = METRICS_GROUP[which(METRICS_ARKS == arkfile)],
-          metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == arkfile)]
+          metric_group_group = METRICS_GROUP_GROUP[which(
+            METRICS_ARKS == arkfile
+          )]
         )
     },
     error = function(e) {
@@ -449,7 +538,16 @@ get_usage <- function(df_raw) {
   df <- df_raw %>%
     filter(field == "initial_allocatable") %>%
     rename(initial_allocatable = value) %>%
-    inner_join(df_raw %>% filter(field == "used") %>% rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      df_raw %>% filter(field == "used") %>% rename(used = value),
+      by = c(
+        "timestamp",
+        "folder",
+        "instance",
+        "metric_group",
+        "metric_group_group"
+      )
+    ) %>%
     mutate(usage = used / initial_allocatable) %>%
     select(instance, timestamp, usage, folder, metric_group, metric_group_group)
   stopifnot(nrow(df) * 2 == nrow(df_raw))
@@ -459,7 +557,11 @@ get_usage <- function(df_raw) {
     distinct() %>%
     group_by(instance, folder, metric_group, metric_group_group) %>%
     arrange(timestamp, .by_group = TRUE) %>%
-    summarise(usage = sum(as.numeric(diff(timestamp), units = "secs") * rollmean(usage, 2))) %>%
+    summarise(
+      usage = sum(
+        as.numeric(diff(timestamp), units = "secs") * rollmean(usage, 2)
+      )
+    ) %>%
     inner_join(max_timestamp, by = c("instance", "folder")) %>%
     mutate(usage_ratio = usage / as.numeric(total_time, units = "secs")) %>% # * 100%
     {
@@ -480,7 +582,10 @@ get_usage <- function(df_raw) {
 
   df <- df %>%
     ungroup() %>%
-    full_join(missing_data, by = c("instance", "folder", "metric_group", "metric_group_group")) %>%
+    full_join(
+      missing_data,
+      by = c("instance", "folder", "metric_group", "metric_group_group")
+    ) %>%
     ungroup() %>%
     {
       .
@@ -495,7 +600,12 @@ smooth_timestamps <- function(data) {
   return(
     data %>%
       group_by(folder) %>%
-      mutate(timestamp_group = as.difftime((as.numeric(round(timestamp)) %/% time_interval + 1) * time_interval, units = "secs")) %>%
+      mutate(
+        timestamp_group = as.difftime(
+          (as.numeric(round(timestamp)) %/% time_interval + 1) * time_interval,
+          units = "secs"
+        )
+      ) %>%
       ungroup()
   )
 }
@@ -524,34 +634,52 @@ create_plot <- function(data) {
     scale_colour_gradient(low = "green", high = "red", na.value = "grey50") +
     scale_alpha_continuous() +
     new_scale_color() +
-    geom_nodes(aes(size = provisioned, color = apdex),
-      alpha = 0.5,
+    geom_nodes(aes(size = provisioned, color = apdex), alpha = 0.5, ) +
+    scale_colour_gradient(
+      low = "white",
+      high = "darkblue",
+      na.value = "grey50"
     ) +
-    scale_colour_gradient(low = "white", high = "darkblue", na.value = "grey50") +
     new_scale_color() +
-    geom_nodes(aes(size = provisioned, color = usage),
-      alpha = 1,
-    ) +
+    geom_nodes(aes(size = provisioned, color = usage), alpha = 1, ) +
     scale_colour_gradient(low = "green", high = "red", na.value = "grey50") +
     new_scale_color() +
     scale_color_manual(values = c("grey40", "grey80")) +
-    geom_nodetext(aes(label = sprintf("sat: %1.2f", apdex)), color = "black", nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.3) / nudge_scale_y) +
+    geom_nodetext(
+      aes(label = sprintf("sat: %1.2f", apdex)),
+      color = "black",
+      nudge_x = nudge_offset_x,
+      nudge_y = (nudge_offset_y + 0.3) / nudge_scale_y
+    ) +
     # geom_nodetext(aes(label = sprintf("ll: %1.2f", `Low-load.Low-latency`), colour = is.na(`Low-load.Low-latency`), group = vertex.names), nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.25) / nudge_scale_y) +
     # geom_nodetext(aes(label = sprintf("lh: %1.2f", `Low-load.High-latency`), colour = is.na(`Low-load.High-latency`), group = vertex.names), nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.2) / nudge_scale_y) +
     # geom_nodetext(aes(label = sprintf("hh: %1.2f", `High-load.High-latency`), colour = is.na(`High-load.High-latency`), group = vertex.names), nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.15) / nudge_scale_y) +
     # geom_nodetext(aes(label = sprintf("hl: %1.2f", `High-load.Low-latency`), colour = is.na(`High-load.Low-latency`), group = vertex.names), nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.1) / nudge_scale_y) +
-    geom_nodetext(aes(label = sprintf("f: %02d/%02d", provisioned, total_provisioned)), color = "black", nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0.05) / nudge_scale_y) +
-    geom_nodetext(aes(label = sprintf("%s", vertex.names)), color = "grey80", nudge_x = nudge_offset_x, nudge_y = (nudge_offset_y + 0) / nudge_scale_y) +
+    geom_nodetext(
+      aes(label = sprintf("f: %02d/%02d", provisioned, total_provisioned)),
+      color = "black",
+      nudge_x = nudge_offset_x,
+      nudge_y = (nudge_offset_y + 0.05) / nudge_scale_y
+    ) +
+    geom_nodetext(
+      aes(label = sprintf("%s", vertex.names)),
+      color = "grey80",
+      nudge_x = nudge_offset_x,
+      nudge_y = (nudge_offset_y + 0) / nudge_scale_y
+    ) +
     # geom_text(x = 0.05, y = 0.95, aes(label = paste0("Globally provisioned:", globally_provisioned)), color = "grey50", check_overlap = TRUE) +
     labs(
       title = "Time: {as.integer(frame_time)}",
-      subtitle = sprintf("'%s'\n
+      subtitle = sprintf(
+        "'%s'\n
      sat: satisfaction rate\n
      ll: low load low lat. ƒ satisfaction rate\n
      lh: low load high lat. ƒ satisfaction rate\n
      hh: high load high lat. ƒ satisfaction rate\n
      hl: high load low lat. ƒ satisfaction rate\n
-     f: <current provisioned>/<total provisioned", name)
+     f: <current provisioned>/<total provisioned",
+        name
+      )
     ) +
     transition_time(timestamp) +
     ease_aes("linear") +
@@ -568,8 +696,14 @@ create_plot <- function(data) {
   # cols <- max(out$layout$layout$COL)
   # Log(duration)
 
-
-  anim_save(filename = sprintf("out/%s.gif", name), animation = pggnetwork, renderer = magick_renderer(), nframes = duration, height = 1600, width = 2000)
+  anim_save(
+    filename = sprintf("out/%s.gif", name),
+    animation = pggnetwork,
+    renderer = magick_renderer(),
+    nframes = duration,
+    height = 1600,
+    width = 2000
+  )
 }
 
 jains_index <- function(allocations) {
@@ -666,17 +800,45 @@ anova_boxplot <- function(p, df, x, y, facet, mean_cb, outliers = c()) {
     if (display_labels) {
       final.text <- merge(labels, yvalue)
       final.text$var_facet <- facetk
-      final.text <- final.text %>% inner_join(subdf %>% group_by(class_x) %>% summarise(mean = mean(value_y)))
+      final.text <- final.text %>%
+        inner_join(
+          subdf %>% group_by(class_x) %>% summarise(mean = mean(value_y))
+        )
       p <- p +
-        stat_summary(data = final.box, fun = mean, geom = "col", mapping = aes(x = class_x, y = value_y, fill = Letters)) +
-        geom_beeswarm(data = final.box, aes(x = class_x, y = value_y, fill = Letters, color = Letters)) +
-        geom_boxplot(data = final.box, aes(x = class_x, y = value_y, fill = Letters, color = Letters), outlier.shape = NA) +
-        geom_text(data = final.text, alpha = 1, aes(x = class_x, y = min_mean, label = mean_cb(Letters, mean))) # vjust=-1.5, hjust=-.5
+        stat_summary(
+          data = final.box,
+          fun = mean,
+          geom = "col",
+          mapping = aes(x = class_x, y = value_y, fill = Letters)
+        ) +
+        geom_beeswarm(
+          data = final.box,
+          aes(x = class_x, y = value_y, fill = Letters, color = Letters)
+        ) +
+        geom_boxplot(
+          data = final.box,
+          aes(x = class_x, y = value_y, fill = Letters, color = Letters),
+          outlier.shape = NA
+        ) +
+        geom_text(
+          data = final.text,
+          alpha = 1,
+          aes(x = class_x, y = min_mean, label = mean_cb(Letters, mean))
+        ) # vjust=-1.5, hjust=-.5
     } else {
       p <- p +
-        stat_summary(data = final.box, fun = mean, geom = "col", mapping = aes(x = class_x, y = value_y)) +
+        stat_summary(
+          data = final.box,
+          fun = mean,
+          geom = "col",
+          mapping = aes(x = class_x, y = value_y)
+        ) +
         geom_beeswarm(data = final.box, aes(x = class_x, y = value_y)) +
-        geom_boxplot(data = final.box, aes(x = class_x, y = value_y), outlier.shape = NA)
+        geom_boxplot(
+          data = final.box,
+          aes(x = class_x, y = value_y),
+          outlier.shape = NA
+        )
       # geom_text(data = final.text,  alpha= 1, aes(x=class_x, y=min_mean, label=mean_cb("\\dash{}", mean) )) #vjust=-1.5, hjust=-.5
     }
 
@@ -702,7 +864,17 @@ anova_boxplot <- function(p, df, x, y, facet, mean_cb, outliers = c()) {
         # geom_text(data = final.text,  alpha= 1, aes(x=class_x, y=min_yvalue, label=sprintf("%.1f%%",mean*100))) +
         # stat_anova_test(data= final.box, mapping=aes(x=class_x, y=value_y))
         # annotate(data=final.box, geom = "text", color="black", x= subdf$class_x[[1]], y = max_mean * 1.01, label=sprintf("\\footnotesize{Anova $F=%.1f$, %s}", sumup.F, sumup.p))
-        geom_text(data = final.text, aes(x = class_x, y = y * 1.01), hjust = 0, color = "black", label = sprintf("\\footnotesize{Anova $F=%.1f$, %s}", sumup.F, sumup.p))
+        geom_text(
+          data = final.text,
+          aes(x = class_x, y = y * 1.01),
+          hjust = 0,
+          color = "black",
+          label = sprintf(
+            "\\footnotesize{Anova $F=%.1f$, %s}",
+            sumup.F,
+            sumup.p
+          )
+        )
     }
   }
 
@@ -715,7 +887,12 @@ escape_latex_special_chars <- function(text) {
 
   # Escape each special character with a backslash
   for (char in special_chars) {
-    text <- gsub(char, paste0("\\", substring(char, nchar(char), nchar(char))), text, fixed = TRUE)
+    text <- gsub(
+      char,
+      paste0("\\", substring(char, nchar(char), nchar(char))),
+      text,
+      fixed = TRUE
+    )
   }
 
   return(text)
@@ -723,16 +900,34 @@ escape_latex_special_chars <- function(text) {
 
 
 tibble_to_latex_tabular <- function(data, file) {
-  cat("\\begin{tabular}{", paste0(rep("c", ncol(data)), collapse = " "), "}\n", file = file)
+  cat(
+    "\\begin{tabular}{",
+    paste0(rep("c", ncol(data)), collapse = " "),
+    "}\n",
+    file = file
+  )
   cat("\\hline\n", file = file, append = TRUE)
 
   # Print column names with escaped special characters
-  cat(paste0(escape_latex_special_chars(colnames(data)), collapse = " & "), " \\\\\n", file = file, append = TRUE)
+  cat(
+    paste0(escape_latex_special_chars(colnames(data)), collapse = " & "),
+    " \\\\\n",
+    file = file,
+    append = TRUE
+  )
   cat("\\hline\n", file = file, append = TRUE)
 
   # Print rows with escaped special characters
   for (i in 1:nrow(data)) {
-    cat(paste0(escape_latex_special_chars(as.character(data[i, ])), collapse = " & "), " \\\\\n", file = file, append = TRUE)
+    cat(
+      paste0(
+        escape_latex_special_chars(as.character(data[i, ])),
+        collapse = " & "
+      ),
+      " \\\\\n",
+      file = file,
+      append = TRUE
+    )
   }
 
   cat("\\hline\n", file = file, append = TRUE)
@@ -752,17 +947,20 @@ write_multigraphs <- function(graphs) {
       group_by(tag) %>%
       group_split()
 
-    widget <- browsable(tagList(h1(name), lapply(content, function(subgroup) {
-      tag <- unique(subgroup$tag)
-      graph <- subgroup$graph[[1]]
-      if (subgroup$type == "ggplot") {
-        graph <- ggplotly(graph)
-      }
-      graph$height <- "50vh"
-      ret <- div(graph)
-      title <- div(h4(tag))
-      return(list(title, ret))
-    })))
+    widget <- browsable(tagList(
+      h1(name),
+      lapply(content, function(subgroup) {
+        tag <- unique(subgroup$tag)
+        graph <- subgroup$graph[[1]]
+        if (subgroup$type == "ggplot") {
+          graph <- ggplotly(graph)
+        }
+        graph$height <- "50vh"
+        ret <- div(graph)
+        title <- div(h4(tag))
+        return(list(title, ret))
+      })
+    ))
     save_html(widget, paste0("out/", name, ".htm"))
   })
 }
@@ -780,12 +978,18 @@ export_graph <- mem(function(name, ggplot_graph) {
 
   # Add subtitle to plotly object if it exists
   if (!is.null(plot_subtitle)) {
-    p <- p %>% layout(
-      title = list(
-        text = paste0(p$x$layout$title$text, "<br><sub>", plot_subtitle, "</sub>"),
-        font = list(size = 14)
+    p <- p %>%
+      layout(
+        title = list(
+          text = paste0(
+            p$x$layout$title$text,
+            "<br><sub>",
+            plot_subtitle,
+            "</sub>"
+          ),
+          font = list(size = 14)
+        )
       )
-    )
   }
 
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
@@ -794,7 +998,11 @@ export_graph <- mem(function(name, ggplot_graph) {
 })
 
 export_graph_non_ggplot <- function(name, graph) {
-  htmlwidgets::saveWidget(graph, paste0("out/", name, ".htm"), selfcontained = TRUE)
+  htmlwidgets::saveWidget(
+    graph,
+    paste0("out/", name, ".htm"),
+    selfcontained = TRUE
+  )
 }
 
 draw <- function(plot, x_in = 3, y_in = 3) {
@@ -802,7 +1010,6 @@ draw <- function(plot, x_in = 3, y_in = 3) {
 
   # grid::rectGrob(gp = grid::gpar(fill = "gray")) |>
   #   grid::grid.draw()
-
 
   # grid::rectGrob() |>
   #   grid::grid.draw()
@@ -820,18 +1027,42 @@ load_tikz <- function() {
 
   options(tikzDefaultEngine = "xetex")
   options(
-    tikzSanitizeCharacters = c("%", "&", "#", "\\$", "\\{", "\\}", "\\^", "\\~", "ƒ", "_"),
-    tikzReplacementCharacters = c("\\%", "\\&", "\\#", "\\\\$", "\\\\{", "\\\\}", "\\\\^", "\\\\~", "$f$", "\\_")
+    tikzSanitizeCharacters = c(
+      "%",
+      "&",
+      "#",
+      "\\$",
+      "\\{",
+      "\\}",
+      "\\^",
+      "\\~",
+      "ƒ",
+      "_"
+    ),
+    tikzReplacementCharacters = c(
+      "\\%",
+      "\\&",
+      "\\#",
+      "\\\\$",
+      "\\\\{",
+      "\\\\}",
+      "\\\\^",
+      "\\\\~",
+      "$f$",
+      "\\_"
+    )
   )
-  options(tikzXelatexPackages = c(
-    "\\usepackage{tikz}\n",
-    "\\usepackage[active,tightpage,xetex]{preview}\n",
-    "\\usepackage{fontspec,xunicode}\n",
-    "\\PreviewEnvironment{pgfpicture}\n",
-    "\\setlength\\PreviewBorder{0pt}\n",
-    "\\newcommand{\\dash}{-}\n",
-    "\\newcommand{\\anon}[1]{ANON}\n"
-  ))
+  options(
+    tikzXelatexPackages = c(
+      "\\usepackage{tikz}\n",
+      "\\usepackage[active,tightpage,xetex]{preview}\n",
+      "\\usepackage{fontspec,xunicode}\n",
+      "\\PreviewEnvironment{pgfpicture}\n",
+      "\\setlength\\PreviewBorder{0pt}\n",
+      "\\newcommand{\\dash}{-}\n",
+      "\\newcommand{\\anon}[1]{ANON}\n"
+    )
+  )
   options(
     tikzMetricPackages = c(
       "\\usepackage[T1]{fontenc}\n",
@@ -847,7 +1078,14 @@ load_tikz <- function() {
   tikzDevice::tikzTest()
 }
 
-export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_ratio = 1 / 3, caption = NULL) {
+export_graph_tikz <- function(
+  plot,
+  width,
+  height,
+  remove_legend = TRUE,
+  aspect_ratio = 1 / 3,
+  caption = NULL
+) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -897,13 +1135,23 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   file_conn <- file(tikz_name, "w")
 
   # Write the resizebox command
-  cat(sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width), file = file_conn)
+  cat(
+    sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width),
+    file = file_conn
+  )
   cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
 
   # Capture tikz output
   capture.output(
-    file = file_conn, append = TRUE,
-    tikz(console = TRUE, width = width, height = height, standAlone = FALSE, sanitize = TRUE),
+    file = file_conn,
+    append = TRUE,
+    tikz(
+      console = TRUE,
+      width = width,
+      height = height,
+      standAlone = FALSE,
+      sanitize = TRUE
+    ),
     draw(plot_graph, x_in = width, y_in = height),
     graphics.off()
   )
@@ -921,14 +1169,25 @@ export_graph_tikz <- function(plot, width, height, remove_legend = TRUE, aspect_
   } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
     caption <- plot_title
     if (!is.null(plot_subtitle)) {
-      caption <- paste0(caption, ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{", plot_subtitle, "}}")
+      caption <- paste0(
+        caption,
+        ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{",
+        plot_subtitle,
+        "}}"
+      )
     }
     cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
   }
   close(caption_conn)
 }
 
-merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, aspect_ratio = 1 / 5) {
+merge_and_export_legend <- function(
+  dummy_graphs,
+  legend_name,
+  width,
+  height,
+  aspect_ratio = 1 / 5
+) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -953,7 +1212,6 @@ merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, as
     ) +
     annotation_custom(grob = legend)
 
-
   ggsave("out/legend.png", legend_plot, width = width, height = height)
 
   Log(paste0("Exporting legend '", legend_name, "' ..."))
@@ -962,9 +1220,20 @@ merge_and_export_legend <- function(dummy_graphs, legend_name, width, height, as
   custom_captions <- sapply(graph_names, function(name) {
     sprintf("fig:%s", name)
   })
-  custom_caption <- paste0("Legend for~\\cref{", paste(custom_captions, collapse = ","), "} ")
+  custom_caption <- paste0(
+    "Legend for~\\cref{",
+    paste(custom_captions, collapse = ","),
+    "} "
+  )
 
-  export_graph_tikz(list(name = legend_name, graph = legend_plot), width, height, remove_legend = FALSE, caption = custom_caption, aspect_ratio = aspect_ratio)
+  export_graph_tikz(
+    list(name = legend_name, graph = legend_plot),
+    width,
+    height,
+    remove_legend = FALSE,
+    caption = custom_caption,
+    aspect_ratio = aspect_ratio
+  )
 }
 
 do_sankey <- function(f) {
@@ -997,18 +1266,23 @@ do_sankey <- function(f) {
     }
   }
 
-
   labels <- links %>%
     ungroup() %>%
     rowwise() %>%
-    mutate(name = if ("name_source" %in% names(.)) coalesce(.data[["name_source"]], source) else source) %>%
+    mutate(
+      name = if ("name_source" %in% names(.))
+        coalesce(.data[["name_source"]], source) else source
+    ) %>%
     rename(original = source) %>%
     select(original, name) %>%
     distinct()
   labels <- links %>%
     ungroup() %>%
     rowwise() %>%
-    mutate(name = if ("name_target" %in% names(.)) coalesce(.data[["name_target"]], target) else target) %>%
+    mutate(
+      name = if ("name_target" %in% names(.))
+        coalesce(.data[["name_target"]], target) else target
+    ) %>%
     rename(original = target) %>%
     select(original, name) %>%
     distinct() %>%
@@ -1041,12 +1315,13 @@ do_sankey <- function(f) {
     ),
     link = df
   )
-  fig <- fig %>% layout(
-    title = "Basic Sankey Diagram",
-    font = list(
-      size = 10
+  fig <- fig %>%
+    layout(
+      title = "Basic Sankey Diagram",
+      font = list(
+        size = 10
+      )
     )
-  )
   return(fig)
 }
 
@@ -1121,7 +1396,6 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     group_vars <- c(group_vars, "ci_lower", "ci_upper")
   }
 
-
   # Prepare the data
   df <- data %>%
     group_by(across(all_of(group_vars))) %>%
@@ -1144,13 +1418,34 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   }
 
   # Create the scatter plot
-  p <- ggplot(df, aes(x = !!node_col, y = metric_value, color = !!metric_col, fill = !!metric_col, linetype = !!metric_col, shape = !!metric_col)) +
-    geom_point(alpha = 0.7, aes(text = sprintf(
-      "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
-      !!metric_col, !!node_col, metric_value, y_suffix, ci_lower, ci_upper
-    )), alpha = 0.7) +
+  p <- ggplot(
+    df,
+    aes(
+      x = !!node_col,
+      y = metric_value,
+      color = !!metric_col,
+      fill = !!metric_col
+    )
+  ) +
+    geom_point(
+      alpha = 0.7,
+      aes(
+        text = sprintf(
+          "Placement Method: %s<br>Nodes: %s<br>Value: %.2f%s<br>CI: [%.2f, %.2f]",
+          !!metric_col,
+          !!node_col,
+          metric_value,
+          y_suffix,
+          ci_lower,
+          ci_upper
+        )
+      )
+    ) +
     geom_smooth(
-      method = "lm", se = se, level = 0.95, alpha = 0.1,
+      method = "lm",
+      se = se,
+      level = 0.95,
+      alpha = 0.1,
       show.legend = TRUE
     ) +
     geom_errorbar(
@@ -1175,7 +1470,6 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     scale_color_viridis_d() +
     scale_fill_viridis_d()
 
-
   # Add faceting if facet_col is provided
   if (!empty_facet_col) {
     p <- p + facet_wrap(vars(!!facet_col))
@@ -1184,7 +1478,8 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   file <- paste0("out/", title, ".txt", sep = "")
   file_conn <- file(file, "w")
   capture.output(
-    file = file_conn, append = TRUE,
+    file = file_conn,
+    append = TRUE,
     df %>%
       group_by(!!metric_col, ) %>%
       select(!!metric_col, metric_value) %>%
@@ -1193,7 +1488,8 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
   )
   if (!empty_facet_col) {
     capture.output(
-      file = file_conn, append = TRUE,
+      file = file_conn,
+      append = TRUE,
       df %>%
         group_by(!!metric_col, !!facet_col) %>%
         select(!!metric_col, !!facet_col, metric_value) %>%
