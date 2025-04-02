@@ -52,6 +52,7 @@ init <- function() {
   library(plotly)
   library(htmlwidgets)
   library(htmltools)
+  library(jsonlite)
 
   library(memoise)
 
@@ -68,7 +69,7 @@ init <- function() {
 source("config.R")
 suppressMessages(init())
 
-log.socket <- make.socket(port = 4000)
+log.socket <- make.socket(port = 4001)
 
 cd <- cachem::cache_disk(rappdirs::user_cache_dir("R-giraff"), max_size = 20 * 1024^3)
 
@@ -140,6 +141,7 @@ if (single_graphs) {
   m_load_raw_deployment_times <- mem(load_raw_deployment_times)
   m_load_raw_cpu_all <- mem(load_raw_cpu_all)
   m_load_paid_functions <- mem(load_paid_functions)
+  m_load_otel <- mem(load_otel)
 
   Log("Done memoizing loaders")
 
@@ -161,6 +163,8 @@ if (single_graphs) {
     raw_latency <- m_load_raw_latency(ark)
     raw_deployment_times <- m_load_raw_deployment_times(ark)
 
+    otel <- m_load_otel(ark)
+
     Log(paste0("Done loading data ", ark))
 
     graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
@@ -178,6 +182,7 @@ if (single_graphs) {
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
     graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
+    graphs <- graph("otel", graphs, output_otel_plot(otel))
 
     Log(paste0("Done generating graphs ", ark))
 

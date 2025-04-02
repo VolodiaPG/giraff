@@ -56,6 +56,7 @@
             #rstatix
             #multcompView
             car
+            jsonlite
 
             doParallel
             foreach

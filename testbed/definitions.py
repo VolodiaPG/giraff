@@ -155,7 +155,7 @@ spec:
         - name: COLLECTOR_IP
           value: "{collector_ip}"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT_FUNCTION
-          value: "http://{collector_ip}:4317"
+          value: "http://{influx_ip}:4317"
         - name: ENABLE_COLLECTOR
           value: "{enable_collector}"
         - name: FUNCTION_LIVE_TIMEOUT_MSECS
@@ -294,6 +294,26 @@ NODE_CONNECTED_NODE = """(
     my_advertised_bandwidth: "{my_advertised_bandwidth}",
 )
 
+"""
+
+OPENTELEMETRY_CONFIG = """
+exporters:
+  otlp/jaeger:
+    endpoint: http://{collector_ip}:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
+    traces:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
+    logs:
+      receivers: [otlp]
+      exporters: [influxdb,otlp/jaeger]
 """
 
 # Remove a unit so that the hosts are not saturated
@@ -745,6 +765,36 @@ if os.getenv("DEV_NETWORK") == "true":
                 "rate": ONE_GBIT,
                 "children": [
                     {
+                        "name": "node_22",
+                        "flavor": TIER_3_FLAVOR,
+                        "latency": 8,
+                        "rate": 1 * ONE_GBIT,
+                        "children": [
+                            {
+                                "name": "node_33",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 15,
+                                "rate": 1 * ONE_GBIT,
+                                "children": [],
+                            },
+                            {
+                                "name": "node_335",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 7,
+                                "rate": 1 * ONE_GBIT,
+                                "children": [],
+                                "iot_connected": 0,
+                            },
+                            {
+                                "name": "node_336",
+                                "flavor": TIER_4_FLAVOR,
+                                "rate": 500 * ONE_MBIT,
+                                "latency": 2,
+                                "children": [],
+                            },
+                        ],
+                    },
+                    {
                         "name": "node_2",
                         "flavor": TIER_3_FLAVOR,
                         "latency": 6,
@@ -756,18 +806,31 @@ if os.getenv("DEV_NETWORK") == "true":
                                 "latency": 10,
                                 "rate": 1 * ONE_GBIT,
                                 "children": [],
-                                "iot_connected": 0,
                             },
                             {
                                 "name": "node_34",
                                 "flavor": TIER_4_FLAVOR,
                                 "rate": 100 * ONE_MBIT,
-                                "latency": 5,
+                                "latency": 2,
+                                "children": [],
+                            },
+                            {
+                                "name": "node_35",
+                                "flavor": TIER_4_FLAVOR,
+                                "latency": 10,
+                                "rate": 1 * ONE_GBIT,
                                 "children": [],
                                 "iot_connected": 0,
                             },
+                            {
+                                "name": "node_36",
+                                "flavor": TIER_4_FLAVOR,
+                                "rate": 500 * ONE_MBIT,
+                                "latency": 5,
+                                "children": [],
+                            },
                         ],
-                    }
+                    },
                 ],
             },
         ],

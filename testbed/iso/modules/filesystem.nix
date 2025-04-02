@@ -168,7 +168,12 @@ in {
           done
           AUTH_KEY=$(cat "$dir/tailscale_authkey")
 
-          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} up --authkey $AUTH_KEY --accept-dns=false --advertise-tags=tag:grid5000
+          ${pkgs.lib.getExe inputs.nixpkgs.legacyPackages."${pkgs.stdenv.system}".tailscale} \
+            up \
+            --authkey $AUTH_KEY \
+            --accept-dns=false \
+            --advertise-tags=tag:grid5000 \
+            --advertise-routes=10.0.0.0/8
         fi
       '';
       serviceConfig = {

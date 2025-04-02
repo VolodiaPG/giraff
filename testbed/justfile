@@ -323,6 +323,11 @@ ssh_into_expe city master_node_ip:
     ssh -tt {{city}}.grid5000.fr 'exec ssh -tt root@{{ master_node_ip }} '\''cd /home/enos && source env.source && exec {{ DOCKER }} exec -it $({{ DOCKER }} ps -q | head -n1) bash --init-file "<(echo \"source env.source ; exec bash -i\")" '\'''
 
 
+ssh_into_tailscale tailscale_ip:
+    ssh -o UserKnownHostsFile=/dev/null -tt root@{{tailscale_ip}} 'cd /home/enos && source env.source && exec {{ DOCKER }} exec -it $({{ DOCKER }} ps -q | head -n1) bash --init-file "<(echo \"source env.source ; exec bash -i\")"'
+
+
+
 [private]
 _inside_docker_scenearii +city_name_node_targets:
     #!/usr/bin/env bash
