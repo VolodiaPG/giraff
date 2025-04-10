@@ -360,10 +360,9 @@ correct_names <- function(x) {
 fig(20, 20)
 
 adjust_timestamps <- function(
-  x,
-  var_name = "timestamp",
-  reference = "timestamp"
-) {
+    x,
+    var_name = "timestamp",
+    reference = "timestamp") {
   # Careful where we put this, as the first measurement may not be the same accross all of the combined values for the same folder
 
   var_sym <- ensym(var_name)
@@ -955,7 +954,7 @@ write_multigraphs <- function(graphs) {
         if (subgroup$type == "ggplot") {
           graph <- ggplotly(graph)
         }
-        graph$height <- "50vh"
+        graph$height <- "100vh"
         ret <- div(graph)
         title <- div(h4(tag))
         return(list(title, ret))
@@ -1079,13 +1078,12 @@ load_tikz <- function() {
 }
 
 export_graph_tikz <- function(
-  plot,
-  width,
-  height,
-  remove_legend = TRUE,
-  aspect_ratio = 1 / 3,
-  caption = NULL
-) {
+    plot,
+    width,
+    height,
+    remove_legend = TRUE,
+    aspect_ratio = 1 / 3,
+    caption = NULL) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -1174,12 +1172,11 @@ export_graph_tikz <- function(
 }
 
 merge_and_export_legend <- function(
-  dummy_graphs,
-  legend_name,
-  width,
-  height,
-  aspect_ratio = 1 / 5
-) {
+    dummy_graphs,
+    legend_name,
+    width,
+    height,
+    aspect_ratio = 1 / 5) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -1262,8 +1259,11 @@ do_sankey <- function(f) {
     ungroup() %>%
     rowwise() %>%
     mutate(
-      name = if ("name_source" %in% names(.))
-        coalesce(.data[["name_source"]], source) else source
+      name = if ("name_source" %in% names(.)) {
+        coalesce(.data[["name_source"]], source)
+      } else {
+        source
+      }
     ) %>%
     rename(original = source) %>%
     select(original, name) %>%
@@ -1272,8 +1272,11 @@ do_sankey <- function(f) {
     ungroup() %>%
     rowwise() %>%
     mutate(
-      name = if ("name_target" %in% names(.))
-        coalesce(.data[["name_target"]], target) else target
+      name = if ("name_target" %in% names(.)) {
+        coalesce(.data[["name_target"]], target)
+      } else {
+        target
+      }
     ) %>%
     rename(original = target) %>%
     select(original, name) %>%
@@ -1364,18 +1367,17 @@ Log <- function(text, ...) {
 }
 
 create_metric_comparison_plot <- function(
-  data,
-  metric_col,
-  group_col,
-  value_col,
-  node_col,
-  title,
-  x_label = NULL,
-  y_label = NULL,
-  y_suffix = "",
-  facet_col = NULL,
-  se = FALSE
-) {
+    data,
+    metric_col,
+    group_col,
+    value_col,
+    node_col,
+    title,
+    x_label = NULL,
+    y_label = NULL,
+    y_suffix = "",
+    facet_col = NULL,
+    se = FALSE) {
   empty_facet_col <- is.null(facet_col)
 
   # Convert column names to symbols

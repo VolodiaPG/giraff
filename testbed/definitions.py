@@ -381,23 +381,23 @@ def additional_env_vars(level):
 
 
 TIER_4_FLAVOR = {
-    "core": 2,
+    "core": 4,
     "mem": 1024 * 4,
-    "reserved_core": 1.5,
-    "reserved_mem": 1024 * 3,
+    "reserved_core": 3.5,
+    "reserved_mem": 1024 * 3.5,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
-    "core": 4,
+    "core": 6,
     "mem": 1024 * 6,
     "reserved_core": 3.5,
-    "reserved_mem": 1024 * 5,
+    "reserved_mem": 1024 * 5.5,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
-    "core": 8,
+    "core": 10,
     "mem": 1024 * 12,
-    "reserved_core": 7,
+    "reserved_core": 9,
     "reserved_mem": 1024 * 11,
     "additional_env_vars": additional_env_vars(1),
 }
@@ -761,26 +761,26 @@ if os.getenv("DEV_NETWORK") == "true":
             {
                 "name": "node_1",
                 "flavor": TIER_3_FLAVOR,
-                "latency": 3,
-                "rate": ONE_GBIT,
+                "latency": 500,
+                "rate": 50 * ONE_MBIT,
                 "children": [
                     {
                         "name": "node_22",
                         "flavor": TIER_3_FLAVOR,
-                        "latency": 8,
-                        "rate": 1 * ONE_GBIT,
+                        "latency": 500,
+                        "rate": 100 * ONE_MBIT,
                         "children": [
                             {
                                 "name": "node_33",
                                 "flavor": TIER_4_FLAVOR,
-                                "latency": 15,
+                                "latency": 5,
                                 "rate": 1 * ONE_GBIT,
                                 "children": [],
                             },
                             {
                                 "name": "node_335",
                                 "flavor": TIER_4_FLAVOR,
-                                "latency": 7,
+                                "latency": 3,
                                 "rate": 1 * ONE_GBIT,
                                 "children": [],
                                 "iot_connected": 0,
@@ -797,8 +797,8 @@ if os.getenv("DEV_NETWORK") == "true":
                     {
                         "name": "node_2",
                         "flavor": TIER_3_FLAVOR,
-                        "latency": 6,
-                        "rate": 1 * ONE_GBIT,
+                        "latency": 500,
+                        "rate": 100 * ONE_MBIT,
                         "children": [
                             {
                                 "name": "node_3",
@@ -817,7 +817,7 @@ if os.getenv("DEV_NETWORK") == "true":
                             {
                                 "name": "node_35",
                                 "flavor": TIER_4_FLAVOR,
-                                "latency": 10,
+                                "latency": 2,
                                 "rate": 1 * ONE_GBIT,
                                 "children": [],
                                 "iot_connected": 0,
