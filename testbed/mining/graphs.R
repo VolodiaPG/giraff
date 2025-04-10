@@ -977,27 +977,40 @@ output_raw_cpu_usage <- function(raw_cpu) {
 }
 
 output_otel_plot <- function(spans) {
-  Log(colnames(spans))
   df <- spans %>%
     ungroup() %>%
-    select(timestamp, service.name, field, value_raw, span_id, trace_id) %>%
+    select(folder, timestamp, service.name, field, value_raw, span_id, trace_id) %>%
     pivot_wider(names_from = field, values_from = value_raw) %>%
     mutate(duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")) %>%
     select(-attributes)
 
-  Log(df %>% select(service.name) %>% distinct())
+  df_spans_raw <- df %>%
+    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "..."))
+
+  df_spans_raw2 <- df %>%
+    filter(startsWith(span.name, "FLAME"))
+
+  df_spans <- df_spans_raw %>%
+    group_by(trace_id, folder) %>%
+    summarise(nb_starts = n())
 
   df <- df %>%
-    filter(span.name %in% c("start_processing_requests", "process_speech", "speech_to_text", "speech_recognition.degraded", "text_to_speech", "handle_end_game", "after_speech_recognition", "after_speech_recognition.degraded"))
+    filter(span.name %in% c("start_processing_requests")) %>%
+    full_join(df_spans) %>%
+    full_join(df_spans_raw2 %>%
+      mutate(nb_starts = 1))
 
-  p <- ggplot(data = df, aes(alpha = 1, x = span.name, y = duration, color = span.name)) +
+  p <- ggplot(data = df, aes(alpha = 1, x = span.name, y = duration, color = span.name, size = nb_starts)) +
     #  facet_grid(~var_facet) +
-    geom_beeswarm() +
+    # geom_beeswarm() +
+    # geom_point() +
+    geom_quasirandom(method = "tukey", alpha = .8) +
+    # geom_line(data = df, aes(x = span.name, y = duration, color = trace_id, group = trace_id)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
-      y = "Span",
-      x = "Time",
+      x = "Span",
+      y = "Time",
     ) +
     theme(legend.background = element_rect(
       fill = alpha("white", .7),
@@ -1007,10 +1020,12 @@ output_otel_plot <- function(spans) {
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
+      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
     ) +
-    scale_color_viridis(discrete = T) +
-    scale_fill_viridis(discrete = T) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE) +
+    scale_x_discrete() +
+    scale_y_continuous() +
     guides(colour = guide_legend(nrow = 1))
 
   return(p)

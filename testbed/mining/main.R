@@ -52,7 +52,6 @@ init <- function() {
   library(plotly)
   library(htmlwidgets)
   library(htmltools)
-  library(jsonlite)
 
   library(memoise)
 
