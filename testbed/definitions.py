@@ -707,39 +707,31 @@ SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 if os.getenv("DEV_NETWORK") == "true":
     NETWORK = {
         "name": "market",
-        "flavor": TIER_3_FLAVOR,
+        "flavor": TIER_4_FLAVOR,
         "rate": ONE_GBIT,
         "children": [
             {
-                "name": "node_1",
+                "name": "node_2",
                 "flavor": TIER_4_FLAVOR,
-                "latency": 3,
-                "rate": ONE_GBIT,
+                "latency": 6,
+                "rate": 1 * ONE_GBIT,
                 "children": [
                     {
-                        "name": "node_2",
+                        "name": "node_3",
                         "flavor": TIER_4_FLAVOR,
-                        "latency": 6,
+                        "latency": 10,
                         "rate": 1 * ONE_GBIT,
-                        "children": [
-                            {
-                                "name": "node_3",
-                                "flavor": TIER_4_FLAVOR,
-                                "latency": 10,
-                                "rate": 1 * ONE_GBIT,
-                                "children": [],
-                                "iot_connected": 0,
-                            },
-                            {
-                                "name": "node_34",
-                                "flavor": TIER_4_FLAVOR,
-                                "rate": 100 * ONE_MBIT,
-                                "latency": 5,
-                                "children": [],
-                                "iot_connected": 0,
-                            },
-                        ],
-                    }
+                        "children": [],
+                        "iot_connected": 0,
+                    },
+                    {
+                        "name": "node_34",
+                        "flavor": TIER_4_FLAVOR,
+                        "rate": 100 * ONE_MBIT,
+                        "latency": 5,
+                        "children": [],
+                        "iot_connected": 0,
+                    },
                 ],
             },
         ],
