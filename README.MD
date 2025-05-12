@@ -122,7 +122,9 @@ dependenies
 
 ### Running the experiments
 
-One should have the libvirt daemon (libvirtd) running with kvm acceleration. The following steps are
+One should have the libvirt daemon (libvirtd) running with kvm acceleration.
+Make sure your user gets in the libvirt, kvm groups. You may need to reboot
+after installation. The following steps are
 going to run multiple VMs using Vagrant to emulate Fog nodes. The setup is much
 lower scale than in the real experiments (3 VMs instead of 663), but still
 consumes a lot of RAM.

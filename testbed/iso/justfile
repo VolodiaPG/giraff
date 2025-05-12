@@ -22,7 +22,7 @@ build-vagrant:
     set -e
     rm -f ./sda.raw || true
     script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.vagrant.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
-    sudo $script_vm --build-memory 6096
+    $script_vm --build-memory 6096
 
     mkdir -p .vagrant
     qemu-img convert -c -f raw -O qcow2 sda.raw .vagrant/sda.qcow2
