@@ -122,12 +122,13 @@ dependenies
 
 ### Running the experiments
 
-One should have the libvirt daemon (libvirtd) running with kvm acceleration.
+One should have thelibvirt daemon (libvirtd) running with kvm acceleration.
 Make sure your user gets in the libvirt, kvm groups. You may need to reboot
 after installation. The following steps are
 going to run multiple VMs using Vagrant to emulate Fog nodes. The setup is much
 lower scale than in the real experiments (3 VMs instead of 663), but still
-consumes a lot of RAM.
+consumes a lot of RAM (recommended at least 16G) and disk space (recommended at
+least 60G).
 
 From the root of the project,
 1. cd inot `testbed/iso`
@@ -138,10 +139,11 @@ of the "vagrant box" into ~/.vagrant.d/boxes/giraffbox/0/libvirt/Z
 
 From the root of the project,
 1. cd into `testbed`
-2. run `just master_docker_campaign` to start vagrant and run automatically the
+2. run `nix develop --extra-experimental-features "nix-command flakes" .#testbed`
+3. run `just master_docker_campaign` to start vagrant and run automatically th
 experiments
-3. Results are available in `metrics-arks`.
-4. You may also copy the name of the tar.gz files printed out in the logs to
+4. Results are available in `metrics-arks`.
+5. You may also copy the name of the tar.gz files printed out in the logs to
 input the next section.
 
 Currently, Vagrant and enoslib do not support setting up networking with rate
