@@ -30,28 +30,10 @@
 
 </div>
 
-<details open="open">
-<summary>Table of Contents</summary>
-
-- [About](#about)
-  - [Built With](#built-with)
-- [Getting Started](#getting-started)
-  - [Overview](#overview)
-  - [Prerequisites](#prerequisites)
-  - [Software](#software)
-  - [VMs](#vms)
-  - [Experiments](#experiments)
-  - [Processing the results](#processing-the-results)
-  - [Notes about the system architectures](#notes-about-the-system-architectures)
-- [Contribution or utilization](#contribution-or-utilization)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
-
-</details>
-
 ## About
 
-Function-as-a-Service (FaaS) applications could harness the disseminated nature of the fog and take advantage of fog’s benefits, such as real-time processing and reduced bandwidth. The FaaS programming paradigm allows applications to be divided in independent units called “functions.” However, deciding how to place those units in the fog is challenging. Fog contains diverse, potentially resource-constrained nodes, geographically spanning from the Cloud to the IP network edges. These nodes must be efficiently shared between the multiple applications that will require to use the fog.
+Function-as-a-Service (FaaS) applications can harness the disseminated nature of
+the fog and take advantage of the fog benefits, such as real-time processing and reduced bandwidth. The FaaS programming paradigm allows applications to be divided in independent units called “functions.” However, deciding how to place those units in the fog is challenging. Fog contains diverse, potentially resource-constrained nodes, geographically spanning from the Cloud to the IP network edges. These nodes must be efficiently shared between the multiple applications that will require to use the fog.
 
 We introduce “fog node ownership,” a concept where fog nodes are owned by different actors that chose to give computing resources in exchange for remuneration. This concept allows for the reach of the fog to be dynamically extended without central supervision from a unique decision taker, as currently considered in the literature. For the final user, the fog appears as a single unified FaaS platform. We use auctions to incentivize fog nodes to join and compete for executing functions.
 
@@ -120,18 +102,27 @@ dependenies
 
 > These commands work when `flake.nix` and `justfile` are present in the current directory you are in.
 
+> The following guide has been tested on the 12th of May 2025 on ubuntu server,
+in proxmox with kvm acceleration and cpu as host. The PC was equipped with a 4th
+gen intel i7 and 14G of RAM, but has frozen up. Thus we recommend more
+resources, as we detail in the next section.
+
 ### Running the experiments
 
-One should have thelibvirt daemon (libvirtd) running with kvm acceleration.
+One should have the libvirt daemon (libvirtd) running with kvm acceleration.
 Make sure your user gets in the libvirt, kvm groups. You may need to reboot
 after installation. The following steps are
 going to run multiple VMs using Vagrant to emulate Fog nodes. The setup is much
-lower scale than in the real experiments (3 VMs instead of 663), but still
-consumes a lot of RAM (recommended at least 16G) and disk space (recommended at
-least 60G).
+lower scale than in the real experiments (3ish VMs instead of 663), but still
+consumes a lot of RAM (recommended at least 32G and the same amount of swap) and disk space (recommended at
+least 100G). Note that there exits a simpler way of running locally for
+development.
+
+> Note that most of the steps will take minutes to download and/or build
+and complete.
 
 From the root of the project,
-1. cd inot `testbed/iso`
+1. cd in `testbed/iso`
 2. run `nix develop --extra-experimental-features "nix-command flakes" .#iso`
 3. run `just build-vagrant` to create the VMs template to use locally. The
 command should terminate with a message indicating the successful installation
@@ -142,12 +133,17 @@ From the root of the project,
 2. run `nix develop --extra-experimental-features "nix-command flakes" .#testbed`
 3. run `just master_docker_campaign` to start vagrant and run automatically th
 experiments
-4. Results are available in `metrics-arks`.
-5. You may also copy the name of the tar.gz files printed out in the logs to
+4. In the `.env` file, set the DEV varianle to `true` to see logs as they
+arrive, but only run a single experiment at the time. Otherwise, logs are
+available to tail -f in the `logs_campaign` directory.
+5. Results are available in `metrics-arks`.
+6. You may also copy the name of the tar.xz files printed out in the logs to
 input the next section.
 
+> To remove all trace of the vms, run `just clean-vagrant`
+
 Currently, Vagrant and enoslib do not support setting up networking with rate
-limiting and adding delays. Thus these aspect can only be reproduced on Grid5000.
+limiting and adding delays. Thus, these aspect can only be reproduced on Grid5000.
 
 To observe the VMs, one can use the `vagrant ssh ...` command to connect
 to the a node; the command has to be issued in the valuations* directory for it
@@ -168,13 +164,39 @@ message.
 6. To access the graphs in the paper, open the url `http://localhost:9000` in a
 browser. There, you may find a list of graphs to interact with.
 
-### Software
+Please note that artifacts used to produce the graphs in our articles are
+available in the [release section of our
+repository](https://github.com/VolodiaPG/giraff/releases/tag/v3.0.0).
+
+### Tweaking the configuration
+
+The experiments run a cluster of VMs, each connected to another from the
+definitions generated in the `definitions.py` NETWORK variable.
+
+Tweaking for the settings of the experiments is done in three files:
+
+- .env, this file contains the settings for choosing the different placement
+algorithms, functions to run, and setting about the general configuration of any
+expement. Importantly, the file also stipulates the different settings for
+making different scenarios. Some settings are also fed to the just commands
+automatically.
+- .experiments.env contains settings about the maximum size of fog testbed, and
+its size variations can be set here.
+- *.env files, for example .env.1, contain tweaks for a specifi scenario.
+
+For each combination of size, number of VMs, a new run will be started. Those
+can additionally be run multiple times. In those runs, and for each placement
+algorithm, the exact same fog network will be deployed and request replayed. A
+restart is performed in between each run of an algorithm to reset the state, as
+we employ an impermanent VM configuration.
+
+## Advanced usage
 
 This section concerns OpenFaaS functions, the code for the fog nodes under `manager/`, the code for `iot_emulation`, the code for the proxy.
 
-Usually, `nix develop` gets you started. I code using VS Code, thus the extension [Direnv](https://marketplace.visualstudio.com/items?itemName=mkhl.direnv) will make VS Code use all the applications/env loaded in the `nix develop`, e.g. you can use Rust/Golang LSPs server/toolchains inside VS Code without ever “installing” them on the computer.
+Usually, `nix develop` gets you started. Using VS Code, thus the extension [Direnv](https://marketplace.visualstudio.com/items?itemName=mkhl.direnv) will make VS Code use all the applications/env loaded in the `nix develop`, e.g. you can use Rust/Golang LSPs server/toolchains inside VS Code without ever “installing” them on the computer.
 
-### VMs
+## VMs
 
 VMs detail are located in `testbed/iso/flake.nix`. There lies the whole configuration of the experimental VM. In `testbed/flake.nix` you can also see the VM used to deploy the code in grid’5000.
 
@@ -183,7 +205,9 @@ To start the same vm as in the experiments, one should go to `testbed/iso` and e
 
 ### Experiments
 
-This uses the exact same VMs as the previous section. To generate the VM disk and send it to grid’5000, enter `just upload <rennes|nancy|...>`. The disk will be uploaded.
+This uses the exact same VMs as the previous section. To generate the VM disk
+and send it to grid’5000, enter `just upload <rennes|nancy|...>` from the
+testbed/iso directory . The disk will be uploaded.
 
 Then go to `testbed`, once this is done, you can configure the experiments in `.env`; `.experiments.env` handles the variations of multiple runs. These values are used in `integration.py` that handles the deployment and `definitions.py` that defines the fog network and some Kubernetes configurations.
 
@@ -223,7 +247,7 @@ Functions are 256MB of RAM.
 
 - A Student T distribution is used for function latencies (as we don't know the real sample size nor the std deviation). The distribution would be divided in three buckets: functions that do not care about the latency (meaning the threshold t is at 10 secs), functions that are normal: they would want their responses back in a usable time (t = 150ms), and low latency functions (t = 15ms). The two extrema would be 5% of the total number functions. We use df=10 with -2.25 and 2.25 for the extrema.
 
-### Included functions
+### About included functions
 
 Our own functions are:
 
@@ -235,9 +259,13 @@ We borrowed functions from [EdgeFaaSBench](https://github.com/kaustubhrajput46/E
 
 ### Processing the results
 
-This flake has two modes: `just labExport` will start a JupyterLab with Latex support and Tikz export for the graphs, `just lab` starts a lighter version without Latex and Tikz.
+This flake has two modes: `just labExport` will start a JupyterLab with Latex
+support and Tikz export for the graphs, `just lab` starts a lighter version
+without Latex and Tikz. just watch can be used to keep refreshing the
+compilation.
 
-Then, data exploitation is done using R inside the JupyterLab server.
+Then, data exploitation is done using R inside the JupyterLab server. just serve
+can setup a small server to access interactive plots.
 
 > With article submissions, one can find the raw data in the [Release page](https://github.com/volodiapg/faas_fog/releases/latest). Take the latest, extract it to `testbed` under a directory named `metrics-arks`.  Then run `just lab` and you will be able to explore the data. Please notice that this process is heavy on the CPU and especially the RAM. I used some Systemd magic to prevent my computer from using too much RAM and cut the program if so.
 

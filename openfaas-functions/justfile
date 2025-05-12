@@ -1,5 +1,6 @@
 DOCKER := env_var_or_default("DOCKER", "docker")
 FLAKE := file_name(justfile_directory())
+COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff")
 
 _default:
     @just --list
@@ -23,7 +24,7 @@ _ghcr_wrapped user dir:
 _ghcr user dir:
     #!/usr/bin/env bash
     fn_name=$(basename {{ dir }})
-    output=`$(nix build .#$fn_name --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/giraff:$fn_name 2>&1`
+    output=`$(nix build .#$fn_name --print-out-paths --no-link --quiet) 2> /dev/null | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/{{ COMMON_IMAGE_NAME }}:$fn_name 2>&1`
     retVal=$?
     if [ $retVal -ne 0 ]; then
       echo -e "[{{ file_name(justfile_directory()) }}] $fn_name \033[31mFAILED\033[0m"

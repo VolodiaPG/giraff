@@ -1,0 +1,456 @@
+Script started on 2025-05-12 18:58:23+02:00 [TERM="tmux-256color" TTY="/dev/pts/19" COLUMNS="134" LINES="50"]
+Running Nixos 25.05.20250508.dda3dcd (Warbler) [1;38;5;208m(version last updated 4 days ago)[0m
+]7;file://dell/home/volodia/Documents/giraffmain/testbed[K]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell
+[36m❄impure [35m❯[m [38;5;189m[K[10C[?2004h[>4;1m[=5u=[?1004hj[11C[38;5;111mj[38;5;189m[11C[38;5;243m master_docker_campaign[38;5;189m[11C[38;5;111mu[38;5;189m[K[12C[38;5;211mju[38;5;189m[12C[38;5;243mst[38;5;189m[12C[38;5;211ms[38;5;243mt[38;5;189m[13C[38;5;211mt[38;5;189m[14C[38;5;111mjust[38;5;189m[14C[14C[38;5;111m [38;5;189m[15C[38;5;243mssh k9[38;5;189m[15C[38;5;111mr[38;5;189m[K[16C[38;5;224mr[38;5;189m[16C[?2004l[>4;0m[=0u>[?1004l[38;5;224mu[38;5;189m[17C[?2004h[>4;1m[=5u=[?1004h[K[16C[K[15C[38;5;111mm[38;5;189m[16C[38;5;224m[4mm[38;5;189m[24m[16C[38;5;243master_exec volodiapg test .experiments.env true[38;5;189m[16C[38;5;224m[4ma[38;5;243m[24mster_exec volodiapg test .experiments.env true[38;5;189m[17C[38;5;224m[4ms[38;5;243m[24mter_exec volodiapg test .experiments.env true[38;5;189m[18Cjust master_exec volodiapg test .experiments.env true[63C[53D[38;5;111mjust [38;5;224mmaster_exec volodiapg test [38;5;224m[4m.experiments.env[38;5;224m[24m true[38;5;189m[63C[63C[53D[K[10Cj[11C[38;5;111mj[38;5;189m[11C[38;5;243m master_docker_campaign[38;5;189m[11C[38;5;111mu[38;5;189m[K[12C[38;5;211mju[38;5;189m[12C[38;5;243mst[38;5;189m[12C[38;5;211ms[38;5;243mt[38;5;189m[13C[38;5;211mt[38;5;189m[14C[38;5;111mjust[38;5;189m[14C[14C[38;5;111m [38;5;189m[15C[38;5;243mssh k9[38;5;189m[15C[38;5;111mm[38;5;189m[K[16C[38;5;224m[4mm[38;5;189m[24m[16C[38;5;243master_exec volodiapg test .experiments.env true[38;5;189m[16C[38;5;224m[4ma[38;5;243m[24mster_exec volodiapg test .experiments.env true[38;5;189m[17C[38;5;224m[4ms[38;5;243m[24mter_exec volodiapg test .experiments.env true[38;5;189m[18C[38;5;224m[4mt[38;5;243m[24mer_exec volodiapg test .experiments.env true[38;5;189m[19C[38;5;224m[4mg[38;5;189m[24m[K[20C[38;5;224mmastg[38;5;189m[20C[38;5;224me[38;5;189m[21C[38;5;224mr[38;5;189m[22C[K[21C[K[20C[K[19C[38;5;224m[4mmast[38;5;189m[24m[19C[38;5;224m[4me[38;5;189m[24m[20C[38;5;243mr_exec volodiapg test .experiments.env true[38;5;189m[20C[38;5;224m[4mr[38;5;243m[24m_exec volodiapg test .experiments.env true[38;5;189m[21C[38;5;224m[4m_[38;5;243m[24mexec volodiapg test .experiments.env true[38;5;189m[22C[38;5;224mmaster_[38;5;243mexec volodiapg test .experiments.env true[38;5;189m[22C[38;5;224m`[38;5;189m[K[23C[K[22C[38;5;224md[38;5;189m[23C[38;5;224mi[38;5;189m[24C[38;5;224mo[38;5;189m[25C[K[24C[K[23C[38;5;224mi[38;5;189m[24C[38;5;224mo[38;5;189m[25C[K[24C[K[23C[38;5;224mo[38;5;189m[24C[38;5;224md[38;5;189m[25C[K[24C[38;5;224mc[38;5;189m[25C[38;5;224mk[38;5;189m[26C[?2004l[>4;0m[=0u>[?1004l[16Djust master_docker_campaign [38C[?2004h[>4;1m[=5u=[?1004h[28D[38;5;111mjust [38;5;224mmaster_docker_campaign [38;5;189m[38C
+[30m[m]133;C;cmdline_url=just%20master_docker_campaign%20[?2004l[>4;0m[=0u>[?1004l]0;~/Documents/giraffmain/testbed: just master_docker_campaign  - just[30m[m[30m[m[1mjust _docker_campaign_in_env valuation_rates .experiments.env .env[0m
+[37m2025-05-12_18:58:43[0m generate fog network parameters [32mOK[0m
+making expe dir /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV
+2025-05-12T18:58:44.654+0200	[33mWARN[0m	expe/main.go:792	Otel has not been init
+main.main
+	github.com/volodiapg/giraff/expe/main.go:792
+runtime.main
+	runtime/proc.go:272
+2025-05-12T18:58:44.654+0200	[35mDEBUG[0m	expe/main.go:800	Load/Save	{"saveFile": "/home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/requests.env.dev", "loadFile": ""}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.0502563071665494, "requestInterval": 9949, "duration": 41634, "arrival": 183}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.2010252286661976, "requestInterval": 9949, "duration": 41634, "arrival": 183}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.01005126143330988, "requestInterval": 9949, "duration": 41634, "arrival": 183}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.5573248407643312, "requestInterval": 6280, "duration": 42768, "arrival": 118}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.03184713375796178, "requestInterval": 6280, "duration": 42768, "arrival": 118}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.01592356687898089, "requestInterval": 6280, "duration": 42768, "arrival": 118}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.12306177701206006, "requestInterval": 4063, "duration": 46004, "arrival": 355}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.49224710804824023, "requestInterval": 4063, "duration": 46004, "arrival": 355}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.024612355402412012, "requestInterval": 4063, "duration": 46004, "arrival": 355}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.17882689556509299, "requestInterval": 19572, "duration": 46473, "arrival": 155}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.010218679746576743, "requestInterval": 19572, "duration": 46473, "arrival": 155}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.005109339873288371, "requestInterval": 19572, "duration": 46473, "arrival": 155}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.1427755568246716, "requestInterval": 3502, "duration": 42937, "arrival": 589}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.5711022272986864, "requestInterval": 3502, "duration": 42937, "arrival": 589}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.028555111364934323, "requestInterval": 3502, "duration": 42937, "arrival": 589}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.329908568196814, "requestInterval": 10609, "duration": 47339, "arrival": 271}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.018851918182675086, "requestInterval": 10609, "duration": 47339, "arrival": 271}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.009425959091337543, "requestInterval": 10609, "duration": 47339, "arrival": 271}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.2244165170556553, "requestInterval": 2228, "duration": 43972, "arrival": 50}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.8976660682226212, "requestInterval": 2228, "duration": 43972, "arrival": 50}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.04488330341113106, "requestInterval": 2228, "duration": 43972, "arrival": 50}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.3662237103693628, "requestInterval": 9557, "duration": 41864, "arrival": 34}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.020927069163963585, "requestInterval": 9557, "duration": 41864, "arrival": 34}
+2025-05-12T18:58:44.654+0200	[34mINFO[0m	expe/main.go:692	env	{"scalingRatio": 0.010463534581981793, "requestInterval": 9557, "duration": 41864, "arrival": 34}
+2025-05-12T18:58:44.655+0200	[34mINFO[0m	expe/main.go:745	Saving functionsmap[(giraff:fn_image_processing_pillow,giraff:fn_image_classification_squeezenet_cpu,giraff:fn_echo):4 (giraff:fn_speech_recognition,giraff:fn_sentiment_analysis,giraff:fn_echo):4]
+2025-05-12T18:58:44.655+0200	[34mINFO[0m	expe/main.go:748	Saved to/home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/requests.env.dev
+Agent pid 258834
+[37m2025-05-12_18:58:44[0m sync files with experiment container [33m...starting[0m
+[37m2025-05-12_18:58:52[0m sync files with experiment container [32mOK[0m
+LOAD_NET: /tmp/tmp.v0TVnRXlRn
+expe dir /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV
+Generating requests for all subsequent experiments...
+Deploying...
+Using image ghcr.io/volodiapg/giraff:fog_node-auction-quadratic_rates-no_complication and ghcr.io/volodiapg/giraff:market-default_strategy (exec #1; env .env.dev)
+REFRESH?: false
+INFO     Generate environment directory enos_2025-05-12_18-58-53                                                            task.py:63
+INFO     Symlink /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/enos_2025-05-12_18-58-53 to current     task.py:40
+INFO     - Task vagrant started -                                                                                          task.py:228
+==> enos-1-4: Removing domain...
+==> enos-1-4: Deleting the machine folder
+==> enos-1-3: Removing domain...
+==> enos-1-3: Deleting the machine folder
+==> enos-1-2: Removing domain...
+==> enos-1-2: Deleting the machine folder
+==> enos-1-1: Removing domain...
+==> enos-1-1: Deleting the machine folder
+==> enos-0: Removing domain...
+==> enos-0: Deleting the machine folder
+Bringing machine 'enos-0' up with 'libvirt' provider...
+Bringing machine 'enos-1-1' up with 'libvirt' provider...
+Bringing machine 'enos-1-2' up with 'libvirt' provider...
+Bringing machine 'enos-1-3' up with 'libvirt' provider...
+Bringing machine 'enos-1-4' up with 'libvirt' provider...
+==> enos-0: No version detected for giraffbox, using timestamp to watch for modifications. Consider
+==> enos-0: generating a local metadata for the box with a version to allow better handling.
+==> enos-0: See https://www.vagrantup.com/docs/boxes/format#box-metadata for further details.
+==> enos-1-4: No version detected for giraffbox, using timestamp to watch for modifications. Consider
+==> enos-1-4: generating a local metadata for the box with a version to allow better handling.
+==> enos-1-4: See https://www.vagrantup.com/docs/boxes/format#box-metadata for further details.
+==> enos-1-2: No version detected for giraffbox, using timestamp to watch for modifications. Consider
+==> enos-1-2: generating a local metadata for the box with a version to allow better handling.
+==> enos-1-2: See https://www.vagrantup.com/docs/boxes/format#box-metadata for further details.
+==> enos-1-4: Creating image (snapshot of base box volume).
+==> enos-1-4: Creating domain with the following settings...
+==> enos-1-1: No version detected for giraffbox, using timestamp to watch for modifications. Consider
+==> enos-1-1: generating a local metadata for the box with a version to allow better handling.
+==> enos-1-1: See https://www.vagrantup.com/docs/boxes/format#box-metadata for further details.
+==> enos-1-3: No version detected for giraffbox, using timestamp to watch for modifications. Consider
+==> enos-1-3: generating a local metadata for the box with a version to allow better handling.
+==> enos-1-3: See https://www.vagrantup.com/docs/boxes/format#box-metadata for further details.
+==> enos-1-2: Creating image (snapshot of base box volume).
+==> enos-0: Creating image (snapshot of base box volume).
+==> enos-1-4:  -- Name:              valuation_rates.env_DEV_enos-1-4
+==> enos-1-2: Creating domain with the following settings...
+==> enos-1-2:  -- Name:              valuation_rates.env_DEV_enos-1-2
+==> enos-1-2:  -- Description:       Source: /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/Vagrantfile
+==> enos-0: Creating domain with the following settings...
+==> enos-1-4:  -- Description:       Source: /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/Vagrantfile
+==> enos-1-3: Creating image (snapshot of base box volume).
+==> enos-1-1: Creating image (snapshot of base box volume).
+==> enos-1-2:  -- Domain type:       kvm
+==> enos-1-2:  -- Cpus:              2
+==> enos-1-2:  -- Feature:           acpi
+==> enos-1-2:  -- Feature:           apic
+==> enos-0:  -- Name:              valuation_rates.env_DEV_enos-0
+==> enos-1-2:  -- Feature:           pae
+==> enos-1-3: Creating domain with the following settings...
+==> enos-1-1: Creating domain with the following settings...
+==> enos-1-4:  -- Domain type:       kvm
+==> enos-0:  -- Description:       Source: /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/Vagrantfile
+==> enos-1-3:  -- Name:              valuation_rates.env_DEV_enos-1-3
+==> enos-1-2:  -- Clock offset:      utc
+==> enos-1-4:  -- Cpus:              2
+==> enos-1-4:  -- Feature:           acpi
+==> enos-1-3:  -- Description:       Source: /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/Vagrantfile
+==> enos-1-1:  -- Name:              valuation_rates.env_DEV_enos-1-1
+==> enos-0:  -- Domain type:       kvm
+==> enos-1-4:  -- Feature:           apic
+==> enos-1-1:  -- Description:       Source: /home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/Vagrantfile
+==> enos-1-1:  -- Domain type:       kvm
+==> enos-1-1:  -- Cpus:              2
+==> enos-1-1:  -- Feature:           acpi
+==> enos-1-1:  -- Feature:           apic
+==> enos-1-4:  -- Feature:           pae
+==> enos-1-4:  -- Clock offset:      utc
+==> enos-1-4:  -- Memory:            4096M
+==> enos-1-4:  -- Base box:          giraffbox
+==> enos-1-3:  -- Domain type:       kvm
+==> enos-1-2:  -- Memory:            4096M
+==> enos-1-3:  -- Cpus:              2
+==> enos-1-4:  -- Storage pool:      default
+==> enos-1-2:  -- Base box:          giraffbox
+==> enos-1-4:  -- Image(vda):        /var/lib/libvirt/images/valuation_rates.env_DEV_enos-1-4.img, virtio, 40G
+==> enos-1-1:  -- Feature:           pae
+==> enos-1-3:  -- Feature:           acpi
+==> enos-0:  -- Cpus:              2
+==> enos-1-2:  -- Storage pool:      default
+==> enos-1-4:  -- Disk driver opts:  cache='default'
+==> enos-0:  -- Feature:           acpi
+==> enos-1-1:  -- Clock offset:      utc
+==> enos-1-3:  -- Feature:           apic
+==> enos-0:  -- Feature:           apic
+==> enos-1-4:  -- Graphics Type:     vnc
+==> enos-1-2:  -- Image(vda):        /var/lib/libvirt/images/valuation_rates.env_DEV_enos-1-2.img, virtio, 40G
+==> enos-1-3:  -- Feature:           pae
+==> enos-1-2:  -- Disk driver opts:  cache='default'
+==> enos-1-4:  -- Video Type:        cirrus
+==> enos-1-1:  -- Memory:            4096M
+==> enos-0:  -- Feature:           pae
+==> enos-1-1:  -- Base box:          giraffbox
+==> enos-1-3:  -- Clock offset:      utc
+==> enos-1-2:  -- Graphics Type:     vnc
+==> enos-0:  -- Clock offset:      utc
+==> enos-1-4:  -- Video VRAM:        16384
+==> enos-0:  -- Memory:            4096M
+==> enos-0:  -- Base box:          giraffbox
+==> enos-1-4:  -- Video 3D accel:    false
+==> enos-1-2:  -- Video Type:        cirrus
+==> enos-0:  -- Storage pool:      default
+==> enos-1-3:  -- Memory:            4096M
+==> enos-1-1:  -- Storage pool:      default
+==> enos-1-4:  -- Keymap:            en-us
+==> enos-1-2:  -- Video VRAM:        16384
+==> enos-0:  -- Image(vda):        /var/lib/libvirt/images/valuation_rates.env_DEV_enos-0.img, virtio, 40G
+==> enos-0:  -- Disk driver opts:  cache='default'
+==> enos-0:  -- Graphics Type:     vnc
+==> enos-0:  -- Video Type:        cirrus
+==> enos-0:  -- Video VRAM:        16384
+==> enos-1-1:  -- Image(vda):        /var/lib/libvirt/images/valuation_rates.env_DEV_enos-1-1.img, virtio, 40G
+==> enos-1-2:  -- Video 3D accel:    false
+==> enos-1-4:  -- TPM Backend:       passthrough
+==> enos-0:  -- Video 3D accel:    false
+==> enos-1-3:  -- Base box:          giraffbox
+==> enos-1-1:  -- Disk driver opts:  cache='default'
+==> enos-1-2:  -- Keymap:            en-us
+==> enos-1-3:  -- Storage pool:      default
+==> enos-1-3:  -- Image(vda):        /var/lib/libvirt/images/valuation_rates.env_DEV_enos-1-3.img, virtio, 40G
+==> enos-1-4:  -- INPUT:             type=mouse, bus=ps2
+==> enos-1-1:  -- Graphics Type:     vnc
+==> enos-0:  -- Keymap:            en-us
+==> enos-1-2:  -- TPM Backend:       passthrough
+==> enos-1-3:  -- Disk driver opts:  cache='default'
+==> enos-1-2:  -- INPUT:             type=mouse, bus=ps2
+==> enos-1-1:  -- Video Type:        cirrus
+==> enos-1-1:  -- Video VRAM:        16384
+==> enos-0:  -- TPM Backend:       passthrough
+==> enos-1-3:  -- Graphics Type:     vnc
+==> enos-1-1:  -- Video 3D accel:    false
+==> enos-1-3:  -- Video Type:        cirrus
+==> enos-0:  -- INPUT:             type=mouse, bus=ps2
+==> enos-1-3:  -- Video VRAM:        16384
+==> enos-1-1:  -- Keymap:            en-us
+==> enos-1-1:  -- TPM Backend:       passthrough
+==> enos-1-3:  -- Video 3D accel:    false
+==> enos-1-1:  -- INPUT:             type=mouse, bus=ps2
+==> enos-1-3:  -- Keymap:            en-us
+==> enos-1-3:  -- TPM Backend:       passthrough
+==> enos-1-3:  -- INPUT:             type=mouse, bus=ps2
+==> enos-1-2: Creating shared folders metadata...
+==> enos-0: Creating shared folders metadata...
+==> enos-1-3: Creating shared folders metadata...
+==> enos-1-2: Starting domain.
+==> enos-1-3: Starting domain.
+==> enos-0: Starting domain.
+==> enos-1-2: Domain launching with graphics connection settings...
+==> enos-1-3: Domain launching with graphics connection settings...
+==> enos-1-2:  -- Graphics Port:      5905
+==> enos-0: Domain launching with graphics connection settings...
+==> enos-0:  -- Graphics Port:      5907
+==> enos-1-3:  -- Graphics Port:      5906
+==> enos-1-2:  -- Graphics IP:        127.0.0.1
+==> enos-1-2:  -- Graphics Password:  Not defined
+==> enos-0:  -- Graphics IP:        127.0.0.1
+==> enos-0:  -- Graphics Password:  Not defined
+==> enos-1-2:  -- Graphics Websocket: 5705
+==> enos-1-3:  -- Graphics IP:        127.0.0.1
+==> enos-0:  -- Graphics Websocket: 5707
+==> enos-1-2: Waiting for domain to get an IP address...
+==> enos-1-3:  -- Graphics Password:  Not defined
+==> enos-0: Waiting for domain to get an IP address...
+==> enos-1-3:  -- Graphics Websocket: 5706
+==> enos-1-3: Waiting for domain to get an IP address...
+==> enos-1-1: Creating shared folders metadata...
+==> enos-1-4: Creating shared folders metadata...
+==> enos-1-4: Starting domain.
+==> enos-1-1: Starting domain.
+==> enos-1-1: Domain launching with graphics connection settings...
+==> enos-1-4: Domain launching with graphics connection settings...
+==> enos-1-1:  -- Graphics Port:      5908
+==> enos-1-4:  -- Graphics Port:      5909
+==> enos-1-1:  -- Graphics IP:        127.0.0.1
+==> enos-1-1:  -- Graphics Password:  Not defined
+==> enos-1-4:  -- Graphics IP:        127.0.0.1
+==> enos-1-4:  -- Graphics Password:  Not defined
+==> enos-1-1:  -- Graphics Websocket: 5708
+==> enos-1-4:  -- Graphics Websocket: 5709
+==> enos-1-1: Waiting for domain to get an IP address...
+==> enos-1-4: Waiting for domain to get an IP address...
+==> enos-1-2: Waiting for machine to boot. This may take a few minutes...
+==> enos-0: Waiting for machine to boot. This may take a few minutes...
+==> enos-1-3: Waiting for machine to boot. This may take a few minutes...
+    enos-1-2: SSH address: 192.168.121.210:22
+    enos-1-2: SSH username: root
+    enos-1-3: SSH address: 192.168.121.170:22
+    enos-0: SSH address: 192.168.121.146:22
+    enos-1-2: SSH auth method: private key
+    enos-1-3: SSH username: root
+    enos-0: SSH username: root
+    enos-1-3: SSH auth method: private key
+    enos-0: SSH auth method: private key
+==> enos-1-4: Waiting for machine to boot. This may take a few minutes...
+    enos-1-4: SSH address: 192.168.121.25:22
+    enos-1-4: SSH username: root
+    enos-1-4: SSH auth method: private key
+    enos-1-2: Warning: Host unreachable. Retrying...
+    enos-1-4: Warning: Host unreachable. Retrying...
+    enos-1-3: Warning: Host unreachable. Retrying...
+    enos-0: Warning: Host unreachable. Retrying...
+==> enos-1-1: Waiting for machine to boot. This may take a few minutes...
+    enos-1-1: SSH address: 192.168.121.147:22
+    enos-1-1: SSH username: root
+    enos-1-1: SSH auth method: private key
+==> enos-1-2: Machine booted and ready!
+==> enos-1-2: Setting hostname...
+==> enos-0: Machine booted and ready!
+==> enos-0: Setting hostname...
+==> enos-1-3: Machine booted and ready!
+==> enos-1-3: Setting hostname...
+==> enos-1-4: Machine booted and ready!
+==> enos-1-4: Setting hostname...
+==> enos-1-1: Machine booted and ready!
+==> enos-1-1: Setting hostname...
+==> enos-1-2: Running provisioner: shell...
+==> enos-0: Running provisioner: shell...
+==> enos-1-3: Running provisioner: shell...
+    enos-1-2: Running: inline script
+    enos-0: Running: inline script
+    enos-1-3: Running: inline script
+==> enos-1-4: Running provisioner: shell...
+    enos-1-4: Running: inline script
+==> enos-1-1: Running provisioner: shell...
+    enos-1-1: Running: inline script
+==> enos-0: Running provisioner: shell...
+    enos-0: Running: inline script
+==> enos-1-1: Running provisioner: shell...
+    enos-1-1: Running: inline script
+==> enos-1-2: Running provisioner: shell...
+    enos-1-2: Running: inline script
+==> enos-1-3: Running provisioner: shell...
+    enos-1-3: Running: inline script
+==> enos-1-4: Running provisioner: shell...
+    enos-1-4: Running: inline script
+[WARNING]: Invalid characters were found in group names but not replaced, use
+-vvvv to see details
+I need 2 bare-metal nodes in total, running a total of 4 Fog node VMs
+INFO     - Task vagrant finished -                                                                                         task.py:230
+INFO     - Task iot_emulation started -                                                                                    task.py:228
+INFO     - Task iot_emulation finished -                                                                                   task.py:230
+INFO     - Task k3s_setup started -                                                                                        task.py:228
+Checking up on k3s and FaaS...
+INFO     - Task k3s_setup finished -                                                                                       task.py:230
+INFO     - Task k3s_deploy started -                                                                                       task.py:228
+INFO     - Task k3s_deploy finished -                                                                                      task.py:230
+INFO     - Task setup_registry started -                                                                                   task.py:228
+Copying from docker://ghcr.io/volodiapg/giraff:fn_echo to docker://192.168.121.25:5555/giraff:fn_echo
+Copying from docker://ghcr.io/volodiapg/giraff:fn_sentiment_analysis to docker://192.168.121.25:5555/giraff:fn_sentiment_analysis
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_classification_squeezenet_cpu to docker://192.168.121.25:5555/giraff:fn_image_classification_squeezenet_cpu
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_processing_pillow to docker://192.168.121.25:5555/giraff:fn_image_processing_pillow
+Copying from docker://ghcr.io/volodiapg/giraff:fn_speech_recognition to docker://192.168.121.25:5555/giraff:fn_speech_recognition
+Copying from docker://ghcr.io/volodiapg/giraff:fn_echo to docker://192.168.121.170:5555/giraff:fn_echo
+Copying from docker://ghcr.io/volodiapg/giraff:fn_sentiment_analysis to docker://192.168.121.170:5555/giraff:fn_sentiment_analysis
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_classification_squeezenet_cpu to docker://192.168.121.170:5555/giraff:fn_image_classification_squeezenet_cpu
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_processing_pillow to docker://192.168.121.170:5555/giraff:fn_image_processing_pillow
+Copying from docker://ghcr.io/volodiapg/giraff:fn_speech_recognition to docker://192.168.121.170:5555/giraff:fn_speech_recognition
+Copying from docker://ghcr.io/volodiapg/giraff:fn_echo to docker://192.168.121.210:5555/giraff:fn_echo
+Copying from docker://ghcr.io/volodiapg/giraff:fn_sentiment_analysis to docker://192.168.121.210:5555/giraff:fn_sentiment_analysis
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_classification_squeezenet_cpu to docker://192.168.121.210:5555/giraff:fn_image_classification_squeezenet_cpu
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_processing_pillow to docker://192.168.121.210:5555/giraff:fn_image_processing_pillow
+Copying from docker://ghcr.io/volodiapg/giraff:fn_speech_recognition to docker://192.168.121.210:5555/giraff:fn_speech_recognition
+Copying from docker://ghcr.io/volodiapg/giraff:fn_echo to docker://192.168.121.147:5555/giraff:fn_echo
+Copying from docker://ghcr.io/volodiapg/giraff:fn_sentiment_analysis to docker://192.168.121.147:5555/giraff:fn_sentiment_analysis
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_classification_squeezenet_cpu to docker://192.168.121.147:5555/giraff:fn_image_classification_squeezenet_cpu
+Copying from docker://ghcr.io/volodiapg/giraff:fn_image_processing_pillow to docker://192.168.121.147:5555/giraff:fn_image_processing_pillow
+Copying from docker://ghcr.io/volodiapg/giraff:fn_speech_recognition to docker://192.168.121.147:5555/giraff:fn_speech_recognition
+Successfully copied giraff:fn_echo
+Successfully copied giraff:fn_echo
+Successfully copied giraff:fn_echo
+Successfully copied giraff:fn_echo
+Successfully copied giraff:fn_sentiment_analysis
+Successfully copied giraff:fn_image_processing_pillow
+Successfully copied giraff:fn_sentiment_analysis
+Successfully copied giraff:fn_sentiment_analysis
+Successfully copied giraff:fn_speech_recognition
+Successfully copied giraff:fn_speech_recognition
+Successfully copied giraff:fn_sentiment_analysis
+Successfully copied giraff:fn_image_processing_pillow
+Successfully copied giraff:fn_image_processing_pillow
+Successfully copied giraff:fn_speech_recognition
+Successfully copied giraff:fn_image_processing_pillow
+Successfully copied giraff:fn_speech_recognition
+Timeout while copying giraff:fn_image_classification_squeezenet_cpu
+Retrying in 5 seconds...
+Timeout while copying giraff:fn_image_classification_squeezenet_cpu
+Retrying in 5 seconds...
+Timeout while copying giraff:fn_image_classification_squeezenet_cpu
+Retrying in 5 seconds...
+Timeout while copying giraff:fn_image_classification_squeezenet_cpu
+Retrying in 5 seconds...
+Successfully copied giraff:fn_image_classification_squeezenet_cpu
+Successfully copied giraff:fn_image_classification_squeezenet_cpu
+Successfully copied giraff:fn_image_classification_squeezenet_cpu
+Successfully copied giraff:fn_image_classification_squeezenet_cpu
+All uploads of functions to the internal container registry are done
+INFO     - Task setup_registry finished -                                                                                  task.py:230
+INFO     - Task market_ip started -                                                                                        task.py:228
+address: 192.168.121.25
+INFO     - Task market_ip finished -                                                                                       task.py:230
+[37m2025-05-12_19:07:08[0m verify fog interconnections [32mOK[0m
+Getting connection to node_3
+Getting connection to node_34
+got 2 ips
+python integration.py endpoints
+[37m2025-05-12_19:07:09[0m sleeping 60 secs [33m...starting[0m
+[37m2025-05-12_19:08:09[0m sleeping 60 secs [32mOK[0m
+experiment (.env.dev for 300 secs)
+2025-05-12T19:08:09.798+0200	[34mINFO[0m	expe/main.go:790	Initialized otel
+2025-05-12T19:08:09.798+0200	[35mDEBUG[0m	expe/main.go:800	Load/Save	{"saveFile": "", "loadFile": "/home/volodia/Documents/giraffmain/testbed/valuation_rates.env_DEV/requests.env.dev"}
+2025-05-12T19:08:09.798+0200	[34mINFO[0m	expe/main.go:811	Using Docker registry: 127.0.0.1:5555
+2025-05-12T19:08:09.798+0200	[34mINFO[0m	expe/main.go:812	Using market (192.168.121.25) and iot_emulation(192.168.121.146)
+2025-05-12T19:08:09.798+0200	[34mINFO[0m	expe/main.go:778	Using functionsmap[(giraff:fn_image_processing_pillow,giraff:fn_image_classification_squeezenet_cpu,giraff:fn_echo):4 (giraff:fn_speech_recognition,giraff:fn_sentiment_analysis,giraff:fn_echo):4]
+2025-05-12T19:08:43.803+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 34}
+2025-05-12T19:08:43.817+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:08:43.865+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:08:43.914+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:08:43.914+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "audioToText-i0-c1000-m1000-l174-a34-r9557-d41864,sentimentAnalysis-i0-c50-m100-l1432-a34-r9557-d41864,echo-i0-c10-m40-l978-a34-r9557-d41864"}
+2025-05-12T19:08:59.799+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 50}
+2025-05-12T19:08:59.808+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:08:59.813+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:08:59.863+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:08:59.863+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "imagePreProcessing-i0-c100-m120-l11379-a50-r2228-d43972,classif-i0-c600-m600-l349-a50-r2228-d43972,echo-i0-c10-m40-l520-a50-r2228-d43972"}
+2025-05-12T19:10:07.801+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 118}
+2025-05-12T19:10:07.809+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:10:07.816+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:10:07.822+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:10:07.822+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "audioToText-i0-c1000-m1000-l4-a118-r6280-d42768,sentimentAnalysis-i0-c50-m100-l29-a118-r6280-d42768,echo-i0-c10-m40-l22-a118-r6280-d42768"}
+2025-05-12T19:10:21.466+0200	[34mINFO[0m	expe/main.go:519	Provisioned	{"functions": "audioToText-i0-c1000-m1000-l4-a118-r6280-d42768,sentimentAnalysis-i0-c50-m100-l29-a118-r6280-d42768,echo-i0-c10-m40-l22-a118-r6280-d42768"}
+2025-05-12T19:10:23.474+0200	[34mINFO[0m	expe/main.go:537	Chained	{"functions": "audioToText-i0-c1000-m1000-l4-a118-r6280-d42768,sentimentAnalysis-i0-c50-m100-l29-a118-r6280-d42768,echo-i0-c10-m40-l22-a118-r6280-d42768"}
+2025-05-12T19:10:23.483+0200	[34mINFO[0m	expe/main.go:549	Registered cron	{"function_name": "audioToText-i0-c1000-m1000-l4-a118-r6280-d42768"}
+2025-05-12T19:10:42.314+0200	[33mWARN[0m	expe/main.go:515	Provisioning failed 500
+main.registerNewFunctions
+	github.com/volodiapg/giraff/expe/main.go:515
+main.doRequest
+	github.com/volodiapg/giraff/expe/main.go:556
+main.loadFile.func1
+	github.com/volodiapg/giraff/expe/main.go:639
+2025-05-12T19:10:44.799+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 155}
+2025-05-12T19:10:44.806+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:10:44.852+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:10:44.898+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:10:44.898+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "audioToText-i0-c1000-m1000-l3607-a155-r19572-d46473,sentimentAnalysis-i0-c50-m100-l739-a155-r19572-d46473,echo-i0-c10-m40-l385-a155-r19572-d46473"}
+2025-05-12T19:10:46.670+0200	[33mWARN[0m	expe/main.go:515	Provisioning failed 500
+main.registerNewFunctions
+	github.com/volodiapg/giraff/expe/main.go:515
+main.doRequest
+	github.com/volodiapg/giraff/expe/main.go:556
+main.loadFile.func1
+	github.com/volodiapg/giraff/expe/main.go:639
+2025-05-12T19:11:12.802+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 183}
+2025-05-12T19:11:12.808+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:11:12.814+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:11:12.819+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:11:12.819+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "imagePreProcessing-i0-c100-m120-l16-a183-r9949-d41634,classif-i0-c700-m800-l91-a183-r9949-d41634,echo-i0-c10-m40-l132-a183-r9949-d41634"}
+2025-05-12T19:11:21.722+0200	[34mINFO[0m	expe/main.go:519	Provisioned	{"functions": "audioToText-i0-c1000-m1000-l3607-a155-r19572-d46473,sentimentAnalysis-i0-c50-m100-l739-a155-r19572-d46473,echo-i0-c10-m40-l385-a155-r19572-d46473"}
+2025-05-12T19:11:23.730+0200	[34mINFO[0m	expe/main.go:537	Chained	{"functions": "audioToText-i0-c1000-m1000-l3607-a155-r19572-d46473,sentimentAnalysis-i0-c50-m100-l739-a155-r19572-d46473,echo-i0-c10-m40-l385-a155-r19572-d46473"}
+2025-05-12T19:11:23.731+0200	[34mINFO[0m	expe/main.go:549	Registered cron	{"function_name": "audioToText-i0-c1000-m1000-l3607-a155-r19572-d46473"}
+2025-05-12T19:11:45.382+0200	[34mINFO[0m	expe/main.go:519	Provisioned	{"functions": "imagePreProcessing-i0-c100-m120-l16-a183-r9949-d41634,classif-i0-c700-m800-l91-a183-r9949-d41634,echo-i0-c10-m40-l132-a183-r9949-d41634"}
+2025-05-12T19:11:47.389+0200	[34mINFO[0m	expe/main.go:537	Chained	{"functions": "imagePreProcessing-i0-c100-m120-l16-a183-r9949-d41634,classif-i0-c700-m800-l91-a183-r9949-d41634,echo-i0-c10-m40-l132-a183-r9949-d41634"}
+2025-05-12T19:11:47.390+0200	[34mINFO[0m	expe/main.go:549	Registered cron	{"function_name": "imagePreProcessing-i0-c100-m120-l16-a183-r9949-d41634"}
+2025-05-12T19:12:40.800+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 271}
+2025-05-12T19:12:40.809+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:12:40.857+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:12:40.865+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:12:40.865+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "audioToText-i0-c1000-m1000-l19-a271-r10609-d47339,sentimentAnalysis-i0-c50-m100-l8-a271-r10609-d47339,echo-i0-c10-m40-l250-a271-r10609-d47339"}
+2025-05-12T19:12:52.631+0200	[34mINFO[0m	expe/main.go:519	Provisioned	{"functions": "audioToText-i0-c1000-m1000-l19-a271-r10609-d47339,sentimentAnalysis-i0-c50-m100-l8-a271-r10609-d47339,echo-i0-c10-m40-l250-a271-r10609-d47339"}
+2025-05-12T19:12:54.639+0200	[34mINFO[0m	expe/main.go:537	Chained	{"functions": "audioToText-i0-c1000-m1000-l19-a271-r10609-d47339,sentimentAnalysis-i0-c50-m100-l8-a271-r10609-d47339,echo-i0-c10-m40-l250-a271-r10609-d47339"}
+2025-05-12T19:12:54.639+0200	[34mINFO[0m	expe/main.go:549	Registered cron	{"function_name": "audioToText-i0-c1000-m1000-l19-a271-r10609-d47339"}
+2025-05-12T19:14:04.803+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 355}
+2025-05-12T19:14:04.810+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:14:04.859+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:14:04.905+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:14:04.905+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "imagePreProcessing-i0-c100-m120-l18870-a355-r4063-d46004,classif-i0-c600-m600-l242-a355-r4063-d46004,echo-i0-c10-m40-l13-a355-r4063-d46004"}
+2025-05-12T19:15:48.803+0200	[33mWARN[0m	expe/main.go:515	Provisioning failed 500
+main.registerNewFunctions
+	github.com/volodiapg/giraff/expe/main.go:515
+main.doRequest
+	github.com/volodiapg/giraff/expe/main.go:556
+main.loadFile.func1
+	github.com/volodiapg/giraff/expe/main.go:639
+2025-05-12T19:17:58.802+0200	[34mINFO[0m	expe/main.go:459	Starting requests	{"waited_for": 589}
+2025-05-12T19:17:58.809+0200	[34mINFO[0m	expe/main.go:493	Reserving... 1/3
+2025-05-12T19:17:58.855+0200	[34mINFO[0m	expe/main.go:493	Reserving... 2/3
+2025-05-12T19:17:58.861+0200	[34mINFO[0m	expe/main.go:493	Reserving... 3/3
+2025-05-12T19:17:58.861+0200	[34mINFO[0m	expe/main.go:495	Reserved	{"functions": "imagePreProcessing-i0-c100-m120-l24-a589-r3502-d42937,classif-i0-c700-m800-l53-a589-r3502-d42937,echo-i0-c10-m40-l171-a589-r3502-d42937"}
+2025-05-12T19:18:05.190+0200	[34mINFO[0m	expe/main.go:519	Provisioned	{"functions": "imagePreProcessing-i0-c100-m120-l24-a589-r3502-d42937,classif-i0-c700-m800-l53-a589-r3502-d42937,echo-i0-c10-m40-l171-a589-r3502-d42937"}
+2025-05-12T19:18:07.200+0200	[34mINFO[0m	expe/main.go:537	Chained	{"functions": "imagePreProcessing-i0-c100-m120-l24-a589-r3502-d42937,classif-i0-c700-m800-l53-a589-r3502-d42937,echo-i0-c10-m40-l171-a589-r3502-d42937"}
+2025-05-12T19:18:07.210+0200	[34mINFO[0m	expe/main.go:549	Registered cron	{"function_name": "imagePreProcessing-i0-c100-m120-l24-a589-r3502-d42937"}
+2025-05-12T19:18:07.210+0200	[34mINFO[0m	expe/main.go:814	--> Did 5, failed to provision 3 functions.
+[37m2025-05-12_19:18:07[0m sleeping 0 secs [32mOK[0m
+INFO     - Task _collect started -                                                                                         task.py:228
+INFO     - Task _collect finished -                                                                                        task.py:230
+{'function_deployment_duration', 'provisioned_function_gauge', 'neighbor_latency', 'proxy', 'bid_gauge', 'provisioned_functions', 'paid_functions', 'memory_observed_from_platform', 'cpu_observed_from_platform', 'sla_seen', 'cpu_observed_from_fog_node', 'memory_observed_from_fog_node'}
+INFO     - Task aliases started -                                                                                          task.py:228
+INFO     - Task aliases finished -                                                                                         task.py:230
+Finished writing archive metrics-arks/metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-12-19-18.tar.xz
+[37m2025-05-12_19:18:08[0m sleeping 60 secs [33m...starting[0m
+[37m2025-05-12_19:19:08[0m sleeping 60 secs [32mOK[0m
+DEV activated ; waiting indefinitely
+^C]133;D;130[?25h[2m⏎[m                                                                                                                                     ⏎ [K[K
+[K
+]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell [33m21m 48s
+[36m❄impure [31m❯[m [38;5;189m[K[10C[?2004h[>4;1m[=5u=[?1004h
+[30m[m[30m[m[?2004l[>4;0m[=0u>[?1004l
+Script done on 2025-05-12 19:20:33+02:00 [COMMAND_EXIT_CODE="0"]

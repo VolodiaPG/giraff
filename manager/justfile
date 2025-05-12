@@ -6,6 +6,7 @@ DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
 PROMETHEUS_PORT := "3090"
 PROMETHEUS_PORT_PUSH := "3091"
+COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff")
 
 # Default command when no verb specified
 _default:
@@ -287,7 +288,7 @@ expe localhost_ip OFFLINE_MODE="false":
 
 _ghcr user image:
     #!/usr/bin/env bash
-    output=`$(nix build ".#{{ image }}" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/giraff:{{ image }} 2>&1`
+    output=`$(nix build ".#{{ image }}" --print-out-paths --no-link --quiet) | gzip --fast -q | skopeo --insecure-policy copy -q docker-archive:/dev/stdin docker://ghcr.io/{{ user }}/{{ COMMON_IMAGE_NAME }}:{{ image }} 2>&1`
     retVal=$?
     if [ $retVal -ne 0 ]; then
       echo -e "[{{ file_name(justfile_directory()) }}] {{ image }} \033[31mFAILED\033[0m"
