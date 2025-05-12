@@ -74,11 +74,10 @@ METRICS_ARKS <- c(
   "metrics_valuation_rates.env_1_1730742431-fog_node-edge_ward-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-11-04-21-39.tar.xz",
   "metrics_valuation_rates.env_1_1730742431-fog_node-mincpurandom-quadratic_rates-no_complication-market-mincpurandom-.env.1_2024-11-04-21-03.tar.xz",
 
-  #
   #---
   #---
   #---
-  "last element that is here because last element should not have any comma in the end and that sucks hard time."
+  "last element that is here because last element should not have any comma in the end"
 )
 METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
 

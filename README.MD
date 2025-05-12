@@ -113,7 +113,7 @@ Here is an overview of the content of this repo:
     builders-use-substitutes = true
     trusted-useres = root <YOUR USERNAME>
     ```
-    > This enables commands such as `nix develop`, multithreading, bigger logs and the usage of the projet's [cachix](https://giraff.cachix.org) cache
+    > This enables commands such as `nix develop` without the additional options , multithreading, bigger logs and the usage of the projet's [cachix](https://giraff.cachix.org) cache
 3. (optional) install direnv to simplify navigating the project and loading
 dependenies
 4. All usual commands can be found in the justfiles, just type `just --list`
@@ -122,11 +122,19 @@ dependenies
 
 ### Running the experiments
 
-One should have the libvirt daemon (libvirtd) running. The following steps are
+One should have the libvirt daemon (libvirtd) running with kvm acceleration. The following steps are
 going to run multiple VMs using Vagrant to emulate Fog nodes. The setup is much
 lower scale than in the real experiments (3 VMs instead of 663), but still
 consumes a lot of RAM.
 
+From the root of the project,
+1. cd inot `testbed/iso`
+2. run `nix develop --extra-experimental-features "nix-command flakes" .#iso`
+3. run `just build-vagrant` to create the VMs template to use locally. The
+command should terminate with a message indicating the successful installation
+of the "vagrant box" into ~/.vagrant.d/boxes/giraffbox/0/libvirt/Z
+
+From the root of the project,
 1. cd into `testbed`
 2. run `just master_docker_campaign` to start vagrant and run automatically the
 experiments
@@ -145,11 +153,11 @@ Inside a VM, the command `k9` will open the status of the k3s cluster.
 
 ### Graphing the results
 
-1. cd into `testbed`
-2. cd into `mining`
+1. cd into `testbed/mining`
+2. run `nix develop --extra-experimental-features "nix-command flakes" .#mining`
 3. From there, 3 shells are required for the following commands: `just logs`,
 `just watch`, `just serve`.`
-4. To ghraph the results, edit the `config.R` file and in the `METRICS_ARKS`
+4. To graph the results, edit the `config.R` file and in the `METRICS_ARKS`
 variable, replace the first elements until the comments to paste your results.
 5. Logs should appear in the two first shells opened, ending with a green OK
 message.
