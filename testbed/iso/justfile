@@ -16,6 +16,45 @@ build-vm:
     script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.node_vm.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
     $script_vm --build-memory 4096
 
+
+build-vagrant:
+    #!/usr/bin/env bash
+    set -e
+    rm -f ./sda.raw || true
+    script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.vagrant.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
+    $script_vm --build-memory 6096
+
+    mkdir -p .vagrant
+    qemu-img convert -c -f raw -O qcow2 sda.raw .vagrant/sda.qcow2
+    mv .vagrant/sda.qcow2 .vagrant/box.img
+    cat <<EOF > .vagrant/metadata.json
+    {
+       "provider"     : "libvirt",
+       "format"       : "qcow2",
+       "virtual_size" : 40
+    }
+    EOF
+    cat <<EOF > .vagrant/Vagrantfile
+    Vagrant.configure("2") do |config|
+             config.vm.provider :libvirt do |libvirt|
+             libvirt.driver = "kvm"
+             libvirt.host = 'localhost'
+             libvirt.uri = 'qemu:///system'
+             end
+    config.vm.define "new" do |giraffbox|
+             giraffbox.vm.box = "giraffbox"
+             giraffbox.vm.provider :libvirt do |test|
+             test.memory = 1024
+             test.cpus = 1
+             end
+             end
+    end
+    EOF
+    echo "Installing directly the box into ~/.vagrant.d/boxes/giraffbox/0/libvirt/"
+    mkdir -p ~/.vagrant.d/boxes/giraffbox/0/libvirt/
+    cp -r .vagrant/* ~/.vagrant.d/boxes/giraffbox/0/libvirt/
+
+
 update:
     nix flake update --experimental-features "nix-command flakes"
 

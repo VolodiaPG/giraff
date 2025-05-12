@@ -59,8 +59,6 @@ Our auctions let Fog nodes independently put a price on candidate functions to r
 
 Key features of Global Integration of Reverse Auctions and Fog Functions (**GIRAFF**):
 
-- Standard stack (Kubernetes, OpenFaaS)
-- Efficient programming in Rust to enable effective collaboration (also cross-compiling in the future?)
 - Nix to reproduce scientifically the experiments and maintain the same development environment for everyone
 - Functions to deploy
 - [Grid’5000](https://www.grid5000.fr/w/Grid5000:Home) support thanks to [EnosLib](https://discovery.gitlabpages.inria.fr/enoslib/)
@@ -80,13 +78,16 @@ A thesis is being financed by the «Centre INRIA de l’Université de Rennes» 
 - Nix
 - Rust
 - Go
+- Python
 - Kubernetes (K3S)
-- OpenFaaS
+- OpenFaaS (do not use in the future)
 - EnosLib
 
 ## Getting Started
 
 This repo uses extensively [`just`](https://github.com/casey/just) as a powerful CLI facilitator.
+
+.git should be present to allow nix to work properly.
 
 ### Overview
 
@@ -103,8 +104,7 @@ Here is an overview of the content of this repo:
 ### Prerequisites
 
 1. Install [Nix](https://nixos.org/download#download-nix)
-    > [Nix portable](https://github.com/DavHau/nix-portable) is not officially supported, however it may be enough to explore the project without installing Nix
-2. Append to /etc/nix/nix.conf:
+2. (optional) Append to /etc/nix/nix.conf:
     ```nix
     extra-experimental-features = nix-command flakes
     max-jobs = auto
@@ -114,10 +114,47 @@ Here is an overview of the content of this repo:
     trusted-useres = root <YOUR USERNAME>
     ```
     > This enables commands such as `nix develop`, multithreading, bigger logs and the usage of the projet's [cachix](https://giraff.cachix.org) cache
-3. `nix develop` (or configure direnv)
+3. (optional) install direnv to simplify navigating the project and loading
+dependenies
 4. All usual commands can be found in the justfiles, just type `just --list`
 
 > These commands work when `flake.nix` and `justfile` are present in the current directory you are in.
+
+### Running the experiments
+
+One should have the libvirt daemon (libvirtd) running. The following steps are
+going to run multiple VMs using Vagrant to emulate Fog nodes. The setup is much
+lower scale than in the real experiments (3 VMs instead of 663), but still
+consumes a lot of RAM.
+
+1. cd into `testbed`
+2. run `just master_docker_campaign` to start vagrant and run automatically the
+experiments
+3. Results are available in `metrics-arks`.
+4. You may also copy the name of the tar.gz files printed out in the logs to
+input the next section.
+
+Currently, Vagrant and enoslib do not support setting up networking with rate
+limiting and adding delays. Thus these aspect can only be reproduced on Grid5000.
+
+To observe the VMs, one can use the `vagrant ssh ...` command to connect
+to the master node. Names are logged when the VMs are started, and can also be
+found with the `vagrant global-status` command.
+
+Inside a VM, the command `k9` will open the status of the k3s cluster.
+
+### Graphing the results
+
+1. cd into `testbed`
+2. cd into `mining`
+3. From there, 3 shells are required for the following commands: `just logs`,
+`just watch`, `just serve`.`
+4. To ghraph the results, edit the `config.R` file and in the `METRICS_ARKS`
+variable, replace the first elements until the comments to paste your results.
+5. Logs should appear in the two first shells opened, ending with a green OK
+message.
+6. To access the graphs in the paper, open the url `http://localhost:9000` in a
+browser. There, you may find a list of graphs to interact with.
 
 ### Software
 

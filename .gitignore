@@ -16,6 +16,10 @@ cachedir/
 .idea/
 out.*
 tmp*
+*.tmp
+.vagrant/
+valuation*/
+Vagrantfile
 
 # template
 

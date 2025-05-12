@@ -15,6 +15,8 @@
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = "yes";
+      Restart = "on-failure";
+      RestartSec = "3";
     };
   };
 

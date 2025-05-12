@@ -231,7 +231,7 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(node_levels, bids
 # export_graph("output_non_respected", mem(output_non_respected)(respected_sla, functions_all_total, node_levels))
 
 #
-graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
+# graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
 
 graph_output_mean_respected_slas <- export_graph("output_mean_respected_slas", output_mean_respected_slas(accetable_sla, node_levels))
 graph_output_mean_deployment_time <- export_graph("output_mean_deployment_times", output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla))

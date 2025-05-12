@@ -17,6 +17,10 @@
             pkgs = import nixpkgs {
               inherit system;
               overlays = [overlay];
+              config.allowUnfreePredicate = pkg:
+                builtins.elem (nixpkgs.lib.getName pkg) [
+                  "vagrant"
+                ];
             };
             overlay = final: prev: {
               pythonPackagesExtensions =
@@ -103,6 +107,7 @@
                     packaging
                     pytz
                     importlib-resources
+                    python-vagrant
                     # Pakcaged by me
                     python-grid5000
                     ansible-core
@@ -152,13 +157,19 @@
                 rsync
                 moreutils # sponge is useful for buffering large cmd outs
                 skopeo
+                vagrant
               ];
             };
           }
         ))
         (flake-utils.lib.eachSystem ["x86_64-linux" "aarch64-linux"] (system: let
-          pkgs = nixpkgs.legacyPackages.${system};
-
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfreePredicate = pkg:
+              builtins.elem (nixpkgs.lib.getName pkg) [
+                "vagrant"
+              ];
+          };
           basis = pkgs.dockerTools.buildImage {
             name = "enos_deployment_base";
             tag = "latest";

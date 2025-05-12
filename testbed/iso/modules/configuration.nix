@@ -69,6 +69,5 @@
       RestartSec = "3";
     };
   };
-
   system.stateVersion = "22.05"; # Do not change
 }

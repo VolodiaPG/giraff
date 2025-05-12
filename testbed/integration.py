@@ -43,7 +43,6 @@ from definitions import (
     gen_net,
     gen_vm_conf,
 )
-from emul.bpf import NetemBPF
 from function import load_function_descriptions, push_functions_to_registry
 
 EnosEnv = Optional[dict[str, Any]]
@@ -107,12 +106,16 @@ def log_cmd(env, results_list):
     os.symlink(path, f"{prefix_simlink}/logs-latest")
     aliases = {}
     for results in results_list:
-        for data in results.filter(status=STATUS_OK) + results.filter(status=STATUS_FAILED):
+        for data in results.filter(status=STATUS_OK) + results.filter(
+            status=STATUS_FAILED
+        ):
             host = data.host
             data = data.payload
             alias_name = get_aliases(env).get(host, host)
             aliases[alias_name] = aliases.get(alias_name, -1) + 1
-            alias_name = alias_name + ("" if aliases[alias_name] == 0 else "." + str(aliases[alias_name]))
+            alias_name = alias_name + (
+                "" if aliases[alias_name] == 0 else "." + str(aliases[alias_name])
+            )
 
             if data["stdout"]:
                 # print(data["stdout"])
@@ -139,14 +142,18 @@ def log_cmd(env, results_list):
 
 
 def open_tunnel(address, port, local_port=None, rest_of_url=""):
-    print(f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}")
+    print(
+        f"doing tunnels for {address}:{port} -> http://127.0.0.1:{local_port}{rest_of_url}"
+    )
     if local_port is None:
         local_port = port
     for i in range(5):
         try:
             tunnel = en.G5kTunnel(address=address, port=port, local_port=local_port)
             local_address, local_port, _ = tunnel.start()
-            print(f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}")
+            print(
+                f"tunnel opened: {port} -> http://127.0.0.1:{local_port}{rest_of_url}"
+            )
             return local_address, local_port
         except Exception as e:
             if i == 4:
@@ -197,14 +204,24 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
 
             if core_used > nb_cpu_per_host or mem_used > mem_total_per_host:
                 if nb_vms == 0:
-                    raise Exception("The VM requires more resources than the node can provide")
-
-                conf.add_machine(
-                    roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
-                    cluster=cluster,
-                    number=nb_vms,
-                    flavour_desc={"mem": mem, "core": core},
-                )
+                    raise Exception(
+                        "The VM requires more resources than the node can provide"
+                    )
+                if cluster == "vagrant":
+                    conf.add_machine(
+                        roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
+                        box="giraffbox",
+                        number=nb_vms,
+                        user="root",
+                        flavour_desc={"mem": mem, "core": core},
+                    )
+                else:
+                    conf.add_machine(
+                        roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node"
+                        cluster=cluster,
+                        number=nb_vms,
+                        flavour_desc={"mem": mem, "core": core},
+                    )
                 core_used = 0
                 mem_used = 0
                 nb_vms = 0
@@ -215,12 +232,21 @@ def assign_vm_to_hosts(node, conf, cluster, nb_cpu_per_host, mem_total_per_host)
 
         # Still an assignation left?
         if nb_vms > 0:
-            conf.add_machine(
-                roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node",
-                cluster=cluster,
-                number=nb_vms,
-                flavour_desc={"mem": mem, "core": core},
-            )
+            if cluster == "vagrant":
+                conf.add_machine(
+                    roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node",
+                    box="giraffbox",
+                    user="root",
+                    number=nb_vms,
+                    flavour_desc={"mem": mem, "core": core},
+                )
+            else:
+                conf.add_machine(
+                    roles=["master", "prom_agent", vm_id, "ssh"],  # "fog_node",
+                    cluster=cluster,
+                    number=nb_vms,
+                    flavour_desc={"mem": mem, "core": core},
+                )
 
     return attributions
 
@@ -286,10 +312,12 @@ def up(
 
     print(f"Deploying on {cluster}, force: {force}")
 
+    username = en.g5k_api_utils.get_api_username()
+
     conf = en.VMonG5kConf.from_settings(
         job_name=name,
         walltime=walltime,
-        image="/home/volparolguarino/nixos.qcow2",
+        image=f"/home/{username}/nixos.qcow2",
         reservation=os.environ["RESERVATION"] if "RESERVATION" in os.environ else None,
         # gateway=True,
     ).add_machine(
@@ -299,11 +327,15 @@ def up(
         flavour_desc={"core": nb_cpu_per_machine, "mem": mem_per_machine},
     )
 
-    assignations = assign_vm_to_hosts(NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine)
+    assignations = assign_vm_to_hosts(
+        NETWORK, conf, cluster, nb_cpu_per_machine, mem_per_machine
+    )
 
     env["assignations"] = assignations
 
-    print(f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs")
+    print(
+        f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs"
+    )
 
     conf.finalize()
 
@@ -321,7 +353,6 @@ def up(
 
     en.g5k_api_utils.enable_home_for_job(job, ips)
 
-    username = en.g5k_api_utils.get_api_username()
     print(f"Mounting home of {username} on ips {ips}")
 
     roles = en.sync_info(roles, networks)
@@ -335,7 +366,13 @@ def up(
     env["roles"] = roles
     env["networks"] = networks
 
-    set_sshx(env)
+    with actions(
+        roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
+        p.shell(
+            'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
+            task_name="Setting names",
+        )
 
 
 def clear_directory(path):
@@ -354,6 +391,84 @@ def clear_directory(path):
                     shutil.rmtree(file_path)
             except Exception as e:
                 print(f"Failed to delete {file_path}. Reason: {e}")
+
+
+@cli.command()  # type: ignore
+@click.option("--force", is_flag=True, help="destroy and up")
+@click.option("--dry-run", is_flag=True, help="Do not reserve")
+@enostask(new=True)
+def vagrant(
+    force,
+    dry_run=False,
+    env: EnosEnv = None,
+    **kwargs,
+):
+    """Claim the resources and setup k3s."""
+    if env is None:
+        print("env is None")
+        exit(1)
+    env["NAME"] = "vagrant"
+    nb_cpu_per_machine = os.cpu_count()
+    mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    mem_per_machine = mem_bytes / (1024.0**2)
+    conf = en.VagrantConf.from_settings(
+        # image=f"{os.path.dirname(os.path.realpath(__file__))}/iso/sda.raw",
+        box="giraffbox",
+        user="root",
+        config_extra=(
+            "config.ssh.insert_key = false\n"
+            'config.ssh.username = "root"\n'
+            "config.vm.hostname = nil\n"
+            'config.vm.synced_folder ".", "/vagrant", disabled: true\n'
+        ),
+    ).add_machine(
+        roles=["prom_agent", "iot_emulation", "ssh"],
+        box="giraffbox",
+        user="root",
+        number=1,
+        flavour_desc={"core": 2, "mem": 1024 * 4},
+    )
+
+    assignations = assign_vm_to_hosts(
+        NETWORK, conf, "vagrant", nb_cpu_per_machine, mem_per_machine
+    )
+
+    env["assignations"] = assignations
+
+    print(
+        f"I need {len(conf.machines)} bare-metal nodes in total, running a total of {len(assignations)} Fog node VMs"
+    )
+
+    conf.finalize()
+
+    if dry_run:
+        return
+
+    provider = en.Vagrant(conf)
+    env["provider"] = provider
+
+    roles, networks = provider.init(force_deploy=force)
+
+    [vm.address for vm in roles["ssh"]]
+
+    roles = en.sync_info(roles, networks)
+
+    en.wait_for(roles)
+
+    attributes_roles(assignations, roles)
+
+    roles = en.sync_info(roles, networks)
+
+    env["roles"] = roles
+    env["networks"] = networks
+
+    with actions(
+        roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
+        p.shell(
+            'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
+            task_name="Setting names",
+        )
 
 
 @cli.command()  # type: ignore
@@ -421,44 +536,6 @@ def check_rebooted(env: EnosEnv):
         )
 
 
-def set_sshx(env: EnosEnv):
-    if env is None:
-        print("env is None")
-        exit(1)
-
-    # assignations = env["assignations"]
-    roles = env["roles"]
-
-    # for role in roles["market"]:
-    #    role.set_extra(my_name="market")
-    # concerned_roles = roles["market"]
-
-    # for role in roles["iot_emulation"]:
-    #    role.set_extra(my_name="iot_emulation")
-    # concerned_roles += roles["iot_emulation"]
-
-    # for vm_name in assignations.keys():
-    #    for role in roles[vm_name]:
-    #        role.set_extra(my_name=vm_name)
-    #    concerned_roles += roles[vm_name]
-
-    # with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
-    #    p.shell(
-    #        f'rm -rf "/nfs/sshx/{env["NAME"]}" || true',
-    #        task_name="Clearing sshx folder",
-    #    )
-    # with actions(roles=concerned_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
-    #   p.shell(
-    #        'echo "' + env["NAME"] + '" > /my_group; echo "{{ my_name }}" > /my_name',
-    #        task_name="Setting names",
-    #    )
-    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
-        p.shell(
-            'echo "' + env["NAME"] + '" > /my_group; echo "iot_emulation" > /my_name',
-            task_name="Setting names",
-        )
-
-
 @cli.command()  # type: ignore
 @enostask()
 def k3s_setup(env: EnosEnv = None):
@@ -468,7 +545,9 @@ def k3s_setup(env: EnosEnv = None):
     roles = env["roles"]
     print("Checking up on k3s and FaaS...")
 
-    with actions(roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["master"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
             (
                 f"""export KUBECONFIG={KUBECONFIG_LOCATION_K3S} \
@@ -506,7 +585,9 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
         exit(1)
     roles = env["roles"]
     # Deploy the echo node
-    with actions(roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["iot_emulation"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
             """(docker stop iot_emulation || true) \
                 && (docker rm iot_emulation || true) \
@@ -554,7 +635,8 @@ def network(env: EnosEnv = None):
         print("env is None")
         exit(1)
 
-    net = NetemBPF()
+    # net =NetemBPF()
+    net = en.NetemHTB()
     env["netem"] = net
     roles = env["roles"]
 
@@ -563,7 +645,7 @@ def network(env: EnosEnv = None):
             src=roles[source],
             dest=roles[destination],
             delay=delay,
-            # rate = 1_000_000_000, # BPS
+            # rate=1_000_000_000,  # BPS
             rate=rate,  # BPS
             symmetric=True,
         )
@@ -571,7 +653,8 @@ def network(env: EnosEnv = None):
     gen_net(NETWORK, add_netem_cb)
 
     print("deploying network")
-    net.deploy(chunk_size=25)
+    # net.deploy(chunk_size=25)
+    net.deploy()
     print("validating network")
     net.validate()
 
@@ -600,7 +683,9 @@ def aliases(env: EnosEnv = None, **kwargs):
 def gen_conf(node, parent_id, parent_ip, ids):
     (my_id, my_ip) = ids[node["name"]]
     # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
-    max_in_flight_functions_proposals = math.ceil(int(node["flavor"]["reserved_mem"]) / 100)
+    max_in_flight_functions_proposals = math.ceil(
+        int(node["flavor"]["reserved_mem"]) / 100
+    )
     conf = NODE_CONNECTED_NODE.format(
         parent_id=parent_id,
         parent_ip=parent_ip,
@@ -651,7 +736,9 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
     market_id = uuid.uuid4()
     market_ip = roles[NETWORK["name"]][0].address
     # Let the in flight bidding request be the number of 100 Megs functions size would take to fill all
-    max_in_flight_functions_proposals = math.ceil(int(NETWORK["flavor"]["reserved_mem"]) / 100)
+    max_in_flight_functions_proposals = math.ceil(
+        int(NETWORK["flavor"]["reserved_mem"]) / 100
+    )
     confs = [
         (
             NETWORK["name"],
@@ -672,7 +759,10 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         flatten(
             [
                 *confs,
-                *[gen_conf(child, market_id, market_ip, ids) for child in NETWORK["children"]],
+                *[
+                    gen_conf(child, market_id, market_ip, ids)
+                    for child in NETWORK["children"]
+                ],
             ]
         )
     )
@@ -691,7 +781,12 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
             enable_collector="true" if os.environ["DEV"] == "true" else "false",
-            is_cloud="is_cloud" if tier_flavor.get("is_cloud") is not None and tier_flavor.get("is_cloud") is True else "no_cloud",
+            is_cloud=(
+                "is_cloud"
+                if tier_flavor.get("is_cloud") is not None
+                and tier_flavor.get("is_cloud") is True
+                else "no_cloud"
+            ),
             additional_env_vars=additional_env_vars,
             rust_log=rust_log,
         )
@@ -713,14 +808,22 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
 
     with actions(roles=fog_node_roles, gather_facts=False, strategy=STRATEGY_FREE) as p:
         p.shell(
-            "cat << EOF > /tmp/node_conf.yaml\n" "{{ fog_node_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/node_conf.yaml",
+            "cat << EOF > /tmp/node_conf.yaml\n"
+            "{{ fog_node_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/node_conf.yaml",
             # roles=roles["master"],
             task_name="Deploying fog_node software",
         )
 
-    with actions(roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE) as p:
+    with actions(
+        roles=roles["market"], gather_facts=False, strategy=STRATEGY_FREE
+    ) as p:
         p.shell(
-            "cat << EOF > /tmp/market.yaml\n" "{{ market_deployment }}\n" "EOF\n" "k3s kubectl create -f /tmp/market.yaml",
+            "cat << EOF > /tmp/market.yaml\n"
+            "{{ market_deployment }}\n"
+            "EOF\n"
+            "k3s kubectl create -f /tmp/market.yaml",
             task_name="Deploying market software",
         )
 
@@ -820,7 +923,9 @@ def collect(address=None, **kwargs):
 
     jobs = []
     for measurement_name in measurements:
-        job = pool.apply_async(worker, (queue, addresses, token, bucket, org, measurement_name))
+        job = pool.apply_async(
+            worker, (queue, addresses, token, bucket, org, measurement_name)
+        )
         jobs.append(job)
 
     # collect results from the workers through the pool result queue
@@ -865,7 +970,9 @@ def logs(env: EnosEnv = None, all=False, **kwargs):
             roles=roles["market"],
         )
     )
-    res.append(en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"]))
+    res.append(
+        en.run_command("docker logs iot_emulation", roles=roles["iot_emulation"])
+    )
     if all:
         res.append(
             en.run_command(

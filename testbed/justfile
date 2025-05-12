@@ -72,7 +72,13 @@ deploy fog_node_image market_image $DEPLOYMENT_NAME:
 
 [private]
 fresh fog_node_image market_image $DEPLOYMENT_NAME:
-    {{ RUN }} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    #!/usr/bin/env bash
+    set -e
+    if [ "$VAGRANT" = "true" ]; then
+      {{ RUN }} integration.py vagrant --force
+    else
+      {{ RUN }} integration.py up --name="$DEPLOYMENT_NAME" --walltime "$DEPLOYMENT_WALLTIME" --force
+    fi
     cp -Lr current current.bak
     just _deploy {{ fog_node_image }} {{ market_image }}
     # Deploy the images on the registry, but only once since it is cached in the vm between reboots
@@ -126,7 +132,9 @@ _deploy fog_node_image market_image:
     if [ "$DEV" = "true" ]; then
       export RUST_LOG="warn,fog_node=trace,openfaas=trace,market=trace"
     fi
-    {{ RUN }} integration.py network
+    if [ "$VAGRANT" != "true" ]; then
+      {{ RUN }} integration.py network
+    fi
     {{ RUN }} integration.py iot-emulation
     timeout 10m {{ RUN }} integration.py k3s-setup
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
@@ -231,7 +239,7 @@ scenarii +city_name_node_targets:
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
         just scenario "$DEPLOYMENT_NAME-$2-$3-$4" "$4" {{ city_name_node_targets }}
     }
@@ -275,23 +283,36 @@ docker_enos name expe_dir cmd="bash":
     eval $(ssh-agent -s)
 
     function sync_files {
-      rsync -rL {{ justfile_directory() }}/ {{ expe_dir }}
+      rsync -rL --exclude-from {{ justfile_directory() }}/.gitignore --exclude mining --exclude {{justfile_directory()}}/.envrc {{ justfile_directory() }}/ {{ expe_dir }}
     }
     log "sync files with experiment container" false sync_files
 
     echo "LOAD_NET: $LOAD_NETWORK_FILE"
+    echo "expe dir {{expe_dir}}"
 
     export REFRESH="false"
     if {{ DOCKER }} ps -a --format '{{{{.Names}}}}' | grep -wq "{{ name }}"; then
         export REFRESH="true"
         {{ DOCKER }} exec "{{ name }}" bash -c -E "export REFRESH=$REFRESH; {{ cmd }}"
     else
+        mkdir -p {{justfile_directory()}}/{logs,enosvm,metrics-arks}
+        # MODULES=""
+        MODULES="-v /lib/modules:/lib/modules"
+        if [ $VAGRANT = "true" ]; then
+            export NAME=`git rev-parse --abbrev-ref HEAD`
+            export DEPLOYMENT_NAME="{{ name }}"
+            export REFRESH="false"
+            rmdir {{expe_dir}}/metrics-arks || true
+            ln -s {{justfile_directory()}}/metrics-arks {{expe_dir}}
+            cd {{ expe_dir }}
+            {{ cmd }}
+        else
         {{ DOCKER }} run -it --rm \
             --privileged \
             --cap-add=ALL \
             --pids-limit -1 \
             --workdir /home/enos \
-            -v /lib/modules:/lib/modules \
+            $MODULES \
             -v {{ expe_dir }}:/home/enos \
             -v {{ justfile_directory() }}/metrics-arks:/home/enos/metrics-arks \
             -v {{ justfile_directory() }}/logs:/home/enos/logs \
@@ -299,7 +320,7 @@ docker_enos name expe_dir cmd="bash":
             -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
             -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
-            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \+/
             -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
             -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
             -e SSH_AUTH_SOCK=/ssh-agent \
@@ -310,6 +331,7 @@ docker_enos name expe_dir cmd="bash":
             --cgroup-manager=cgroupfs \
             enos_deployment:latest bash -c -E "{{ cmd }}"
         fi
+    fi
 
 ssh_into_expe hostname name:
     #!/usr/bin/env bash
@@ -358,7 +380,12 @@ _docker_campaign name expe_dir:
 single_campaign name dotenvfile_default:
     #!/usr/bin/env bash
     set -e
-    expe_dir="/dev/shm/{{ name }}"
+    if [ "$VAGRANT" == "true" ]; then
+       expe_dir="{{justfile_directory()}}/{{ name }}"
+    else
+       expe_dir="/dev/shm/{{ name }}"
+    fi
+    echo "making expe dir $expe_dir"
     mkdir -p $expe_dir
 
     cp {{ dotenvfile_default }} $expe_dir/.env
@@ -367,7 +394,7 @@ single_campaign name dotenvfile_default:
     cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs logs_campaign
 
-    today=$( date +%Y%m%d )
+    today=$
     number=0
     fname={{ name }}-$today.log
     while [ -e "$fname" ]; do
@@ -698,3 +725,12 @@ test_definitions experiments_dotfile=".experiments.env":
     set +o allexport
     export SAVE_NETWORK_FILE=/dev/null
     python definitions.py
+
+vagrant_clean:
+    #!/usr/bin/env bash
+    set -e
+    echo "cleaning vagrant"
+    for i in $(sudo virsh list --all | grep valuation_rates | awk '{ print $2 }'); do
+        sudo virsh destroy $i
+        sudo virsh undefine --remove-all-storage $i
+    done

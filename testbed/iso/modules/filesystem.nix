@@ -55,6 +55,7 @@ in {
           ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/root" + dir) directoriesToBind)}
           ${builtins.concatStringsSep "; " (builtins.map (dir: "mkdir -p /btrfs_tmp/persistent" + dir) directoriesToBind)}
           ${builtins.concatStringsSep "; " (builtins.map (dir: "touch /btrfs_tmp/persistent" + dir) filesList)}
+          mkdir -p /btrfs_tmp/root/home/vagrant/.ssh
 
           umount /btrfs_tmp
       '';
