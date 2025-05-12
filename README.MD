@@ -150,7 +150,7 @@ Currently, Vagrant and enoslib do not support setting up networking with rate
 limiting and adding delays. Thus these aspect can only be reproduced on Grid5000.
 
 To observe the VMs, one can use the `vagrant ssh ...` command to connect
-to the master node. Names are logged when the VMs are started, and can also be
+to the a node; the command has to be issued in the valuations* directory for it
 found with the `vagrant global-status` command.
 
 Inside a VM, the command `k9` will open the status of the k3s cluster.

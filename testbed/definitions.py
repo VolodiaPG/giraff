@@ -712,13 +712,13 @@ if os.getenv("DEV_NETWORK") == "true":
         "children": [
             {
                 "name": "node_1",
-                "flavor": TIER_3_FLAVOR,
+                "flavor": TIER_4_FLAVOR,
                 "latency": 3,
                 "rate": ONE_GBIT,
                 "children": [
                     {
                         "name": "node_2",
-                        "flavor": TIER_3_FLAVOR,
+                        "flavor": TIER_4_FLAVOR,
                         "latency": 6,
                         "rate": 1 * ONE_GBIT,
                         "children": [
