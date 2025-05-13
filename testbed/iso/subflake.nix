@@ -71,10 +71,6 @@
                       environment.etc."rancher/k3s/registries.yaml".text =
                         lib.mkForce
                         ''
-                          mirrors:
-                            "*":
-                              endpoint:
-                                - "https://127.0.0.1:5555"
                           configs:
                             "ghcr.io":
                             "docker.io":
@@ -177,9 +173,21 @@
                       };
                     };
                     kubernetes.resources.deployments = {
+                      # the paths are obtained looking at the k9s listing: image
+                      # and then one click inside the second name
                       gateway.spec.template.spec.containers.gateway.image = lib.mkForce "ghcr.io/volodiapg/openfaas/gateway:0.27.2";
                       gateway.spec.template.spec.containers.faas-netes.image = lib.mkForce "ghcr.io/volodiapg/openfaas/faas-netes:0.17.1";
                       queue-worker.spec.template.spec.containers.queue-worker.image = lib.mkForce "ghcr.io/volodiapg/openfaas/queue-worker:0.14.0";
+                      alertmanager.spec.template.spec.containers.alertmanager.image =
+                        lib.mkForce "ghcr.io/volodiapg/prom/alertmanager:v0.26.0";
+                      prometheus.spec.template.spec.containers.prometheus.image =
+                        lib.mkForce "ghcr.io/volodiapg/prom/prometheus:v2.47.2";
+                      nats.spec.template.spec.containers.nats.image =
+                        lib.mkForce
+                        "ghcr.io/volodiapg/nats/nats-streaming:0.25.5";
+                      # metrics-server.spec.template.spec.containers.metrics-server.image =
+                      #   lib.mkForce
+                      #   "ghcr.io/volodiapg/rancher/mirrored-metrics-server:0.7.0";
                     };
                   };
                 })

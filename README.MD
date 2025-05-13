@@ -133,10 +133,15 @@ From the root of the project,
 2. run `nix develop --extra-experimental-features "nix-command flakes" .#testbed`
 3. run `just master_docker_campaign` to start vagrant and run automatically th
 experiments
-4. In the `.env` file, set the DEV varianle to `true` to see logs as they
-arrive, but only run a single experiment at the time. Otherwise, logs are
-available to tail -f in the `logs_campaign` directory.
-5. Results are available in `metrics-arks`.
+> When the DEV varianle is not set to true in the `.env` file, the output of the
+command is minimal, maybe indicating some non fatal errors about removing
+directories.
+4. Logs are available to `tail -f` in the `logs_campaign` directory. The
+experiment will likely at least run for 30 minutes. We have configured a small 5
+minutes duration for each of the deployment algorithm. In the log one should see
+the reservations of functions happening and restarts in betweenh each run for
+each placement algorithm.
+5. Once finished, results are available in `metrics-arks` directory.
 6. You may also copy the name of the tar.xz files printed out in the logs to
 input the next section.
 
@@ -146,17 +151,21 @@ Currently, Vagrant and enoslib do not support setting up networking with rate
 limiting and adding delays. Thus, these aspect can only be reproduced on Grid5000.
 
 To observe the VMs, one can use the `vagrant ssh ...` command to connect
-to the a node; the command has to be issued in the valuations* directory for it
-found with the `vagrant global-status` command.
+to the a node; the command has to be issued in the valuations* directory for.
+The name of the VMs can be found with the `vagrant global-status` command.
 
 Inside a VM, the command `k9` will open the status of the k3s cluster.
+Sometimes docker may hit rate limiting, but we tried to limit the occurence of
+such issues by hosting our own images on ghcr.
 
 ### Graphing the results
+
+Once experiments have finished, or with the artifacts of our paper:
 
 1. cd into `testbed/mining`
 2. run `nix develop --extra-experimental-features "nix-command flakes" .#mining`
 3. From there, 3 shells are required for the following commands: `just logs`,
-`just watch`, `just serve`.`
+`just watch`, `just serve`, in that order.
 4. To graph the results, edit the `config.R` file and in the `METRICS_ARKS`
 variable, replace the first elements until the comments to paste your results.
 5. Logs should appear in the two first shells opened, ending with a green OK
