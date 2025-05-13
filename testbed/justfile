@@ -89,37 +89,35 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     #!/usr/bin/env bash
     source utils.sh
     set -e
-    # reboot and wait for reasonable time if we can detect the machines did reboot
-    {{ RUN }} integration.py restart
-    sleep 10
-    ackreboot(){
-      set -e
-
-      if [ "DEV" == "true" ]; then
-        sleep 60
-      else
-        timeout 500 {{ RUN }} integration.py ack-reboot
-      fi
-    }
-    log "ACK reboot" false ackreboot
-
-    # verify the machines did in fact reboot
-    check_reboot(){
-    timeout 500 sh <<EOT
-      set -e
-      check_restart() {
+    if [ "$VAGRANT" == "true" ]; then
+      vagrant reload --force
+    else
+      {{ RUN }} integration.py restart
+      sleep 10
+      ackreboot(){
         set -e
-        cp -fr current.bak current.new
-        ln -sfn current.new current
-        rm ~/.ssh/known_hosts || true
-        {{ RUN }} integration.py check-rebooted
+        timeout 500 {{ RUN }} integration.py ack-reboot
       }
-      until check_restart; do
-        sleep 30
-      done
+
+      log "ACK reboot" false ackreboot
+      # verify the machines did in fact reboot
+      check_reboot(){
+      timeout 500 sh <<EOT
+        set -e
+        check_restart() {
+          set -e
+          cp -fr current.bak current.new
+          ln -sfn current.new current
+          rm ~/.ssh/known_hosts || true
+          {{ RUN }} integration.py check-rebooted
+        }
+        until check_restart; do
+          sleep 30
+        done
     EOT
-    }
-    log "wait and check the system is responsive and rebooted" false check_reboot
+      }
+      log "wait and check the system is responsive and rebooted" false check_reboot
+    fi
 
     # pursue installation process for experiments
     just _deploy {{ fog_node_image }} {{ market_image }}

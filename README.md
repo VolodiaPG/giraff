@@ -134,7 +134,8 @@ From the root of the project,
 2. run `nix develop --extra-experimental-features "nix-command flakes" .#testbed`
 3. run `just master_docker_campaign` to start vagrant and run automatically the
    experiments
-4. Logs are available to `tail -f` in the `logs_campaign` directory. The
+4. Logs are available to `tail -f` in the `logs_campaign` directory if running
+   anything else than the DEV mode, otherwise they should simply appear. The
    experiment will likely at least run for 30 minutes. We have configured a small 5
    minutes duration for each of the deployment algorithm. In the log you should see
    the reservation of functions happening, and restarts in between each run for
