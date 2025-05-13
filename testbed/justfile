@@ -90,7 +90,7 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     source utils.sh
     set -e
     if [ "$VAGRANT" == "true" ]; then
-      vagrant reload --force
+      just fresh {{ fog_node_image }} {{ market_image }} {{ DEPLOYMENT_NAME }}
     else
       {{ RUN }} integration.py restart
       sleep 10
@@ -117,10 +117,10 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     EOT
       }
       log "wait and check the system is responsive and rebooted" false check_reboot
-    fi
 
-    # pursue installation process for experiments
-    just _deploy {{ fog_node_image }} {{ market_image }}
+      # pursue installation process for experiments
+      Just _deploy {{ fog_node_image }} {{ market_image }}
+    fi
 
 # Delete the Job on grid'5000 and local EnosLib files
 [private]
