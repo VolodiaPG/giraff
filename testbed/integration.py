@@ -412,7 +412,6 @@ def vagrant(
     mem_bytes = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
     mem_per_machine = mem_bytes / (1024.0**2)
     conf = en.VagrantConf.from_settings(
-        # image=f"{os.path.dirname(os.path.realpath(__file__))}/iso/sda.raw",
         box="giraffbox",
         user="root",
         config_extra=(

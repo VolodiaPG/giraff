@@ -94,7 +94,12 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
     sleep 10
     ackreboot(){
       set -e
-      timeout 500 {{ RUN }} integration.py ack-reboot
+
+      if [ "DEV" == "true" ]; then
+        sleep 60
+      else
+        timeout 500 {{ RUN }} integration.py ack-reboot
+      fi
     }
     log "ACK reboot" false ackreboot
 
@@ -164,8 +169,8 @@ scenario archive_name env_variation +city_name_node_targets:
     #!/usr/bin/env bash
     just _scenario "{{ archive_name }}" "{{ env_variation }}" {{ city_name_node_targets }}
 
-    if [ "$DEV" = "true" ]; then
-        printf "DEV activated ; waiting indefinitely\n"
+    if [ "$DEV_SLEEP_AFTER_OK" = "true" ]; then
+        printf "DEV_SLEEP_AFTER_OK activated ; waiting indefinitely\n"
         sleep 9999999999;
     fi
 
