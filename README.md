@@ -140,9 +140,11 @@ From the root of the project,
    minutes duration for each of the deployment algorithm. In the log you should see
    the reservation of functions happening, and restarts in between each run for
    each placement algorithm.
-   > Due to vagrant crashing and synced dir neing unreliable accross platforms, VMs
+   > Due to vagrant crashing and synced directories being unreliable across platforms, VMs
    > cannot be restarted as in the paper and need a thorough stop and start
-   > instead. It takes a lot more time.
+   > instead. It takes a lot more time. Thus, the in `.env` file, we restricted
+   > the `FOG_NODE_IMAGE_TAGS` to a single placement algorithm. You can change
+   > it to run multiple placement algorithms, but it will take a lot more time.
 5. Once finished, results are available in `metrics-arks` directory.
 6. You may also copy the name of the `.tar.xz` files printed out in the logs to
    input the next section.
