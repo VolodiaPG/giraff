@@ -157,6 +157,9 @@ Inside a VM, the command `k9` will open the status of the k3s cluster.
 Sometimes, the docker registry may rate limit, but we tried to circumvent this
 limitation by hosting our own images on ghcr.io.
 
+> The files `trace_buildvm.txt` and `trace_expe_running.txt` showcase outputs of
+> the building of the vm and running of experiments.
+
 ### Graphing the results
 
 Once experiments have finished, or with the artifacts of our paper:

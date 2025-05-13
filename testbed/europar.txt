@@ -1,67 +1,0 @@
-Script started on 2025-05-12 17:30:37+02:00 [TERM="tmux-256color" TTY="/dev/pts/19" COLUMNS="109" LINES="24"]
-Running Nixos 25.05.20250508.dda3dcd (Warbler) [1;38;5;208m(version last updated 4 days ago)[0m
-]7;file://dell/home/volodia/Documents/giraffmain/testbed[K]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell
-[36m❄impure [35m❯[m [38;5;189m[K[10C[?2004h[>4;1m[=5u=[?1004h
-[30m[m[2m⏎[m                                                                                                            ⏎ [K[?2004l[>4;0m[=0u>[?1004l[K
-[K
-]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell
-[36m❄impure [35m❯[m [K[10C[?2004h[>4;1m[=5u=[?1004hs[11C[38;5;211ms[38;5;189m[11C[38;5;243mcript --timing=europar.tm europar.txt[38;5;189m[11C[K[11C
-[30m[m]133;C;cmdline_url=s[?2004l[>4;0m[=0u>[?1004l]0;~/Documents/giraffmain/testbed: s - s[30m[m[30m[merror: reading from the database at '/home/volodia/.cache/nix-index/files' failed.
-This may be caused by a corrupt or missing database, try (re)running `nix-index` to generate the database. 
-If the error persists please file a bug report at https://github.com/nix-community/nix-index.
-caused by: No such file or directory (os error 2)
-s: command not found
-]133;D;127[?25h[2m⏎[m                                                                                                            ⏎ [K[K
-[K
-]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell
-[36m❄impure [31m❯[m [38;5;189m[K[10C[?2004h[>4;1m[=5u=[?1004hl[11C[38;5;111ml[38;5;189m[11C[38;5;243ml[38;5;189m[11C[38;5;111ms[38;5;189m[12C[38;5;243m metrics-arks[38;5;189m[12C[K[12C
-[30m[m]133;C;cmdline_url=ls[?2004l[>4;0m[=0u>[?1004l]0;~/Documents/giraffmain/testbed: ls - ls[30m[m[30m[m[0m[01;36mansible.cfg[0m               [01;34menos_2025-05-09_09-23-08[0m  [01;34menos_2025-05-09_14-26-46[0m  [01;34menos_2025-05-11_10-11-22[0m
-bpf_netem_example.py      [01;34menos_2025-05-09_09-23-09[0m  [01;34menos_2025-05-09_14-27-30[0m  [01;34menos_2025-05-11_10-25-22[0m
-[01;32mcollect.py[0m                [01;34menos_2025-05-09_09-23-11[0m  [01;34menos_2025-05-09_14-28-12[0m  [01;34menos_2025-05-11_10-41-50[0m
-[01;36mcurrent[0m                   [01;34menos_2025-05-09_09-25-34[0m  [01;34menos_2025-05-09_15-04-20[0m  [01;34menos_2025-05-11_10-43-46[0m
-[01;34mcurrent.bak[0m               [01;34menos_2025-05-09_09-25-41[0m  [01;34menos_2025-05-09_15-05-02[0m  [01;34menos_2025-05-11_10-44-00[0m
-[01;32mdefinitions.py[0m            [01;34menos_2025-05-09_09-36-32[0m  [01;34menos_2025-05-09_15-09-35[0m  [01;34menosvm[0m
-[01;34memul[0m                      [01;34menos_2025-05-09_09-37-24[0m  [01;34menos_2025-05-09_15-10-55[0m  env_checkpoint.env.dev.sh
-[01;34menos_2025-05-07_14-00-16[0m  [01;34menos_2025-05-09_09-39-38[0m  [01;34menos_2025-05-09_15-11-38[0m  env_checkpoint.env.local.sh
-[01;34menos_2025-05-07_14-00-18[0m  [01;34menos_2025-05-09_09-44-36[0m  [01;34menos_2025-05-09_15-23-05[0m  europar.tm
-[01;34menos_2025-05-07_14-00-19[0m  [01;34menos_2025-05-09_09-44-37[0m  [01;34menos_2025-05-09_15-23-48[0m  europar.txt
-[01;34menos_2025-05-07_14-02-19[0m  [01;34menos_2025-05-09_09-45-29[0m  [01;34menos_2025-05-09_15-30-31[0m  [01;34mexpe[0m
-[01;34menos_2025-05-07_14-02-21[0m  [01;34menos_2025-05-09_09-51-11[0m  [01;34menos_2025-05-09_15-32-29[0m  expe.py
-[01;34menos_2025-05-07_14-02-23[0m  [01;34menos_2025-05-09_09-51-54[0m  [01;34menos_2025-05-09_15-43-49[0m  [01;34mexperiment[0m
-[01;34menos_2025-05-07_14-09-35[0m  [01;34menos_2025-05-09_10-43-55[0m  [01;34menos_2025-05-09_15-45-12[0m  function.py
-[01;34menos_2025-05-07_14-09-37[0m  [01;34menos_2025-05-09_10-44-39[0m  [01;34menos_2025-05-09_15-55-09[0m  [01;32mintegration.py[0m
-[01;34menos_2025-05-07_14-09-39[0m  [01;34menos_2025-05-09_10-49-16[0m  [01;34menos_2025-05-09_15-58-30[0m  [01;34miso[0m
-[01;34menos_2025-05-07_14-17-31[0m  [01;34menos_2025-05-09_10-49-17[0m  [01;34menos_2025-05-09_16-01-27[0m  joblog
-[01;34menos_2025-05-07_15-17-42[0m  [01;34menos_2025-05-09_10-49-18[0m  [01;34menos_2025-05-09_16-08-07[0m  [01;32mjustfile[0m
-[01;34menos_2025-05-07_15-17-43[0m  [01;34menos_2025-05-09_10-53-37[0m  [01;34menos_2025-05-09_16-09-07[0m  [01;36mlatest_metrics.tar.xz[0m
-[01;34menos_2025-05-07_15-17-45[0m  [01;34menos_2025-05-09_10-53-38[0m  [01;34menos_2025-05-09_16-12-15[0m  [01;34mlogs[0m
-[01;34menos_2025-05-07_15-20-06[0m  [01;34menos_2025-05-09_10-56-45[0m  [01;34menos_2025-05-09_16-13-14[0m  [01;34mlogs_campaign[0m
-[01;34menos_2025-05-07_15-34-29[0m  [01;34menos_2025-05-09_10-56-46[0m  [01;34menos_2025-05-09_16-14-30[0m  [01;32mmaster.py[0m
-[01;34menos_2025-05-07_15-40-01[0m  [01;34menos_2025-05-09_10-56-48[0m  [01;34menos_2025-05-09_16-22-29[0m  [01;34mmetrics-arks[0m
-[01;34menos_2025-05-07_15-55-56[0m  [01;34menos_2025-05-09_11-01-51[0m  [01;34menos_2025-05-09_16-35-39[0m  [01;34mmining[0m
-[01;34menos_2025-05-07_15-57-34[0m  [01;34menos_2025-05-09_11-02-33[0m  [01;34menos_2025-05-09_16-46-44[0m  [01;34moar_scripts[0m
-[01;34menos_2025-05-07_15-58-03[0m  [01;34menos_2025-05-09_11-06-54[0m  [01;34menos_2025-05-09_16-50-02[0m  [01;34mpipelines[0m
-[01;34menos_2025-05-07_15-58-47[0m  [01;34menos_2025-05-09_11-06-55[0m  [01;34menos_2025-05-09_17-01-09[0m  [01;34m__pycache__[0m
-[01;34menos_2025-05-07_15-59-36[0m  [01;34menos_2025-05-09_11-06-56[0m  [01;34menos_2025-05-09_17-04-27[0m  pyproject.toml
-[01;34menos_2025-05-07_16-12-31[0m  [01;34menos_2025-05-09_11-08-03[0m  [01;34menos_2025-05-09_17-11-18[0m  subflake.nix
-[01;34menos_2025-05-07_16-13-23[0m  [01;34menos_2025-05-09_11-08-06[0m  [01;34menos_2025-05-09_17-16-22[0m  tmp6qdlbkip
-[01;34menos_2025-05-07_16-32-42[0m  [01;34menos_2025-05-09_11-08-08[0m  [01;34menos_2025-05-09_18-52-27[0m  tmp7prb84v5
-[01;34menos_2025-05-07_16-33-32[0m  [01;34menos_2025-05-09_11-21-49[0m  [01;34menos_2025-05-09_20-29-20[0m  tmpatoi09p9
-[01;34menos_2025-05-07_16-39-03[0m  [01;34menos_2025-05-09_11-21-51[0m  [01;34menos_2025-05-09_21-22-47[0m  tmpc0oss2e_
-[01;34menos_2025-05-07_16-39-51[0m  [01;34menos_2025-05-09_11-22-29[0m  [01;34menos_2025-05-09_22-18-50[0m  tmpj8ac1_t9
-[01;34menos_2025-05-07_16-44-52[0m  [01;34menos_2025-05-09_11-23-11[0m  [01;34menos_2025-05-09_22-28-11[0m  tmpncs7qzvp
-[01;34menos_2025-05-07_16-54-24[0m  [01;34menos_2025-05-09_11-28-00[0m  [01;34menos_2025-05-09_22-28-14[0m  tmpw7j_g97j
-[01;34menos_2025-05-07_16-58-20[0m  [01;34menos_2025-05-09_11-31-57[0m  [01;34menos_2025-05-09_22-28-18[0m  tmpy3p0pyby
-[01;34menos_2025-05-07_16-59-13[0m  [01;34menos_2025-05-09_13-47-16[0m  [01;34menos_2025-05-09_22-33-01[0m  tmpybqbarnp
-[01;34menos_2025-05-07_17-00-04[0m  [01;34menos_2025-05-09_14-00-19[0m  [01;34menos_2025-05-09_22-59-02[0m  tmpzwcb63aa
-[01;34menos_2025-05-07_17-01-53[0m  [01;34menos_2025-05-09_14-01-06[0m  [01;34menos_2025-05-09_23-10-08[0m  toto.txt
-[01;34menos_2025-05-07_17-02-44[0m  [01;34menos_2025-05-09_14-02-27[0m  [01;34menos_2025-05-09_23-17-40[0m  utils.sh
-[01;34menos_2025-05-09_09-09-53[0m  [01;34menos_2025-05-09_14-09-01[0m  [01;34menos_2025-05-09_23-48-10[0m  Vagrantfile
-[01;34menos_2025-05-09_09-09-54[0m  [01;34menos_2025-05-09_14-17-15[0m  [01;34menos_2025-05-09_23-59-20[0m  [01;34mvaluation_rates.env_DEV[0m
-[01;34menos_2025-05-09_09-09-56[0m  [01;34menos_2025-05-09_14-18-01[0m  [01;34menos_2025-05-10_00-10-27[0m
-]133;D;0[?25h[2m⏎[m                                                                                                            ⏎ [K[K
-[K
-]0;~/Documents/giraffmain/testbed - fish[30m[m[K]133;A;special_key=1[34m~/Documents/giraffmain/testbed [90mvagrant[90m*[36m ≡ [90mvolodia[90m@[90mdell
-[36m❄impure [35m❯[m [38;5;189m[K[10C[?2004h[>4;1m[=5u=[?1004h
-[30m[m[30m[m[?2004l[>4;0m[=0u>[?1004l
-Script done on 2025-05-12 17:30:47+02:00 [COMMAND_EXIT_CODE="0"]
