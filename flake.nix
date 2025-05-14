@@ -61,7 +61,7 @@
       url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
       flake = false;
     };
-    ebpf-netem.url = "github:volodiapg/ebpf-netem";
+    ebpf-netem.url = "github:volodiapg/ebpf-netem/loss";
   };
 
   # Enable caching

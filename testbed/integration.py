@@ -582,13 +582,13 @@ def network(env: EnosEnv = None):
     env["netem"] = net
     roles = env["roles"]
 
-    def add_netem_cb(source, destination, delay, rate):
+    def add_netem_cb(source, destination, delay, rate, loss):
         net.add_constraints(
             src=roles[source],
             dest=roles[destination],
             delay=delay,
-            # rate = 1_000_000_000, # BPS
             rate=rate,  # BPS
+            loss=loss,
             symmetric=True,
         )
 
@@ -805,10 +805,10 @@ def network_shape(queue):
     with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
         with TextIOWrapper(tmpfile, encoding="utf-8") as file:
             writer = csv.writer(file, delimiter="\t")
-            writer.writerow(["source", "destination", "latency", "rate"])
+            writer.writerow(["source", "destination", "latency", "rate", "loss"])
             for source, tup in ADJACENCY.items():
-                for destination, latency, rate in tup:
-                    writer.writerow([source, destination, latency, rate])
+                for destination, latency, rate, loss in tup:
+                    writer.writerow([source, destination, latency, rate, loss])
         tmpfile.close()  # Close before sending to threads
         queue.put(("network_shape", tmpfile.name))
 
