@@ -43,6 +43,7 @@ from definitions import (
     gen_net,
     gen_vm_conf,
 )
+from emul.bpf import NetemBPF
 from function import load_function_descriptions, push_functions_to_registry
 
 EnosEnv = Optional[dict[str, Any]]
@@ -634,8 +635,7 @@ def network(env: EnosEnv = None):
         print("env is None")
         exit(1)
 
-    # net =NetemBPF()
-    net = en.NetemHTB()
+    net = NetemBPF()
     env["netem"] = net
     roles = env["roles"]
 

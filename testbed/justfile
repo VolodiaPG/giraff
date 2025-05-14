@@ -286,7 +286,11 @@ docker_enos name expe_dir cmd="bash":
     eval $(ssh-agent -s)
 
     function sync_files {
+    if [ "$VAGRANT" = "true" ]; then
       rsync -rL --exclude-from {{ justfile_directory() }}/.gitignore --exclude mining --exclude {{justfile_directory()}}/.envrc {{ justfile_directory() }}/ {{ expe_dir }}
+    else
+      rsync -rL {{ justfile_directory() }}/ {{ expe_dir }}
+    fi
     }
     log "sync files with experiment container" false sync_files
 
@@ -299,8 +303,6 @@ docker_enos name expe_dir cmd="bash":
         {{ DOCKER }} exec "{{ name }}" bash -c -E "export REFRESH=$REFRESH; {{ cmd }}"
     else
         mkdir -p {{justfile_directory()}}/{logs,enosvm,metrics-arks}
-        # MODULES=""
-        MODULES="-v /lib/modules:/lib/modules"
         if [ $VAGRANT = "true" ]; then
             export NAME=`git rev-parse --abbrev-ref HEAD`
             export DEPLOYMENT_NAME="{{ name }}"
@@ -315,7 +317,7 @@ docker_enos name expe_dir cmd="bash":
             --cap-add=ALL \
             --pids-limit -1 \
             --workdir /home/enos \
-            $MODULES \
+            -v /lib/modules:/lib/modules \
             -v {{ expe_dir }}:/home/enos \
             -v {{ justfile_directory() }}/metrics-arks:/home/enos/metrics-arks \
             -v {{ justfile_directory() }}/logs:/home/enos/logs \
@@ -323,7 +325,7 @@ docker_enos name expe_dir cmd="bash":
             -v $LOAD_NETWORK_FILE:/home/enos/net:ro \
             -v ~/.python-grid5000.yaml:/root/.python-grid5000.yaml:ro \
             -v ~/.ssh/id_rsa:/root/.ssh/id_rsa:ro \
-            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \+/
+            -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub:ro \
             -v $(readlink -f $SSH_AUTH_SOCK):/ssh-agent \
             -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro \
             -e SSH_AUTH_SOCK=/ssh-agent \
@@ -333,7 +335,7 @@ docker_enos name expe_dir cmd="bash":
             --name "{{ name }}" \
             --cgroup-manager=cgroupfs \
             enos_deployment:latest bash -c -E "{{ cmd }}"
-        fi
+       fi
     fi
 
 ssh_into_expe hostname name:
