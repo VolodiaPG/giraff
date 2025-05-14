@@ -1,4 +1,5 @@
 """HTB based emulation."""
+
 import logging
 import os
 from dataclasses import dataclass, field
@@ -24,7 +25,7 @@ SERVICE_PATH: str = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 DEFAULT_RATE = 10_000_000_000
 
-DEFAULT_LOSS: Optional[str] = None
+DEFAULT_LOSS = 0
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class HTBConstraint:
     delay: str
     target: str
     rate: int = DEFAULT_RATE
-    #loss: Optional[str] = DEFAULT_LOSS
+    loss: int = DEFAULT_LOSS
 
     def __post_init__(self):
         HTBConcreteConstraintValidator.validate(
@@ -90,6 +91,7 @@ class HTBConstraint:
             f" -handle {idx + 1}"
             f" -delay {self.delay}"
             f" -rate {self.rate}"
+            f" -loss {self.loss}"
         )
         return [cmd]
 
@@ -179,7 +181,7 @@ class HTBSource:
                 device=c.device,
                 delay=c.delay,
                 rate=c.rate,
-                #loss=c.loss,
+                loss=c.loss,
                 target=c.target,
             )
             for c in self.constraints
@@ -269,11 +271,10 @@ class NetemBPF(BaseNetem):
         dest: Iterable[Host],
         delay: int,
         rate: int,
-        #loss: Optional[float] = None,
+        loss: int,
         networks: Optional[Iterable[Network]] = None,
-        symmetric: bool = False,
         *,
-        symetric: Optional[bool] = None,
+        symmetric: Optional[bool] = None,
     ) -> "NetemBPF":
         """Add some constraints.
 
@@ -304,12 +305,12 @@ class NetemBPF(BaseNetem):
                 :linenos:
 
         """
-        if symetric is not None:  # Remove when deprecation phase will be ended
-            symmetric = symetric
+        if symmetric is not None:  # Remove when deprecation phase will be ended
+            symmetric = symmetric
             import warnings
 
             warnings.warn(
-                "symetric is deprecated; use symmetric", DeprecationWarning, 2
+                "symmetric is deprecated; use symmetric", DeprecationWarning, 2
             )
         for src_host in src:
             self.sources.setdefault(src_host, HTBSource(src_host))
@@ -329,12 +330,12 @@ class NetemBPF(BaseNetem):
                             target=str(daddr.ip.ip),
                             delay=delay,
                             rate=rate,
-                            #loss=loss,
+                            loss=loss,
                         )
                         source.add_constraint(**kwargs)
         if symmetric:
             self.add_constraints(
-                dest, src, delay, rate, networks=networks, symmetric=False
+                dest, src, delay, rate, loss, networks=networks, symmetric=False
             )
         return self
 
@@ -371,7 +372,7 @@ class NetemBPF(BaseNetem):
         selected = [roles[role] for role in groups if role not in except_roles]
         default_delay = network_constraints["default_delay"]
         default_rate = network_constraints["default_rate"]
-        #default_loss = network_constraints.get("default_loss")
+        default_loss = network_constraints["default_loss"]
         default_network_name = network_constraints.get("default_network")
         if default_network_name is not None:
             networks_list = networks[default_network_name]
@@ -383,7 +384,7 @@ class NetemBPF(BaseNetem):
                 dest,
                 default_delay,
                 default_rate,
-                #default_loss,
+                default_loss,
                 networks=networks_list,
             )
         # specific
@@ -392,7 +393,7 @@ class NetemBPF(BaseNetem):
             dest_role = constraint["dst"]
             delay = constraint.get("delay", default_delay)
             rate = constraint.get("rate", default_rate)
-            #loss = constraint.get("loss", default_loss)
+            loss = constraint.get("loss", default_loss)
             network_name = constraint.get("network", default_network_name)
             symmetric = constraint.get("symmetric", False)
             if network_name is not None:
@@ -404,13 +405,13 @@ class NetemBPF(BaseNetem):
                 roles[dest_role],
                 delay,
                 rate,
-                #loss,
+                loss,
                 symmetric=symmetric,
                 networks=networks_list,
             )
         return self
 
-    def deploy(self, chunk_size: int = 100, **kwargs) -> List[HTBSource]: #type: ignore
+    def deploy(self, chunk_size: int = 100, **kwargs) -> List[HTBSource]:  # type: ignore
         sources = list(self.sources.values())
         netem_htb(sources, chunk_size=chunk_size, **kwargs)
         return sources
@@ -441,7 +442,7 @@ class NetemBPF(BaseNetem):
 
         Performs ping tests to validate the constraints set by
         :py:meth:`~enoslib.service.emul.htb.NetemHTB.deploy`.
-        Reports are available in the putput directory.
+        Reports are available in the output directory.
         used by enos.
 
         Args:
@@ -474,7 +475,7 @@ class NetemBPF(BaseNetem):
         )
 
 
-#class AccurateNetemHTB(NetemHTB):
+# class AccurateNetemHTB(NetemHTB):
 #    """NetemHTB but for expressing end-to-end latency.
 #
 #    End-to-End (one way )latency between two distributed processes is composed

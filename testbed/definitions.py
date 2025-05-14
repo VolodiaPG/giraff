@@ -383,15 +383,15 @@ def additional_env_vars(level):
 TIER_4_FLAVOR = {
     "core": 4,
     "mem": 1024 * 4,
-    "reserved_core": 3.5,
-    "reserved_mem": 1024 * 3.5,
+    "reserved_core": 3,
+    "reserved_mem": 1024 * 3,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 6,
     "mem": 1024 * 6,
-    "reserved_core": 3.5,
-    "reserved_mem": 1024 * 5.5,
+    "reserved_core": 5,
+    "reserved_mem": 1024 * 5,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
@@ -431,6 +431,7 @@ def generate_level(
     nb_nodes: Tuple[int, int],
     latencies: Tuple[int, int],
     rates: Tuple[int, int],
+    losses: Tuple[int, int],
     modifiers: Optional[
         List[Callable[[Dict[str, Any], bool], None]]
     ] = None,  # Takes a Dict but otherwise mypy just errors on kwargs
@@ -446,11 +447,14 @@ def generate_level(
             uuid += 1
             rate_min = min(rates[0], rates[1])
             rate_max = max(rates[0], rates[1])
+            loss_min = min(losses[0], losses[1])
+            loss_max = max(losses[0], losses[1])
             city = {
                 "name": str(depth) + randomname.get_name().replace("-", "") + str(uuid),
                 "flavor": copy.copy(flavor),
                 "latency": random.randint(latencies[0], latencies[1]),
                 "rate": rate_min * random.randint(1, math.ceil(rate_max / rate_min)),
+                "loss": loss_min * random.randint(1, math.ceil(loss_max / loss_min)),
                 "children": next_lvl(depth=depth + 1) if next_lvl else [],  # type: ignore
             }
             if modifiers:
@@ -517,6 +521,7 @@ def network_generation():
         "name": "market",
         "flavor": TIER_1_FLAVOR,
         "rate": ONE_GBIT,
+        "loss": 0,
         "children": generate_level(
             TIER_1_FLAVOR,
             nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
@@ -528,6 +533,7 @@ def network_generation():
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(6, 32),
                 rates=(500 * ONE_MBIT, ONE_GBIT),
+                losses=(0, 0),
                 modifiers=[
                     drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2, 4]),
@@ -538,6 +544,7 @@ def network_generation():
                     nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
                     latencies=(7, 64),
                     rates=(100 * ONE_MBIT, ONE_GBIT),
+                    losses=(0, 0),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -548,6 +555,7 @@ def network_generation():
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 4),
                         rates=(10 * ONE_MBIT, ONE_GBIT),
+                        losses=(0, 0),
                         modifiers=[
                             set_iot_connected(drop_one_in=6),
                             flavor_randomizer_mem([0, 2]),
@@ -641,14 +649,18 @@ def levels(node, level=0):
     return ret
 
 
-def adjacency_undirected(node):
+def adjacency_undirected(node) -> dict[str, list[tuple[str, int, int, int]]]:
     ret = defaultdict(lambda: [])
 
     def fun(node):
         children = node["children"] if "children" in node else []
         for child in children:
-            ret[node["name"]] += [(child["name"], child["latency"], child["rate"])]
-            ret[child["name"]] += [(node["name"], child["latency"], child["rate"])]
+            ret[node["name"]] += [
+                (child["name"], child["latency"], child["rate"], child["loss"]),
+            ]
+            ret[child["name"]] += [
+                (node["name"], child["latency"], child["rate"], child["loss"])
+            ]
             fun(child)
 
     fun(node)
@@ -660,7 +672,7 @@ def gen_net(nodes, callback):
 
     for name, latency in IOT_CONNECTION:
         # adjacency[name].append(("iot_emulation", latency))
-        adjacency["iot_emulation"].append((name, latency, ONE_GBIT))
+        adjacency["iot_emulation"].append((name, latency, ONE_GBIT, 0))
     # Convert to matrix
     # Initialize a matrix
 
@@ -673,41 +685,49 @@ def gen_net(nodes, callback):
     def dijkstra(src: str):
         # Create a priority queue to store vertices that
         # are being preprocessed
-        pq: List[Any] = []
+        pq: list[tuple[int, str]] = []
         heapq.heappush(pq, (0, src))
 
         # Create a vector for distances and initialize all
         # distances as infinite (INF)
-        dist: Dict[str, float] = defaultdict(lambda: float("inf"))
-        rates: Dict[str, float] = defaultdict(lambda: ONE_GBIT)
+        dist: dict[str, int] = defaultdict(lambda: 1_000_000_000)
+        rates: dict[str, int] = defaultdict(lambda: ONE_GBIT)
+        losses: dict[str, int] = defaultdict(lambda: 0)
         dist[src] = 0
         rates[src] = ONE_GBIT
+        losses[src] = 0
 
         while pq:
             # The first vertex in pair is the minimum distance
             # vertex, extract it from priority queue.
             # vertex label is stored in second of pair
-            d, u = heapq.heappop(pq)
+            _d, u = heapq.heappop(pq)
 
             # 'i' is used to get all adjacent vertices of a
             # vertex
-            for v, latency, rate in adjacency[u]:
+            for v, latency, rate, loss in adjacency[u]:
                 # If there is shorted path to v through u.
                 if dist[v] > dist[u] + latency:
                     # Updating distance of v
                     dist[v] = dist[u] + latency
                     rates[v] = min(rates[u], rate)
+                    losses[v] = losses[u] + loss - math.floor((loss * losses[u]) / 100)
+                    if losses[v] < 0 or losses[v] >= 100:
+                        raise Exception(
+                            f"Loss is {losses[v]} for {u} -> {v}, with params {rate} {latency} {loss}"
+                        )
                     heapq.heappush(pq, (dist[v], v))
 
-        return (dist, rates)
+        return (dist, rates, losses)
 
     for node_name in adjacency.keys():
-        latencies, rates = dijkstra(node_name)  # modifies subtree_cumul
+        latencies, rates, losses = dijkstra(node_name)  # modifies subtree_cumul
         for destination in latencies.keys():
             latency = latencies[destination]
             rate = rates[destination]
+            loss = losses[destination]
             # print(f"{node_name} -> {destination} = {latency} ; {rate/ONE_GBIT}G")
-            callback(node_name, destination, latency, rate)
+            callback(node_name, destination, latency, rate, loss)
 
 
 def get_number_vms(node, nb_cpu_per_host, mem_total_per_host):
@@ -757,6 +777,7 @@ if os.getenv("DEV_NETWORK") == "true":
         "name": "market",
         "flavor": TIER_4_FLAVOR,
         "rate": ONE_GBIT,
+        "loss": 1,
         "children": [
             {
                 "name": "node_2",

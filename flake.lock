@@ -47,15 +47,16 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1714077500,
-        "narHash": "sha256-xu3wqOdphA8obd9sQD9TJxNN1Y8/FmKZ5NPSiLm3274=",
+        "lastModified": 1744356521,
+        "narHash": "sha256-CSwBIp16UTRH9iW2fsJ7Lo3CsVeaa8NRDm9sgB+8S8Q=",
         "owner": "volodiapg",
         "repo": "ebpf-netem",
-        "rev": "eed6492a9d77588122eb67c93d7169339b30ec73",
+        "rev": "6d54650622a7e0a2049507f07ebfafc61255862c",
         "type": "github"
       },
       "original": {
         "owner": "volodiapg",
+        "ref": "loss",
         "repo": "ebpf-netem",
         "type": "github"
       }

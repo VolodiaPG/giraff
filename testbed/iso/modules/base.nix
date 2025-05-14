@@ -102,6 +102,12 @@ in {
     "net.ipv4.tcp_dsack" = 1;
     "net.ipv4.ip_forward" = 1;
     "net.ipv6.conf.all.forwarding" = 1;
+    # Increase the max size of the send buffer, because epbf filter may fill it
+    # up
+    "net.core.wmem_max" = 12582912;
+    "net.core.rmem_max" = 12582912;
+    "net.ipv4.tcp_rmem" = "10240 87380 12582912";
+    "net.ipv4.tcp_wmem" = "10240 87380 12582912";
   };
 
   services = {

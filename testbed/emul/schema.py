@@ -20,7 +20,7 @@ CONSTRAINT_SCHEMA: Dict = {
             "format": "rate",
         },
         "loss": {
-            "type": ["string", "null"],
+            "type": "integer",
             "description": "Loss to apply (percentage)",
             "format": "loss",
         },
@@ -38,10 +38,14 @@ CONCRETE_CONSTRAINT_SCHEMA: Dict = {
     "properties": {
         "device": {"type": "string"},
         "target": {"type": "string", "format": "ipv4"},
-        "delay": {"type": "integer", "description": "Delay to apply", "format": "delay"},
+        "delay": {
+            "type": "integer",
+            "description": "Delay to apply",
+            "format": "delay",
+        },
         "rate": {"type": "integer", "description": "Rate to apply", "format": "rate"},
         "loss": {
-            "type": ["string", "null"],
+            "type": "integer",
             "description": "Loss to apply (percentage)",
             "format": "loss",
         },
@@ -64,8 +68,8 @@ SCHEMA: Dict = {
             "format": "rate",
         },
         "default_loss": {
-            "type": "str",
-            "description": "default loss (percent) to apply on all groups (e.g. 0.1%)",
+            "type": "integer",
+            "description": "default loss (percent) to apply on all groups (e.g. 1 for 1%)",
             "format": "loss",
         },
         "except": {
@@ -98,7 +102,7 @@ def is_valid_delay(instance) -> bool:
     """Something that ends with ms."""
     if not isinstance(instance, int):
         return False
-    #if not instance.endswith("ms"):
+    # if not instance.endswith("ms"):
     #    return False
     return True
 
@@ -108,11 +112,11 @@ def is_valid_rate(instance) -> bool:
     """Something that ends with kbit, mbit or gbit."""
     if not isinstance(instance, int):
         return False
-    #if (
+    # if (
     #    not instance.endswith("gbit")
     #    and not instance.endswith("mbit")
     #    and not instance.endswith("kbit")
-    #):
+    # ):
     #    return False
     return True
 
