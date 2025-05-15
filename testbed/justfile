@@ -294,7 +294,7 @@ docker_enos name expe_dir cmd="bash":
 
     function sync_files {
     if [ "$VAGRANT" = "true" ]; then
-      rsync -rL --exclude-from {{ justfile_directory() }}/.gitignore --exclude mining --exclude {{justfile_directory()}}/.envrc {{ justfile_directory() }}/ {{ expe_dir }}
+      rsync -rL --exclude-from {{ justfile_directory() }}/.gitignore --exclude mining --exclude .envrc {{ justfile_directory() }}/ {{ expe_dir }}
     else
       rsync -rL {{ justfile_directory() }}/ {{ expe_dir }}
     fi

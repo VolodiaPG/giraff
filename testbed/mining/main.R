@@ -156,8 +156,8 @@ if (single_graphs) {
     functions <- m_load_functions(ark)
     # nb_deployed <- load_nb_deployed_data(respected_sla, functions_total, node_levels)
 
-    node_connections <- m_load_node_connections(ark)
-    latency <- m_load_latency(ark, node_connections)
+    # node_connections <- m_load_node_connections(ark)
+    # latency <- m_load_latency(ark, node_connections)
     raw_latency <- m_load_raw_latency(ark)
     raw_deployment_times <- m_load_raw_deployment_times(ark)
 
@@ -176,7 +176,7 @@ if (single_graphs) {
     graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
     graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla, bids_won_function))
     graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
-    graphs <- graph("output_latency", graphs, output_latency(latency))
+    # graphs <- graph("output_latency", graphs, output_latency(latency))
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
     graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
     graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))

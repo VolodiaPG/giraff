@@ -18,9 +18,9 @@ GRAPH_TWO_COLUMN_WIDTH <- 9
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-"metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-12-19-18.tar.xz",
-"metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-12-19-18.tar.xz",
-#---
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-14-15-43.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-14-14-34.tar.xz",
+  #---
   #---
   #---
   "last element that is here because last element should not have any comma in the end"

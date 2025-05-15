@@ -784,6 +784,7 @@ if os.getenv("DEV_NETWORK") == "true":
                 "flavor": TIER_4_FLAVOR,
                 "latency": 6,
                 "rate": 1 * ONE_GBIT,
+                "loss": 10,
                 "children": [
                     {
                         "name": "node_3",
@@ -792,6 +793,7 @@ if os.getenv("DEV_NETWORK") == "true":
                         "rate": 1 * ONE_GBIT,
                         "children": [],
                         "iot_connected": 0,
+                        "loss": 1,
                     },
                     {
                         "name": "node_34",
@@ -800,6 +802,7 @@ if os.getenv("DEV_NETWORK") == "true":
                         "latency": 5,
                         "children": [],
                         "iot_connected": 0,
+                        "loss": 1,
                     },
                 ],
             },

@@ -190,16 +190,11 @@
                       #   "ghcr.io/volodiapg/rancher/mirrored-metrics-server:0.7.0";
                     };
                   };
-                  kubernetes.resources.deployments = {
-                    gateway.spec.template.spec.containers.gateway.image = lib.mkForce "ghcr.io/volodiapg/openfaas/gateway:0.27.2";
-                    gateway.spec.template.spec.containers.faas-netes.image = lib.mkForce "ghcr.io/volodiapg/openfaas/faas-netes:0.17.1";
-                    queue-worker.spec.template.spec.containers.queue-worker.image = lib.mkForce "ghcr.io/volodiapg/openfaas/queue-worker:0.14.0";
-                  };
-                };
-              })
-              .config
-              .kubernetes
-              .result;
+                })
+                .config
+                .kubernetes
+                .result;
+            };
           }
         ))
         (flake-utils.lib.eachDefaultSystem (
