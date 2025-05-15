@@ -18,19 +18,20 @@ use uom::si::f64::{Ratio, Time};
 use uom::si::ratio::ratio;
 use uom::si::time::millisecond;
 
-const NB_ICMP_SENT: u16 = 10;
-const SAMPLING_TIME_MS: u16 = 250;
+const NB_ICMP_SENT: u16 = 100;
+const SAMPLING_TIME_MS: u16 = 1;
+const TIMEOUT_MS: u64 = 500;
 #[derive(Debug)]
 struct Latencies {
     moving_average: ExponentialMovingAverage,
-    moving_median:  MovingMedian,
-    packet_loss:    PacketLossRing,
+    moving_median: MovingMedian,
+    packet_loss: PacketLossRing,
 }
 
 #[derive(Debug)]
 struct PacketLossRing {
-    buffer:      Vec<Ratio>,
-    cursor:      usize,
+    buffer: Vec<Ratio>,
+    cursor: usize,
     window_size: usize,
 }
 
@@ -64,10 +65,10 @@ impl PacketLossRing {
 
 #[derive(Debug)]
 pub struct LatencyEstimationImpl {
-    node_situation:            Arc<NodeSituation>,
-    metrics:                   Arc<MetricsExporter>,
-    latency:                   Arc<dashmap::DashMap<NodeId, Latencies>>,
-    alpha:                     model::domain::exp_average::Alpha,
+    node_situation: Arc<NodeSituation>,
+    metrics: Arc<MetricsExporter>,
+    latency: Arc<dashmap::DashMap<NodeId, Latencies>>,
+    alpha: model::domain::exp_average::Alpha,
     moving_median_window_size: MovingMedianSize,
 }
 #[async_trait]
@@ -154,7 +155,7 @@ impl LatencyEstimationImpl {
         let payload = [0; 56];
         let mut pinger =
             client.pinger(ip, PingIdentifier(rand::random())).await;
-        pinger.timeout(Duration::from_secs(1));
+        pinger.timeout(Duration::from_millis(TIMEOUT_MS));
         let mut interval =
             interval(Duration::from_millis(SAMPLING_TIME_MS.into()));
         let mut durations = Time::new::<millisecond>(0.0);
@@ -178,7 +179,8 @@ impl LatencyEstimationImpl {
 
         let nb = (NB_ICMP_SENT - nb_failed) as f64;
         let raw_latency = durations / nb;
-        let raw_packet_loss = (nb_failed / NB_ICMP_SENT) as f64;
+        let raw_packet_loss =
+            ((nb_failed as f64) / (NB_ICMP_SENT as f64)) as f64;
 
         self.update_latency(
             &self.latency,

@@ -6,7 +6,7 @@ DOCKER := env_var_or_default("DOCKER", "podman")
 MARKET_PORT := "30008"
 PROMETHEUS_PORT := "3090"
 PROMETHEUS_PORT_PUSH := "3091"
-COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff")
+COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff-dev")
 
 # Default command when no verb specified
 _default:
