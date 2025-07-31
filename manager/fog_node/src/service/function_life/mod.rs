@@ -22,15 +22,15 @@ use uom::si::rational64::Information;
 use uom::si::time::{millisecond, second};
 
 pub struct FunctionLife {
-    function:              Arc<Function>,
-    auction:               Arc<Auction>,
-    node_situation:        Arc<NodeSituation>,
+    function: Arc<Function>,
+    auction: Arc<Auction>,
+    node_situation: Arc<NodeSituation>,
     #[allow(dead_code)]
-    neighbor_monitor:      Arc<NeighborMonitor>,
-    node_query:            Arc<NodeQuery>,
+    neighbor_monitor: Arc<NeighborMonitor>,
+    node_query: Arc<NodeQuery>,
     #[allow(dead_code)]
-    function_tracking:     Arc<FunctionTracking>,
-    cron:                  Arc<Cron>,
+    function_tracking: Arc<FunctionTracking>,
+    cron: Arc<Cron>,
     function_live_timeout: Arc<std::time::Duration>,
 }
 

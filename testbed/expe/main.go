@@ -51,6 +51,7 @@ type Function struct {
 	InputMaxSize      string
 	Replicas          int
 	EnvProcess        *string
+	EnvVars           *map[string]string
 }
 
 // The FunctionProvisioned response of the function being provisioned
@@ -101,15 +102,16 @@ var (
 
 // The FunctionPipeline is a description of the functions to deploy on the network
 type FunctionPipeline struct {
-	Image                     string  `json:"image"`
-	NextFunction              *string `json:"nextFunction,omitempty"`
-	Mem                       int     `json:"mem,omitempty"`
-	CPU                       int     `json:"cpu,omitempty"`
-	Latency                   string  `json:"latency,omitempty"`
-	InputMaxSize              string  `json:"input_max_size,omitempty"`
-	ExpectedRequestIntervalMs int     `json:"expectedRequestIntervalMs"`
-	Replicas                  int     `json:"replicas"`
-	EnvProcess                *string `json:"envProcess"`
+	Image                     string             `json:"image"`
+	NextFunction              *string            `json:"nextFunction,omitempty"`
+	Mem                       int                `json:"mem,omitempty"`
+	CPU                       int                `json:"cpu,omitempty"`
+	Latency                   string             `json:"latency,omitempty"`
+	InputMaxSize              string             `json:"input_max_size,omitempty"`
+	ExpectedRequestIntervalMs int                `json:"expectedRequestIntervalMs"`
+	Replicas                  int                `json:"replicas"`
+	EnvProcess                *string            `json:"envProcess"`
+	EnvVars                   *map[string]string `json:"envVars"`
 }
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
@@ -266,6 +268,16 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 	if function.InputMaxSize == "" {
 		function.InputMaxSize = "1500 B"
 	}
+	envVars := [][]string{}
+	if function.EnvVars != nil {
+		for key, value := range *function.EnvVars {
+			if value == "<<random>>" {
+				value = strconv.Itoa(random.Intn(99999999))
+			}
+			envVars = append(envVars, []string{key, value})
+		}
+	}
+	envVars = append(envVars, []string{"MARKET_URL", fmt.Sprintf("%s:%d", marketIP, marketLocalPort)})
 	data := map[string]interface{}{
 		"sla": map[string]interface{}{
 			"memory":           fmt.Sprintf("%d MB", function.Mem),
@@ -275,10 +287,7 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			"duration":         fmt.Sprintf("%d ms", function.Duration),
 			"functionImage":    fmt.Sprintf("%s/%s", dockerRegistry, function.DockerFnName),
 			"functionLiveName": function.FunctionName,
-			"envVars": [][]string{{
-				"RELEASE_COOKIE", strconv.Itoa(random.Intn(99999999))}, {
-				"MARKET_URL", fmt.Sprintf("%s:%d", marketIP, marketLocalPort),
-			}},
+			"envVars":          envVars,
 			"dataFlow": []map[string]interface{}{
 				{
 					"from": map[string]string{"dataSource": function.TargetNode},
@@ -732,6 +741,7 @@ func saveFile(filename string) error {
 						InputMaxSize:      fn.InputMaxSize,
 						Replicas:          fn.Replicas,
 						EnvProcess:        fn.EnvProcess,
+						EnvVars:           fn.EnvVars,
 					})
 					if fn.NextFunction == nil {
 						break

@@ -982,30 +982,60 @@ output_otel_plot <- function(spans) {
     select(folder, timestamp, service.name, field, value_raw, span_id, trace_id) %>%
     pivot_wider(names_from = field, values_from = value_raw) %>%
     mutate(duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")) %>%
-    select(-attributes)
+    mutate(attributes = lapply(attributes, fromJSON)) %>%
+    unnest_wider(attributes)
+
+   Log(df %>% select(span.name, retries) %>% sample_n(10))
+   #
+   # Log("There are duration NAs:")
+   # nas <- df %>% filter(is.na(duration)) %>% count()
+   # Log(nas$n)
+   #
+   Log(colnames(df))
+
+  # all_keys <- unique(unlist(lapply(toto$toto, names)))
+  # Log(all_keys)
 
   df_spans_raw <- df %>%
-    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "..."))
+    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
+    mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
+    select(span.name, folder, duration, trace_id, retries)
 
   df_spans_raw2 <- df %>%
-    filter(startsWith(span.name, "FLAME"))
+    filter(startsWith(span.name, "...FLAME")) %>%
+    mutate(span.name = substring(span.name, 4)) %>%
+    select(span.name, folder, end_duration = duration, trace_id, service.instance.id)
 
   df_spans <- df_spans_raw %>%
-    group_by(trace_id, folder) %>%
-    summarise(nb_starts = n())
+    inner_join(df_spans_raw2) %>%
+    mutate(dead_time = duration - end_duration)
 
-  df <- df %>%
-    filter(span.name %in% c("start_processing_requests")) %>%
-    full_join(df_spans) %>%
-    full_join(df_spans_raw2 %>%
-      mutate(nb_starts = 1))
+  Log(df_spans %>% select(span.name, dead_time, duration, end_duration) %>% sample_n(5))
 
-  p <- ggplot(data = df, aes(alpha = 1, x = span.name, y = duration, color = span.name, size = nb_starts)) +
+  df <- df_spans %>%
+    mutate(duration = dead_time)
+
+  # df <- df %>%
+  #   group_by(folder, service.instance.id, span.name) %>%
+  #   summarise(duration = mean(duration))
+
+
+  # df_lines <- df %>%
+  #   ungroup()
+  #
+  # df_lines <- df_lines %>%
+  #   select(span_id, parent_span_id, folder, duration, span.name, service.instance.id, trace_id) %>%
+  #   left_join(df_lines %>%
+  #       select(parent_span.name = span.name, parent_duration = duration, folder, parent_span_id = span_id, parent_service.instance.id = service.instance.id))
+
+
+  p <- ggplot(data = df, aes(alpha = 1, x = span.name, y = duration, color = service.instance.id)) +
     #  facet_grid(~var_facet) +
-    # geom_beeswarm() +
+    geom_beeswarm(aes(size = retries)) +
     # geom_point() +
-    geom_quasirandom(method = "tukey", alpha = .8) +
-    # geom_line(data = df, aes(x = span.name, y = duration, color = trace_id, group = trace_id)) +
+    # geom_segment(data = df_lines, aes(x = parent_span.name, y = parent_duration, xend = span.name, yend = duration, color = trace_id), alpha = 0.2) +
+    # geom_quasirandom(method = "tukey", alpha = .8) +
+    # geom_line(aes(group = trace_id, color = trace_id, alpha = 0.2)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
@@ -1025,6 +1055,7 @@ output_otel_plot <- function(spans) {
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     scale_x_discrete() +
+    scale_size(limits =c(1, 6)) +
     scale_y_continuous() +
     guides(colour = guide_legend(nrow = 1))
 

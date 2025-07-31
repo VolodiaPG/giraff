@@ -18,8 +18,9 @@ GRAPH_TWO_COLUMN_WIDTH <- 9
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-14-15-43.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-05-14-14-34.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-07-25-12-14.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-07-29-14-28.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-07-31-08-28.tar.xz",
   #---
   #---
   #---

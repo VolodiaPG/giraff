@@ -13,6 +13,10 @@
             "expectedRequestIntervalMs": 500,
             "replicas": 1,
             "envProcess": "server",
+            "envVars": {
+              "NEW_BUDGET_PER_REQUEST": "100",
+              "RELEASE_COOKIE": "<<random>>"
+            }
         },
     },
 }

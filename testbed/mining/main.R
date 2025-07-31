@@ -59,6 +59,8 @@ init <- function() {
   library(future.apply)
   library(rlang)
 
+  library(jsonlite)
+
   future::plan("multicore", workers = workers)
 
   ggplot2::theme_set(theme_prism())
@@ -149,6 +151,7 @@ if (single_graphs) {
     # graphs <- graph("raw_cpu", graphs, output_raw_cpu_usage(raw_cpu_all))
 
     node_levels <- m_load_node_levels(ark)
+
     provisioned_sla <- m_load_provisioned_sla(ark)
     respected_sla <- m_load_respected_sla(ark)
     bids_raw <- m_load_bids_raw(ark)

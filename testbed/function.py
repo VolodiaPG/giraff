@@ -1,10 +1,10 @@
 import asyncio
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 
 import marshmallow_dataclass  # type: ignore
-import pyjson5 as json5
+import pyjson5 as json5  # type: ignore
 
 FUNCTION_DESCRIPTIONS = os.getenv(
     "FUNCTION_DESCRIPTIONS", ""
@@ -29,6 +29,7 @@ class FunctionPipeline:
     expectedRequestIntervalMs: float = 1000.0
     replicas: int = 1
     envProcess: str = ""
+    envVars: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass

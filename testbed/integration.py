@@ -430,6 +430,9 @@ def vagrant(
         user="root",
         number=1,
         flavour_desc={"core": 2, "mem": 1024 * 4},
+        config_extra_vm=(
+            'config.vm.network "forwarded_port", guest: 16686, host: 16686\n'
+        ),
     )
 
     assignations = assign_vm_to_hosts(
@@ -658,8 +661,8 @@ def network(env: EnosEnv = None):
     print("deploying network")
     # net.deploy(chunk_size=25)
     net.deploy()
-    print("validating network")
-    net.validate()
+    # print("validating network")
+    # net.validate()
 
 
 @cli.command()  # type: ignore

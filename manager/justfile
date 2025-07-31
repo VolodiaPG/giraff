@@ -90,6 +90,7 @@ run_market jaeger *FLAGS:
      INFLUX_BUCKET="faasfog" \
      INSTANCE_NAME="marketplace" \
      ENABLE_COLLECTOR="{{ jaeger }}" \
+     LD_LIBRARY_PATH="$OPENSSL" \
      cargo run --bin market {{ FLAGS }}
 
 # Run the node, type is market or else (generic fog_node)
@@ -264,9 +265,11 @@ run_fog_node node_type MY_IP_ADDRESS MY_IP_ADDRESS_PRIVATE jaeger="false":
     env_vars['PRICING_MEM_INITIAL']="1.0"
     env_vars['PRICING_GEOLOCATION']="1.0"
 
-    env_vars['RATIO_AA']="0.1"
-    env_vars['RATIO_BB']="0.4"
-    env_vars['ELECTRICITY_PRICE']=level if level > 0 else 1
+    env_vars['RATIO_AA']=0.1 * level
+    env_vars['RATIO_BB']=0.2 * level
+    env_vars['ELECTRICITY_PRICE']=1
+
+    env_vars['LD_LIBRARY_PATH']=f"{os.getenv('LD_LIBRARY_PATH')}:{os.getenv('OPENSSL')}"
 
     if "{{ node_type }}" in ["node_1", "node_2"]:
         env_vars['IS_CLOUD'] = "is_cloud"

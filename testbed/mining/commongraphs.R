@@ -723,7 +723,7 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
 
 output_mean_respected_slas <- function(respected_sla, node_levels) {
   # Log(df %>% ungroup() %>% select(folder, chain_id, violated, acceptable_chained, total))
-  Log(respected_sla)
+  # Log(respected_sla)
   df <- respected_sla %>%
     # group_by(chain_id, folder, metric_group, metric_group_group) %>%
     # mutate(violated = Reduce(`&`, acceptable_chained, accumulate = FALSE)) %>%

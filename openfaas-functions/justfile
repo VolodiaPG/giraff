@@ -1,6 +1,6 @@
 DOCKER := env_var_or_default("DOCKER", "docker")
 FLAKE := file_name(justfile_directory())
-COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff")
+COMMON_IMAGE_NAME := env_var_or_default("COMMON_IMAGE_NAME", "giraff-dev")
 
 _default:
     @just --list

@@ -106,7 +106,7 @@
                 ln -s ${pkgs.python3}/bin/python .venv/bin/python
               '';
 
-            # LD_LIBRARY_PATH = lib.makeLibraryPath [pkgs.openssl_3_2];
+            OPENSSL = lib.makeLibraryPath [pkgs.openssl_3_2];
 
             packages = with pkgs;
               [

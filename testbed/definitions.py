@@ -325,8 +325,8 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
 }
 
 MAX_LOCATION = 3
-MAX_INITIAL_PRICE = 4
-SLOPE = 8
+MAX_INITIAL_PRICE = 0.2
+SLOPE = 3
 
 
 def pricing(
@@ -354,16 +354,16 @@ def additional_env_vars(level):
         if level >= 3:
             ret.update(
                 {
-                    "RATIO_AA": random.uniform(0.8, 1.2),
-                    "RATIO_BB": random.uniform(1.2, 1.4),
+                    "RATIO_AA": random.uniform(0.0, 0.3),
+                    "RATIO_BB": random.uniform(0.3, 0.6),
                     "ELECTRICITY_PRICE": 1.0,
                 }
             )
         elif level == 2:
             ret.update(
                 {
-                    "RATIO_AA": random.uniform(0.4, 0.8),
-                    "RATIO_BB": random.uniform(0.9, 1.1),
+                    "RATIO_AA": random.uniform(0, 0.1),
+                    "RATIO_BB": random.uniform(0.2, 0.4),
                     "ELECTRICITY_PRICE": 0.95,
                 }
             )
@@ -371,8 +371,8 @@ def additional_env_vars(level):
             ret.update(
                 {
                     "RATIO_AA": 0.01,
-                    "RATIO_BB": 0.2,
-                    "ELECTRICITY_PRICE": 0.75,
+                    "RATIO_BB": 0.1,
+                    "ELECTRICITY_PRICE": 0.9,
                 }
             )
         return ret
@@ -527,13 +527,14 @@ def network_generation():
             nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
             latencies=(1, 3),
             rates=(ONE_GBIT, ONE_GBIT),
-            modifiers=[set_cloud, drop_children(drop_one_in=2)],
+            modifiers=[set_cloud, drop_children(drop_one_in=3)],
+            losses=(1, 2),
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(6, 32),
                 rates=(500 * ONE_MBIT, ONE_GBIT),
-                losses=(0, 0),
+                losses=(1, 5),
                 modifiers=[
                     drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2, 4]),
@@ -544,7 +545,7 @@ def network_generation():
                     nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
                     latencies=(7, 64),
                     rates=(100 * ONE_MBIT, ONE_GBIT),
-                    losses=(0, 0),
+                    losses=(5, 10),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -555,9 +556,9 @@ def network_generation():
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 4),
                         rates=(10 * ONE_MBIT, ONE_GBIT),
-                        losses=(0, 0),
+                        losses=(1, 5),
                         modifiers=[
-                            set_iot_connected(drop_one_in=6),
+                            set_iot_connected(drop_one_in=2),
                             flavor_randomizer_mem([0, 2]),
                         ],
                     ),
@@ -773,41 +774,94 @@ LOAD_NETWORK_FILE = "LOAD_NETWORK_FILE"
 SAVE_NETWORK_FILE = "SAVE_NETWORK_FILE"
 
 if os.getenv("DEV_NETWORK") == "true":
-    NETWORK = {
-        "name": "market",
-        "flavor": TIER_4_FLAVOR,
-        "rate": ONE_GBIT,
-        "loss": 1,
-        "children": [
-            {
-                "name": "node_2",
-                "flavor": TIER_4_FLAVOR,
-                "latency": 6,
-                "rate": 1 * ONE_GBIT,
-                "loss": 10,
-                "children": [
-                    {
-                        "name": "node_3",
-                        "flavor": TIER_4_FLAVOR,
-                        "latency": 10,
-                        "rate": 1 * ONE_GBIT,
-                        "children": [],
-                        "iot_connected": 0,
-                        "loss": 1,
-                    },
-                    {
-                        "name": "node_34",
-                        "flavor": TIER_4_FLAVOR,
-                        "rate": 100 * ONE_MBIT,
-                        "latency": 5,
-                        "children": [],
-                        "iot_connected": 0,
-                        "loss": 1,
-                    },
-                ],
-            },
-        ],
-    }
+    if os.getenv("VAGRANT"):
+        NETWORK = {
+            "name": "market",
+            "flavor": TIER_4_FLAVOR,
+            "rate": ONE_GBIT,
+            "loss": 1,
+            "children": [
+                {
+                    "name": "node_2",
+                    "flavor": TIER_4_FLAVOR,
+                    "latency": 6,
+                    "rate": 1 * ONE_GBIT,
+                    "loss": 10,
+                    "children": [
+                        {
+                            "name": "node_3",
+                            "flavor": TIER_4_FLAVOR,
+                            "latency": 10,
+                            "rate": 1 * ONE_GBIT,
+                            "children": [],
+                            "iot_connected": 0,
+                            "loss": 1,
+                        },
+                        {
+                            "name": "node_34",
+                            "flavor": TIER_4_FLAVOR,
+                            "rate": 100 * ONE_MBIT,
+                            "latency": 5,
+                            "children": [],
+                            "iot_connected": 0,
+                            "loss": 1,
+                        },
+                    ],
+                },
+            ],
+        }
+    else:
+        NETWORK = {
+            "name": "market",
+            "flavor": TIER_1_FLAVOR,
+            "rate": ONE_GBIT,
+            "loss": 1,
+            "children": [
+                {
+                    "name": "node_2",
+                    "flavor": TIER_3_FLAVOR,
+                    "latency": 6,
+                    "rate": 1 * ONE_GBIT,
+                    "loss": 10,
+                    "children": [
+                        {
+                            "name": "node_31",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 7,
+                            "rate": 200 * ONE_MBIT,
+                            "children": [],
+                            "iot_connected": 0,
+                            "loss": 2,
+                        },
+                        {
+                            "name": "node_341",
+                            "flavor": TIER_3_FLAVOR,
+                            "rate": 10 * ONE_MBIT,
+                            "latency": 5,
+                            "children": [],
+                            "loss": 1,
+                        },
+                        {
+                            "name": "node_3",
+                            "flavor": TIER_3_FLAVOR,
+                            "latency": 2,
+                            "rate": 1 * ONE_GBIT,
+                            "children": [],
+                            "loss": 1,
+                        },
+                        {
+                            "name": "node_34",
+                            "flavor": TIER_4_FLAVOR,
+                            "rate": 100 * ONE_MBIT,
+                            "latency": 5,
+                            "children": [],
+                            "iot_connected": 0,
+                            "loss": 1,
+                        },
+                    ],
+                },
+            ],
+        }
 else:
     save_network_file = os.getenv(SAVE_NETWORK_FILE)
     load_network_file = os.getenv(LOAD_NETWORK_FILE)

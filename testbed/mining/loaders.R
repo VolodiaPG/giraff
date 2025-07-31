@@ -390,7 +390,7 @@ load_acceptable_from_respected_slas <- function(ark) {
     mutate(raw_on_time_chained = raw_on_time == total) %>%
     ungroup()
 
-  Log(respected_sla %>% filter(raw_acceptable_chained == FALSE))
+  # Log(respected_sla %>% filter(raw_acceptable_chained == FALSE))
 
   # collect() %>%
   respected_sla <- respected_sla %>%
@@ -429,6 +429,7 @@ load_respected_sla <- function(ark) {
     prepare() %>%
     ungroup() %>%
     select(folder, sla_id, function_name)
+
 
   respected_sla <- load_single_csv(ark, "proxy.csv") %>%
     prepare() %>%
@@ -535,7 +536,6 @@ load_respected_sla <- function(ark) {
     filter(!is.na(acceptable_chained)) %>%
     collect() %>%
     ungroup()
-
   return(respected_sla)
 }
 
