@@ -4,7 +4,7 @@
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
         (flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = inputs.nixpkgs.legacyPackages.${system};
+          pkgs = inputs.r-nixpkgs.legacyPackages.${system};
           R-pkgs = with pkgs.rPackages; [
             languageserver
             networkD3
@@ -16,9 +16,15 @@
               archive.overrideAttrs (old: {
                 buildInputs =
                   old.buildInputs
-                  ++ (with pkgs; [
-                    libarchive
-                  ]);
+                  ++ (with pkgs;
+                    [
+                      libarchive
+                    ]
+                    ++ lib.optionals stdenv.hostPlatform.isDarwin [
+                      gfortran
+                      libiconv
+                    ]);
+                # (with pkgs.darwin.apple_sdk.frameworks; pkgs.lib.optionals pkgs.stdenv.isDarwin [Cocoa Foundation pkgs.gfortran pkgs.libiconv]);
               })
             )
             cowplot
@@ -94,6 +100,7 @@
             rPackages.styler
             binserve
             parallel
+            nmap
           ];
           FONTCONFIG_FILE = pkgs.makeFontsConf {
             fontDirectories = [pkgs.freefont_ttf];

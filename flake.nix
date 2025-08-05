@@ -2,6 +2,7 @@
   inputs = {
     # Al packages
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    r-nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     # Rust
     crane = {
