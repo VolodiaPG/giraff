@@ -168,22 +168,23 @@ if (single_graphs) {
 
     Log(paste0("Done loading data ", ark))
 
-    graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
-    graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
-
-    graphs <- graph("duration_distribution", graphs, output_duration_distribution_plot(provisioned_sla))
-    graphs <- graph("latency_distribution", graphs, output_latency_distribution_plot(provisioned_sla))
-    graphs <- graph("request_interval_distribution", graphs, output_request_interval_distribution_plot(provisioned_sla))
-    graphs <- graph("request_distribution", graphs, output_request_distribution(respected_sla))
-    graphs <- graph("latency_vs_expected_latency", graphs, output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
-    graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
-    graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla, bids_won_function))
-    graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
+    # graphs <- graph_non_ggplot("respected_sla", graphs, output_respected_sla_plot(respected_sla, bids_won_function, node_levels))
+    # graphs <- graph_non_ggplot("sla", graphs, output_sla_plot(respected_sla, bids_won_function, node_levels))
+    #
+    # graphs <- graph("duration_distribution", graphs, output_duration_distribution_plot(provisioned_sla))
+    # graphs <- graph("latency_distribution", graphs, output_latency_distribution_plot(provisioned_sla))
+    # graphs <- graph("request_interval_distribution", graphs, output_request_interval_distribution_plot(provisioned_sla))
+    # graphs <- graph("request_distribution", graphs, output_request_distribution(respected_sla))
+    # graphs <- graph("latency_vs_expected_latency", graphs, output_latency_vs_expected_latency_plot(respected_sla, bids_won_function))
+    # graphs <- graph("in_flight_time", graphs, output_in_flight_time_plot_simple(respected_sla, bids_won_function, node_levels))
+    # graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla, bids_won_function))
+    # graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
     # graphs <- graph("output_latency", graphs, output_latency(latency))
     graphs <- graph("output_loss", graphs, output_loss(raw_latency))
-    graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
-    graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
+    # graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
+    # graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
     graphs <- graph("otel", graphs, output_otel_plot(otel))
+    graphs <- graph("otel_budget", graphs, output_otel_budget_plot(otel))
 
     Log(paste0("Done generating graphs ", ark))
 

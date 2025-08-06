@@ -98,6 +98,7 @@
             nodePackages_latest.browser-sync
             entr
             rPackages.styler
+            rPackages.languageserver
             binserve
             parallel
             nmap
