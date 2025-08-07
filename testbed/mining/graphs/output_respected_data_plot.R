@@ -5,7 +5,10 @@ output_respected_data_plot <- function(respected_sla) {
     # summarise(satisfied_ratio = mean(satisfied_ratio) %>%
     ungroup()
 
-  p <- ggplot(data = df, aes(alpha = 1, x = satisfied_ratio, color = docker_fn_name)) +
+  p <- ggplot(
+    data = df,
+    aes(alpha = 1, x = satisfied_ratio, color = docker_fn_name)
+  ) +
     facet_grid(rows = vars(metric_group)) +
     theme(legend.position = "none") +
     scale_color_viridis(discrete = TRUE) +

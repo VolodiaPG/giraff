@@ -1,4 +1,7 @@
-output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_function) {
+output_latency_vs_expected_latency_plot <- function(
+  respected_sla,
+  bids_won_function
+) {
   df <- respected_sla %>%
     mutate(measured_latency = as.numeric(measured_latency)) %>%
     # left_join(bids_won_function %>% ungroup() %>% select(function_name, folder, sla_id) %>% rename(prev_sla = sla_id, prev_function_name = function_name)) %>%
@@ -10,7 +13,15 @@ output_latency_vs_expected_latency_plot <- function(respected_sla, bids_won_func
       .
     }
 
-  p <- ggplot(data = df, aes(x = docker_fn_name, y = ratio, color = interaction(prev_function, docker_fn_name), alpha = 1)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      x = docker_fn_name,
+      y = ratio,
+      color = interaction(prev_function, docker_fn_name),
+      alpha = 1
+    )
+  ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     # scale_y_continuous(trans = "log10") +

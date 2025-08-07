@@ -8,7 +8,15 @@ output_arrival <- function(respected_sla) {
       .
     }
 
-  p <- ggplot(data = df, aes(x = docker_fn_name, y = request_interval, color = docker_fn_name, alpha = 1)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      x = docker_fn_name,
+      y = request_interval,
+      color = docker_fn_name,
+      alpha = 1
+    )
+  ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     labs(

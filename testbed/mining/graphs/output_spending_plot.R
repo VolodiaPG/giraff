@@ -11,10 +11,13 @@ output_spending_plot <- function(plots.spending.data) {
       y = "Function cost",
       x = "Placement method",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
@@ -31,7 +34,14 @@ output_spending_plot <- function(plots.spending.data) {
     {
       return(sprintf("%s\n\\footnotesize{$\\mu=%.1f$}", Letters, mean))
     } %>M%
-      plots.spending <- anova_boxplot(p, df, "Placement method", "spending", "group", mean_cb)
+      plots.spending <- anova_boxplot(
+      p,
+      df,
+      "Placement method",
+      "spending",
+      "group",
+      mean_cb
+    )
   }
   plots.spending + labs(title = plots.spending.caption)
   return(plots.spending)

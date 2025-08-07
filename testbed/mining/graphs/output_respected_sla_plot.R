@@ -1,10 +1,31 @@
-output_respected_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
+output_respected_sla_plot <- function(
+  respected_sla,
+  bids_won_function,
+  node_levels
+) {
   compute <- function() {
     df <- respected_sla %>%
-      left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
-      left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id) %>% rename(winner_prev = winner, prev_sla = sla_id)) %>%
-      left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>% select(name, folder, level) %>% rename(winner = name)) %>%
-      left_join(node_levels %>% mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>% select(name, folder, level) %>% rename(winner_prev = name, level_prev = level)) %>%
+      left_join(
+        bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)
+      ) %>%
+      left_join(
+        bids_won_function %>%
+          ungroup() %>%
+          select(winner, folder, sla_id) %>%
+          rename(winner_prev = winner, prev_sla = sla_id)
+      ) %>%
+      left_join(
+        node_levels %>%
+          mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>%
+          select(name, folder, level) %>%
+          rename(winner = name)
+      ) %>%
+      left_join(
+        node_levels %>%
+          mutate(level = paste0(level, " (", level_value, ")", sep = "")) %>%
+          select(name, folder, level) %>%
+          rename(winner_prev = name, level_prev = level)
+      ) %>%
       #            mutate(sla_id = if_else(acceptable_chained == total, docker_fn_name, sla_id)) %>%
       #            mutate(prev_sla = if_else(acceptable_chained == total, prev_function, prev_sla)) %>%
       mutate(level_docker = paste0(level, docker_fn_name, sep = " ")) %>%

@@ -17,11 +17,16 @@ output_mean_time_to_deploy <- function(raw.deployment_times) {
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
-        size = 0.2, color = alpha("white", .7)
+        size = 0.2,
+        color = alpha("white", .7)
       ),
       axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)
     ) +
-    theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+    theme(
+      legend.spacing.y = unit(0, "cm"),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.box.margin = margin(-10, -10, -10, -10),
+    ) +
     # theme(legend.position = c(.8, .5)) +
     guides(colour = guide_legend(ncol = 1)) +
     scale_color_viridis(discrete = T) +
@@ -32,7 +37,15 @@ output_mean_time_to_deploy <- function(raw.deployment_times) {
   mean_cb <- function(Letters, mean) {
     return(sprintf("%s\n\\footnotesize{$\\mu=%.1fs$}", Letters, mean))
   }
-  plots.deploymenttimes <- anova_boxplot(p, df, "Placement method", "value", "group", mean_cb, c(4, 6, 19))
+  plots.deploymenttimes <- anova_boxplot(
+    p,
+    df,
+    "Placement method",
+    "value",
+    "group",
+    mean_cb,
+    c(4, 6, 19)
+  )
   plots.deploymenttimes + labs(title = plots.deployment_times.caption)
   return(plots.deploymenttimes)
 }

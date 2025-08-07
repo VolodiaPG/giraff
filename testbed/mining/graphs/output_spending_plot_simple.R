@@ -12,10 +12,13 @@ output_spending_plot_simple <- function(bids_won, node_levels) {
       y = "Function cost",
       x = "Placement method",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
@@ -25,7 +28,11 @@ output_spending_plot_simple <- function(bids_won, node_levels) {
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     guides(colour = guide_legend(nrow = 1)) +
-    geom_quasirandom(aes(color = factor(level_value)), method = "tukey", alpha = .2)
+    geom_quasirandom(
+      aes(color = factor(level_value)),
+      method = "tukey",
+      alpha = .2
+    )
   # geom_line(aes(group = metric_group_group), alpha = .2) +
   # geom_point(aes(color = metric_group, fill = metric_group, )) +
   # stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)

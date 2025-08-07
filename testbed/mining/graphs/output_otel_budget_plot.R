@@ -1,9 +1,19 @@
 output_otel_budget_plot <- function(spans) {
   df <- spans %>%
     ungroup() %>%
-    select(folder, timestamp, service.name, field, value_raw, span_id, trace_id) %>%
+    select(
+      folder,
+      timestamp,
+      service.name,
+      field,
+      value_raw,
+      span_id,
+      trace_id
+    ) %>%
     pivot_wider(names_from = field, values_from = value_raw) %>%
-    mutate(duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")) %>%
+    mutate(
+      duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")
+    ) %>%
     mutate(attributes = lapply(attributes, fromJSON)) %>%
     unnest_wider(attributes)
 
@@ -11,7 +21,16 @@ output_otel_budget_plot <- function(spans) {
 
   Log(colnames(df))
 
-  p <- ggplot(data = df, aes(alpha = 1, x = timestamp, y = as.numeric(budget), color = service.namespace, group = service.namespace)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      alpha = 1,
+      x = timestamp,
+      y = as.numeric(budget),
+      color = service.namespace,
+      group = service.namespace
+    )
+  ) +
     # facet_grid(~var_facet) +
     # geom_beeswarm(aes(size = retries)) +
     # geom_beeswarm() +
@@ -25,10 +44,13 @@ output_otel_budget_plot <- function(spans) {
       x = "Span",
       y = "Time",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),

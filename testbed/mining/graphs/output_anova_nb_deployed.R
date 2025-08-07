@@ -75,7 +75,12 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
 
   p <- df %>%
     ggplot(aes(x = class_x, y = value_y, alpha = 1, fill = Letters)) +
-    facet_grid(cols = vars(factor(var_facet, levels = c("$19 \\le n < 34$", "$112 \\le n \\le 119$")))) +
+    facet_grid(
+      cols = vars(factor(
+        var_facet,
+        levels = c("$19 \\le n < 34$", "$112 \\le n \\le 119$")
+      ))
+    ) +
     # facet_grid(cols = vars(var_facet)) +
     labs(
       x = "Placement method",
@@ -87,11 +92,18 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
       x = "Placement method",
       y = "% of functions placed",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
-    theme(legend.spacing.y = unit(0, "cm"), legend.margin = margin(0, 0, 0, 0), legend.box.margin = margin(-10, -10, -10, -10), ) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
+    theme(
+      legend.spacing.y = unit(0, "cm"),
+      legend.margin = margin(0, 0, 0, 0),
+      legend.box.margin = margin(-10, -10, -10, -10),
+    ) +
     theme(axis.text.x = element_text(angle = 15, vjust = 1, hjust = 1)) +
     guides(colour = guide_legend(nrow = 1)) +
     theme(legend.position = "none") +
@@ -100,7 +112,19 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
     stat_summary(fun = mean, geom = "col", aes(color = Letters)) +
     geom_beeswarm(aes(color = Letters)) +
     geom_boxplot(aes(color = Letters), outlier.shape = NA) +
-    geom_text(data = final.text, alpha = 1, aes(x = class_x, y = min_mean, label = sprintf("%s\n\\footnotesize{$\\mu=%.1f%%$}", Letters, mean * 100)))
+    geom_text(
+      data = final.text,
+      alpha = 1,
+      aes(
+        x = class_x,
+        y = min_mean,
+        label = sprintf(
+          "%s\n\\footnotesize{$\\mu=%.1f%%$}",
+          Letters,
+          mean * 100
+        )
+      )
+    )
 
   sumup.F <- summary(ANOVA)[[1]][["F value"]][1]
   sumup.p <- summary(ANOVA)[[1]][["Pr(>F)"]][1]
@@ -112,7 +136,12 @@ output_anova_nb_deployed <- function(plots.nb_deployed.data) {
   )
 
   p <- p +
-    geom_text(data = final.text[2, ] %>% mutate(value_y = max_yvalue), aes(x = class_x, y = value_y), color = "black", label = sprintf("\\footnotesize{Anova $F=%.1f$, %s}", sumup.F, sumup.p))
+    geom_text(
+      data = final.text[2, ] %>% mutate(value_y = max_yvalue),
+      aes(x = class_x, y = value_y),
+      color = "black",
+      label = sprintf("\\footnotesize{Anova $F=%.1f$, %s}", sumup.F, sumup.p)
+    )
 
   return(p)
 }

@@ -3,7 +3,11 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
     filter(field == "raw") %>%
     adjust_timestamps() %>%
     ungroup() %>%
-    rename(source = instance, destination = destination_name, latency_value = value) %>%
+    rename(
+      source = instance,
+      destination = destination_name,
+      latency_value = value
+    ) %>%
     select(timestamp, source, destination, folder, latency_value, diff) %>%
     smooth_timestamps() %>%
     group_by(timestamp_group, source, destination, folder) %>%
@@ -22,12 +26,18 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
     summarise(provisioned = sum(provisioned), value = sum(value)) %>%
     group_by(folder, instance) %>%
     arrange(timestamp, .by_group = TRUE) %>%
-    mutate(provisioned = lag(cumsum(provisioned), default = 0), total_provisioned = lag(cumsum(value), default = 0)) %>%
+    mutate(
+      provisioned = lag(cumsum(provisioned), default = 0),
+      total_provisioned = lag(cumsum(value), default = 0)
+    ) %>%
     rename(source = instance) %>%
     select(source, timestamp, folder, provisioned, total_provisioned) %>%
     smooth_timestamps() %>%
     group_by(timestamp_group, folder, source) %>%
-    summarise(provisioned = last(provisioned), total_provisioned = last(total_provisioned)) %>%
+    summarise(
+      provisioned = last(provisioned),
+      total_provisioned = last(total_provisioned)
+    ) %>%
     rename(timestamp = timestamp_group) %>%
     ungroup() %>%
     {
@@ -52,10 +62,30 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
     rename(function_name = tags) %>%
     extract_function_name_info() %>%
     smooth_timestamps() %>%
-    inner_join(bids_won_function %>% select(sla_id, function_name, metric_group, metric_group_group, folder, winner), by = c("sla_id", "function_name", "folder", "metric_group_group", "metric_group")) %>%
+    inner_join(
+      bids_won_function %>%
+        select(
+          sla_id,
+          function_name,
+          metric_group,
+          metric_group_group,
+          folder,
+          winner
+        ),
+      by = c(
+        "sla_id",
+        "function_name",
+        "folder",
+        "metric_group_group",
+        "metric_group"
+      )
+    ) %>%
     rename(measured_latency = value, source = winner) %>%
     group_by(timestamp_group, sla_id, folder, source) %>%
-    summarise(satisfied_count = sum(measured_latency <= latency), total = n()) %>%
+    summarise(
+      satisfied_count = sum(measured_latency <= latency),
+      total = n()
+    ) %>%
     mutate(apdex = satisfied_count / total)
 
   gif.apdex.by_node <- gif.apdex.raw %>%
@@ -71,15 +101,24 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
       data %>%
         select(timestamp) %>%
         distinct() %>%
-        full_join(nodes %>%
-          select(timestamp) %>%
-          distinct(), by = "timestamp") %>%
-        full_join(gif.apdex.by_node %>%
-          select(timestamp) %>%
-          distinct(), by = "timestamp") %>%
-        full_join(cpu %>%
-          select(timestamp) %>%
-          distinct(), by = "timestamp"),
+        full_join(
+          nodes %>%
+            select(timestamp) %>%
+            distinct(),
+          by = "timestamp"
+        ) %>%
+        full_join(
+          gif.apdex.by_node %>%
+            select(timestamp) %>%
+            distinct(),
+          by = "timestamp"
+        ) %>%
+        full_join(
+          cpu %>%
+            select(timestamp) %>%
+            distinct(),
+          by = "timestamp"
+        ),
       by = character()
     )
 
@@ -113,8 +152,13 @@ output_gif <- function(raw.cpu.observed_from_fog_node, bids_won_function) {
     group_split()
 
   animations <- lapply(data_grouped, FUN = create_plot)
-  animations <- foreach(data = data_grouped, .verbose = FALSE, .combine = bind_rows) %dopar% {
-    create_plot(data)
-  }
+  animations <- foreach(
+    data = data_grouped,
+    .verbose = FALSE,
+    .combine = bind_rows
+  ) %dopar%
+    {
+      create_plot(data)
+    }
   return(animations)
 }

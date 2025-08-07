@@ -1,4 +1,8 @@
-output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
+output_in_flight_time_plot_simple <- function(
+  respected_sla,
+  bids_won_function,
+  node_levels
+) {
   df <- respected_sla %>%
     mutate(measured_latency = as.numeric(measured_latency)) %>%
     select(-sla_id) %>%
@@ -8,7 +12,15 @@ output_in_flight_time_plot_simple <- function(respected_sla, bids_won_function, 
     {
       .
     }
-  p <- ggplot(data = df, aes(x = prev_function, y = measured_latency, color = some_not_acceptable, alpha = 1)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      x = prev_function,
+      y = measured_latency,
+      color = some_not_acceptable,
+      alpha = 1
+    )
+  ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     # scale_y_continuous(trans = "log10") +

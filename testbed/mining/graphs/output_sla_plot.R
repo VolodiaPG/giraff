@@ -2,7 +2,16 @@ output_sla_plot <- function(respected_sla, bids_won_function, node_levels) {
   compute <- function() {
     df <- respected_sla %>%
       # left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
-      left_join(bids_won_function %>% ungroup() %>% select(function_name, winner, folder, sla_id) %>% rename(winner_prev = winner, prev_sla = sla_id, prev_function_name = function_name)) %>%
+      left_join(
+        bids_won_function %>%
+          ungroup() %>%
+          select(function_name, winner, folder, sla_id) %>%
+          rename(
+            winner_prev = winner,
+            prev_sla = sla_id,
+            prev_function_name = function_name
+          )
+      ) %>%
       # left_join(node_levels %>% rename(winner = name)) %>%
       # mutate(docker_fn_name = paste0("fn_", docker_fn_name, sep = "")) %>%
       # mutate(prev_function = prev_function_name) %>%

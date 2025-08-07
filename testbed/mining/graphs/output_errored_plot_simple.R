@@ -1,6 +1,12 @@
-output_errored_plot_simple <- function(respected_sla, bids_won_function, node_levels) {
+output_errored_plot_simple <- function(
+  respected_sla,
+  bids_won_function,
+  node_levels
+) {
   df <- respected_sla %>%
-    left_join(bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)) %>%
+    left_join(
+      bids_won_function %>% ungroup() %>% select(winner, folder, sla_id)
+    ) %>%
     left_join(node_levels %>% rename(winner = name)) %>%
     mutate(y = server_errored / total) %>%
     mutate(pipeline = pipeline) %>%
@@ -8,7 +14,16 @@ output_errored_plot_simple <- function(respected_sla, bids_won_function, node_le
       .
     }
 
-  p <- ggplot(data = df, aes(x = factor(pipeline), y = y, color = docker_fn_name, fill = docker_fn_name, alpha = 1)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      x = factor(pipeline),
+      y = y,
+      color = docker_fn_name,
+      fill = docker_fn_name,
+      alpha = 1
+    )
+  ) +
     # facet_grid(rows = vars(pipeline)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
