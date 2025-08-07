@@ -23,7 +23,8 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-07-31-08-28.tar.xz",
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-05-13-41.tar.xz",
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-05-15-36.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-08-39.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-08-39.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-14-30.tar.xz",
   #---
   #---
   #---
@@ -33,9 +34,15 @@ METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
 
 library(stringr)
 
-METRICS_GROUP <- str_match(METRICS_ARKS, "metrics_.*-fog_node-(.*)-market.*\\.tar\\.xz")
+METRICS_GROUP <- str_match(
+  METRICS_ARKS,
+  "metrics_.*-fog_node-(.*)-market.*\\.tar\\.xz"
+)
 METRICS_GROUP <- METRICS_GROUP[, 2]
-METRICS_GROUP_GROUP <- str_match(METRICS_ARKS, "metrics_.*\\.(.*)-fog_node-.*-market.*\\.tar\\.xz")
+METRICS_GROUP_GROUP <- str_match(
+  METRICS_ARKS,
+  "metrics_.*\\.(.*)-fog_node-.*-market.*\\.tar\\.xz"
+)
 METRICS_GROUP_GROUP <- METRICS_GROUP_GROUP[, 2]
 
 length(METRICS_ARKS)

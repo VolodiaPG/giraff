@@ -49,19 +49,15 @@ output_otel_plot <- function(spans) {
   #   select(span_id, parent_span_id, folder, duration, span.name, service.instance.id, trace_id) %>%
   #   left_join(df_lines %>%
   #       select(parent_span.name = span.name, parent_duration = duration, folder, parent_span_id = span_id, parent_service.instance.id = service.instance.id))
-  df_dodged <- df %>%
-    group_by(span.name) %>%
-    mutate(span.name_dodged = as.numeric(factor(span.name)) + (as.numeric(factor(service.namespace)) - 1) / (n_distinct(service.namespace) * 2) - 0.25) %>% # Adjust these values for desired dodge
-    ungroup()
 
-  p <- ggplot(data = df_dodged, aes(alpha = 1, x = timestamp, y = span.name_dodged, color = service.namespace)) +
-    #  facet_grid(~var_facet) +
-    # geom_beeswarm(aes(size = retries_left)) +
-    geom_point(aes(x=timestamp, y=span.name_dodged), size = 0.5) +
-    geom_point(aes(x=end_timestamp, y=span.name_dodged), size = 0.5) +
-    geom_segment(aes(x = timestamp, y = span.name_dodged, xend = end_timestamp, yend = span.name_dodged), alpha = 0.2) +
-    scale_y_continuous(breaks = unique(as.numeric(factor(df_dodged$span.name))), labels = unique(df_dodged$span.name)) +
-    # geom_line(aes(group = trace_id, color = trace_id, alpha = 0.2)) +
+offs <- as.numeric(factor(df$trace_id))
+offscale <- (offs - mean(unique(offs))) * 0.005
+
+p <- ggplot(data = df, aes(alpha = 1, x = timestamp, y = service.namespace, color = span.name)) +
+    geom_segment(aes(xend = end_timestamp, yend = service.namespace),
+                 position = position_nudge(y = offscale), alpha = 0.3) +
+    # geom_point(position = position_nudge(y = offscale)) +
+    geom_point(aes(x = end_timestamp), size= 0.3, position = position_nudge(y = offscale)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
