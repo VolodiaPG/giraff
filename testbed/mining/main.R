@@ -97,6 +97,16 @@ mem <- function(cb) {
 }
 
 source("utils.R")
+call_graph <- function(graph_name, ...) {
+  path <- paste0("graphs/", graph_name, ".R")
+  last_modified <- file.info(path)$mtime
+  source_run <- mem(function(path, last_modified) {
+    Log(paste0("Sourcing ", path, " last modified at ", last_modified))
+    source(path)
+    return(do.call(graph_name, list(...)))
+  })
+  return(source_run(path, last_modified))
+}
 
 graph <- mem(function(name, graphs, graph) {
   df <- data.frame(name = name, type = "ggplot", graph = I(list(graph)))
@@ -109,8 +119,8 @@ graph_non_ggplot <- mem(function(name, graphs, graph) {
 })
 
 source("loaders.R")
-source("graphs.R")
 source("commongraphs.R")
+
 combine <- function(arks, cb) {
   cb_name <- deparse(substitute(cb))
   return(combine2(arks, cb_name, cb))
@@ -198,11 +208,25 @@ if (single_graphs) {
       # graphs <- graph("ran_for", graphs, output_ran_for_plot_simple(respected_sla, bids_won_function))
       # graphs <- graph("output_arrival", graphs, output_arrival(respected_sla))
       # graphs <- graph("output_latency", graphs, output_latency(latency))
-      graphs <- graph("output_loss", graphs, output_loss(raw_latency))
       # graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
       # graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
-      graphs <- graph("otel", graphs, output_otel_plot(otel))
-      graphs <- graph("otel_budget", graphs, output_otel_budget_plot(otel))
+      #
+      graphs <- graph(
+        "output_loss",
+        graphs,
+        call_graph("output_loss", raw_latency)
+      )
+      graphs <- graph(
+        "output_raw_latency",
+        graphs,
+        call_graph("output_raw_latency", raw_latency)
+      )
+      graphs <- graph("otel", graphs, call_graph("output_otel_plot", otel))
+      graphs <- graph(
+        "otel_budget",
+        graphs,
+        call_graph("output_otel_budget_plot", otel)
+      )
 
       Log(paste0("Done generating graphs ", ark))
 

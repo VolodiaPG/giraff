@@ -32,4 +32,4 @@ pub:
     parallel -j2 --will-cite --tty ::: "${commands[@]}"
 
 watch:
-    ls */*.R | entr -nr just
+    ls **/*.R *.R | entr -nr just

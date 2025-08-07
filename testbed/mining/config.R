@@ -24,7 +24,9 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-05-13-41.tar.xz",
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-05-15-36.tar.xz",
   # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-08-39.tar.xz",
-  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-14-30.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-06-14-30.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-07-08-06.tar.xz",
+  "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev_2025-08-07-09-08.tar.xz",
   #---
   #---
   #---
@@ -56,7 +58,7 @@ stopifnot(length(METRICS_ARKS) == length(METRICS_GROUP_GROUP))
 options(width = 10000)
 
 # Not scientific notations
-options(scipen = 10000)
+options(scipen = 9999)
 
 options(error = function() {
   calls <- sys.calls()

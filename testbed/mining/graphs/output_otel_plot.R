@@ -18,8 +18,14 @@ output_otel_plot <- function(spans) {
     unnest_wider(attributes) %>%
     mutate(end_timestamp = timestamp + duration)
 
-  # Log(df %>% select(span.name, retries) %>% sample_n(10))
-  #
+  # Log(
+  #   df %>%
+  #     ungroup() %>%
+  #     select(service.namespace) %>%
+  #     distinct() %>%
+  #     sample_n(10)
+  # )
+
   # Log("There are duration NAs:")
   # nas <- df %>% filter(is.na(duration)) %>% count()
   # Log(nas$n)
@@ -75,7 +81,7 @@ output_otel_plot <- function(spans) {
     # geom_point(position = position_nudge(y = offscale)) +
     geom_point(
       aes(x = end_timestamp),
-      size = 0.3,
+      # size = 0.3,
       position = position_nudge(y = offscale)
     ) +
     theme(legend.position = "none") +
@@ -87,7 +93,7 @@ output_otel_plot <- function(spans) {
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
-        size = 0.2,
+        # size = 0.2,
         color = alpha("white", .7)
       )
     ) +
