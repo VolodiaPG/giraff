@@ -97,15 +97,22 @@ mem <- function(cb) {
 }
 
 source("utils.R")
-call_graph <- function(graph_name, ...) {
+call_graph <- function(ark, graph_name, ...) {
   path <- paste0("graphs/", graph_name, ".R")
   last_modified <- file.info(path)$mtime
-  source_run <- mem(function(path, last_modified) {
-    Log(paste0("Sourcing ", path, " last modified at ", last_modified))
+  source_run <- mem(function(ark, path, last_modified) {
+    Log(paste0(
+      "Sourcing ",
+      path,
+      " last modified at ",
+      last_modified,
+      "with ark",
+      ark
+    ))
     source(path)
     return(do.call(graph_name, list(...)))
   })
-  return(source_run(path, last_modified))
+  return(source_run(ark, path, last_modified))
 }
 
 graph <- mem(function(name, graphs, graph) {
@@ -211,21 +218,36 @@ if (single_graphs) {
       # graphs <- graph("spending", graphs, output_spending_plot_simple(bids_won_function, node_levels))
       # graphs <- graph("faults_per_function", graphs, output_faults_per_function_plot_simple(respected_sla))
       #
+
+      graphs <- graph(
+        "mean_time_to_deploy_simple",
+        graphs,
+        call_graph(
+          ark,
+          "output_mean_time_to_deploy_simple",
+          raw_deployment_times
+        )
+      )
       graphs <- graph(
         "output_loss",
         graphs,
-        call_graph("output_loss", raw_latency)
+        call_graph(ark, "output_loss", raw_latency)
       )
       graphs <- graph(
         "output_raw_latency",
         graphs,
-        call_graph("output_raw_latency", raw_latency)
+        call_graph(ark, "output_raw_latency", raw_latency)
       )
-      graphs <- graph("otel", graphs, call_graph("output_otel_plot", otel))
+      graphs <- graph("otel", graphs, call_graph(ark, "output_otel_plot", otel))
       graphs <- graph(
         "otel_budget",
         graphs,
-        call_graph("output_otel_budget_plot", otel)
+        call_graph(ark, "output_otel_budget_plot", otel)
+      )
+      graphs <- graph(
+        "otel_correlations",
+        graphs,
+        call_graph(ark, "output_otel_correlations_plot", otel, raw_latency)
       )
 
       Log(paste0("Done generating graphs ", ark))
@@ -288,153 +310,155 @@ earnings_jains_plot_data <- mem(load_earnings_jains_plot_data)(
 #
 # graph_spider_chart <- export_graph("output_spider_chart", output_placement_method_comparison(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times))
 
-graph_output_mean_respected_slas <- export_graph(
-  "output_mean_respected_slas",
-  output_mean_respected_slas(accetable_sla, node_levels)
-)
-graph_output_mean_deployment_time <- export_graph(
-  "output_mean_deployment_times",
-  output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla)
-)
-graph_output_mean_spending <- export_graph(
-  "output_mean_spending",
-  output_mean_spending(bids_won_function, node_levels, respected_sla)
-)
-graph_output_mean_placed_functions_per_node <- export_graph(
-  "output_mean_placed_functions_per_node",
-  output_mean_placed_functions_per_node(provisioned_functions, node_levels)
-)
-graph_output_mean_latency <- export_graph(
-  "output_mean_latency",
-  output_mean_latency(respected_sla, node_levels)
-)
+## export for articles
 
-merge_and_export_legend(
-  list(
-    # graph_output_mean_respected_slas,
-    graph_output_mean_spending,
-    graph_output_mean_deployment_time
-  ),
-  "legend",
-  2,
-  GRAPH_ONE_COLUMN_HEIGHT / 2,
-  aspect_ratio = 1 / 1
-)
-export_graph_tikz(
-  graph_spider_chart,
-  6,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 2.5
-)
-export_graph_tikz(
-  graph_output_mean_respected_slas,
-  GRAPH_ONE_COLUMN_WIDTH,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 1
-)
-export_graph_tikz(
-  graph_output_mean_deployment_time,
-  GRAPH_ONE_COLUMN_WIDTH,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 1
-)
-export_graph_tikz(
-  graph_output_mean_spending,
-  GRAPH_ONE_COLUMN_WIDTH,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 1
-)
-export_graph_tikz(
-  graph_output_mean_placed_functions_per_node,
-  8,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 1
-)
-export_graph_tikz(
-  graph_output_mean_latency,
-  GRAPH_ONE_COLUMN_WIDTH,
-  GRAPH_ONE_COLUMN_HEIGHT,
-  aspect_ratio = 1 / 1
-)
-
-parallel::stopCluster(cl)
-
-# Count the number of metric groups
-run_count <- node_levels %>%
-  extract_context() %>%
-  pull(run) %>%
-  unique() %>%
-  length()
-write(run_count, file = "out/run_count.txt")
-
-# Get the maximum number of functions hosted
-max_functions_hosted <- provisioned_functions %>%
-  filter(status == "provisioned") %>%
-  group_by(folder, metric_group, metric_group_group) %>%
-  summarise(functions_hosted = n_distinct(sla_id), .groups = "drop") %>%
-  summarise(max_functions = max(functions_hosted), .groups = "drop") %>%
-  pull(max_functions) %>%
-  max()
-
-# Write the result to a file
-write(max_functions_hosted, file = "out/max_functions_hosted.txt")
-
-# Print the result to console
-cat(
-  "Maximum number of functions hosted on the network:",
-  max_functions_hosted,
-  "\n"
-)
-
-# Log the result
-Log(paste(
-  "Maximum number of functions hosted on the network:",
-  max_functions_hosted
-))
-
-
-# Get the maximum number of nodes
-max_nodes <- node_levels %>%
-  group_by(folder, metric_group, metric_group_group) %>%
-  summarise(nodes = n_distinct(name), .groups = "drop") %>%
-  summarise(max_nodes = max(nodes), .groups = "drop") %>%
-  pull(max_nodes) %>%
-  max()
-
-# Write the result to a file
-write(max_nodes, file = "out/max_nodes.txt")
-
-# Print the result to console
-cat("Maximum number of nodes in the network:", max_nodes, "\n")
-
-# Log the result
-Log(paste("Maximum number of nodes in the network:", max_nodes))
-
-# Calculate the maximum average throughput
-
-max_avg_throughput <- respected_sla %>%
-  group_by(folder, metric_group, metric_group_group) %>%
-  summarise(throughput = sum(total), .groups = "drop") %>%
-  select(folder, throughput) %>%
-  arrange(desc(throughput))
-Log(max_avg_throughput)
-
-max_avg_throughput <- max_avg_throughput %>%
-  summarise(
-    max_avg_throughput = max(throughput, na.rm = TRUE),
-    .groups = "drop"
-  ) %>%
-  pull(max_avg_throughput)
-
-# Write the result to a file
-write(max_avg_throughput, file = "out/max_avg_throughput.txt")
-
-# Print the result to console
-cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
-
-# Log the result
-Log(paste(
-  "Maximum average throughput:",
-  max_avg_throughput,
-  "requests per second"
-))
+# graph_output_mean_respected_slas <- export_graph(
+#   "output_mean_respected_slas",
+#   output_mean_respected_slas(accetable_sla, node_levels)
+# )
+# graph_output_mean_deployment_time <- export_graph(
+#   "output_mean_deployment_times",
+#   output_mean_deployment_times(raw_deployment_times, node_levels, respected_sla)
+# )
+# graph_output_mean_spending <- export_graph(
+#   "output_mean_spending",
+#   output_mean_spending(bids_won_function, node_levels, respected_sla)
+# )
+# graph_output_mean_placed_functions_per_node <- export_graph(
+#   "output_mean_placed_functions_per_node",
+#   output_mean_placed_functions_per_node(provisioned_functions, node_levels)
+# )
+# graph_output_mean_latency <- export_graph(
+#   "output_mean_latency",
+#   output_mean_latency(respected_sla, node_levels)
+# )
+#
+# merge_and_export_legend(
+#   list(
+#     # graph_output_mean_respected_slas,
+#     graph_output_mean_spending,
+#     graph_output_mean_deployment_time
+#   ),
+#   "legend",
+#   2,
+#   GRAPH_ONE_COLUMN_HEIGHT / 2,
+#   aspect_ratio = 1 / 1
+# )
+# export_graph_tikz(
+#   graph_spider_chart,
+#   6,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 2.5
+# )
+# export_graph_tikz(
+#   graph_output_mean_respected_slas,
+#   GRAPH_ONE_COLUMN_WIDTH,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 1
+# )
+# export_graph_tikz(
+#   graph_output_mean_deployment_time,
+#   GRAPH_ONE_COLUMN_WIDTH,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 1
+# )
+# export_graph_tikz(
+#   graph_output_mean_spending,
+#   GRAPH_ONE_COLUMN_WIDTH,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 1
+# )
+# export_graph_tikz(
+#   graph_output_mean_placed_functions_per_node,
+#   8,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 1
+# )
+# export_graph_tikz(
+#   graph_output_mean_latency,
+#   GRAPH_ONE_COLUMN_WIDTH,
+#   GRAPH_ONE_COLUMN_HEIGHT,
+#   aspect_ratio = 1 / 1
+# )
+#
+# parallel::stopCluster(cl)
+#
+# # Count the number of metric groups
+# run_count <- node_levels %>%
+#   extract_context() %>%
+#   pull(run) %>%
+#   unique() %>%
+#   length()
+# write(run_count, file = "out/run_count.txt")
+#
+# # Get the maximum number of functions hosted
+# max_functions_hosted <- provisioned_functions %>%
+#   filter(status == "provisioned") %>%
+#   group_by(folder, metric_group, metric_group_group) %>%
+#   summarise(functions_hosted = n_distinct(sla_id), .groups = "drop") %>%
+#   summarise(max_functions = max(functions_hosted), .groups = "drop") %>%
+#   pull(max_functions) %>%
+#   max()
+#
+# # Write the result to a file
+# write(max_functions_hosted, file = "out/max_functions_hosted.txt")
+#
+# # Print the result to console
+# cat(
+#   "Maximum number of functions hosted on the network:",
+#   max_functions_hosted,
+#   "\n"
+# )
+#
+# # Log the result
+# Log(paste(
+#   "Maximum number of functions hosted on the network:",
+#   max_functions_hosted
+# ))
+#
+#
+# # Get the maximum number of nodes
+# max_nodes <- node_levels %>%
+#   group_by(folder, metric_group, metric_group_group) %>%
+#   summarise(nodes = n_distinct(name), .groups = "drop") %>%
+#   summarise(max_nodes = max(nodes), .groups = "drop") %>%
+#   pull(max_nodes) %>%
+#   max()
+#
+# # Write the result to a file
+# write(max_nodes, file = "out/max_nodes.txt")
+#
+# # Print the result to console
+# cat("Maximum number of nodes in the network:", max_nodes, "\n")
+#
+# # Log the result
+# Log(paste("Maximum number of nodes in the network:", max_nodes))
+#
+# # Calculate the maximum average throughput
+#
+# max_avg_throughput <- respected_sla %>%
+#   group_by(folder, metric_group, metric_group_group) %>%
+#   summarise(throughput = sum(total), .groups = "drop") %>%
+#   select(folder, throughput) %>%
+#   arrange(desc(throughput))
+# Log(max_avg_throughput)
+#
+# max_avg_throughput <- max_avg_throughput %>%
+#   summarise(
+#     max_avg_throughput = max(throughput, na.rm = TRUE),
+#     .groups = "drop"
+#   ) %>%
+#   pull(max_avg_throughput)
+#
+# # Write the result to a file
+# write(max_avg_throughput, file = "out/max_avg_throughput.txt")
+#
+# # Print the result to console
+# cat("Maximum average throughput:", max_avg_throughput, "requests per second\n")
+#
+# # Log the result
+# Log(paste(
+#   "Maximum average throughput:",
+#   max_avg_throughput,
+#   "requests per second"
+# ))

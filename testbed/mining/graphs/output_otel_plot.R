@@ -21,75 +21,118 @@ output_otel_plot <- function(spans) {
   # Log(
   #   df %>%
   #     ungroup() %>%
-  #     select(service.namespace) %>%
+  #     select(span.name) %>%
   #     distinct() %>%
   #     sample_n(10)
   # )
+  df_spans_raw <- df %>%
+    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
+    mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
+    select(
+      span.name,
+      folder,
+      start_timestamp = timestamp,
+      start_end_timestamp = end_timestamp,
+      trace_id,
+      service.namespace
+    )
 
-  # Log("There are duration NAs:")
-  # nas <- df %>% filter(is.na(duration)) %>% count()
-  # Log(nas$n)
-  #
-  # Log(colnames(df))
+  df_spans_raw2 <- df %>%
+    filter(startsWith(span.name, "...FLAME")) %>%
+    mutate(span.name = substring(span.name, 4)) %>%
+    select(
+      span.name,
+      folder,
+      end_timestamp = timestamp,
+      end_end_timestamp = timestamp,
+      trace_id,
+      service.namespace
+    )
 
-  # all_keys <- unique(unlist(lapply(toto$toto, names)))
-  # Log(all_keys)
+  df_spans <- df_spans_raw %>%
+    inner_join(df_spans_raw2) %>%
+    mutate(duration = end_timestamp - start_timestamp) %>%
+    mutate(duration = start_end_timestamp - end_end_timestamp + duration) %>%
+    select(
+      span.name,
+      folder,
+      duration,
+      service.namespace
+    )
 
-  # df_spans_raw <- df %>%
-  #   filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
-  #   mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
-  #   select(span.name, folder, duration, trace_id, retries_left)
-  #
-  # df_spans_raw2 <- df %>%
-  #   filter(startsWith(span.name, "...FLAME")) %>%
-  #   mutate(span.name = substring(span.name, 4)) %>%
-  #   select(span.name, folder, end_duration = duration, trace_id, service.instance.id)
-  #
-  # df_spans <- df_spans_raw %>%
-  #   inner_join(df_spans_raw2) %>%
-  #   mutate(dead_time = duration - end_duration)
-  #
-  # # Log(df_spans %>% select(span.name, dead_time, duration, end_duration) %>% sample_n(5))
-  #
-  # df <- df_spans %>%
-  #   mutate(duration = dead_time)
+  df <- df %>%
+    filter(span.name %in% c("create_machine")) %>%
+    mutate(duration = end_timestamp - timestamp) %>%
+    # filter(span.name %in% c("create_machine", "start_processing_requests")) %>%
+    full_join(df_spans)
 
-  # df <- df %>%
-  #   group_by(folder, service.instance.id, span.name) %>%
-  #   summarise(duration = mean(duration))
-
-  # df_lines <- df %>%
-  #   ungroup()
-  #
-  # df_lines <- df_lines %>%
-  #   select(span_id, parent_span_id, folder, duration, span.name, service.instance.id, trace_id) %>%
-  #   left_join(df_lines %>%
-  #       select(parent_span.name = span.name, parent_duration = duration, folder, parent_span_id = span_id, parent_service.instance.id = service.instance.id))
+  # Log(df)
 
   offs <- as.numeric(factor(df$trace_id))
   offscale <- (offs - mean(unique(offs))) * 0.005
 
   p <- ggplot(
     data = df,
-    aes(alpha = 1, x = timestamp, y = service.namespace, color = span.name)
+    aes(
+      color = span.name,
+      # fill = span.name,
+      # x = service.namespace,
+      x = duration,
+      group = span.name
+    )
   ) +
-    geom_segment(
-      aes(xend = end_timestamp, yend = service.namespace),
-      position = position_nudge(y = offscale),
-      alpha = 0.3
-    ) +
+    # geom_col(na.rm = TRUE) +
+    # geom_boxplot(position = position_dodge2()) +
+    # geom_freqpoly() +
+    # geom_density(alpha = 0.5) +
+    stat_ecdf(geom = "step", pad = TRUE) +
+    # geom_segment(
+    #   data = df_create_machine,
+    #   aes(
+    #     # x = timestamp,
+    #     xend = end_timestamp,
+    #     # y = service.namespace,
+    #     yend = service.namespace
+    #   ),
+    #   position = position_nudge(y = offscale),
+    #   alpha = 1,
+    #   color = "black"
+    # ) +
+    # geom_segment(
+    #   data = df_processing,
+    #   aes(
+    #     # x = timestamp,
+    #     xend = end_timestamp,
+    #     # y = service.namespace,
+    #     yend = service.namespace
+    #   ),
+    #   position = position_nudge(y = offscale),
+    #   alpha = 0.1,
+    #   color = "black"
+    # ) +
+    # geom_segment(
+    #   data = df_spans,
+    #   aes(
+    #     x = end_end_timestamp,
+    #     xend = start_end_timestamp,
+    #     y = service.namespace,
+    #     yend = service.namespace
+    #   ),
+    #   position = position_nudge(y = offscale),
+    #   alpha = 0.4
+    # ) +
     # geom_point(position = position_nudge(y = offscale)) +
-    geom_point(
-      aes(x = end_timestamp),
-      # size = 0.3,
-      position = position_nudge(y = offscale)
-    ) +
-    theme(legend.position = "none") +
+    # geom_point(
+    #   aes(x = end_timestamp),
+    #   # size = 0.3,
+    #   position = position_nudge(y = offscale)
+    # ) +
+    # theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
-    labs(
-      x = "Span",
-      y = "Time",
-    ) +
+    # labs(
+    #   x = "Span",
+    #   y = "Time",
+    # ) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
@@ -105,9 +148,6 @@ output_otel_plot <- function(spans) {
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
-    scale_y_discrete() +
-    scale_size(limits = c(2, 6)) +
-    scale_x_continuous() +
     guides(colour = guide_legend(nrow = 1))
 
   p
