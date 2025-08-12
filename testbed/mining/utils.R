@@ -360,9 +360,10 @@ correct_names <- function(x) {
 fig(20, 20)
 
 adjust_timestamps <- function(
-    x,
-    var_name = "timestamp",
-    reference = "timestamp") {
+  x,
+  var_name = "timestamp",
+  reference = "timestamp"
+) {
   # Careful where we put this, as the first measurement may not be the same accross all of the combined values for the same folder
 
   var_sym <- ensym(var_name)
@@ -964,7 +965,7 @@ write_multigraphs <- function(graphs) {
   })
 }
 
-export_graph <- mem(function(name, ggplot_graph) {
+export_graph <- function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
   Log(paste0("Graphing (", name, ") ", callback_name, " ..."))
   ggsave(paste0("out/", name, ".png"), ggplot_graph)
@@ -994,7 +995,7 @@ export_graph <- mem(function(name, ggplot_graph) {
   htmlwidgets::saveWidget(p, paste0("out/", name, ".htm"), selfcontained = TRUE)
   Log(paste0("Graphing ", name, " ...done"))
   return(list(name = name, graph = ggplot_graph))
-})
+}
 
 export_graph_non_ggplot <- function(name, graph) {
   htmlwidgets::saveWidget(
@@ -1078,12 +1079,13 @@ load_tikz <- function() {
 }
 
 export_graph_tikz <- function(
-    plot,
-    width,
-    height,
-    remove_legend = TRUE,
-    aspect_ratio = 1 / 3,
-    caption = NULL) {
+  plot,
+  width,
+  height,
+  remove_legend = TRUE,
+  aspect_ratio = 1 / 3,
+  caption = NULL
+) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -1103,28 +1105,28 @@ export_graph_tikz <- function(
   plot_x_label <- built_plot$plot$labels$x
   plot_y_label <- built_plot$plot$labels$y
 
-  plot_graph <- plot_graph + ggplot2::theme(
-    title = ggplot2::element_blank(),
-   
-  # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-  # panel.spacing = ggplot2::unit(0, "pt"),
-  # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-  # legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-  # legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt")
-  # legend.spacing = ggplot2::unit(0, "pt")
-  )
+  plot_graph <- plot_graph +
+    ggplot2::theme(
+      title = ggplot2::element_blank(),
+
+      # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+      # panel.spacing = ggplot2::unit(0, "pt"),
+      # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+      # legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+      # legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt")
+      # legend.spacing = ggplot2::unit(0, "pt")
+    )
   if (remove_legend) {
     plot_graph <- plot_graph + theme(legend.position = "none")
   }
   plot_graph <- plot_graph +
     theme(
       aspect.ratio = aspect_ratio,
-       axis.title.x = ggplot2::element_text(plot_x_label),
-    axis.title.y = ggplot2::element_text(plot_y_label),
-    panel.border = ggplot2::element_blank(),
-    panel.background = ggplot2::element_blank(),
-    axis.line = ggplot2::element_line(color = "black"),
-    
+      axis.title.x = ggplot2::element_text(plot_x_label),
+      axis.title.y = ggplot2::element_text(plot_y_label),
+      panel.border = ggplot2::element_blank(),
+      panel.background = ggplot2::element_blank(),
+      axis.line = ggplot2::element_line(color = "black"),
     )
 
   tex_width <- 1
@@ -1180,11 +1182,12 @@ export_graph_tikz <- function(
 }
 
 merge_and_export_legend <- function(
-    dummy_graphs,
-    legend_name,
-    width,
-    height,
-    aspect_ratio = 1 / 5) {
+  dummy_graphs,
+  legend_name,
+  width,
+  height,
+  aspect_ratio = 1 / 5
+) {
   if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
     warning("tikzDevice package not found. TikZ export skipped.")
     Log("tikzDevice package not found. TikZ export skipped.")
@@ -1374,9 +1377,20 @@ Log <- function(text, ...) {
   }
 }
 
-create_metric_comparison_plot <- function(data, metric_col, group_col, value_col, node_col,
-                                          title, x_label = NULL, x_suffix = NULL, y_label = NULL, y_suffix = "",
-                                          facet_col = NULL, se = FALSE) {
+create_metric_comparison_plot <- function(
+  data,
+  metric_col,
+  group_col,
+  value_col,
+  node_col,
+  title,
+  x_label = NULL,
+  x_suffix = NULL,
+  y_label = NULL,
+  y_suffix = "",
+  facet_col = NULL,
+  se = FALSE
+) {
   empty_facet_col <- is.null(facet_col)
 
   # Convert column names to symbols
@@ -1453,7 +1467,8 @@ create_metric_comparison_plot <- function(data, metric_col, group_col, value_col
     ) +
     geom_errorbar(
       aes(ymin = ci_lower, ymax = ci_upper, color = !!metric_col),
-      width = 0.2, alpha = 0.5
+      width = 0.2,
+      alpha = 0.5
     ) +
     scale_y_continuous(labels = scales::number_format(suffix = y_suffix)) +
     scale_x_continuous(labels = scales::number_format(suffix = x_suffix)) +

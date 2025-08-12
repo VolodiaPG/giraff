@@ -67,6 +67,11 @@
             doParallel
             foreach
             multidplyr
+            targets
+            usethis
+            crew
+            tarchetypes
+            qs2
 
             magick
             future_apply

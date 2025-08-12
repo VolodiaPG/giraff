@@ -1,4 +1,6 @@
 # Runs the script
+_default: make
+
 run:
     @mkdir -p /tmp/R-giraff
     @ln -s /tmp/R-giraff ./cache || true
@@ -33,3 +35,6 @@ pub:
 
 watch:
     ls **/*.R *.R | entr -nr just
+
+make:
+  Rscript make.R

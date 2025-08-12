@@ -11,3 +11,5 @@
 
 !*.R
 !*.nix
+
+_targets/
