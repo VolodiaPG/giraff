@@ -13,7 +13,6 @@ library(crew) # For parallel processing
 library(dplyr)
 library(tibble)
 library(purrr)
-
 # Source the configuration and utility files
 source("config.R")
 source("utils.R")
@@ -60,15 +59,6 @@ tar_option_set(
   format = "qs", # Optionally set the default storage format. qs is fast.
   controller = crew::crew_controller_local(workers = all_workers), # Use workers from config.R
 )
-
-# metrics_arks <-
-#   list(
-#     # Target for METRICS_ARKS from config.R
-#     tar_target(
-#       name = metrics_arks,
-#       command = METRICS_ARKS_DF
-#     )
-#   )
 
 single_ops <- tar_map(
   # unlist = FALSE, # Return a nested list from tar_map()
@@ -137,16 +127,6 @@ singles <- tibble(name = names(single_ops), value = single_ops) %>%
     name = stringr::str_match(name, "(.*?)_single")[, 2]
   ) %>%
   filter(!is.na(name))
-
-# single_selected <- tar_select_targets(single_ops, contains("_single"))
-#
-# singles <- tibble(
-#   name = names(single_selected),
-#   value = single_selected[names(single_selected)]
-# ) %>%
-#   dplyr::mutate(
-#     new_name = stringr::str_match(name, "(.*?)_single")[, 2]
-#   )
 
 assertthat::assert_that(nrow(singles) > 0)
 
