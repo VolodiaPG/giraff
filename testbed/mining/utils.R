@@ -935,6 +935,7 @@ tibble_to_latex_tabular <- function(data, file) {
 }
 
 write_multigraphs <- function(name, ...) {
+  Log(paste0("Writing ", name))
   args <- list(...)
   widget <- browsable(tagList(
     h1(name),

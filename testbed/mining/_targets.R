@@ -3,11 +3,16 @@
 # Then follow the manual to check and run the pipeline:
 #   https://books.ropensci.org/targets/walkthrough.html#inspect-the-pipeline
 
+# To combine metrics, suffix them with _single in the map
+# To export ggraphs, suffix them with _graph
+
 # Load packages required to define the pipeline:
 library(targets)
 library(tarchetypes) # Load other packages as needed.
 library(crew) # For parallel processing
 library(dplyr)
+library(tibble)
+library(purrr)
 
 # Source the configuration and utility files
 source("config.R")
@@ -114,18 +119,64 @@ single_ops <- tar_map(
     command = output_raw_latency(raw_latency_single)
   ),
   tar_target(
-    name = output_otel_plot_graph,
+    name = output_otel_graph,
     command = output_otel_plot(otel_single)
   ),
   tar_target(
-    name = output_otel_budget_plot_graph,
+    name = output_otel_budget_graph,
     command = output_otel_budget_plot(otel_single)
   ),
   tar_target(
-    name = output_otel_correlations_plot_graph,
+    name = output_otel_correlations_graph,
     command = output_otel_correlations_plot(otel_single, raw_latency_single)
   )
 )
+
+singles <- tibble(name = names(single_ops), value = single_ops) %>%
+  dplyr::mutate(
+    name = stringr::str_match(name, "(.*?)_single")[, 2]
+  ) %>%
+  filter(!is.na(name))
+
+# single_selected <- tar_select_targets(single_ops, contains("_single"))
+#
+# singles <- tibble(
+#   name = names(single_selected),
+#   value = single_selected[names(single_selected)]
+# ) %>%
+#   dplyr::mutate(
+#     new_name = stringr::str_match(name, "(.*?)_single")[, 2]
+#   )
+
+assertthat::assert_that(nrow(singles) > 0)
+
+combined_single_data <-
+  tar_eval(
+    tar_combine_raw(
+      name,
+      value,
+      command = expression(bind_rows(!!!.x))
+    ),
+    values = singles
+  )
+
+combined_single_data_processed <- list(
+  tar_target(
+    functions_total,
+    command = load_functions_total(functions)
+  )
+)
+
+combined_graphs <-
+  list(
+    tar_target(
+      name = provisioned_simple_graph,
+      command = output_provisioned_simple(
+        functions_total,
+        node_levels
+      )
+    )
+  )
 
 graphs <- tibble(name = names(single_ops), value = single_ops) %>%
   dplyr::mutate(
@@ -133,278 +184,45 @@ graphs <- tibble(name = names(single_ops), value = single_ops) %>%
   ) %>%
   filter(!is.na(graph_name))
 
-combined_graphs <- tar_eval(
-  tar_combine_raw(
-    name,
-    value,
-    command = expression(write_multigraphs(name, !!!.x))
-  ),
-  values = graphs
-)
+assertthat::assert_that(nrow(graphs) > 0)
 
-singles <- tibble(name = names(single_ops), value = single_ops) %>%
-  dplyr::mutate(
-    data = stringr::str_match(name, "(.*?)_single_")[, 2]
+combined_plots <-
+  tar_eval(
+    tar_combine_raw(
+      name,
+      value,
+      command = expression(write_multigraphs(name, !!!.x))
+    ),
+    values = graphs
+  )
+
+graphs2_in <- tar_select_targets(combined_graphs, contains("graph"))
+graphs2 <-
+  tibble(
+    name = names(graphs2_in),
+    value = graphs2_in[names(graphs2_in)]
   ) %>%
-  filter(!is.na(data))
+  dplyr::mutate(
+    name = stringr::str_match(name, "(.*?)_graph")[, 2]
+  )
 
-combined_single_data <- tar_eval(
-  tar_combine_raw(
-    name,
-    value,
-  ),
-  values = singles
-)
+assertthat::assert_that(nrow(graphs2) > 0)
 
-# combined_ops <- list(
-#   # Combined graphs section
-#   tar_combine(
-#     node_levels_combined,
-#     tar_select_targets(single_ops, starts_with("node_levels_single_")),
-#     packages = c(data_packages)
-#   ),
-#   tar_combine(
-#     bids_raw_combined,
-#     tar_select_targets(single_ops, starts_with("bids_raw_single_")),
-#     packages = c(data_packages)
-#   ),
-#   tar_combine(
-#     provisioned_sla_combined,
-#     tar_select_targets(single_ops, starts_with("provisioned_sla_single_")),
-#     packages = c(data_packages)
-#   ),
-#   tar_combine(
-#     functions_combined,
-#     tar_select_targets(single_ops, starts_with("functions_single_")),
-#     packages = c(data_packages)
-#   ),
-#   # tar_combine(
-#   #   provisioned_functions_combined,
-#   #   tar_select_targets(
-#   #     single_ops,
-#   #     starts_with("provisioned_functions_single_")
-#   #   )
-#   # )
-#   # tar_combine(
-#   #   respected_sla_combined,
-#   #   tar_select_targets(single_ops, starts_with("respected_sla_single_"))
-#   # )
-#   # tar_combine(
-#   #   acceptable_sla_combined,
-#   #   tar_select_targets(
-#   #     single_ops,
-#   #     starts_with("single_acceptable_from_respected_slas_")
-#   #   )
-#   # )
-#   tar_combine(
-#     raw_deployment_times_combined,
-#     tar_select_targets(
-#       single_ops,
-#       starts_with("raw_deployment_times_single_")
-#     ),
-#     packages = c(data_packages)
-#   )
-#   # tar_combine(
-#   #   paid_functions_combined,
-#   #   tar_select_targets(single_ops, starts_with("paid_functions_single_"))
-#   # )
-# )
-#
-# # tar_target(
-# #   name = functions_total_combined,
-# #   command = load_functions_total(functions_combined)
-# # ),
-# # tar_target(
-# #   name = functions_all_total_combined,
-# #   command = load_functions_all_total(functions_combined)
-# # ),
-# # tar_target(
-# #   name = bids_won_function_combined,
-# #   command = load_bids_won_function(
-# #     bids_raw_combined,
-# #     provisioned_sla_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = earnings_jains_plot_data_combined,
-# #   command = load_earnings_jains_plot_data(
-# #     node_levels_combined,
-# #     bids_won_function_combined
-# #   )
-# # ),
-# #
-# # # Combined graph targets
-# # tar_target(
-# #   name = provisioned_graph,
-# #   command = output_provisioned_simple(
-# #     functions_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = provisioned_total_graph,
-# #   command = output_provisioned_simple_total(
-# #     functions_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = jains_graph,
-# #   command = output_jains_simple(
-# #     earnings_jains_plot_data_combined,
-# #     functions_all_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = spending_total_graph,
-# #   command = output_spending_plot_simple_total(
-# #     bids_won_function_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = respected_sla_plot_total_graph,
-# #   command = output_respected_data_plot_total(
-# #     respected_sla_combined,
-# #     functions_all_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = requests_served_graph,
-# #   command = output_number_requests(
-# #     respected_sla_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = total_requests_served_total_graph,
-# #   command = output_number_requests_total(
-# #     respected_sla_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = requests_served_v_provisioned_graph,
-# #   command = output_requests_served_v_provisioned(
-# #     respected_sla_combined,
-# #     functions_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = mean_time_to_deploy_total_graph,
-# #   command = output_mean_time_to_deploy_simple_total(
-# #     raw_deployment_times_combined,
-# #     node_levels_combined,
-# #     paid_functions_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_non_respected_graph,
-# #   command = output_non_respected(
-# #     respected_sla_combined,
-# #     functions_all_total_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_spider_chart_graph,
-# #   command = output_placement_method_comparison(
-# #     respected_sla_combined,
-# #     functions_total_combined,
-# #     node_levels_combined,
-# #     bids_won_function_combined,
-# #     raw_deployment_times_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_mean_respected_slas_graph,
-# #   command = output_mean_respected_slas(
-# #     acceptable_sla_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_mean_deployment_times_graph,
-# #   command = output_mean_deployment_times(
-# #     raw_deployment_times_combined,
-# #     node_levels_combined,
-# #     respected_sla_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_mean_spending_graph,
-# #   command = output_mean_spending(
-# #     bids_won_function_combined,
-# #     node_levels_combined,
-# #     respected_sla_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_mean_placed_functions_per_node_graph,
-# #   command = output_mean_placed_functions_per_node(
-# #     provisioned_functions_combined,
-# #     node_levels_combined
-# #   )
-# # ),
-# # tar_target(
-# #   name = output_mean_latency_graph,
-# #   command = output_mean_latency(respected_sla_combined, node_levels_combined)
-# # ),
-# #
-# # # Collect all combined graphs into a list
-# # tar_target(
-# #   name = all_combined_graphs,
-# #   command = list(
-# #     provisioned_graph,
-# #     provisioned_total_graph,
-# #     jains_graph,
-# #     spending_total_graph,
-# #     respected_sla_plot_total_graph,
-# #     requests_served_graph,
-# #     total_requests_served_total_graph,
-# #     requests_served_v_provisioned_graph,
-# #     mean_time_to_deploy_total_graph,
-# #     output_non_respected_graph,
-# #     output_spider_chart_graph,
-# #     output_mean_respected_slas_graph,
-# #     output_mean_deployment_times_graph,
-# #     output_mean_spending_graph,
-# #     output_mean_placed_functions_per_node_graph,
-# #     output_mean_latency_graph
-# #   )
-# # ),
-# #
-# # # Write all combined graphs to files
-# # tar_target(
-# #   name = write_combined_graphs,
-# #   command = write_multigraphs(all_combined_graphs),
-# #   format = "file"
-# # )
-# # )
-# #
-# # Log(
-# #   single_ops %>%
-# #     filter("_graph_" %in% name) %>%
-# #     pull(name)
-# # )
-#
-# # toto <- grep("_graph_", single_ops, value = TRUE)
-# # Log(toto)
-# #
-# # export_ops <- l(
-# #   values = single_ops,
-# #   # names = name,
-# #   tar_target(
-# #     totot,
-# #     command = Log(name),
-# #   )
-# # )
-# #
+combined_plots2 <-
+  tar_eval(
+    tar_combine_raw(
+      name,
+      value,
+      command = expression(write_multigraphs(name, !!!.x))
+    ),
+    values = graphs2
+  )
+
 list(
   single_ops,
+  combined_single_data,
+  combined_single_data_processed,
   combined_graphs,
-  combined_single_data
+  combined_plots,
+  combined_plots2
 )
