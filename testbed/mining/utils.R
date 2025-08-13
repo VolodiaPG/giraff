@@ -934,35 +934,24 @@ tibble_to_latex_tabular <- function(data, file) {
   cat("\\end{tabular}", file = file, append = TRUE)
 }
 
-write_multigraphs <- function(graphs) {
-  data <- graphs %>%
-    ungroup() %>%
-    group_by(name) %>%
-    group_split()
-
-  lapply(data, function(subgroup) {
-    name <- unique(subgroup$name)
-
-    content <- subgroup %>%
-      group_by(tag) %>%
-      group_split()
-
-    widget <- browsable(tagList(
-      h1(name),
-      lapply(content, function(subgroup) {
-        tag <- unique(subgroup$tag)
-        graph <- subgroup$graph[[1]]
-        if (subgroup$type == "ggplot") {
-          graph <- ggplotly(graph)
-        }
-        graph$height <- "100vh"
-        ret <- div(graph)
-        title <- div(h4(tag))
-        return(list(title, ret))
-      })
-    ))
-    save_html(widget, paste0("out/", name, ".htm"))
-  })
+write_multigraphs <- function(name, ...) {
+  args <- list(...)
+  widget <- browsable(tagList(
+    h1(name),
+    lapply(args, function(subgroup) {
+      # tag <- unique(subgroup$tag)
+      graph <- subgroup
+      # if (subgroup$type == "ggplot") {
+      graph <- ggplotly(graph)
+      # }
+      graph$height <- "100vh"
+      ret <- div(graph)
+      # title <- div(h4(tag))
+      return(list(ret))
+      # return(list(title, ret))
+    })
+  ))
+  save_html(widget, paste0("out/", name, ".htm"))
 }
 
 export_graph <- function(name, ggplot_graph) {
@@ -1368,13 +1357,26 @@ memoise2 <- function(f, ..., expr_vars = character(0)) {
 }
 
 Log <- function(text, ...) {
-  captured_output <- capture.output(print(text))
-  msg <- sprintf(paste0(as.character(Sys.time()), ": "))
-  write.socket(log.socket, msg)
-  # Write the output to the socket
-  for (line in captured_output) {
-    write.socket(log.socket, paste0(line, "\n"))
+  fifo_path <- file.path(getwd(), "logs.fifo")
+  if (!file.exists(fifo_path)) {
+    stop(
+      "FIFO file does not exist. Please create it manually: mkfifo ",
+      fifo_path
+    )
   }
+
+  # Open the FIFO for writing (append mode)
+  # Note: writing to a FIFO in R can be blocking if nothing is reading from it.
+  con <- file(fifo_path, open = "a")
+
+  captured_output <- capture.output(print(text))
+  msg <- sprintf(
+    paste0("\033[32m", as.character(Sys.time()), "\033[39m", ": %s", sep = ""),
+    paste(captured_output, collapse = "\n")
+  )
+
+  writeLines(msg, con)
+  close(con)
 }
 
 create_metric_comparison_plot <- function(

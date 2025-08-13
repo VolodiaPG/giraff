@@ -1,25 +1,22 @@
 # Runs the script
 _default: make
 
-run:
+make:
     @mkdir -p /tmp/R-giraff
     @ln -s /tmp/R-giraff ./cache || true
     mkdir -p /tmp/R-giraff-out
     ln -s /tmp/R-giraff-out ./out || true
-    @echo -e "\033[1;33mstarting...\033[0m" | ncat localhost 4001
-    Rscript main.R || (echo -e "\033[1;31mERR\033[0m" | ncat localhost 4001 ; false)
+    @echo -e "\033[1;33mstarting...\033[0m" >> logs.fifo
+    Rscript make.R || (echo -e "\033[1;31mERR\033[0m" >> logs.fifo ; false)
     @echo -e "\033[1;32mdone\033[0m"
-    @echo -e "\033[1;32mdone\033[0m" | ncat localhost 4001
+    @echo -e "\033[1;32mdone\033[0m" >> logs.fifo
 
-export:
-    nix develop .#mining-export -c just watch
+# export:
+#     nix develop .#mining-export -c just watch
 
 logs:
-    #! /usr/bin/env bash
-    touch logs.txt
-    while true; do
-      ncat -l 4001 | tee -a logs.txt
-    done
+  mkfifo logs.fifo || true
+  tail -f logs.fifo
 
 # Serves the content of the directory so graphs can be opened in a browser
 serve port="9000":
@@ -35,6 +32,3 @@ pub:
 
 watch:
     ls **/*.R *.R | entr -nr just
-
-make:
-  Rscript make.R

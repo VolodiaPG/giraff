@@ -17,7 +17,6 @@ output_otel_plot <- function(spans) {
     mutate(attributes = lapply(attributes, fromJSON)) %>%
     unnest_wider(attributes) %>%
     mutate(end_timestamp = timestamp + duration)
-
   # Log(
   #   df %>%
   #     ungroup() %>%
@@ -25,6 +24,7 @@ output_otel_plot <- function(spans) {
   #     distinct() %>%
   #     sample_n(10)
   # )
+
   df_spans_raw <- df %>%
     filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
     mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
