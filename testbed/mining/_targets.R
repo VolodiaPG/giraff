@@ -12,50 +12,71 @@ library(tarchetypes) # Load other packages as needed.
 library(crew) # For parallel processing
 library(dplyr)
 library(tibble)
-library(purrr)
+
 # Source the configuration and utility files
 source("config.R")
 source("utils.R")
 source("loaders.R")
 source("commongraphs.R")
-source("graphs.R")
+files <- c(
+  list.files(file.path("graphs/"), pattern = "\\.R$", full.names = TRUE),
+  list.files(file.path("loaders/"), pattern = "\\.R$", full.names = TRUE)
+)
+for (file in files) {
+  source(file)
+}
 
 Log("Starting targets")
 
+core_pkgs <- c(
+  "tibble",
+  "dplyr",
+  "purrr",
+  "stringr",
+  "rlang",
+  "formattable",
+  "tidyverse"
+)
+
+load_pkgs <- c(
+  core_pkgs,
+  "ggplot2",
+  "vroom",
+  "zoo",
+  "snakecase",
+  "foreach",
+  "doParallel",
+  "multidplyr",
+  "jsonlite",
+  "future",
+  "rlang",
+  "archive",
+  "formattable"
+)
+
+graph_pkgs <- c(
+  core_pkgs,
+  "ggplot2",
+  "cowplot",
+  "scales",
+  "ggprism",
+  "multcompView",
+  "jsonlite",
+  "igraph",
+  "viridis",
+  "patchwork",
+  "ggbeeswarm"
+)
+
+graph_html_pkgs <- c(
+  "plotly",
+  "htmlwidgets",
+  "htmltools"
+)
+
 # Set default target options with minimal packages
 tar_option_set(
-  packages = c(
-    "tibble",
-    "dplyr",
-    "purrr",
-    "stringr",
-    "memoise",
-    "ggplot2",
-    "cowplot",
-    "scales",
-    "vroom",
-    "zoo",
-    "ggprism",
-    "snakecase",
-    "foreach",
-    "doParallel",
-    "multidplyr",
-    "multcompView",
-    "car",
-    "plotly",
-    "htmlwidgets",
-    "htmltools",
-    "jsonlite",
-    "future",
-    "rlang",
-    "archive",
-    "igraph",
-    "formattable",
-    "viridis",
-    "patchwork",
-    "ggbeeswarm",
-    "tidyverse"
-  ), # Packages that your targets need for their tasks.
+  packages = core_pkgs, # Packages that your targets need for their tasks.
   format = "qs", # Optionally set the default storage format. qs is fast.
   controller = crew::crew_controller_local(workers = all_workers), # Use workers from config.R
 )
@@ -66,59 +87,122 @@ single_ops <- tar_map(
   names = name,
   tar_target(
     name = node_levels_single,
-    command = load_node_levels(ark)
+    command = load_node_levels(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = bids_raw_single,
-    command = load_bids_raw(ark)
+    command = load_bids_raw(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = provisioned_sla_single,
-    command = load_provisioned_sla(ark)
+    command = load_provisioned_sla(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = functions_single,
-    command = load_functions(ark)
+    command = load_functions(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = raw_deployment_times_single,
-    command = load_raw_deployment_times(ark)
+    command = load_raw_deployment_times(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = raw_latency_single,
-    command = load_raw_latency(ark)
+    command = load_raw_latency(ark),
+    packages = load_pkgs
   ),
   tar_target(
     name = otel_single,
-    command = load_otel(ark)
+    command = load_otel(ark),
+    packages = load_pkgs
+  ),
+  tar_target(
+    name = otel_processed_single,
+    command = load_otel_processed(otel_single),
+    packages = load_pkgs
   ),
   tar_target(
     name = bids_won_function_single,
-    command = load_bids_won_function(bids_raw_single, provisioned_sla_single)
+    command = load_bids_won_function(bids_raw_single, provisioned_sla_single),
+    packages = load_pkgs
+  ),
+  tar_target(
+    name = flame_with_latency_single,
+    command = flame_func_with_latency(
+      otel_processed_single,
+      raw_latency_single
+    ),
+    packages = load_pkgs
   ),
   tar_target(
     name = output_mean_time_to_deploy_simple_graph,
-    command = output_mean_time_to_deploy_simple(raw_deployment_times_single)
+    command = output_mean_time_to_deploy_simple(raw_deployment_times_single),
+    packages = graph_pkgs
   ),
   tar_target(
     name = output_loss_graph,
-    command = output_loss(raw_latency_single)
+    command = output_loss(raw_latency_single),
+    packages = graph_pkgs
   ),
   tar_target(
     name = output_raw_latency_graph,
-    command = output_raw_latency(raw_latency_single)
+    command = output_raw_latency(raw_latency_single),
+    packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_graph,
-    command = output_otel_plot(otel_single)
+    command = output_otel_plot(otel_single),
+    packages = graph_pkgs
+  ),
+  tar_target(
+    name = output_otel_creation_duration_graph,
+    command = output_otel_creation_duration(otel_single),
+    packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_budget_graph,
-    command = output_otel_budget_plot(otel_single)
+    command = output_otel_budget_plot(otel_single),
+    packages = graph_pkgs
+  ),
+  # tar_target(
+  #   name = output_otel_correlations_graph,
+  #   command = output_otel_correlations_plot(
+  #     otel_processed_single,
+  #     flame_with_latency_single
+  #   ),
+  #   packages = graph_pkgs
+  # ),
+  tar_target(
+    name = otel_function_latency_graph,
+    command = output_otel_function_latency_plot(flame_with_latency_single),
+    packages = graph_pkgs
   ),
   tar_target(
-    name = output_otel_correlations_graph,
-    command = output_otel_correlations_plot(otel_single, raw_latency_single)
+    name = output_otel_sla_duration_graph,
+    command = output_otel_sla_duration_plot(otel_single),
+    packages = graph_pkgs
+    # ),
+    # tar_target(
+    #   name = output_ran_for_plot_simple_graph,
+    #   command = output_ran_for_plot_simple(respected_sla, bids_won_function),
+    #   packages = graph_pkgs
+  ),
+  tar_target(
+    name = output_otel_duration_latency_graph,
+    command = output_otel_duration_latency_plot(
+      otel_processed_single,
+      raw_latency_single
+    ),
+    packages = graph_pkgs
+    # ),
+    # tar_target(
+    #   name = output_ran_for_plot_simple_graph,
+    #   command = output_ran_for_plot_simple(respected_sla, bids_won_function),
+    #   packages = graph_pkgs
   )
 )
 
@@ -154,7 +238,8 @@ combined_graphs <-
       command = output_provisioned_simple(
         functions_total,
         node_levels
-      )
+      ),
+      packages = graph_pkgs
     )
   )
 
@@ -171,7 +256,8 @@ combined_plots <-
     tar_combine_raw(
       name,
       value,
-      command = expression(write_multigraphs(name, !!!.x))
+      command = expression(write_multigraphs(name, !!!.x)),
+      packages = graph_html_pkgs
     ),
     values = graphs
   )
@@ -193,7 +279,8 @@ combined_plots2 <-
     tar_combine_raw(
       name,
       value,
-      command = expression(write_multigraphs(name, !!!.x))
+      command = expression(write_multigraphs(name, !!!.x)),
+      packages = graph_html_pkgs
     ),
     values = graphs2
   )

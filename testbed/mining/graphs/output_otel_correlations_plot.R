@@ -1,286 +1,136 @@
-output_otel_correlations_plot <- function(spans, raw_latency = NULL) {
-  df <- spans %>%
-    ungroup() %>%
-    select(
-      folder,
-      timestamp,
-      service.name,
-      field,
-      value_raw,
-      span_id,
-      trace_id
-    ) %>%
-    pivot_wider(names_from = field, values_from = value_raw) %>%
-    mutate(
-      duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")
-    ) %>%
-    mutate(attributes = lapply(attributes, fromJSON)) %>%
-    unnest_wider(attributes) %>%
-    mutate(end_timestamp = timestamp + duration)
-
-  df_spans_raw <- df %>%
+output_otel_correlations_plot <- function(spans, latency) {
+  df_spans_raw <- spans %>%
     filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
     mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
-    mutate(source_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
       folder,
       out_duration = duration,
       trace_id,
       service.namespace,
-      source_node,
-      timestamp,
+      timestamp
     )
 
-  df_spans_raw2 <- df %>%
+  df_spans_raw2 <- spans %>%
     filter(startsWith(span.name, "...FLAME")) %>%
     mutate(span.name = substring(span.name, 4)) %>%
-    mutate(function_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
       folder,
       in_duration = duration,
       trace_id,
-      service.namespace,
-      function_node
+      service.namespace
     )
 
   df_spans <- df_spans_raw %>%
     inner_join(df_spans_raw2) %>%
     mutate(duration = out_duration - in_duration) %>%
     select(
+      trace_id,
       timestamp,
       span.name,
       folder,
       duration,
-      service.namespace,
-      source_node,
-      function_node
+      service.namespace
+    ) %>%
+    group_by(span.name, service.namespace, folder) %>%
+    summarise(
+      mean_duration = mean(duration),
+      median_duration = median(duration),
+      .groups = "drop"
+    ) %>%
+    left_join(latency)
+
+  # df <- df_spans_raw %>%
+  #   # filter(span.name %in% c("create_machine", "start_processing_requests")) %>%
+  #   mutate(duration = end_timestamp - timestamp) %>%
+  #   left_join(df_spans) %>%
+  #   left_join(latency)
+  #
+  Log(df_spans %>% select(span.name, mean_duration, latency))
+
+  # Create the correlation plot between for each of the unique span.names with the latency, the duration. Use ggplot and a heatmap
+  # Prepare data for correlation analysis
+  # df <- df %>%
+  #   select(span.name, duration) %>%
+  #   filter(!is.na(span.name) & !is.na(duration)) %>%
+  #   mutate(duration_numeric = as.numeric(duration))
+
+  # Group by span name to get statistics
+  correlation_data <- df %>%
+    filter(
+      !span.name %in% c("create_machine", "start_processing_requests")
+    ) %>%
+    group_by(service.namespace, span.name) %>%
+    summarise(
+      mean_duration = mean(duration, na.rm = TRUE),
+      mean_latency = mean(latency, na.rm = TRUE),
+      median_duration = median(duration, na.rm = TRUE),
+      # n_requests = n(),
+      .groups = "drop"
+    ) %>%
+    pivot_longer(
+      cols = c(mean_duration, median_duration),
+      names_to = "name",
+      values_to = "value"
     )
 
-  # df <- df %>%
-  #   filter(span.name %in% c("create_machine")) %>%
-  #   mutate(duration = end_timestamp - timestamp) %>%
-  #   # filter(span.name %in% c("create_machine", "start_processing_requests")) %>%
-  #   full_join(df_spans)
+  Log(correlation_data)
 
-  offs <- as.numeric(factor(df$trace_id))
-  offscale <- (offs - mean(unique(offs))) * 0.005
+  correlation_data_create_machine <- df %>%
+    group_by(service.namespace) %>%
+    filter(span.name == "create_machine") %>%
+    summarise(
+      n_create_machine = n(),
+      .groups = "drop"
+    )
 
-  # Create correlation matrix if raw_latency is provided
-  if (!is.null(raw_latency)) {
-    # Extract IP from instance field (format: ip:port)
+  correlation_data_processing_requests <- df %>%
+    group_by(service.namespace) %>%
+    filter(span.name == "start_processing_requests") %>%
+    summarise(
+      n_prosessing_requests = n(),
+      .groups = "drop"
+    )
 
-    latency_with_ip <- raw_latency %>%
-      filter(field == "average") %>%
-      mutate(
-        source_ip = sub(":.*", "", instance_address),
-        dest_ip = sub(":.*", "", instance_to)
-      ) %>%
-      mutate(latency = value_raw / 1e3) %>%
-      group_by(folder, source_ip, dest_ip) %>%
-      summarise(latency = mean(latency))
+  heatmap_data <- correlation_data %>%
+    left_join(correlation_data_create_machine) %>%
+    left_join(correlation_data_processing_requests)
 
-    # Prepare span data with node information
-    span_data <- df_spans %>%
-      filter(!is.na(duration) & !is.na(source_node) & !is.na(function_node)) %>%
-      mutate(duration_numeric = as.numeric(duration))
+  Log(heatmap_data)
 
-    # Helper function to find path latency in tree topology
-    find_tree_path_latency <- function(latency_data, source, dest, folder_val) {
-      if (source == dest) {
-        return(0)
-      }
-
-      # Get all edges for this folder
-      edges <- latency_data %>% filter(folder == folder_val)
-
-      # Build adjacency list for tree
-      adj_list <- list()
-      for (i in 1:nrow(edges)) {
-        src <- edges$source_ip[i]
-        dst <- edges$dest_ip[i]
-        lat <- edges$latency[i]
-
-        if (is.null(adj_list[[src]])) {
-          adj_list[[src]] <- list()
-        }
-        if (is.null(adj_list[[dst]])) {
-          adj_list[[dst]] <- list()
-        }
-
-        adj_list[[src]][[dst]] <- lat
-        adj_list[[dst]][[src]] <- lat
-      }
-
-      # BFS to find path in tree
-      queue <- list(list(node = source, path = c(), total_latency = 0))
-      visited <- c()
-
-      while (length(queue) > 0) {
-        current <- queue[[1]]
-        queue <- queue[-1]
-
-        if (current$node %in% visited) {
-          next
-        }
-        visited <- c(visited, current$node)
-
-        if (current$node == dest) {
-          return(current$total_latency)
-        }
-
-        if (!is.null(adj_list[[current$node]])) {
-          for (neighbor in names(adj_list[[current$node]])) {
-            if (!(neighbor %in% visited)) {
-              new_latency <- current$total_latency +
-                adj_list[[current$node]][[neighbor]]
-              queue <- append(
-                queue,
-                list(list(
-                  node = neighbor,
-                  path = c(current$path, current$node),
-                  total_latency = new_latency
-                ))
-              )
-            }
-          }
-        }
-      }
-
-      return(NA)
-    }
-
-    # Calculate path latencies for each source-function pair
-    matched_data <- span_data %>%
-      rowwise() %>%
-      mutate(
-        latency = find_tree_path_latency(
-          latency_with_ip,
-          source_node,
-          function_node,
-          folder
-        )
-      ) %>%
-      ungroup() %>%
-      filter(!is.na(latency)) %>%
-      select(
-        span.name,
-        folder,
-        duration_numeric,
-        latency,
-        source_node,
-        service.namespace,
-        function_node,
-        timestamp
+  heatmap_data <- summary_data %>%
+    select(span.name, mean_duration, median_duration) %>%
+    pivot_longer(
+      cols = c(mean_duration, median_duration),
+      names_to = "metric",
+      values_to = "value"
+    ) %>%
+    mutate(
+      metric = case_when(
+        metric == "mean_duration" ~ "Mean Duration",
+        metric == "median_duration" ~ "Median Duration"
       )
+    )
 
-    # Create correlation analysis if we have matched data
-    if (nrow(matched_data) > 0) {
-      # Calculate point sizes based on timestamp within service.namespace lifetime
-      matched_data <- matched_data %>%
-        left_join(
-          df %>%
-            group_by(service.namespace) %>%
-            summarise(
-              min_timestamp = min(timestamp),
-              max_timestamp = max(timestamp)
-            ),
-          by = "service.namespace"
-        ) %>%
-        mutate(
-          timestamp_progress = as.numeric(timestamp - min_timestamp) /
-            as.numeric(max_timestamp - min_timestamp),
-          point_size = 4 * timestamp_progress
-        )
+  # Create heatmap
+  correlation_plot <- ggplot(
+    heatmap_data,
+    aes(x = metric, y = reorder(span.name, value), fill = value)
+  ) +
+    geom_tile(color = "white", size = 0.2) +
+    # geom_text() +
+    scale_fill_viridis_c(name = "Duration (s)", option = "plasma") +
+    labs(
+      title = "Span Duration Metrics Comparison",
+      x = "Metric",
+      y = "Span Name"
+    ) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      panel.grid = element_blank(),
+      plot.title = element_text(hjust = 0.5)
+    )
 
-      # Calculate correlation coefficient
-      correlation_latency_duration <- cor(
-        matched_data$duration_numeric,
-        matched_data$latency,
-        use = "complete.obs"
-      )
-
-      correlation_time_duration <- cor(
-        matched_data$duration_numeric,
-        matched_data$timestamp_progress,
-        use = "complete.obs"
-      )
-
-      # Calculate convex hulls for each group
-      hull_data <- matched_data %>%
-        group_by(span.name) %>%
-        slice(chull(latency, duration_numeric))
-
-      p <- ggplot(
-        matched_data,
-        aes(
-          x = latency,
-          y = duration_numeric,
-          color = service.namespace,
-          size = point_size,
-          shape = source_node == function_node
-        )
-      ) +
-        geom_polygon(
-          data = hull_data,
-          aes(
-            x = latency,
-            y = duration_numeric,
-            fill = span.name
-          ),
-          color = NA,
-          alpha = 0.2,
-          inherit.aes = FALSE
-        ) +
-        geom_point(alpha = 0.3) +
-        scale_size_identity() +
-        # geom_smooth(method = "lm", se = TRUE, color = "#BB4444") +
-        scale_y_continuous(trans = "log10") +
-        labs(
-          title = paste(
-            "Duration vs Latency Correlation (r =",
-            round(correlation_latency_duration, 3),
-            "), Correlation between timestamp and duration: r =",
-            round(correlation_time_duration, 3)
-          ),
-          x = "Network Latency (source → function)",
-          y = "Span Duration (seconds)",
-          subtitle = paste(
-            "Based on",
-            nrow(matched_data),
-            "matched source-function pairs",
-            "Correlation between timestamp and latency: r=",
-            round(correlation_time_duration, 3)
-          )
-        ) +
-        theme_minimal() +
-        theme(
-          plot.title = element_text(size = 12, hjust = 0.5),
-          plot.subtitle = element_text(size = 10, hjust = 0.5),
-          axis.title = element_text(size = 10),
-          panel.grid.minor = element_blank()
-        )
-
-      return(p)
-    } else {
-      # Return informative plot if no matches found
-      return(
-        ggplot() +
-          annotate(
-            "text",
-            x = 0.5,
-            y = 0.5,
-            label = "No matching source-function pairs found\nbetween spans and latency data",
-            hjust = 0.5,
-            vjust = 0.5,
-            size = 4
-          ) +
-          theme_void()
-      )
-    }
-  }
-
-  # Return empty plot if no correlation data
-  ggplot() + theme_void()
+  return(correlation_plot)
 }

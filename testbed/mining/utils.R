@@ -935,12 +935,10 @@ tibble_to_latex_tabular <- function(data, file) {
 }
 
 write_multigraphs <- function(name, ...) {
-  Log(paste0("Writing ", name))
   args <- list(...)
   widget <- browsable(tagList(
     h1(name),
     lapply(args, function(subgroup) {
-      # tag <- unique(subgroup$tag)
       graph <- subgroup
       # if (subgroup$type == "ggplot") {
       graph <- ggplotly(graph)
@@ -949,7 +947,6 @@ write_multigraphs <- function(name, ...) {
       ret <- div(graph)
       # title <- div(h4(tag))
       return(list(ret))
-      # return(list(title, ret))
     })
   ))
   save_html(widget, paste0("out/", name, ".htm"))

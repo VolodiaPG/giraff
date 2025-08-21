@@ -23,8 +23,12 @@ output_raw_latency <- function(latency) {
         sorted_interaction),
       group = interaction(source, destination)
     )) +
-    facet_grid(cols = vars(folder)) +
+    # facet_grid(cols = vars(folder)) +
     theme(axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)) +
-    geom_quasirandom(method = "tukey", alpha = .2) +
+    labs(
+      title = unique(latency$folder)
+    ) +
+    # geom_quasirandom(method = "tukey", alpha = .2) +
+    geom_boxplot() +
     theme(legend.position = "none")
 }

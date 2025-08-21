@@ -1,4 +1,4 @@
-output_latency_distribution_plot <- function(provisioned_sla) {
+output_otel_duration_latency_plot <- function(provisioned_sla) {
   df <- provisioned_sla %>%
     extract_function_name_info()
   p <- ggplot(

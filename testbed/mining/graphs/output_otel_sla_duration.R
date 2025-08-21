@@ -1,4 +1,4 @@
-output_otel_plot <- function(spans) {
+output_otel_sla_duration_plot <- function(spans) {
   df <- spans %>%
     ungroup() %>%
     select(
@@ -17,7 +17,7 @@ output_otel_plot <- function(spans) {
     mutate(attributes = lapply(attributes, fromJSON)) %>%
     unnest_wider(attributes) %>%
     mutate(end_timestamp = timestamp + duration)
-  # log(
+  # Log(
   #   df %>%
   #     ungroup() %>%
   #     select(span.name) %>%
@@ -26,7 +26,7 @@ output_otel_plot <- function(spans) {
   # )
 
   df_spans_raw <- df %>%
-    filter(startsWith(span.name, "flame") & endsWith(span.name, "...")) %>%
+    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
     mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
     select(
       span.name,
@@ -38,7 +38,7 @@ output_otel_plot <- function(spans) {
     )
 
   df_spans_raw2 <- df %>%
-    filter(startsWith(span.name, "...flame")) %>%
+    filter(startsWith(span.name, "...FLAME")) %>%
     mutate(span.name = substring(span.name, 4)) %>%
     select(
       span.name,
@@ -149,9 +149,9 @@ output_otel_plot <- function(spans) {
     # theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
     labs(
-      title = unique(df$folder),
-      #   x = "Span",
-      #   y = "Time",
+      x = "Function duration (s)",
+      y = "Percentage of functions",
+      title = paste("Function duration distribution\n", unique(df$folder))
     ) +
     theme(
       legend.background = element_rect(

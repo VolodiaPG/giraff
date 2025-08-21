@@ -8,17 +8,26 @@ load_names_raw <- function(ark) {
 }
 
 load_raw_latency <- function(ark) {
-  return(load_single_csv(ark, "neighbor_latency.csv") %>%
-    prepare() %>%
-    prepare_convert() %>%
-    inner_join(load_names_raw(ark) %>% rename(instance_to = instance_address, destination_name = instance), c("instance_to", "folder")) %>%
-    mutate(destination_name = to_snake_case(destination_name)))
+  return(
+    load_single_csv(ark, "neighbor_latency.csv") %>%
+      prepare() %>%
+      prepare_convert() %>%
+      inner_join(
+        load_names_raw(ark) %>%
+          rename(instance_to = instance_address, destination_name = instance),
+        c("instance_to", "folder")
+      ) %>%
+      mutate(destination_name = to_snake_case(destination_name))
+  )
 }
 
 load_node_connections <- function(ark) {
   node_connections <- load_single_csv(ark, "network_shape.csv") %>%
     mutate(latency = as.numeric(latency)) %>%
-    mutate(source = to_snake_case(source), destination = to_snake_case(destination))
+    mutate(
+      source = to_snake_case(source),
+      destination = to_snake_case(destination)
+    )
 
   return(node_connections)
 }
@@ -44,10 +53,27 @@ load_latency <- function(ark, node_connections) {
     rename(instance = source, destination_name = destination, goal = latency)
 
   latency <- load_raw_latency(ark) %>%
-    select(destination_name, field, value, instance, timestamp, folder, metric_group, metric_group_group) %>%
-    inner_join(node_connections_renamed %>%
-      full_join(node_connections_renamed %>%
-        mutate(toto = instance, instance = destination_name, destination_name = toto))) %>%
+    select(
+      destination_name,
+      field,
+      value,
+      instance,
+      timestamp,
+      folder,
+      metric_group,
+      metric_group_group
+    ) %>%
+    inner_join(
+      node_connections_renamed %>%
+        full_join(
+          node_connections_renamed %>%
+            mutate(
+              toto = instance,
+              instance = destination_name,
+              destination_name = toto
+            )
+        )
+    ) %>%
     mutate(diff = value - goal)
   return(latency)
 }
@@ -59,14 +85,36 @@ load_functions <- function(ark) {
         prepare() %>%
         prepare_convert() %>%
         extract_function_name_info() %>%
-        select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
+        select(
+          instance,
+          sla_id,
+          folder,
+          metric_group,
+          metric_group_group,
+          docker_fn_name
+        ) %>%
         distinct() %>%
         mutate(status = "refused") %>%
-        group_by(instance, folder, docker_fn_name, metric_group, metric_group_group, status) %>%
+        group_by(
+          instance,
+          folder,
+          docker_fn_name,
+          metric_group,
+          metric_group_group,
+          status
+        ) %>%
         summarise(n = n())
     },
     error = function(cond) {
-      df <- data.frame(instance = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), docker_fn_name = character(0), status = character(0), n = numeric(0))
+      df <- data.frame(
+        instance = character(0),
+        folder = character(0),
+        metric_group = character(0),
+        metric_group_group = character(0),
+        docker_fn_name = character(0),
+        status = character(0),
+        n = numeric(0)
+      )
       Log(paste0("cannot get refused gauge functions for ", ark))
       return(df)
     }
@@ -79,14 +127,35 @@ load_functions <- function(ark) {
         prepare_convert() %>%
         rename(function_name = tag) %>%
         extract_function_name_info() %>%
-        select(instance, folder, metric_group, metric_group_group, docker_fn_name) %>%
+        select(
+          instance,
+          folder,
+          metric_group,
+          metric_group_group,
+          docker_fn_name
+        ) %>%
         distinct() %>%
         mutate(status = "failed") %>%
-        group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
+        group_by(
+          instance,
+          folder,
+          metric_group,
+          metric_group_group,
+          status,
+          docker_fn_name
+        ) %>%
         summarise(n = n())
     },
     error = function(cond) {
-      df <- data.frame(instance = character(0), docker_fn_name = character(0), folder = character(0), metric_group = character(0), metric_group_group = character(0), status = character(0), n = numeric(0))
+      df <- data.frame(
+        instance = character(0),
+        docker_fn_name = character(0),
+        folder = character(0),
+        metric_group = character(0),
+        metric_group_group = character(0),
+        status = character(0),
+        n = numeric(0)
+      )
       Log(paste0("cannot get failed gauge functions for ", ark))
       return(df)
     }
@@ -96,10 +165,24 @@ load_functions <- function(ark) {
     prepare() %>%
     prepare_convert() %>%
     extract_function_name_info() %>%
-    select(instance, sla_id, folder, metric_group, metric_group_group, docker_fn_name) %>%
+    select(
+      instance,
+      sla_id,
+      folder,
+      metric_group,
+      metric_group_group,
+      docker_fn_name
+    ) %>%
     distinct() %>%
     mutate(status = "provisioned") %>%
-    group_by(instance, folder, metric_group, metric_group_group, status, docker_fn_name) %>%
+    group_by(
+      instance,
+      folder,
+      metric_group,
+      metric_group_group,
+      status,
+      docker_fn_name
+    ) %>%
     summarise(n = n()) %>%
     full_join(refused) %>%
     full_join(failed)
@@ -115,12 +198,23 @@ load_provisioned_functions <- function(functions) {
           prepare() %>%
           prepare_convert() %>%
           extract_function_name_info() %>%
-          select(instance, sla_id, folder, metric_group, metric_group_group, latency)
+          select(
+            instance,
+            sla_id,
+            folder,
+            metric_group,
+            metric_group_group,
+            latency
+          )
       },
       error = function(cond) {
         df <- data.frame(
-          instance = character(0), sla_id = character(0), folder = character(0),
-          metric_group = character(0), metric_group_group = character(0), latency = as.duration(numeric(0))
+          instance = character(0),
+          sla_id = character(0),
+          folder = character(0),
+          metric_group = character(0),
+          metric_group_group = character(0),
+          latency = as.duration(numeric(0))
         )
         Log(paste0(log_message, ark))
         return(df)
@@ -128,13 +222,25 @@ load_provisioned_functions <- function(functions) {
     )
   }
 
-  refused <- load_csv_with_error_handling(ark, "refused_function_gauge.csv", "cannot get refused gauge functions for ") %>%
+  refused <- load_csv_with_error_handling(
+    ark,
+    "refused_function_gauge.csv",
+    "cannot get refused gauge functions for "
+  ) %>%
     mutate(status = "refused")
 
-  failed <- load_csv_with_error_handling(ark, "send_fails", "cannot get send_fails functions for ") %>%
+  failed <- load_csv_with_error_handling(
+    ark,
+    "send_fails",
+    "cannot get send_fails functions for "
+  ) %>%
     mutate(status = "failed")
 
-  provisioned <- load_csv_with_error_handling(ark, "provisioned_function_gauge.csv", "cannot get provisioned gauge functions for ") %>%
+  provisioned <- load_csv_with_error_handling(
+    ark,
+    "provisioned_function_gauge.csv",
+    "cannot get provisioned gauge functions for "
+  ) %>%
     mutate(status = "provisioned")
 
   functions <- provisioned %>%
@@ -154,7 +260,10 @@ load_functions_all_total <- function(functions) {
   total <- functions %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(total = sum(n)) %>%
-    inner_join(total, by = c("folder", "metric_group_group", "metric_group")) %>%
+    inner_join(
+      total,
+      by = c("folder", "metric_group_group", "metric_group")
+    ) %>%
     mutate(ratio = provisioned / total)
 
   return(total)
@@ -162,12 +271,34 @@ load_functions_all_total <- function(functions) {
 
 load_functions_total <- function(functions) {
   total <- functions %>%
-    group_by(folder, instance, metric_group, metric_group_group, docker_fn_name) %>%
+    group_by(
+      folder,
+      instance,
+      metric_group,
+      metric_group_group,
+      docker_fn_name
+    ) %>%
     summarise(total = sum(n))
 
   functions_total <- functions %>%
-    inner_join(total, by = c("instance", "folder", "metric_group", "metric_group_group", "docker_fn_name")) %>%
-    group_by(folder, status, metric_group, docker_fn_name, metric_group_group, total) %>%
+    inner_join(
+      total,
+      by = c(
+        "instance",
+        "folder",
+        "metric_group",
+        "metric_group_group",
+        "docker_fn_name"
+      )
+    ) %>%
+    group_by(
+      folder,
+      status,
+      metric_group,
+      docker_fn_name,
+      metric_group_group,
+      total
+    ) %>%
     summarise(n = sum(n)) %>%
     mutate(ratio = n / total)
 
@@ -179,30 +310,77 @@ load_bids_raw <- function(ark) {
     prepare() %>%
     prepare_convert()
 
-  if ((bids_raw %>% ungroup() %>% filter(field == "price") %>% summarise(n = n()))$n == 0) {
-    stop(paste0("Error, there are no price/bid cols in ", bids_raw %>% ungroup() %>% select(folder) %>% distinct()))
+  if (
+    (bids_raw %>%
+      ungroup() %>%
+      filter(field == "price") %>%
+      summarise(n = n()))$n ==
+      0
+  ) {
+    stop(paste0(
+      "Error, there are no price/bid cols in ",
+      bids_raw %>% ungroup() %>% select(folder) %>% distinct()
+    ))
   }
 
   bids_raw <- bids_raw %>%
     # group_by(folder, metric_group, metric_group_group) %>%
-    select(folder, sla_id, metric_group, metric_group_group, field, bid_id, function_name, value, instance) %>%
-    group_by(folder, sla_id, metric_group, metric_group_group, field, bid_id, function_name, instance) %>%
+    select(
+      folder,
+      sla_id,
+      metric_group,
+      metric_group_group,
+      field,
+      bid_id,
+      function_name,
+      value,
+      instance
+    ) %>%
+    group_by(
+      folder,
+      sla_id,
+      metric_group,
+      metric_group_group,
+      field,
+      bid_id,
+      function_name,
+      instance
+    ) %>%
     spread(field, value) %>%
     mutate(bid = ifelse(bid < 0 & bid >= -0.001, 0, bid))
 
-  if ((bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% summarise(n = n()))$n != 0) {
+  if (
+    (bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% summarise(n = n()))$n != 0
+  ) {
     Log(bids_raw %>% ungroup() %>% filter(bid < 0.0))
-    stop(paste0("Error, there are negative bids in ", bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% select(folder) %>% distinct()))
+    stop(paste0(
+      "Error, there are negative bids in ",
+      bids_raw %>%
+        ungroup() %>%
+        filter(bid < 0.0) %>%
+        select(folder) %>%
+        distinct()
+    ))
   }
 
   return(bids_raw)
 }
 
 load_provisioned_sla <- function(ark) {
-  provisioned_sla <- load_single_csv(ark, "function_deployment_duration.csv") %>%
+  provisioned_sla <- load_single_csv(
+    ark,
+    "function_deployment_duration.csv"
+  ) %>%
     prepare() %>%
     prepare_convert() %>%
-    select(bid_id, sla_id, folder, metric_group, metric_group_group, function_name) %>%
+    select(
+      bid_id,
+      sla_id,
+      folder,
+      metric_group,
+      metric_group_group,
+      function_name
+    ) %>%
     distinct() %>%
     extract_function_name_info()
 
@@ -211,12 +389,41 @@ load_provisioned_sla <- function(ark) {
 
 load_bids_won_function <- function(bids_raw, provisioned_sla) {
   bids_won_function <- bids_raw %>%
-    select(sla_id, bid_id, instance, function_name, folder, metric_group, metric_group_group, price, bid) %>%
+    select(
+      sla_id,
+      bid_id,
+      instance,
+      function_name,
+      folder,
+      metric_group,
+      metric_group_group,
+      price,
+      bid
+    ) %>%
     distinct() %>%
-    inner_join(provisioned_sla, by = c("bid_id", "sla_id", "folder", "metric_group", "metric_group_group", "function_name")) %>%
+    inner_join(
+      provisioned_sla,
+      by = c(
+        "bid_id",
+        "sla_id",
+        "folder",
+        "metric_group",
+        "metric_group_group",
+        "function_name"
+      )
+    ) %>%
     mutate(winner = instance) %>%
     mutate(cost = price) %>%
-    select(sla_id, function_name, folder, metric_group, metric_group_group, winner, cost, bid)
+    select(
+      sla_id,
+      function_name,
+      folder,
+      metric_group,
+      metric_group_group,
+      winner,
+      cost,
+      bid
+    )
 
   return(bids_won_function)
 }
@@ -235,23 +442,48 @@ load_raw_cpu_observed_from_fog_node <- function(ark) {
     prepare() %>%
     prepare_convert()
 
-  return(cpu %>% filter(field == "initial_allocatable") %>%
-    rename(initial_allocatable = value) %>%
-    inner_join(cpu %>%
-      filter(field == "used") %>%
-      rename(used = value), by = c("timestamp", "folder", "instance", "metric_group", "metric_group_group")) %>%
-    mutate(usage = used / initial_allocatable) %>%
-    select(instance, timestamp, usage, folder, metric_group, metric_group_group))
+  return(
+    cpu %>%
+      filter(field == "initial_allocatable") %>%
+      rename(initial_allocatable = value) %>%
+      inner_join(
+        cpu %>%
+          filter(field == "used") %>%
+          rename(used = value),
+        by = c(
+          "timestamp",
+          "folder",
+          "instance",
+          "metric_group",
+          "metric_group_group"
+        )
+      ) %>%
+      mutate(usage = used / initial_allocatable) %>%
+      select(
+        instance,
+        timestamp,
+        usage,
+        folder,
+        metric_group,
+        metric_group_group
+      )
+  )
 }
 
 load_auc_usage_cpu <- function() {
-  registerDoParallel(cl = parallel_loading_datasets_small, cores = parallel_loading_datasets_small)
-  raw_auc_usage_cpu <- bind_rows(foreach(ark = METRICS_ARKS) %dopar% {
-    load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
-      prepare() %>%
-      prepare_convert() %>%
-      get_usage()
-  })
+  registerDoParallel(
+    cl = parallel_loading_datasets_small,
+    cores = parallel_loading_datasets_small
+  )
+  raw_auc_usage_cpu <- bind_rows(
+    foreach(ark = METRICS_ARKS) %dopar%
+      {
+        load_single_csv(ark, "cpu_observed_from_fog_node.csv") %>%
+          prepare() %>%
+          prepare_convert() %>%
+          get_usage()
+      }
+  )
 
   gc()
   return(raw_auc_usage_cpu)
@@ -310,7 +542,10 @@ load_grand_total_gains <- function(bids_won_function) {
 ## })
 #
 load_raw_deployment_times <- function(ark) {
-  raw_deployment_times <- load_single_csv(ark, "function_deployment_duration.csv") %>%
+  raw_deployment_times <- load_single_csv(
+    ark,
+    "function_deployment_duration.csv"
+  ) %>%
     prepare() %>%
     prepare_convert() %>%
     extract_function_name_info()
@@ -328,10 +563,18 @@ load_paid_functions <- function(ark) {
 load_earnings_jains_plot_data <- function(node_levels, bids_won_function) {
   earnings <- node_levels %>%
     rename(winner = name) %>%
-    full_join(bids_won_function %>% group_by(folder, winner, metric_group_group, metric_group) %>% summarise(earnings = sum(cost))) %>%
+    full_join(
+      bids_won_function %>%
+        group_by(folder, winner, metric_group_group, metric_group) %>%
+        summarise(earnings = sum(cost))
+    ) %>%
     mutate(earnings = ifelse(is.na(earnings), 0, earnings)) %>%
     group_by(metric_group, metric_group_group, folder) %>%
-    summarise(jains_index = jains_index(earnings), worst_case = round(1 / n(), 2), n = n()) %>%
+    summarise(
+      jains_index = jains_index(earnings),
+      worst_case = round(1 / n(), 2),
+      n = n()
+    ) %>%
     rename(score = jains_index)
   return(earnings)
 }
@@ -344,7 +587,10 @@ load_acceptable_from_respected_slas <- function(ark) {
   cluster_library(cluster, "multidplyr")
   cluster_copy(cluster, "Log")
 
-  sla_to_function_name <- load_single_csv(ark, "provisioned_function_gauge.csv") %>%
+  sla_to_function_name <- load_single_csv(
+    ark,
+    "provisioned_function_gauge.csv"
+  ) %>%
     prepare() %>%
     ungroup() %>%
     select(folder, sla_id, function_name)
@@ -368,11 +614,19 @@ load_acceptable_from_respected_slas <- function(ark) {
     mutate(latency = latency + as.difftime(0.001, units = "secs")) %>%
     mutate(acceptable = (service_status == 200) & (in_flight <= latency)) %>%
     mutate(on_time = in_flight <= latency) %>%
-    mutate(error = (as.numeric(latency) - as.numeric(in_flight)) / as.numeric(latency)) %>%
+    mutate(
+      error = (as.numeric(latency) - as.numeric(in_flight)) /
+        as.numeric(latency)
+    ) %>%
     mutate(nf = service_status >= 400 & service_status < 500) %>%
     mutate(nalat = is.na(latency))
   # %>% filter(!(docker_fn_name %in% c("audioToText", "classif")))
-  Log(respected_sla %>% filter(error < 0) %>% filter(!nalat) %>% filter(metric_group == "auction-quadratic_rates-no_complication"))
+  Log(
+    respected_sla %>%
+      filter(error < 0) %>%
+      filter(!nalat) %>%
+      filter(metric_group == "auction-quadratic_rates-no_complication")
+  )
 
   respected_sla <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
@@ -425,11 +679,13 @@ load_respected_sla <- function(ark) {
   cluster_copy(cluster, "acceptable_chain_cumulative")
   cluster_copy(cluster, "Log")
 
-  sla_to_function_name <- load_single_csv(ark, "provisioned_function_gauge.csv") %>%
+  sla_to_function_name <- load_single_csv(
+    ark,
+    "provisioned_function_gauge.csv"
+  ) %>%
     prepare() %>%
     ungroup() %>%
     select(folder, sla_id, function_name)
-
 
   respected_sla <- load_single_csv(ark, "proxy.csv") %>%
     prepare() %>%
@@ -448,10 +704,18 @@ load_respected_sla <- function(ark) {
     mutate(in_flight = value - prev) %>%
     mutate(total_process_time = first(ran_for)) %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
-    mutate(prev_function = lag(ifelse(first_req_id, "<iot_emulation>", docker_fn_name))) %>%
+    mutate(
+      prev_function = lag(ifelse(
+        first_req_id,
+        "<iot_emulation>",
+        docker_fn_name
+      ))
+    ) %>%
     mutate(prev_sla = lag(sla_id)) %>%
     filter(first_req_id == FALSE) %>%
-    mutate(acceptable = (service_status == 200) & (in_flight <= latency + 0.001)) %>%
+    mutate(
+      acceptable = (service_status == 200) & (in_flight <= latency + 0.001)
+    ) %>%
     mutate(on_time = in_flight <= latency) %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%
     mutate(acceptable_chained = Reduce(`&`, acceptable, accumulate = TRUE)) %>%
@@ -478,7 +742,22 @@ load_respected_sla <- function(ark) {
           sample_size <- min(5, nrow(df))
           sample_data <- df %>%
             filter(is.na(!!sym(column_name)) | !!sym(column_name) < 0) %>%
-            select(folder, prev, req_id, sla_id, function_name, docker_fn_name, latency, value, in_flight, on_time, acceptable, acceptable_chained, on_time_chained, ran_for) %>%
+            select(
+              folder,
+              prev,
+              req_id,
+              sla_id,
+              function_name,
+              docker_fn_name,
+              latency,
+              value,
+              in_flight,
+              on_time,
+              acceptable,
+              acceptable_chained,
+              on_time_chained,
+              ran_for
+            ) %>%
             head(sample_size)
 
           Log("Sample of problematic data:")
@@ -488,7 +767,13 @@ load_respected_sla <- function(ark) {
         }
       }
 
-      columns_to_check <- c("in_flight", "on_time", "acceptable", "acceptable_chained", "on_time_chained")
+      columns_to_check <- c(
+        "in_flight",
+        "on_time",
+        "acceptable",
+        "acceptable_chained",
+        "on_time_chained"
+      )
 
       for (col in columns_to_check) {
         check_na_and_negative(., col)
@@ -524,12 +809,16 @@ load_respected_sla <- function(ark) {
       service_oked = sum((service_status >= 200) & (service_status < 300)),
       service_timeouted = sum(service_status == 408),
       service_not_found = sum((service_status == 404)),
-      service_errored = sum((service_status >= 400) & (service_status < 500)) - service_timeouted - service_not_found,
+      service_errored = sum((service_status >= 400) & (service_status < 500)) -
+        service_timeouted -
+        service_not_found,
       service_server_errored = sum(service_status >= 500),
       proxy_oked = sum((status >= 200) & (status < 300)),
       proxy_timeouted = sum(status == 408),
       proxy_not_found = sum((status == 404)),
-      proxy_errored = sum((status >= 400) & (status < 500)) - proxy_timeouted - proxy_not_found,
+      proxy_errored = sum((status >= 400) & (status < 500)) -
+        proxy_timeouted -
+        proxy_not_found,
       proxy_server_errored = sum(status >= 500),
     ) %>%
     filter(!is.na(acceptable)) %>%
@@ -539,11 +828,28 @@ load_respected_sla <- function(ark) {
   return(respected_sla)
 }
 
-load_nb_deployed_plot_data <- function(respected_sla_headers, functions_total, node_levels) {
+load_nb_deployed_plot_data <- function(
+  respected_sla_headers,
+  functions_total,
+  node_levels
+) {
   plot <- respected_sla_headers %>%
     extract_function_name_info() %>%
-    left_join(functions_total %>% select(folder, metric_group, metric_group_group, load_type, latency_type, total) %>% rename(nb_functions_requested_total = total)) %>%
-    left_join(node_levels %>% group_by(folder) %>% summarise(nb_nodes = n())) %>%
+    left_join(
+      functions_total %>%
+        select(
+          folder,
+          metric_group,
+          metric_group_group,
+          load_type,
+          latency_type,
+          total
+        ) %>%
+        rename(nb_functions_requested_total = total)
+    ) %>%
+    left_join(
+      node_levels %>% group_by(folder) %>% summarise(nb_nodes = n())
+    ) %>%
     # mutate(nb_nodes_group = case_when(
     #     nb_nodes < 19 ~ "Danger zone 1",
     #     nb_nodes <= 34 ~ "$19 \\le n < 34$",
@@ -552,7 +858,13 @@ load_nb_deployed_plot_data <- function(respected_sla_headers, functions_total, n
     #     TRUE ~ "Danger zone 3",
     # )) %>%
     rename(nb_nodes_group = nb_nodes) %>%
-    group_by(folder, metric_group_group, metric_group, nb_nodes_group, nb_functions_requested_total) %>%
+    group_by(
+      folder,
+      metric_group_group,
+      metric_group,
+      nb_nodes_group,
+      nb_functions_requested_total
+    ) %>%
     summarise(funcs = n()) %>%
     mutate(nb_functions = funcs / nb_functions_requested_total) %>%
     correct_names()

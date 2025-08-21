@@ -22,8 +22,6 @@ output_otel_budget_plot <- function(spans) {
 
   # Log(df %>% sample_n(5))
   #
-  # Log(colnames(df))
-  #
   p <- ggplot(
     data = df,
     aes(
@@ -37,8 +35,12 @@ output_otel_budget_plot <- function(spans) {
     # theme(legend.position = "none") +
     # scale_alpha_continuous(guide = "none") +
     labs(
-      x = "Span",
-      y = "Time",
+      title = paste(
+        "Budget evolution of each application\n",
+        unique(df$folder)
+      ),
+      x = "Time",
+      y = "Budget",
     ) +
     theme(
       legend.background = element_rect(
