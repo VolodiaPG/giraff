@@ -411,7 +411,7 @@ single_campaign name dotenvfile_default:
     cp definitions.py $expe_dir/definitions.py
     mkdir -p metrics-arks logs logs_campaign
 
-    today=$
+    today=$( date +%Y%m%d )
     number=0
     fname={{ name }}-$today.log
     while [ -e "$fname" ]; do
