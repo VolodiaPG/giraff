@@ -124,7 +124,7 @@ refresh fog_node_image market_image $DEPLOYMENT_NAME:
       log "wait and check the system is responsive and rebooted" false check_reboot
 
       # pursue installation process for experiments
-      Just _deploy {{ fog_node_image }} {{ market_image }}
+      just _deploy {{ fog_node_image }} {{ market_image }}
     fi
 
 # Delete the Job on grid'5000 and local EnosLib files
@@ -249,7 +249,7 @@ scenarii +city_name_node_targets:
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
-            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
+            just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
         just scenario "$DEPLOYMENT_NAME-$2-$3-$4" "$4" {{ city_name_node_targets }}
     }
