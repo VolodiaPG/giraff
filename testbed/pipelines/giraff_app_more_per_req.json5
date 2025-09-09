@@ -1,7 +1,7 @@
 {
     "name": "giraff_app",
     "content": "audio",
-    "nbVarName": "NB_GIRAFF_APP_FUNCTIONS",
+    "nbVarName": "NB_GIRAFF_APP_FUNCTIONS_MORE",
     "first": "app",
     "pipeline": {
         "app": {
@@ -14,8 +14,8 @@
             "replicas": 1,
             "envProcess": "server",
             "envVars": {
-              "NEW_BUDGET_PER_REQUEST": "<<NEW_BUDGET_PER_REQUEST>>",
-              "INITIAL_BUDGET": "<<INITIAL_BUDGET>>",
+              "NEW_BUDGET_PER_REQUEST": "5",
+              "INITIAL_BUDGET": "10",
               "RELEASE_COOKIE": "<<random>>",
               "DOCKER_REGISTRY": "127.0.0.1:5555",
             }

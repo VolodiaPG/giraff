@@ -380,7 +380,6 @@ def up(
 
 def clear_directory(path):
     # Check if the directory exists
-    os.stat(path)
     if not os.path.exists(path):
         # Create the directory if it does not exist
         os.makedirs(path)
@@ -659,7 +658,7 @@ def network(env: EnosEnv = None):
     gen_net(NETWORK, add_netem_cb)
 
     print("deploying network")
-    # net.deploy(chunk_size=25)
+    net.deploy(chunk_size=25)
     net.deploy()
     # print("validating network")
     # net.validate()
@@ -777,6 +776,8 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
         collector_ip=roles["iot_emulation"][0].address
     )
 
+    print(f"Using fog node image: {fog_node_image}, and market image: {market_image}")
+
     fog_node_roles = []
     for name, conf, tier_flavor in confs:
         additional_env_vars = ""
@@ -791,7 +792,6 @@ def k3s_deploy(fog_node_image, market_image, env: EnosEnv = None, **kwargs):
             node_name=name,
             fog_node_image=fog_node_image,
             collector_ip=roles["iot_emulation"][0].address,
-            # enable_collector="true" if os.environ["DEV"] == "true" else "false",
             enable_collector="true",
             is_cloud=(
                 "is_cloud"

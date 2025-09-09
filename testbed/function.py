@@ -39,6 +39,7 @@ class FunctionPipelineDescription:
     content: str
     nbVarName: str
     pipeline: dict[str, FunctionPipeline]
+    additionnalImages: list[str] = field(default_factory=list)
 
 
 IMAGE_REGISTRY = os.environ["IMAGE_REGISTRY"]
@@ -179,6 +180,9 @@ async def _do_functions_to_registry(
     for pipe in pipeline:
         for desc in pipe.pipeline.values():
             unique_functions.add(desc.image)
+
+        for additionnalImage in pipe.additionnalImages:
+            unique_functions.add(additionnalImage)
 
     node_targets = set(nodes)
 

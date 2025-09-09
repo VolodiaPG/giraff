@@ -173,8 +173,7 @@ in {
             up \
             --authkey $AUTH_KEY \
             --accept-dns=false \
-            --advertise-tags=tag:grid5000 \
-            --advertise-routes=10.0.0.0/8
+            --advertise-tags=tag:grid5000
         fi
       '';
       serviceConfig = {

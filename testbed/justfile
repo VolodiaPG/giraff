@@ -148,11 +148,12 @@ _deploy fog_node_image market_image:
     {{ RUN }} integration.py k3s-deploy --fog_node_image={{ fog_node_image }} --market_image={{ market_image }}
 
 [private]
-expe env_variation IOT_IP MARKET_IP TARGET_NODES:
+expe env_variation env_live_variation IOT_IP MARKET_IP TARGET_NODES:
     #!/usr/bin/env bash
     set -e
     set -a
     source "{{ justfile_directory() }}/{{ env_variation }}"
+    source "{{ justfile_directory() }}/{{ env_live_variation }}"
     source "{{ justfile_directory() }}/.env"
     set +a
     export IOT_IP={{ IOT_IP }}
@@ -170,16 +171,16 @@ from_checkpoint env_variation=".env.dev" *command="expe":
     {{ command }}
 
 [private]
-scenario archive_name env_variation +city_name_node_targets:
+scenario archive_name env_variation env_live_variation +city_name_node_targets:
     #!/usr/bin/env bash
-    just _scenario "{{ archive_name }}" "{{ env_variation }}" {{ city_name_node_targets }}
+    just _scenario "{{ archive_name }}" "{{ env_variation }}" "{{ env_live_variation }}" {{ city_name_node_targets }}
 
     if [ "$DEV_SLEEP_AFTER_OK" = "true" ]; then
         printf "DEV_SLEEP_AFTER_OK activated ; waiting indefinitely\n"
         sleep 9999999999;
     fi
 
-_scenario archive_name env_variation +city_name_node_targets:
+_scenario archive_name env_variation env_live_variation +city_name_node_targets:
     #!/usr/bin/env bash
     set -e
     source utils.sh
@@ -226,7 +227,7 @@ _scenario archive_name env_variation +city_name_node_targets:
         export DOCKER_REGISTRY="$MARKET_IP:5555"
         # Use local registry as cold start is not important yet
         export DOCKER_REGISTRY="127.0.0.1:5555"
-        just expe "{{ env_variation }}" $IOT_IP $MARKET_IP "$joined"
+        just expe "{{ env_variation }}" "{{ env_live_variation }}" $IOT_IP $MARKET_IP "$joined"
     }
     echo "experiment ({{ env_variation }} for $EXPERIMENT_DURATION secs)"
     do_expe
@@ -244,14 +245,14 @@ scenarii +city_name_node_targets:
     set -e
 
     function run_scenario() {
-        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3 (exec #$1; env $4)"
+        echo "Using image $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2 and $IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3 (exec #$1; env $4; live env $5)"
         set -e
         if [ $1 -eq 1 ]; then
             just deploy "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         else
             just refresh "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$2" "$IMAGE_REGISTRY/$COMMON_IMAGE_NAME:$3" $DEPLOYMENT_NAME
         fi
-        just scenario "$DEPLOYMENT_NAME-$2-$3-$4" "$4" {{ city_name_node_targets }}
+        just scenario "$DEPLOYMENT_NAME-$2-$3-$4-$5" "$4" "$5" {{ city_name_node_targets }}
     }
 
     echo "Deploying..."
@@ -259,14 +260,16 @@ scenarii +city_name_node_targets:
     export -f run_scenario
     if [ $DEV == "true" ]; then
       ENV_VARIATIONS=".env.dev"
+      ENV_LIVE_VARIATIONS=".env.live.dev"
     fi
     parallel --tty -j1 --shuf --will-cite \
         --joblog ./joblog \
         --retries 3 \
-        run_scenario {#} {1} {2} {3}\
+        run_scenario {#} {1} {2} {3} {4}\
         ::: $(echo ${FOG_NODE_IMAGE_TAGS[@]}) \
         :::+ $(echo ${MARKET_IMAGE_TAGS[@]}) \
-        ::: $(echo ${ENV_VARIATIONS[@]})
+        ::: $(echo ${ENV_VARIATIONS[@]}) \
+        ::: $(echo ${ENV_LIVE_VARIATIONS[@]})
 
     #for INDEX in $(seq 1 3); do
     #    parallel --will-cite --tty --joblog ./joblog --retry-failed
@@ -724,17 +727,18 @@ get_metrics_back grep="" folder="metrics-arks" experiments_dotfile=".experiments
     diff_output=$(diff <(echo "$output1") <(echo "$output2"))
     echo -e "$diff_output"
 
-[private]
-test_expe experiments_dotfile=".experiments.env":
+test_expe experiments_dotfile=".experiments.env" env_variation=".env.dev":
     #!/usr/bin/env bash
     set -o allexport
     source {{ experiments_dotfile }}
+    source {{ env_variation }}
     set +o allexport
     export TARGET_NODE_NAMES=toto
     export TARGET_NODES=toto
-    EXPE_SAVE_FILE=toto.txt expe
+    export EXPE_SAVE_FILE=$(pwd)/toto.txt
+    cd expe
+    nix develop .#expe -c go run main.go
 
-[private]
 test_definitions experiments_dotfile=".experiments.env":
     #!/usr/bin/env bash
     set -o allexport

@@ -57,7 +57,7 @@ _ssh +cmd:
     #!/usr/bin/env bash
     source ../.env
     city=`cd ..; just city`
-    ssh -t -o LogLevel=ERROR $city.grid5000.fr {{ cmd }}
+    ssh -t -o LogLevel=ERROR -o "ServerAliveInterval 60" $city.grid5000.fr {{ cmd }}
 
 [private]
 ssh script args="":
@@ -66,7 +66,7 @@ ssh script args="":
     source ../.env
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
-    ssh -o LogLevel=ERROR $city.grid5000.fr ./{{ script }} {{ args }}
+    ssh -o LogLevel=ERROR -o "ServerAliveInterval 60" $city.grid5000.fr ./{{ script }} {{ args }}
 
 [private]
 watch script args="":
@@ -74,7 +74,7 @@ watch script args="":
     source ../.env
     city=`cd ..; just city`
     rsync -cazpq --inplace --stats --perms --chmod=u+rwx,g+rwx,o+r {{ script }} $city.grid5000.fr:~/{{ script }} > /dev/null 2>&1
-    ssh -t -o LogLevel=ERROR $city.grid5000.fr watch -t -n 10 ./{{ script }} {{ args }}
+    ssh -t -o LogLevel=ERROR -o "ServerAliveInterval 60" $city.grid5000.fr watch -t -n 10 ./{{ script }} {{ args }}
 
 [private]
 show_machine_usage:

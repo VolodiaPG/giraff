@@ -316,10 +316,9 @@ service:
       exporters: [influxdb,otlp/jaeger]
 """
 
-# Remove a unit so that the hosts are not saturated
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
     "gros": {"core": (2 * 18), "mem": 1024 * 96},
-    "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
+    # "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     "parasilo": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
@@ -382,31 +381,31 @@ def additional_env_vars(level):
 
 TIER_4_FLAVOR = {
     "core": 4,
-    "mem": 1024 * 4,
-    "reserved_core": 3,
-    "reserved_mem": 1024 * 3,
+    "mem": 1024 * 8,
+    "reserved_core": 4,
+    "reserved_mem": 1024 * 8,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
-    "core": 6,
-    "mem": 1024 * 6,
-    "reserved_core": 5,
-    "reserved_mem": 1024 * 5,
+    "core": 8,
+    "mem": 1024 * 16,
+    "reserved_core": 8,
+    "reserved_mem": 1024 * 16,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
-    "core": 10,
-    "mem": 1024 * 12,
-    "reserved_core": 9,
-    "reserved_mem": 1024 * 11,
+    "core": 16,
+    "mem": 1024 * 32,
+    "reserved_core": 16,
+    "reserved_mem": 1024 * 32,
     "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
-    "core": 16,
-    "mem": 1024 * 46,
-    "reserved_core": 15,
-    "reserved_mem": 1024 * 42,
+    "core": 36,
+    "mem": 1024 * 80,
+    "reserved_core": 36,
+    "reserved_mem": 1024 * 80,
     "additional_env_vars": additional_env_vars(0),
 }
 
@@ -471,9 +470,9 @@ def set_cloud(dd: Dict, *_):
     dd["is_cloud"] = True
 
 
-def set_iot_connected(drop_one_in: int):
+def set_iot_connected(keep_one_in: int):
     def set_connected(dd: Dict, first: bool):
-        if first or random.randint(1, drop_one_in) != 1:
+        if first or random.randint(1, keep_one_in) == 1:
             dd["iot_connected"] = 0
 
     return set_connected
@@ -534,7 +533,7 @@ def network_generation():
                 nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
                 latencies=(6, 32),
                 rates=(500 * ONE_MBIT, ONE_GBIT),
-                losses=(1, 5),
+                losses=(1, 2),
                 modifiers=[
                     drop_children(drop_one_in=3),
                     flavor_randomizer_cpu([0, 2, 4]),
@@ -545,7 +544,7 @@ def network_generation():
                     nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
                     latencies=(7, 64),
                     rates=(100 * ONE_MBIT, ONE_GBIT),
-                    losses=(5, 10),
+                    losses=(2, 5),
                     modifiers=[
                         drop_children(drop_one_in=6),
                         flavor_randomizer_cpu([0, 2]),
@@ -556,9 +555,9 @@ def network_generation():
                         nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
                         latencies=(1, 4),
                         rates=(10 * ONE_MBIT, ONE_GBIT),
-                        losses=(1, 5),
+                        losses=(1, 2),
                         modifiers=[
-                            set_iot_connected(drop_one_in=2),
+                            set_iot_connected(keep_one_in=2),
                             flavor_randomizer_mem([0, 2]),
                         ],
                     ),
