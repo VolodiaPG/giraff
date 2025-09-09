@@ -320,6 +320,7 @@ NB_CPU_PER_MACHINE_PER_CLUSTER = {
     "gros": {"core": (2 * 18), "mem": 1024 * 96},
     # "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     "parasilo": {"core": (2 * 8 * 2), "mem": 1024 * 128},
+    "ecotype": {"core": (2 * 10 * 2), "mem": 1024 * 128},
     # "dahu": {"core": 2 * 16 - 1, "mem": 1024 * (192 - 4)},
 }
 
