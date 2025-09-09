@@ -20,6 +20,7 @@
             git
             gnumake
             gomod2nix
+            jq
             gopls
             gotools
             just

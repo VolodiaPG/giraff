@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	rand2 "golang.org/x/exp/rand"
 	"io"
 	"log"
 	"math"
@@ -92,6 +93,7 @@ var (
 	dockerRegistry                   string
 	successes                        int
 	errors                           int
+	randomSeed                       uint64
 	random                           *rand.Rand
 	functionDescriptions             []string
 	logger                           otelzap.Logger
@@ -116,11 +118,12 @@ type FunctionPipeline struct {
 
 // The FunctionPipelineDescription is the description of an individual function to deploy on the network
 type FunctionPipelineDescription struct {
-	Name      string                      `json:"name"`
-	Content   string                      `json:"content"`
-	NbVarName string                      `json:"nbVarName"`
-	First     string                      `json:"first"`
-	Pipeline  map[string]FunctionPipeline `json:"pipeline"`
+	Name              string                      `json:"name"`
+	Content           string                      `json:"content"`
+	NbVarName         string                      `json:"nbVarName"`
+	First             string                      `json:"first"`
+	Pipeline          map[string]FunctionPipeline `json:"pipeline"`
+	AdditionnalImages []string                    `json:"additionnalImages"`
 }
 
 var imageRegistry string
@@ -141,6 +144,7 @@ func init() {
 	functionColdStartOverhead, err = strconv.Atoi(os.Getenv("FUNCTION_COLD_START_OVERHEAD"))
 	functionStopOverhead, err = strconv.Atoi(os.Getenv("FUNCTION_STOP_OVERHEAD"))
 	experimentDuration, err = strconv.Atoi(os.Getenv("EXPERIMENT_DURATION"))
+	log.Println("experimentDuration is %d", experimentDuration)
 	overrideFunctionIP = os.Getenv("OVERRIDE_FUNCTION_IP")
 	overrideFirstNodeIP = os.Getenv("OVERRIDE_FIRST_NODE_IP")
 	dockerRegistry = os.Getenv("DOCKER_REGISTRY")
@@ -176,13 +180,14 @@ func init() {
 	}
 	durationMultiplier = durationMultiplerNumber
 
-	randomSeed := os.Getenv("RANDOM_SEED")
+	_randomSeed := os.Getenv("RANDOM_SEED")
 	seed := time.Now().UnixNano()
-	if randomSeed != "" {
+	if _randomSeed != "" {
 		var _seed int
-		_seed, err = strconv.Atoi(randomSeed)
+		_seed, err = strconv.Atoi(_randomSeed)
 		seed = int64(_seed)
 	}
+	randomSeed = uint64(seed)
 	random = rand.New(rand.NewSource(seed))
 	if err != nil {
 		log.Println("There is an error: ", err)
@@ -273,7 +278,14 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 		for key, value := range *function.EnvVars {
 			if value == "<<random>>" {
 				value = strconv.Itoa(random.Intn(99999999))
+			} else if strings.HasPrefix(value, "<<") && strings.HasSuffix(value, ">>") {
+				value = os.Getenv(strings.TrimPrefix(strings.TrimSuffix(value, ">>"), "<<"))
 			}
+
+			if value == "" {
+				logger.Ctx(ctx).Error("Env variable is empty", zap.String("key", key))
+			}
+
 			envVars = append(envVars, []string{key, value})
 		}
 	}
@@ -666,9 +678,9 @@ func loadFile(filename string) error {
 	return nil
 }
 
-func gamma(alpha, beta float64) float64 {
-	dist := distuv.Gamma{Alpha: alpha, Beta: beta}
-	return dist.Rand()
+func gamma(alpha, beta float64) distuv.Gamma {
+	dist := distuv.Gamma{Alpha: alpha, Beta: beta, Src: rand2.NewSource(randomSeed)}
+	return dist
 }
 
 func saveFile(filename string) error {
@@ -683,16 +695,17 @@ func saveFile(filename string) error {
 		nbFunction, _ := strconv.Atoi(os.Getenv(fnDesc.NbVarName))
 		nbFunctions[ii] = nbFunction
 	}
+	gammaDist := gamma(2.35, 15)
 	for _, targetNodeName := range targetNodeNames {
 		for ii, fnDesc := range functionDescriptions {
 			nbFunction := nbFunctions[ii]
 			requestIntervals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				requestIntervals[i] = int(math.Ceil(math.Abs(arrivalRequestIntervalMultiplier * gamma(2.35, 15))))
+				requestIntervals[i] = int(math.Ceil(math.Abs(arrivalRequestIntervalMultiplier * gammaDist.Rand())))
 			}
 			durations := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
-				durations[i] = int(math.Ceil(math.Abs(durationMultiplier * gamma(2.35, 15))))
+				durations[i] = int(math.Ceil(math.Abs(durationMultiplier * gammaDist.Rand())))
 			}
 			arrivals := make([]int, nbFunction)
 			for i := 0; i < nbFunction; i++ {
@@ -715,7 +728,7 @@ func saveFile(filename string) error {
 					logger.Info("env", zap.Float64("scalingRatio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)
 					latency, _ := strconv.Atoi(latencyStr)
-					latency = int(math.Ceil(math.Abs(rand.NormFloat64()*float64(latency) + float64(latency)/4)))
+					latency = int(math.Ceil(math.Abs(rand.NormFloat64() * float64(latency))))
 					t := time.Now()
 					functionName := fnName + t.Format("20060102150405") + "-i" + strconv.Itoa(index) + "-c" + strconv.Itoa(fn.CPU) + "-m" + strconv.Itoa(fn.Mem) + "-l" + strconv.Itoa(latency) + "-a" + strconv.Itoa(arrival) + "-r" + strconv.Itoa(requestInterval) + "-d" + strconv.Itoa(duration)
 

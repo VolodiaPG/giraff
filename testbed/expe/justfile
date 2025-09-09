@@ -12,3 +12,17 @@ default:
     export ARRIVAL_REQUEST_MULTIPLIER=1
     export FUNCTION_MIN_DURATION=1000
     go run main.go
+
+test experiments_dotfile="../.experiments.env" env_variation="../.env.dev":
+    #!/usr/bin/env bash
+    set -o allexport
+    source ../.env
+    source {{ experiments_dotfile }}
+    source {{ env_variation }}
+    set +o allexport
+    export TARGET_NODE_NAMES=toto
+    export TARGET_NODES=toto
+    export EXPE_SAVE_FILE=toto.txt
+    go run main.go
+
+
