@@ -20,6 +20,7 @@ source("loaders.R")
 source("commongraphs.R")
 files <- c(
   list.files(file.path("graphs/"), pattern = "\\.R$", full.names = TRUE),
+  list.files(file.path("graphs_big/"), pattern = "\\.R$", full.names = TRUE),
   list.files(file.path("loaders/"), pattern = "\\.R$", full.names = TRUE)
 )
 for (file in files) {
@@ -121,6 +122,11 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = otel_logs_single,
+    command = load_otel_logs(ark),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = otel_processed_single,
     command = load_otel_processed(otel_single),
     packages = load_pkgs
@@ -131,9 +137,30 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = flame_func_single,
+    command = flame_functions(
+      otel_processed_single
+    ),
+    packages = load_pkgs
+  ),
+  tar_target(
+    name = otel_degrades_single,
+    command = load_otel_degrades(
+      otel_logs_single
+    ),
+    packages = load_pkgs
+  ),
+  tar_target(
+    name = otel_errors_single,
+    command = load_otel_errors(
+      otel_logs_single
+    ),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = flame_with_latency_single,
     command = flame_func_with_latency(
-      otel_processed_single,
+      flame_func_single,
       raw_latency_single
     ),
     packages = load_pkgs
@@ -203,6 +230,27 @@ single_ops <- tar_map(
     #   name = output_ran_for_plot_simple_graph,
     #   command = output_ran_for_plot_simple(respected_sla, bids_won_function),
     #   packages = graph_pkgs
+  ),
+  tar_target(
+    name = output_otel_profit_graph,
+    command = output_otel_profit_plot(
+      otel_processed_single
+    ),
+    packages = graph_pkgs
+  ),
+  tar_target(
+    name = output_otel_functions_graph,
+    command = output_otel_functions_plot(
+      flame_func_single
+    ),
+    packages = graph_pkgs
+  ),
+  tar_target(
+    name = output_otel_budget_per_function_graph,
+    command = output_otel_budget_per_function_plot(
+      otel_processed_single
+    ),
+    packages = graph_pkgs
   )
 )
 
@@ -238,6 +286,29 @@ combined_graphs <-
       command = output_provisioned_simple(
         functions_total,
         node_levels
+      ),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_otel_budget_graph,
+      command = big_output_otel_budget_plot(
+        otel_processed
+      ),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_otel_fallbacks_graph,
+      command = big_output_otel_fallbacks_plot(
+        otel_processed,
+        otel_degrades,
+        otel_errors
+      ),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_ouput_nb_functions_graph,
+      command = big_ouput_nb_functions_plot(
+        otel_processed
       ),
       packages = graph_pkgs
     )

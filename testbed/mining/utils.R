@@ -410,7 +410,7 @@ extract_context <- function(x) {
   info <- stringr::str_match(x$metric_group, "(.+)-(.+)-(.+)")
   info2 <- stringr::str_match(
     x$folder,
-    ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)_.+"
+    ".+\\.env_([0-9]+_[0-9]+)-.*-\\.env\\.([0-9]+)-\\.env\\.live\\.([0-9]+)_.+"
   )
   return(
     x %>%
@@ -418,7 +418,8 @@ extract_context <- function(x) {
       mutate(placement_method = paste0(info[, 2], info[, 4])) %>%
       mutate(economic_method = paste0(info[, 3], info[, 4])) %>%
       mutate(run = info2[, 2]) %>%
-      mutate(env = info2[, 3])
+      mutate(env = info2[, 3]) %>%
+      mutate(env_live = info2[, 4])
   )
 }
 

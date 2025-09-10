@@ -1,7 +1,5 @@
 flame_func_with_latency <- function(spans, raw_latency) {
-  df_spans_raw <- spans %>%
-    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
-    mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
+  df <- spans %>%
     mutate(source_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
@@ -11,9 +9,7 @@ flame_func_with_latency <- function(spans, raw_latency) {
     ) %>%
     distinct()
 
-  df_spans_raw2 <- spans %>%
-    filter(startsWith(span.name, "...FLAME")) %>%
-    mutate(span.name = substring(span.name, 4)) %>%
+  df2 <- spans %>%
     mutate(function_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
@@ -23,8 +19,8 @@ flame_func_with_latency <- function(spans, raw_latency) {
     ) %>%
     distinct()
 
-  df_spans <- df_spans_raw %>%
-    inner_join(df_spans_raw2)
+  df_spans_raw <- df %>%
+    inner_join(df2)
 
   latency_with_ip <- raw_latency %>%
     filter(field == "average") %>%
@@ -102,7 +98,7 @@ flame_func_with_latency <- function(spans, raw_latency) {
     return(NA)
   }
 
-  df_spans %>%
+  df_spans_raw %>%
     rowwise() %>%
     mutate(
       latency = find_tree_path_latency(

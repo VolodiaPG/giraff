@@ -909,3 +909,23 @@ load_otel <- function(ark) {
     adjust_timestamps() %>%
     ungroup()
 }
+
+load_otel_logs <- function(ark) {
+  load_single_csv(ark, "logs.csv") %>%
+    prepare() %>%
+    adjust_timestamps() %>%
+    ungroup() %>%
+    select(
+      folder,
+      metric_group,
+      timestamp,
+      field,
+      value_raw,
+      span_id,
+      trace_id
+    ) %>%
+    group_by(folder) %>%
+    pivot_wider(names_from = field, values_from = value_raw)
+  # mutate(attributes = lapply(attributes, fromJSON))
+  # unnest_wider(attributes)
+}

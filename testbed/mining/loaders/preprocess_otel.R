@@ -3,6 +3,7 @@ load_otel_processed <- function(otel) {
     ungroup() %>%
     select(
       folder,
+      metric_group,
       timestamp,
       service.name,
       field,
@@ -10,6 +11,7 @@ load_otel_processed <- function(otel) {
       span_id,
       trace_id
     ) %>%
+    group_by(folder) %>%
     pivot_wider(names_from = field, values_from = value_raw) %>%
     mutate(
       duration = as.difftime(as.numeric(duration_nano) / 1e9, unit = "secs")

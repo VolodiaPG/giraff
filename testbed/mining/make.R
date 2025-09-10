@@ -3,19 +3,19 @@ library(tools)
 
 first_time <- TRUE
 
+# Get all R files in current directory and subdirectories
+r_files <- list.files(pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
+
 # Function to monitor R files and rebuild when changes are detected
 monitor_and_build <- function() {
-  # Get all R files in current directory and subdirectories
-  r_files <- list.files(pattern = "\\.R$", recursive = TRUE, full.names = TRUE)
-
   # Get the latest modification time of any R file
-  get_latest_mtime <- function() {
+  get_latest_mtime <- function(r_files) {
     max(file.mtime(r_files))
   }
 
   # Store the initial modification time
   last_build_time <- Sys.time()
-  last_file_mtime <- get_latest_mtime()
+  last_file_mtime <- get_latest_mtime(r_files)
 
   cat("Monitoring R files for changes...\n")
 
@@ -26,7 +26,7 @@ monitor_and_build <- function() {
     # Get the latest modification time
     current_file_mtime <- tryCatch(
       {
-        get_latest_mtime()
+        get_latest_mtime(r_files)
       },
       error = function(e) {
         # If files were deleted, continue monitoring
@@ -47,6 +47,11 @@ monitor_and_build <- function() {
         }
       )
       last_build_time <- Sys.time()
+      r_files <<- list.files(
+        pattern = "\\.R$",
+        recursive = TRUE,
+        full.names = TRUE
+      )
     }
   }
 }
