@@ -4,14 +4,12 @@ load_otel_errors <- function(otel_logs) {
     select(
       folder,
       metric_group,
-      timestamp,
       attributes,
-      span_id,
       trace_id,
       event.name
     ) %>%
     filter(event.name == "log") %>%
-    filter(str_detect(attributes, "Request processing error"))
+    select(-event.name)
 
   logs <- stringr::str_match(
     otel_logs$attributes,
@@ -19,8 +17,16 @@ load_otel_errors <- function(otel_logs) {
   )
 
   otel_logs <- otel_logs %>%
+    mutate(error = str_detect(attributes, "Request processing error")) %>%
+    mutate(timeout = str_detect(attributes, ":timeout")) %>%
     mutate(fallbacks = as.numeric(logs[, 2])) %>%
-    select(-attributes)
+    select(-attributes) %>%
+    group_by(folder, metric_group, trace_id) %>%
+    summarise(
+      error = any(error),
+      fallbacks = sum(fallbacks),
+      timeout = any(timeout)
+    )
 
   # filter(!is.na(fallbacks))
 

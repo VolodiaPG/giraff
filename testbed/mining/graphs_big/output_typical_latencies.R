@@ -1,30 +1,29 @@
-big_ouput_nb_functions_plot <- function(spans, degrades, errors) {
-  Log(colnames(spans))
-
-  df <- spans %>%
+big_ouput_typical_latencies_plot <- function(func_with_latencies) {
+  df <- func_with_latencies %>%
+    extract_flame_function_name() %>%
     extract_context() %>%
-    select(
-      env,
-      env_live,
+    ungroup() %>%
+    group_by(
       folder,
       metric_group,
       service.namespace,
-      service.instance.id
+      env,
+      env_live,
+      span.name
     ) %>%
-    group_by(folder, metric_group, service.namespace, env, env_live) %>%
-    distinct() %>%
-    summarise(nb_functions = n())
+    summarise(latency = mean(latency))
 
   ggplot(
     data = df,
     aes(
-      x = env_live,
-      y = nb_functions,
+      x = span.name,
+      y = latency,
       color = folder
     ),
   ) +
-    facet_grid(rows = vars(env)) +
-    geom_beeswarm() +
+    facet_grid(rows = vars(env), cols = vars(env_live)) +
+    # geom_beeswarm() +
+    geom_quasirandom(method = "tukey") +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
@@ -36,5 +35,10 @@ big_ouput_nb_functions_plot <- function(spans, degrades, errors) {
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
       axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+    ) +
+    labs(
+      title = paste("Typical Latencies of Functions"),
+      x = "Function",
+      y = "Latency (s)"
     )
 }

@@ -1520,3 +1520,13 @@ create_metric_comparison_plot <- function(
 
   return(p)
 }
+
+extract_flame_function_name <- function(spans) {
+  names <- stringr::str_match(
+    spans$span.name,
+    "FLAME.Pool.cast \\(Giraff\\.(.*)Backend\\)"
+  )
+
+  spans %>%
+    mutate(span.name = names[, 2])
+}

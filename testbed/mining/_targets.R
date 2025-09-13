@@ -160,7 +160,7 @@ single_ops <- tar_map(
   tar_target(
     name = flame_with_latency_single,
     command = flame_func_with_latency(
-      flame_func_single,
+      otel_processed_single,
       raw_latency_single
     ),
     packages = load_pkgs
@@ -241,7 +241,9 @@ single_ops <- tar_map(
   tar_target(
     name = output_otel_functions_graph,
     command = output_otel_functions_plot(
-      flame_func_single
+      otel_processed_single,
+      flame_func_single,
+      otel_errors_single
     ),
     packages = graph_pkgs
   ),
@@ -309,6 +311,13 @@ combined_graphs <-
       name = big_ouput_nb_functions_graph,
       command = big_ouput_nb_functions_plot(
         otel_processed
+      ),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_ouput_typical_latencies_graph,
+      command = big_ouput_typical_latencies_plot(
+        flame_with_latency
       ),
       packages = graph_pkgs
     )

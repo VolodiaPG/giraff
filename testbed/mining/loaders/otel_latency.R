@@ -1,21 +1,28 @@
 flame_func_with_latency <- function(spans, raw_latency) {
   df <- spans %>%
+    filter(startsWith(span.name, "FLAME") & endsWith(span.name, "...")) %>%
+    mutate(span.name = substring(span.name, 1, nchar(span.name) - 3)) %>%
     mutate(source_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
       folder,
       service.namespace,
-      source_node
+      source_node,
+      metric_group
     ) %>%
     distinct()
 
   df2 <- spans %>%
+    filter(startsWith(span.name, "...FLAME")) %>%
+    mutate(span.name = substring(span.name, 4)) %>%
     mutate(function_node = sub("^.*@", "", service.instance.id)) %>%
     select(
       span.name,
       folder,
       service.namespace,
-      function_node
+      function_node,
+      span.name,
+      metric_group
     ) %>%
     distinct()
 
@@ -116,6 +123,7 @@ flame_func_with_latency <- function(spans, raw_latency) {
       latency,
       source_node,
       service.namespace,
-      function_node
+      function_node,
+      metric_group
     )
 }

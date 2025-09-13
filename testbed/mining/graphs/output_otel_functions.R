@@ -1,10 +1,25 @@
-output_otel_functions_plot <- function(spans) {
-  # Log(colnames(spans))
+output_otel_functions_plot <- function(processed, spans, log_errors) {
+  # Log(colnames(log_errors))
 
-  x <- spans %>%
-    select(where(~ !all(is.na(.))))
+  Log(log_errors %>% filter(error))
 
-  Log(colnames(x))
+  errors <- processed %>%
+    filter(startsWith(span.name, "start_processing_requests")) %>%
+    select(folder, service.namespace, trace_id, otel.status_code) %>%
+    mutate(
+      otel_error = ifelse(
+        is.na(otel.status_code),
+        FALSE,
+        otel.status_code == "Error"
+      )
+    ) %>%
+    full_join(log_errors, by = c("folder", "trace_id")) %>%
+    group_by(folder, service.namespace) %>%
+    summarise(
+      otel_errors = sum(otel_error),
+      log_errors = sum(error),
+      timeouts = sum(timeout & error)
+    )
 
   spans <- spans %>%
     select(
@@ -16,39 +31,69 @@ output_otel_functions_plot <- function(spans) {
     ) %>%
     filter(startsWith(span.name, "FLAME")) %>%
     ungroup() %>%
-    group_by(folder, service.namespace, span.name, service.instance.id) %>%
+    group_by(folder, service.namespace, span.name) %>%
     distinct() %>%
     summarise(requests = n()) %>%
-    group_by(folder, service.namespace, span.name) %>%
-    summarise(count = requests / n())
+    left_join(errors)
 
+  # group_by(folder, service.namespace, span.name) %>%
+  # summarise(count = requests / n(), errors = errors / n())
   #
-  # Log(spans %>% ungroup() %>% select(service.instance.id))
+  # Log(spans %>% ungroup() %>% select(requests, errors))
   # summarigje(count = n())
 
   # Log(spans %>% select(gunctionImage, functionLiveName))
 
-  ggplot(
-    data = spans,
-    aes(
-      x = service.namespace,
-      y = count,
-      # color = span.name,
-      fill = span.name
-    ),
-  ) +
+  # Log(errors %>% select(errors))
+
+  ggplot(spans, aes(x = service.namespace)) +
     geom_col(
-      # position = position_dodge2()
+      aes(
+        y = requests,
+        fill = span.name,
+      ),
     ) +
-    # geom_beeswarm() +
+    geom_segment(
+      aes(
+        xend = service.namespace,
+        y = 0,
+        yend = otel_errors
+      ),
+      size = 2,
+      color = "red"
+    ) +
+    # geom_segment(
+    #   aes(
+    #     xend = service.namespace,
+    #     y = 0,
+    #     yend = log_errors
+    #   ),
+    #   color = "black",
+    #   size = 2,
+    # ) +
+    geom_segment(
+      aes(
+        xend = service.namespace,
+        y = 0,
+        yend = timeouts
+      ),
+      color = "orange"
+    ) +
     labs(
       title = paste(
-        "Budget evolution of each application\n",
         unique(spans$folder)
-      ),
-      x = "Service Namespace",
-      y = "Budget",
+      )
     ) +
+
+    # geom_beeswarm() +
+    # labs(
+    #   title = paste(
+    #     "Budget evolution of each application\n",
+    #     unique(spans$folder)
+    #   ),
+    #   # x = "Service Namespace",
+    #   # y = "Budget",
+    # ) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
