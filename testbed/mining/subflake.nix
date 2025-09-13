@@ -106,7 +106,7 @@
             rPackages.languageserver
             binserve
             parallel
-            nmap
+            # nmap
           ];
           FONTCONFIG_FILE = pkgs.makeFontsConf {
             fontDirectories = [pkgs.freefont_ttf];
@@ -129,7 +129,7 @@
               ++ (with pkgs; [
                 python3
                 (texlive.combine {
-                  inherit (texlive) scheme-basic xetex pgf preview fontspec xunicode latex-tools-dev ms graphics ec;
+                  inherit (texlive) scheme-basic xetex pgf preview fontspec xunicode latex-tools-dev graphics ec;
                 })
                 rPackages.tikzDevice
               ]);

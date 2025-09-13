@@ -75,6 +75,11 @@ graph_html_pkgs <- c(
   "htmltools"
 )
 
+latex_pkgs <- c(
+  "tikzDevice",
+  graph_pkgs
+)
+
 # Set default target options with minimal packages
 tar_option_set(
   packages = core_pkgs, # Packages that your targets need for their tasks.
@@ -167,32 +172,34 @@ single_ops <- tar_map(
   ),
   tar_target(
     name = output_mean_time_to_deploy_simple_graph,
-    command = output_mean_time_to_deploy_simple(raw_deployment_times_single),
+    command = wrap_graph(output_mean_time_to_deploy_simple(
+      raw_deployment_times_single
+    )),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_loss_graph,
-    command = output_loss(raw_latency_single),
+    command = wrap_graph(output_loss(raw_latency_single)),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_raw_latency_graph,
-    command = output_raw_latency(raw_latency_single),
+    command = wrap_graph(output_raw_latency(raw_latency_single)),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_graph,
-    command = output_otel_plot(otel_single),
+    command = wrap_graph(output_otel_plot(otel_single)),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_creation_duration_graph,
-    command = output_otel_creation_duration(otel_single),
+    command = wrap_graph(output_otel_creation_duration(otel_single)),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_budget_graph,
-    command = output_otel_budget_plot(otel_single),
+    command = wrap_graph(output_otel_budget_plot(otel_single)),
     packages = graph_pkgs
   ),
   # tar_target(
@@ -205,12 +212,14 @@ single_ops <- tar_map(
   # ),
   tar_target(
     name = otel_function_latency_graph,
-    command = output_otel_function_latency_plot(flame_with_latency_single),
+    command = wrap_graph(output_otel_function_latency_plot(
+      flame_with_latency_single
+    )),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_sla_duration_graph,
-    command = output_otel_sla_duration_plot(otel_single),
+    command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
     packages = graph_pkgs
     # ),
     # tar_target(
@@ -220,10 +229,10 @@ single_ops <- tar_map(
   ),
   tar_target(
     name = output_otel_duration_latency_graph,
-    command = output_otel_duration_latency_plot(
+    command = wrap_graph(output_otel_duration_latency_plot(
       otel_processed_single,
       raw_latency_single
-    ),
+    )),
     packages = graph_pkgs
     # ),
     # tar_target(
@@ -233,25 +242,25 @@ single_ops <- tar_map(
   ),
   tar_target(
     name = output_otel_profit_graph,
-    command = output_otel_profit_plot(
+    command = wrap_graph(output_otel_profit_plot(
       otel_processed_single
-    ),
+    )),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_functions_graph,
-    command = output_otel_functions_plot(
+    command = wrap_graph(output_otel_functions_plot(
       otel_processed_single,
       flame_func_single,
       otel_errors_single
-    ),
+    )),
     packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_budget_per_function_graph,
-    command = output_otel_budget_per_function_plot(
+    command = wrap_graph(output_otel_budget_per_function_plot(
       otel_processed_single
-    ),
+    )),
     packages = graph_pkgs
   )
 )
@@ -285,43 +294,63 @@ combined_graphs <-
   list(
     tar_target(
       name = provisioned_simple_graph,
-      command = output_provisioned_simple(
+      command = wrap_graph(output_provisioned_simple(
         functions_total,
         node_levels
-      ),
+      )),
       packages = graph_pkgs
     ),
     tar_target(
       name = big_otel_budget_graph,
-      command = big_output_otel_budget_plot(
+      command = wrap_graph(big_output_otel_budget_plot(
         otel_processed
-      ),
+      )),
       packages = graph_pkgs
     ),
     tar_target(
       name = big_otel_fallbacks_graph,
-      command = big_output_otel_fallbacks_plot(
+      command = wrap_graph(big_output_otel_fallbacks_plot(
         otel_processed,
         otel_degrades,
         otel_errors
-      ),
+      )),
       packages = graph_pkgs
     ),
     tar_target(
       name = big_ouput_nb_functions_graph,
-      command = big_ouput_nb_functions_plot(
+      command = wrap_graph(big_ouput_nb_functions_plot(
         otel_processed
-      ),
+      )),
       packages = graph_pkgs
     ),
     tar_target(
       name = big_ouput_typical_latencies_graph,
-      command = big_ouput_typical_latencies_plot(
+      # export_graph_tikz(
+      # export_graph(
+      #   "toto",
+      command = wrap_graph(big_ouput_typical_latencies_plot(
         flame_with_latency
-      ),
-      packages = graph_pkgs
+      )),
+      #   ),
+      #   1,
+      #   1
+      # ),
+      packages = c(graph_pkgs, graph_html_pkgs, latex_pkgs)
     )
   )
+
+latex_exports <- list(
+  tar_target(
+    name = big_ouput_typical_latencies_latex,
+    command = export_graph_tikz(
+      big_ouput_typical_latencies_graph,
+      GRAPH_HALF_COLUMN_WIDTH,
+      GRAPH_ONE_COLUMN_HEIGHT
+      # caption = "Typical Latencies of Functions",
+    ),
+    packages = latex_pkgs
+  )
+)
 
 graphs <- tibble(name = names(single_ops), value = single_ops) %>%
   dplyr::mutate(
@@ -365,11 +394,19 @@ combined_plots2 <-
     values = graphs2
   )
 
+
+if (Sys.which("latex") == "") {
+  latex_exports <- list()
+} else {
+  Log("latex found, compiling graphs")
+}
+
 list(
   single_ops,
   combined_single_data,
   combined_single_data_processed,
   combined_graphs,
   combined_plots,
-  combined_plots2
+  # combined_plots2,
+  latex_exports
 )

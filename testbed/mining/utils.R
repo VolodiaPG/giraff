@@ -940,7 +940,7 @@ write_multigraphs <- function(name, ...) {
   widget <- browsable(tagList(
     h1(name),
     lapply(args, function(subgroup) {
-      graph <- subgroup
+      graph <- subgroup$graph
       # if (subgroup$type == "ggplot") {
       graph <- ggplotly(graph)
       # }
@@ -1011,7 +1011,7 @@ draw <- function(plot, x_in = 3, y_in = 3) {
 }
 
 load_tikz <- function() {
-  library(tikzDevice)
+  # library(tikzDevice)
 
   options(tikzDefaultEngine = "xetex")
   options(
@@ -1066,6 +1066,10 @@ load_tikz <- function() {
   tikzDevice::tikzTest()
 }
 
+wrap_graph <- function(graph) {
+  list(graph = graph)
+}
+
 export_graph_tikz <- function(
   plot,
   width,
@@ -1074,14 +1078,16 @@ export_graph_tikz <- function(
   aspect_ratio = 1 / 3,
   caption = NULL
 ) {
-  if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
-    warning("tikzDevice package not found. TikZ export skipped.")
-    Log("tikzDevice package not found. TikZ export skipped.")
-    return()
-  }
+  name <- deparse(substitute(plot))
+  Log(name)
+  # if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
+  #   warning("tikzDevice package not found. TikZ export skipped.")
+  #   Log("tikzDevice package not found. TikZ export skipped.")
+  #   return()
+  # }
   load_tikz()
 
-  plot_name <- plot$name
+  plot_name <- name
   plot_graph <- plot$graph
   tikz_name <- paste0("out/", plot_name, ".tex")
   caption_name <- paste0("out/", plot_name, "_caption.tex")
@@ -1152,6 +1158,7 @@ export_graph_tikz <- function(
 
   # Export caption to a separate file
   caption_conn <- file(caption_name, "w")
+  plot_name <- gsub("_", "", plot_name)
   if (!is.null(caption)) {
     cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
   } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {

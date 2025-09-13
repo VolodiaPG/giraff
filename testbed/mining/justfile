@@ -11,6 +11,9 @@ make:
     @echo -e "\033[1;32mdone\033[0m"
     @echo -e "\033[1;32mdone\033[0m" >> logs.fifo
 
+make_export:
+  nix develop .#mining-export -c just make
+
 # export:
 #     nix develop .#mining-export -c just watch
 
