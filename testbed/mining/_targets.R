@@ -325,32 +325,30 @@ combined_graphs <-
     ),
     tar_target(
       name = big_ouput_typical_latencies_graph,
-      # export_graph_tikz(
-      # export_graph(
-      #   "toto",
       command = wrap_graph(big_ouput_typical_latencies_plot(
         flame_with_latency
       )),
-      #   ),
-      #   1,
-      #   1
-      # ),
-      packages = c(graph_pkgs, graph_html_pkgs, latex_pkgs)
+      packages = graph_pkgs
     )
   )
 
-latex_exports <- list(
-  tar_target(
-    name = big_ouput_typical_latencies_latex,
-    command = export_graph_tikz(
-      big_ouput_typical_latencies_graph,
-      GRAPH_HALF_COLUMN_WIDTH,
-      GRAPH_ONE_COLUMN_HEIGHT
-      # caption = "Typical Latencies of Functions",
-    ),
-    packages = latex_pkgs
+if (Sys.which("latex") == "") {
+  latex_exports <- list()
+} else {
+  Log("latex found, compiling graphs")
+  latex_exports <- list(
+    tar_target(
+      name = big_ouput_typical_latencies_latex,
+      command = export_graph_tikz(
+        big_ouput_typical_latencies_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
+        GRAPH_ONE_COLUMN_HEIGHT,
+        TRUE
+      ),
+      packages = latex_pkgs
+    )
   )
-)
+}
 
 graphs <- tibble(name = names(single_ops), value = single_ops) %>%
   dplyr::mutate(
@@ -395,18 +393,12 @@ combined_plots2 <-
   )
 
 
-if (Sys.which("latex") == "") {
-  latex_exports <- list()
-} else {
-  Log("latex found, compiling graphs")
-}
-
 list(
   single_ops,
   combined_single_data,
   combined_single_data_processed,
   combined_graphs,
   combined_plots,
-  # combined_plots2,
+  combined_plots2,
   latex_exports
 )

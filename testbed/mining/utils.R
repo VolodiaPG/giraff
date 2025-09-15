@@ -1075,10 +1075,10 @@ export_graph_tikz <- function(
   width,
   height,
   remove_legend = TRUE,
-  aspect_ratio = 1 / 3,
   caption = NULL
 ) {
   name <- deparse(substitute(plot))
+  name <- stringr::str_replace_all(name, "(.*?)_graph", "\\1")
   Log(name)
   # if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
   #   warning("tikzDevice package not found. TikZ export skipped.")
@@ -1094,6 +1094,13 @@ export_graph_tikz <- function(
 
   # Extract title, subtitle, and axis labels from the ggplot object
   built_plot <- ggplot2::ggplot_build(plot_graph)
+  ggsave(
+    filename = paste0("out/", plot_name, ".png"),
+    plot = plot_graph,
+    width = width,
+    height = height,
+    dpi = 300
+  )
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
   plot_x_label <- built_plot$plot$labels$x
@@ -1115,7 +1122,6 @@ export_graph_tikz <- function(
   }
   plot_graph <- plot_graph +
     theme(
-      aspect.ratio = aspect_ratio,
       axis.title.x = ggplot2::element_text(plot_x_label),
       axis.title.y = ggplot2::element_text(plot_y_label),
       panel.border = ggplot2::element_blank(),
@@ -1123,16 +1129,15 @@ export_graph_tikz <- function(
       axis.line = ggplot2::element_line(color = "black"),
     )
 
-  tex_width <- 1
-
   # Open the file in write mode
   file_conn <- file(tikz_name, "w")
 
   # Write the resizebox command
-  cat(
-    sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width),
-    file = file_conn
-  )
+  # tex_width <- 1
+  # cat(
+  #   sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width),
+  #   file = file_conn
+  # )
   cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
 
   # Capture tikz output
@@ -1151,7 +1156,7 @@ export_graph_tikz <- function(
   )
 
   # Close the resizebox
-  cat("}\n", file = file_conn)
+  # cat("}\n", file = file_conn)
 
   # Close the file connection
   close(file_conn)

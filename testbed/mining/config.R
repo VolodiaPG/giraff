@@ -14,7 +14,7 @@ CHAIN_LENGTH <- 3
 GRAPH_ONE_COLUMN_HEIGHT <- 3
 GRAPH_ONE_COLUMN_WIDTH <- 3.6
 GRAPH_HALF_COLUMN_WIDTH <- 2.5
-GRAPH_TWO_COLUMN_WIDTH <- 9
+GRAPH_TWO_COLUMN_WIDTH <- 6
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
@@ -97,8 +97,10 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1757681960-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-12-13-34.tar.xz",
   # "metrics_valuation_rates.env_1_1757681960-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-12-13-53.tar.xz",
 
-  "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-12-22-45.tar.xz",
-  "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-12-22-27.tar.xz",
+  # "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-12-22-45.tar.xz",
+  # "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-12-22-27.tar.xz",
+
+  "metrics_valuation_rates.env_1_1757771439-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-13-14-10.tar.xz",
   #---
   #---
   #---
