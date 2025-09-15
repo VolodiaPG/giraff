@@ -884,7 +884,17 @@ anova_boxplot <- function(p, df, x, y, facet, mean_cb, outliers = c()) {
 
 escape_latex_special_chars <- function(text) {
   # Define special characters to escape
-  special_chars <- c("%", "&", "#", "_", "\\$", "\\{", "\\}", "\\^", "\\~")
+  special_chars <- c(
+    "%",
+    "&",
+    "#",
+    "_",
+    "\\$",
+    "\\{",
+    "\\}",
+    "\\^",
+    "\\~"
+  )
 
   # Escape each special character with a backslash
   for (char in special_chars) {

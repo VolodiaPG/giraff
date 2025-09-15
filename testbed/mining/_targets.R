@@ -324,9 +324,17 @@ combined_graphs <-
       packages = graph_pkgs
     ),
     tar_target(
-      name = big_ouput_typical_latencies_graph,
-      command = wrap_graph(big_ouput_typical_latencies_plot(
+      name = big_output_typical_latencies_graph,
+      command = wrap_graph(big_output_typical_latencies_plot(
         flame_with_latency
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_output_typical_node_latencies_graph,
+      command = wrap_graph(big_output_typical_node_latencies_plot(
+        raw_latency,
+        node_levels
       )),
       packages = graph_pkgs
     )
@@ -338,9 +346,19 @@ if (Sys.which("latex") == "") {
   Log("latex found, compiling graphs")
   latex_exports <- list(
     tar_target(
-      name = big_ouput_typical_latencies_latex,
+      name = big_output_typical_latencies_latex,
       command = export_graph_tikz(
-        big_ouput_typical_latencies_graph,
+        big_output_typical_latencies_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
+        GRAPH_ONE_COLUMN_HEIGHT,
+        TRUE
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_typical_node_latencies_latex,
+      command = export_graph_tikz(
+        big_output_typical_node_latencies_graph,
         GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT,
         TRUE

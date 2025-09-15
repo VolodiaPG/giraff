@@ -100,7 +100,10 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-12-22-45.tar.xz",
   # "metrics_valuation_rates.env_1_1757713666-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-12-22-27.tar.xz",
 
-  "metrics_valuation_rates.env_1_1757771439-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-13-14-10.tar.xz",
+  "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-15-09-27.tar.xz",
+  "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-15-08-54.tar.xz",
+  "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-15-09-11.tar.xz",
+  "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-15-09-43.tar.xz",
   #---
   #---
   #---
