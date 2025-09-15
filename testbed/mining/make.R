@@ -37,6 +37,7 @@ monitor_and_build <- function() {
     # If any R file was modified since last build, rebuild
     if (current_file_mtime > last_build_time || first_time) {
       first_time <<- FALSE
+      last_build_time <- Sys.time()
       cat("Detected changes in R files. Rebuilding...\n")
       tryCatch(
         {
@@ -46,7 +47,6 @@ monitor_and_build <- function() {
           cat("Error rebuilding targets:\n", e$message)
         }
       )
-      last_build_time <- Sys.time()
       r_files <<- list.files(
         pattern = "\\.R$",
         recursive = TRUE,

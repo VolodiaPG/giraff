@@ -317,9 +317,10 @@ combined_graphs <-
       packages = graph_pkgs
     ),
     tar_target(
-      name = big_ouput_nb_functions_graph,
-      command = wrap_graph(big_ouput_nb_functions_plot(
-        otel_processed
+      name = big_output_nb_functions_graph,
+      command = wrap_graph(big_output_nb_functions_plot(
+        otel_processed,
+        node_levels
       )),
       packages = graph_pkgs
     ),
@@ -378,6 +379,16 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_nb_nodes_latex,
       command = export_graph_tikz(
         big_output_nb_nodes_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
+        GRAPH_ONE_COLUMN_HEIGHT,
+        TRUE
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_functions_latex,
+      command = export_graph_tikz(
+        big_output_nb_functions_graph,
         GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT,
         TRUE

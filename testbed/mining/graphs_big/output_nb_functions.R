@@ -1,5 +1,9 @@
-big_ouput_nb_functions_plot <- function(spans, degrades, errors) {
+big_output_nb_functions_plot <- function(spans, node_levels) {
   Log(colnames(spans))
+
+  nb_nodes <- node_levels %>%
+    group_by(folder) %>%
+    summarise(nb_nodes = n())
 
   df <- spans %>%
     extract_context() %>%
@@ -9,22 +13,24 @@ big_ouput_nb_functions_plot <- function(spans, degrades, errors) {
       folder,
       metric_group,
       service.namespace,
-      service.instance.id
+      service.instance.id,
+      run
     ) %>%
-    group_by(folder, metric_group, service.namespace, env, env_live) %>%
+    group_by(run, folder, metric_group, service.namespace, env, env_live) %>%
     distinct() %>%
-    summarise(nb_functions = n())
+    summarise(nb_functions = n()) %>%
+    left_join(nb_nodes, by = c("folder"))
 
   ggplot(
     data = df,
     aes(
-      x = env_live,
+      x = factor(nb_nodes),
       y = nb_functions,
       color = folder
     ),
   ) +
-    facet_grid(rows = vars(env)) +
-    geom_beeswarm() +
+    # facet_grid(vars(un)) +
+    geom_quasirandom(method = "tukey") +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
@@ -36,5 +42,10 @@ big_ouput_nb_functions_plot <- function(spans, degrades, errors) {
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
       axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+    ) +
+    labs(
+      title = "Number of functions per application, depending on the number of nodes in the continuum",
+      x = "Number of nodes",
+      y = "Number of functions"
     )
 }
