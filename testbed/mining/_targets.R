@@ -337,13 +337,22 @@ combined_graphs <-
         node_levels
       )),
       packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_nodes_graph,
+      command = wrap_graph(big_output_nb_nodes_plot(
+        node_levels
+      )),
+      packages = graph_pkgs
     )
   )
 
-if (Sys.which("latex") == "") {
+
+if (!requireNamespace("tikzDevice", quietly = TRUE)) {
   latex_exports <- list()
+  Log("tikzDevice not found, not compiling graphs")
 } else {
-  Log("latex found, compiling graphs")
+  Log("tikzDevice found, compiling graphs")
   latex_exports <- list(
     tar_target(
       name = big_output_typical_latencies_latex,
@@ -359,6 +368,16 @@ if (Sys.which("latex") == "") {
       name = big_output_typical_node_latencies_latex,
       command = export_graph_tikz(
         big_output_typical_node_latencies_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
+        GRAPH_ONE_COLUMN_HEIGHT,
+        TRUE
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_nodes_latex,
+      command = export_graph_tikz(
+        big_output_nb_nodes_graph,
         GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT,
         TRUE
