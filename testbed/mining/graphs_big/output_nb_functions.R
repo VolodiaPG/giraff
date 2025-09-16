@@ -1,10 +1,4 @@
-big_output_nb_functions_plot <- function(spans, node_levels) {
-  # Log(colnames(spans))
-
-  nb_nodes <- node_levels %>%
-    group_by(folder) %>%
-    summarise(nb_nodes = n())
-
+big_output_nb_functions_plot <- function(spans, nb_nodes) {
   df <- spans %>%
     extract_context() %>%
     select(

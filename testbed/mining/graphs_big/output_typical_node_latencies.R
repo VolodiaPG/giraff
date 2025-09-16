@@ -59,8 +59,8 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       legend.position = "none",
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10)
-      # axis.text.x = element_text(angle k 0, vjust = 1, hjust = 1)
+      legend.box.margin = margin(-10, -10, -10, -10),
+      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
     ) +
     labs(
       title = paste("Typical Latencies between nodes (symmetric)"),

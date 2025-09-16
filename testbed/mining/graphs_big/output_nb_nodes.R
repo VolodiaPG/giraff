@@ -1,17 +1,32 @@
 big_output_nb_nodes_plot <- function(node_levels) {
   df <- node_levels %>%
+    mutate(alpha = FALSE) %>%
     extract_context() %>%
-    group_by(run, metric_group, level_value) %>%
+    group_by(run, metric_group, level_value, alpha) %>%
     summarise(n = n()) %>%
-    group_by(run, level_value) %>%
-    summarise(n = mean(n))
+    group_by(run, level_value, alpha) %>%
+    summarise(n = mean(n)) %>%
+    mutate(level_value = as.character(level_value)) %>%
+    filter(!is.na(run))
+
+  total <- df %>%
+    group_by(run) %>%
+    summarise(n = sum(n)) %>%
+    mutate(level_value = "Total") %>%
+    mutate(alpha = TRUE)
+
+  df <- df %>%
+    bind_rows(total)
+
+  Log(df)
 
   ggplot(
     data = df,
     aes(
       x = level_value,
       y = n,
-      fill = run
+      fill = run,
+      alpha = alpha
     ),
   ) +
     # facet_grid(rows = vars(env), cols = vars(env_live)) +
@@ -36,5 +51,6 @@ big_output_nb_nodes_plot <- function(node_levels) {
       y = "Nodes (VMs)"
     ) +
     scale_color_viridis(discrete = TRUE) +
-    scale_fill_viridis(discrete = TRUE)
+    scale_fill_viridis(discrete = TRUE) +
+    scale_alpha_discrete(range = c(0.5, 0.9))
 }

@@ -11,10 +11,10 @@ single_graphs <- TRUE
 
 CHAIN_LENGTH <- 3
 
-GRAPH_ONE_COLUMN_HEIGHT <- 3
-GRAPH_ONE_COLUMN_WIDTH <- 3.6
-GRAPH_HALF_COLUMN_WIDTH <- 2.5
-GRAPH_TWO_COLUMN_WIDTH <- 6
+GRAPH_ONE_COLUMN_HEIGHT <- 3 * 1.5
+GRAPH_ONE_COLUMN_WIDTH <- 3.6 * 1.5
+GRAPH_HALF_COLUMN_WIDTH <- 2.5 * 1.5
+GRAPH_TWO_COLUMN_WIDTH <- 6 * 1.5
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
@@ -105,16 +105,33 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-15-09-11.tar.xz",
   # "metrics_valuation_rates.env_1_1757924915-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-15-09-43.tar.xz",
 
-  "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-15-13-20.tar.xz",
-  "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-15-13-02.tar.xz",
-  "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-15-12-26.tar.xz",
-  "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-15-12-44.tar.xz",
+  # "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-15-13-20.tar.xz",
+  # "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-15-13-02.tar.xz",
+  # "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-15-12-26.tar.xz",
+  # "metrics_valuation_rates.env_1_1757937582-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-15-12-44.tar.xz",
+  # "metrics_valuation_rates.env_DEV-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.dev-.env.live.dev_2025-09-16-09-29.tar.xz",
+
+  "metrics_valuation_rates.env_1_1758026895-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-16-13-14.tar.xz",
+  "metrics_valuation_rates.env_1_1758026895-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-16-13-32.tar.xz",
   #---
   #---
   #---
   "last element that is here because last element should not have any comma in the end"
 )
 METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
+
+
+env_live_extract <- function(x) {
+  x %>%
+    mutate(
+      env_live = case_when(
+        env_live == 1 ~ "No fallbacks",
+        env_live == 2 ~ "25u/req",
+        env_live == 3 ~ "50u/req"
+      )
+    )
+}
+
 
 library(stringr)
 library(digest)

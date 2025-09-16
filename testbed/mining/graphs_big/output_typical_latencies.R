@@ -21,7 +21,7 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
   ) +
     facet_grid(vars(run)) + #rows = vars(env), cols = vars(env_live)) +
     # geom_beeswarm() +
-    geom_quasirandom(method = "tukey") +
+    geom_quasirandom(method = "tukey", alpha = .2) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
@@ -31,8 +31,8 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       legend.position = "none",
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10)
-      # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      legend.box.margin = margin(-10, -10, -10, -10),
+      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
     ) +
     labs(
       title = paste("Typical Latencies of Functions"),

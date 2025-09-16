@@ -1,13 +1,9 @@
 big_output_otel_fallbacks_plot <- function(
   spans,
-  degrades,
   errors,
-  node_levels
+  nb_nodes
 ) {
   Log(errors %>% select(fallbacks, error))
-  nb_nodes <- node_levels %>%
-    group_by(folder) %>%
-    summarise(nb_nodes = n())
 
   requests <- spans %>%
     ungroup() %>%
@@ -53,27 +49,36 @@ big_output_otel_fallbacks_plot <- function(
         select(folder, service.namespace, trace_id) %>%
         group_by(folder, service.namespace) %>%
         summarise(total = n())
-    ) %>%
+    )
+
+  total_successes <- df %>%
+    filter(status != "Failure") %>%
+    group_by(folder, metric_group, service.namespace, total) %>%
+    summarise(n = sum(n)) %>%
+    mutate(status = "Total Successes")
+
+  df <- df %>%
+    bind_rows(total_successes) %>%
+    group_by(folder, metric_group, status) %>%
     mutate(n = n / total) %>%
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes))
-
-  Log(df %>% filter(status == "Nominal" & n < 0.1))
+    mutate(nb_nodes = factor(nb_nodes)) %>%
+    env_live_extract()
 
   ggplot(
     data = df %>% ungroup() %>% filter(!is.na(status)),
     aes(
       x = nb_nodes,
       y = n,
-      fill = env,
+      fill = env_live,
       group = folder
     )
   ) +
     facet_grid(cols = vars(status)) +
-    geom_boxplot(position = position_dodge()) +
+    geom_boxplot(position = position_dodge2()) +
     theme(
-      legend.position = "none",
+      # legend.position = "none",
       legend.background = element_rect(
         fill = alpha("white", .7),
         size = 0.2,
@@ -82,10 +87,12 @@ big_output_otel_fallbacks_plot <- function(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0)
     ) +
+    guides(group = "none") +
     scale_y_continuous(labels = scales::percent) +
     labs(
       x = "Number of nodes",
-      y = "Proportion of requests"
+      y = "Proportion of requests",
+      fill = "Application Variation"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

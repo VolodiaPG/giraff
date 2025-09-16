@@ -1146,10 +1146,10 @@ export_graph_tikz <- function(
 
   # Write the resizebox command
   # tex_width <- 1
-  # cat(
-  #   sprintf("\\resizebox{%s\\columnwidth}{!}{\n", tex_width),
-  #   file = file_conn
-  # )
+  cat(
+    sprintf("\\resizebox{\\columnwidth}{!}{\n"),
+    file = file_conn
+  )
   cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
 
   # Capture tikz output
@@ -1168,7 +1168,7 @@ export_graph_tikz <- function(
   )
 
   # Close the resizebox
-  # cat("}\n", file = file_conn)
+  cat("}\n", file = file_conn)
 
   # Close the file connection
   close(file_conn)

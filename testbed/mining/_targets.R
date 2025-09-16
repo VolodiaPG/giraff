@@ -97,6 +97,11 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = nb_nodes_single,
+    command = load_nb_nodes(node_levels_single),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = bids_raw_single,
     command = load_bids_raw(ark),
     packages = load_pkgs
@@ -311,9 +316,16 @@ combined_graphs <-
       name = big_otel_fallbacks_graph,
       command = wrap_graph(big_output_otel_fallbacks_plot(
         otel_processed,
-        otel_degrades,
         otel_errors,
-        node_levels
+        nb_nodes
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_otel_nb_requests_graph,
+      command = wrap_graph(big_output_otel_nb_requests_plot(
+        otel_processed,
+        nb_nodes
       )),
       packages = graph_pkgs
     ),
@@ -321,7 +333,15 @@ combined_graphs <-
       name = big_output_nb_functions_graph,
       command = wrap_graph(big_output_nb_functions_plot(
         otel_processed,
-        node_levels
+        nb_nodes
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_output_otel_nb_functions_graph,
+      command = wrap_graph(big_output_otel_nb_functions_plot(
+        functions_total,
+        nb_nodes
       )),
       packages = graph_pkgs
     ),
@@ -360,9 +380,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_typical_latencies_latex,
       command = export_graph_tikz(
         big_output_typical_latencies_graph,
-        GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     ),
@@ -370,9 +389,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_typical_node_latencies_latex,
       command = export_graph_tikz(
         big_output_typical_node_latencies_graph,
-        GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     ),
@@ -380,9 +398,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_nb_nodes_latex,
       command = export_graph_tikz(
         big_output_nb_nodes_graph,
-        GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_TWO_COLUMN_WIDTH / 2,
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     ),
@@ -390,9 +407,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_nb_functions_latex,
       command = export_graph_tikz(
         big_output_nb_functions_graph,
-        GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     ),
@@ -401,8 +417,25 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_otel_fallbacks_graph,
         GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_otel_nb_functions_latex,
+      command = export_graph_tikz(
+        big_output_otel_nb_functions_graph,
+        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_otel_nb_requests_latex,
+      command = export_graph_tikz(
+        big_otel_nb_requests_graph,
+        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     )
