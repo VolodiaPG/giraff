@@ -14,7 +14,7 @@
         expeOutputs
         (flake-utils.lib.eachDefaultSystem (
           system: let
-            pkgs = import nixpkgs {
+            pkgs = import nixpkgs-enoslib {
               inherit system;
               overlays = [overlay];
               config.allowUnfreePredicate = pkg:

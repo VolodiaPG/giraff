@@ -1,6 +1,7 @@
 {
   pkgs,
   inputs,
+  config,
   ...
 }: {
   programs.fish.shellAliases = {
@@ -19,6 +20,10 @@
       "--flannel-backend=host-gw"
       "--disable-network-policy"
       "--disable-cloud-controller"
+      # "--import-images http://127.0.0.1:5555"
+    ];
+    images = [
+      config.services.k3s.package.airgap-images
     ];
   };
   # useful packages
@@ -29,6 +34,7 @@
       arkade
       tailscale
       k9s
+      iptables
     ])
     ++ [
       inputs.ebpf-netem.packages.${pkgs.system}.ebpf-netem

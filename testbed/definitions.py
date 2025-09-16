@@ -381,32 +381,32 @@ def additional_env_vars(level):
 
 
 TIER_4_FLAVOR = {
-    "core": 4,
-    "mem": 1024 * 8,
-    "reserved_core": 4,
-    "reserved_mem": 1024 * 8,
+    "core": 8,
+    "mem": 1024 * 7,
+    "reserved_core": 8,
+    "reserved_mem": 1024 * 7,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
-    "reserved_core": 8,
-    "reserved_mem": 1024 * 16,
+    "reserved_core": 7,
+    "reserved_mem": 1024 * 15,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 16,
     "mem": 1024 * 32,
-    "reserved_core": 16,
-    "reserved_mem": 1024 * 32,
+    "reserved_core": 15,
+    "reserved_mem": 1024 * 31,
     "additional_env_vars": additional_env_vars(1),
 }
 TIER_1_FLAVOR = {
     "is_cloud": True,
-    "core": 36,
+    "core": 34,
     "mem": 1024 * 80,
-    "reserved_core": 36,
-    "reserved_mem": 1024 * 80,
+    "reserved_core": 33,
+    "reserved_mem": 1024 * 78,
     "additional_env_vars": additional_env_vars(0),
 }
 
@@ -479,11 +479,11 @@ def set_iot_connected(keep_one_in: int):
     return set_connected
 
 
-def drop_children(drop_one_in: int):
+def drop_children(keep_one_in: int = 1):
     def drop(dd: Dict, first: bool):
         if first:
             return
-        if random.randint(1, drop_one_in) == 1:
+        if random.randint(1, keep_one_in) != 1:
             dd["children"] = []
 
     return drop
@@ -513,7 +513,7 @@ def flavor_randomizer_cpu(reductions: List[int]):
     return drop
 
 
-SIZE_MULTIPLIER = float(os.getenv("SIZE_MULTIPLIER", "1")) * 0.5
+SIZE_MULTIPLIER = int(os.getenv("SIZE_MULTIPLIER", "1"))
 
 
 def network_generation():
@@ -524,42 +524,43 @@ def network_generation():
         "loss": 0,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, int(6 * SIZE_MULTIPLIER)),
+            nb_nodes=(1, int(3 * 4 * SIZE_MULTIPLIER / 4)),
             latencies=(1, 3),
             rates=(ONE_GBIT, ONE_GBIT),
-            modifiers=[set_cloud, drop_children(drop_one_in=3)],
+            modifiers=[set_cloud, drop_children(keep_one_in=6)],
             losses=(1, 2),
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
-                nb_nodes=(2, int(4 * SIZE_MULTIPLIER)),
-                latencies=(6, 32),
+                nb_nodes=(3, int(6 * 3 * SIZE_MULTIPLIER / 3)),
+                latencies=(10, 22),
                 rates=(500 * ONE_MBIT, ONE_GBIT),
                 losses=(1, 2),
                 modifiers=[
-                    drop_children(drop_one_in=3),
-                    flavor_randomizer_cpu([0, 2, 4]),
-                    flavor_randomizer_mem([0, 2, 4]),
+                    drop_children(keep_one_in=8)
+                    # flavor_randomizer_cpu([0, 4]),
+                    # flavor_randomizer_mem([0, 4]),
                 ],
                 next_lvl=generate_level(
                     TIER_3_FLAVOR,
-                    nb_nodes=(3, int(8 * SIZE_MULTIPLIER)),
-                    latencies=(7, 64),
+                    nb_nodes=(4, int(8 * 2 * SIZE_MULTIPLIER / 2)),
+                    latencies=(20, 40),
                     rates=(100 * ONE_MBIT, ONE_GBIT),
-                    losses=(2, 5),
+                    losses=(5, 10),
                     modifiers=[
-                        drop_children(drop_one_in=6),
+                        drop_children(keep_one_in=3),
                         flavor_randomizer_cpu([0, 2]),
                         flavor_randomizer_mem([0, 2, 4]),
                     ],
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
-                        nb_nodes=(2, int(8 * SIZE_MULTIPLIER)),
-                        latencies=(1, 4),
+                        nb_nodes=(10, int(20 * SIZE_MULTIPLIER)),
+                        latencies=(1, 3),
                         rates=(10 * ONE_MBIT, ONE_GBIT),
                         losses=(1, 2),
                         modifiers=[
                             set_iot_connected(keep_one_in=2),
-                            flavor_randomizer_mem([0, 2]),
+                            flavor_randomizer_mem([0, 2, 4]),
+                            flavor_randomizer_cpu([0, 2, 4]),
                         ],
                     ),
                 ),

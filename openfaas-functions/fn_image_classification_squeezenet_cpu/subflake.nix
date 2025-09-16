@@ -12,7 +12,7 @@
           };
 
           overlay = self: _super: {
-            myFunction = self.python312.withPackages (
+            myFunction = self.python3.withPackages (
               ps: (with ps; [
                 torch
                 torchvision

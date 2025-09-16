@@ -47,11 +47,15 @@ in {
       kubernetes-helm
 
       htop
+      iptables
     ];
 
     # Set caching for g5k registry
     etc."rancher/k3s/registries.yaml".text = ''
       mirrors:
+        "registry.k8s.io":
+          endpoint:
+            - "http://docker-cache.grid5000.fr"
         "docker.io":
           endpoint:
             - "http://docker-cache.grid5000.fr"

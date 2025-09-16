@@ -103,7 +103,7 @@ in {
         ExecStartPre = "${pkgs.coreutils}/bin/test -f /etc/opentelemetry-config/collector.yaml";
         ExecStart =
           lib.mkForce "${lib.getExe pkgs.opentelemetry-collector-contrib} --config=file:${opentelemetry-config} --config=file:/etc/opentelemetry-config/collector.yaml";
-        RestartSec = "3s";
+        RestartSec = "10s";
       };
     };
 

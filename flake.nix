@@ -2,6 +2,7 @@
   inputs = {
     # Al packages
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-enoslib.url = "github:NixOS/nixpkgs/9f918d616c5321ad374ae6cb5ea89c9e04bf3e58";
     flake-utils.url = "github:numtide/flake-utils";
     # Rust
     crane = {
@@ -58,7 +59,7 @@
     openfaas = {
       # Since > v0.17.2 does a check at startup on checkip.amazonaws.com to start
       # It seems OFaas sort of just not works without internet, more than 15 functions, more that 60 days... so for now let's stay on 17x
-      url = "github:openfaas/faas-netes?ref=refs/tags/0.17.2";
+      url = "github:volodiapg/faas-netes/30c8dad5a53d2a84b920a5deb94cefc91bb906a4";
       flake = false;
     };
     ebpf-netem.url = "github:volodiapg/ebpf-netem/loss";
