@@ -86,5 +86,7 @@ big_output_otel_fallbacks_plot <- function(
     labs(
       x = "Number of nodes",
       y = "Proportion of requests"
-    )
+    ) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 }

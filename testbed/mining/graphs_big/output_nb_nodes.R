@@ -34,5 +34,7 @@ big_output_nb_nodes_plot <- function(node_levels) {
       title = paste("Number of nodes for each layer of the continuum"),
       x = "Node level",
       y = "Nodes (VMs)"
-    )
+    ) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 }

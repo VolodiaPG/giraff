@@ -38,5 +38,7 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       title = paste("Typical Latencies of Functions"),
       x = "Function",
       y = "Latency (s)"
-    )
+    ) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 }

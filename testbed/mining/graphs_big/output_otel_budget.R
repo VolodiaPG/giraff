@@ -64,5 +64,7 @@ big_output_otel_budget_plot <- function(spans) {
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
       axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
-    )
+    ) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 }

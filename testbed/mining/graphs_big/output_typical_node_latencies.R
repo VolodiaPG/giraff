@@ -66,5 +66,7 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       title = paste("Typical Latencies between nodes (symmetric)"),
       x = "Node level source $\\rightarrow$ destination",
       y = "Latency (s)"
-    )
+    ) +
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 }
