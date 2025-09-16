@@ -1,6 +1,6 @@
 big_output_typical_node_latencies_plot <- function(latency, node_levels) {
-  Log(colnames(latency))
-  Log(colnames(node_levels))
+  # Log(colnames(latency))
+  # Log(colnames(node_levels))
 
   df <- latency %>%
     filter(field == "average") %>%

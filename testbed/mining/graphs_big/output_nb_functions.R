@@ -1,5 +1,5 @@
 big_output_nb_functions_plot <- function(spans, node_levels) {
-  Log(colnames(spans))
+  # Log(colnames(spans))
 
   nb_nodes <- node_levels %>%
     group_by(folder) %>%

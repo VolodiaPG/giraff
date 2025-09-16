@@ -1,7 +1,15 @@
-big_output_otel_fallbacks_plot <- function(spans, degrades, errors) {
-  Log(degrades %>% filter(is.na(fallbacks)))
-  df <- spans %>%
-    # group_by(folder, metric_group, service.namespace,n e) %>%
+big_output_otel_fallbacks_plot <- function(
+  spans,
+  degrades,
+  errors,
+  node_levels
+) {
+  Log(errors %>% select(fallbacks, error))
+  nb_nodes <- node_levels %>%
+    group_by(folder) %>%
+    summarise(nb_nodes = n())
+
+  requests <- spans %>%
     ungroup() %>%
     filter(span.name == "start_processing_requests") %>%
     mutate(
@@ -11,49 +19,72 @@ big_output_otel_fallbacks_plot <- function(spans, degrades, errors) {
         otel.status_code == "Error"
       )
     ) %>%
-    select(folder, metric_group, trace_id, otel_error) %>%
-    left_join(degrades) %>%
+    select(folder, service.namespace, metric_group, trace_id, otel_error) %>%
+    distinct()
+
+  Log(
+    requests %>%
+      select(folder, service.namespace, trace_id) %>%
+      group_by(folder, service.namespace) %>%
+      summarise(total = n())
+  )
+
+  df <- requests %>%
+    # left_join(degrades) %>%
     left_join(
-      errors %>% select(folder, metric_group, trace_id) %>% mutate(error = TRUE)
+      errors
     ) %>%
     mutate(
       status = case_when(
-        fallbacks > 0 ~ paste("Degraded,", fallbacks, "fallbacks"),
-        fallbacks == 0 ~ "Nominal",
-        error ~ "Failure"
+        otel_error ~ "Failure",
+        fallbacks > 0 ~ paste("Succes, Degraded with", fallbacks, "fallbacks"),
+        fallbacks == 0 ~ "Success, Nominal"
       )
     ) %>%
-    extract_context()
-  # select(
-  #   folder,
-  #   metric_group,
-  #   service.namespace,
-  #   trace_id,
-  #   error,
-  #   fallbacks,
-  #   status
-  # )
+    group_by(
+      folder,
+      metric_group,
+      service.namespace,
+      status
+    ) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    left_join(
+      requests %>%
+        select(folder, service.namespace, trace_id) %>%
+        group_by(folder, service.namespace) %>%
+        summarise(total = n())
+    ) %>%
+    mutate(n = n / total) %>%
+    extract_context() %>%
+    left_join(nb_nodes, by = c("folder")) %>%
+    mutate(nb_nodes = factor(nb_nodes))
 
-  Log(colnames(df))
+  Log(df %>% filter(status == "Nominal" & n < 0.1))
 
   ggplot(
-    data = df,
+    data = df %>% ungroup() %>% filter(!is.na(status)),
     aes(
-      x = env_live,
-      fill = status
-    ),
+      x = nb_nodes,
+      y = n,
+      fill = env,
+      group = folder
+    )
   ) +
-    facet_grid(rows = vars(env)) +
-    geom_bar() +
+    facet_grid(cols = vars(status)) +
+    geom_boxplot(position = position_dodge()) +
     theme(
+      legend.position = "none",
       legend.background = element_rect(
         fill = alpha("white", .7),
         size = 0.2,
         color = alpha("white", .7)
       ),
       legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      legend.margin = margin(0, 0, 0, 0)
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(
+      x = "Number of nodes",
+      y = "Proportion of requests"
     )
 }

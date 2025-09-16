@@ -2,7 +2,7 @@ output_otel_profit_plot <- function(spans) {
   # Compute slope for each service.namespace group to determine trend
   # Calculate slope for each group
 
-  Log(colnames(spans))
+  # Log(colnames(spans))
 
   # Log(spans %>% select(timestamp, budget) %>% filter(is.na(new_budget)))
   trend_data <- spans %>%

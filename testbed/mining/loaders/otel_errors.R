@@ -24,11 +24,10 @@ load_otel_errors <- function(otel_logs) {
     group_by(folder, metric_group, trace_id) %>%
     summarise(
       error = any(error),
-      fallbacks = sum(fallbacks),
+      fallbacks = sum(fallbacks, na.rm = TRUE),
       timeout = any(timeout)
-    )
-
-  # filter(!is.na(fallbacks))
+    ) %>%
+    filter(!is.na(fallbacks) | !is.na(error) | !is.na(timeout))
 
   otel_logs
 }

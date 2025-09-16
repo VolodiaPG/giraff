@@ -952,7 +952,8 @@ write_multigraphs <- function(name, ...) {
     lapply(args, function(subgroup) {
       graph <- subgroup$graph
       # if (subgroup$type == "ggplot") {
-      graph <- ggplotly(graph)
+      graph <- ggplotly(graph) %>%
+        layout(boxmode = "group")
       # }
       graph$height <- "100vh"
       ret <- div(graph)
@@ -972,7 +973,8 @@ export_graph <- function(name, ggplot_graph) {
   plot_subtitle <- ggplot_graph$labels$subtitle
 
   # Create plotly object
-  p <- ggplotly(ggplot_graph)
+  p <- ggplotly(ggplot_graph) %>%
+    layout(boxmode = "group")
 
   # Add subtitle to plotly object if it exists
   if (!is.null(plot_subtitle)) {
