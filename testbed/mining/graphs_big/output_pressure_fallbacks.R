@@ -1,7 +1,8 @@
 big_pressure_fallbacks_plot <- function(
   spans,
   errors,
-  nb_nodes
+  nb_nodes,
+  nb_requests
 ) {
   Log(errors %>% select(fallbacks, error))
 
@@ -43,22 +44,26 @@ big_pressure_fallbacks_plot <- function(
       service.namespace,
       status
     ) %>%
-    summarise(n = n(), .groups = "drop") %>%
-    left_join(
-      requests %>%
-        select(folder, service.namespace, trace_id) %>%
-        group_by(folder, service.namespace) %>%
-        summarise(total = n())
-    )
+    summarise(n = n(), .groups = "drop")
 
   total_successes <- df %>%
     filter(status != "Failure") %>%
-    group_by(folder, metric_group, service.namespace, total) %>%
+    group_by(
+      folder,
+      metric_group,
+      service.namespace
+    ) %>%
     summarise(n = sum(n)) %>%
     mutate(status = "Total Successes")
 
   df <- df %>%
     bind_rows(total_successes) %>%
+    left_join(
+      requests %>%
+        select(folder, service.namespace, trace_id) %>%
+        group_by(folder, service.namespace) %>%
+        summarise(total = n())
+    ) %>%
     filter(status %in% c("Failure", "Total Successes")) %>%
     group_by(folder, metric_group, status) %>%
     mutate(n = n / total) %>%

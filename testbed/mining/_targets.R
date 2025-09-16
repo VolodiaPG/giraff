@@ -330,6 +330,16 @@ combined_graphs <-
       packages = graph_pkgs
     ),
     tar_target(
+      name = big_pressure_fallbacks_graph,
+      command = wrap_graph(big_pressure_fallbacks_plot(
+        otel_processed,
+        otel_errors,
+        nb_nodes,
+        nb_requests
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
       name = big_otel_nb_requests_graph,
       command = wrap_graph(big_output_otel_nb_requests_plot(
         otel_processed,
