@@ -176,6 +176,14 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = nb_functions_single,
+    command = load_nb_functions(
+      otel_processed_single,
+      nb_nodes_single
+    ),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = output_mean_time_to_deploy_simple_graph,
     command = wrap_graph(output_mean_time_to_deploy_simple(
       raw_deployment_times_single
@@ -340,7 +348,7 @@ combined_graphs <-
     tar_target(
       name = big_output_nb_functions_graph,
       command = wrap_graph(big_output_nb_functions_plot(
-        otel_processed,
+        nb_functions,
         nb_nodes
       )),
       packages = graph_pkgs
