@@ -330,6 +330,14 @@ combined_graphs <-
       packages = graph_pkgs
     ),
     tar_target(
+      name = big_pressure_graph,
+      command = wrap_graph(big_output_pressure_plot(
+        otel_processed,
+        nb_nodes
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
       name = big_output_nb_functions_graph,
       command = wrap_graph(big_output_nb_functions_plot(
         otel_processed,
@@ -435,6 +443,15 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_otel_nb_requests_graph,
         GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_pressure_latex,
+      command = export_graph_tikz(
+        big_pressure_graph,
+        GRAPH_TWO_COLUMN_WIDTH / 2,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs

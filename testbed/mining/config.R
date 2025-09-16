@@ -124,10 +124,15 @@ METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
 env_live_extract <- function(x) {
   x %>%
     mutate(
+      # scenrios relevant for pressure
+      pressure = env_live <= 2
+    ) %>%
+    mutate(
       env_live = case_when(
-        env_live == 1 ~ "No fallbacks",
-        env_live == 2 ~ "25u/req",
-        env_live == 3 ~ "50u/req"
+        env_live == 1 ~ "$\\inf$u, No fallbacks",
+        env_live == 2 ~ "$\\inf$u",
+        env_live == 3 ~ "25u/req",
+        env_live == 4 ~ "50u/req"
       )
     )
 }
