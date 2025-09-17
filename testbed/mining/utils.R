@@ -1086,7 +1086,7 @@ export_graph_tikz <- function(
   plot,
   width,
   height,
-  remove_legend = TRUE,
+  remove_legend = FALSE,
   caption = NULL
 ) {
   name <- deparse(substitute(plot))
