@@ -24,26 +24,26 @@ big_output_nb_requests_env_live_plot <- function(
     env_live_extract()
 
   df_mean <- df %>%
-    group_by(env_live, nb_nodes) %>%
+    group_by(env_live) %>%
     summarise(requests = mean(requests))
 
   ggplot(
     data = df,
     aes(
-      x = nb_nodes,
+      x = env_live,
       y = requests,
       group = env_live
     )
   ) +
     geom_col(
       data = df_mean,
-      aes(x = nb_nodes, y = requests, fill = env_live),
+      aes(x = env_live, y = requests, fill = env_live),
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
     geom_point(
       position = position_dodge(width = 0.9),
-      aes = aes(color = env_live)
+      aes = aes(color = env_live, size = nb_nodes, color = env_live),
     ) +
     geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
     theme(
