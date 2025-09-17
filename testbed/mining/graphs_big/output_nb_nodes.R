@@ -2,7 +2,7 @@ big_output_nb_nodes_plot <- function(node_levels) {
   df <- node_levels %>%
     mutate(alpha = FALSE) %>%
     extract_context() %>%
-    group_by(run, metric_group, level_value, alpha) %>%
+    group_by(folder, run, metric_group, level_value, alpha) %>%
     summarise(n = n()) %>%
     group_by(run, level_value, alpha) %>%
     summarise(n = mean(n)) %>%
@@ -17,8 +17,6 @@ big_output_nb_nodes_plot <- function(node_levels) {
 
   df <- df %>%
     bind_rows(total)
-
-  Log(df)
 
   ggplot(
     data = df,
