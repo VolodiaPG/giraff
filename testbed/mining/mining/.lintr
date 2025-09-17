@@ -1,3 +1,0 @@
-linters: linters_with_defaults(
-    line_length_linter(520),
-    object_usage_linter = NULL)
