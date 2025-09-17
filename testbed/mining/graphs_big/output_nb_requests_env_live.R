@@ -32,17 +32,19 @@ big_output_nb_requests_env_live_plot <- function(
     aes(
       x = nb_nodes,
       y = requests,
-      fill = env_live,
-      color = env_live,
       group = env_live
     )
   ) +
     geom_col(
       data = df_mean,
       aes(x = nb_nodes, y = requests, fill = env_live),
-      position = position_dodge(width = 0.9)
+      position = position_dodge(width = 0.9),
+      alpha = 0.8,
     ) +
-    geom_point(position = position_dodge(width = 0.9)) +
+    geom_point(
+      position = position_dodge(width = 0.9),
+      aes = aes(color = env_live)
+    ) +
     geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
     theme(
       legend.background = element_rect(
