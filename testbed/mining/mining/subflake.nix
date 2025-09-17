@@ -4,7 +4,7 @@
       nixpkgs.lib.foldl nixpkgs.lib.recursiveUpdate {}
       [
         (flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = inputs.nixpkgs.legacyPackages.${system};
+          pkgs = inputs.r-nixpkgs.legacyPackages.${system};
           R-pkgs = with pkgs.rPackages; [
             languageserver
             networkD3
