@@ -184,6 +184,13 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = nb_requests_single,
+    command = load_nb_requests(
+      otel_processed_single
+    ),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = output_mean_time_to_deploy_simple_graph,
     command = wrap_graph(output_mean_time_to_deploy_simple(
       raw_deployment_times_single
@@ -215,14 +222,6 @@ single_ops <- tar_map(
     command = wrap_graph(output_otel_budget_plot(otel_single)),
     packages = graph_pkgs
   ),
-  # tar_target(
-  #   name = output_otel_correlations_graph,
-  #   command = output_otel_correlations_plot(
-  #     otel_processed_single,
-  #     flame_with_latency_single
-  #   ),
-  #   packages = graph_pkgs
-  # ),
   tar_target(
     name = otel_function_latency_graph,
     command = wrap_graph(output_otel_function_latency_plot(
@@ -234,11 +233,6 @@ single_ops <- tar_map(
     name = output_otel_sla_duration_graph,
     command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
     packages = graph_pkgs
-    # ),
-    # tar_target(
-    #   name = output_ran_for_plot_simple_graph,
-    #   command = output_ran_for_plot_simple(respected_sla, bids_won_function),
-    #   packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_duration_latency_graph,
@@ -247,11 +241,6 @@ single_ops <- tar_map(
       raw_latency_single
     )),
     packages = graph_pkgs
-    # ),
-    # tar_target(
-    #   name = output_ran_for_plot_simple_graph,
-    #   command = output_ran_for_plot_simple(respected_sla, bids_won_function),
-    #   packages = graph_pkgs
   ),
   tar_target(
     name = output_otel_profit_graph,
@@ -342,7 +331,7 @@ combined_graphs <-
     tar_target(
       name = big_otel_nb_requests_graph,
       command = wrap_graph(big_output_otel_nb_requests_plot(
-        otel_processed,
+        nb_requests,
         nb_nodes
       )),
       packages = graph_pkgs
@@ -390,6 +379,16 @@ combined_graphs <-
       name = big_output_nb_nodes_graph,
       command = wrap_graph(big_output_nb_nodes_plot(
         node_levels
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_requests_profit_graph,
+      command = wrap_graph(output_requests_profit_plot(
+        otel_processed,
+        nb_requests,
+        nb_nodes,
+        nb_functions
       )),
       packages = graph_pkgs
     )
@@ -470,6 +469,15 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_pressure_graph,
         GRAPH_TWO_COLUMN_WIDTH / 2,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_requests_profit_latex,
+      command = export_graph_tikz(
+        output_requests_profit_graph,
+        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs

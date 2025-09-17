@@ -30,7 +30,7 @@ big_output_nb_nodes_plot <- function(node_levels) {
     # facet_grid(rows = vars(env), cols = vars(env_live)) +
     # geom_beeswarm() +
     # geom_quasirandom(method = "tukey") +
-    geom_col() +
+    geom_col(position = "dodge2") +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
