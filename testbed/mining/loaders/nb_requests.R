@@ -4,7 +4,6 @@ load_nb_requests <- function(spans) {
     filter(span.name == "start_processing_requests") %>%
     select(folder, service.namespace, metric_group, trace_id) %>%
     distinct() %>%
-    extract_context() %>%
-    group_by(folder, service.namespace, env) %>%
+    group_by(folder, metric_group, service.namespace) %>%
     summarise(requests = n())
 }

@@ -143,8 +143,8 @@ env_live_extract <- function(x) {
     ) %>%
     mutate(
       env_live = case_when(
-        env_live == 1 ~ "$\\inf$u, No fallbacks",
-        env_live == 2 ~ "$\\inf$u",
+        env_live == 1 ~ "$\\infty$u/req, No fallbacks",
+        env_live == 2 ~ "$\\infty$u/req",
         env_live == 3 ~ "25u/req",
         env_live == 4 ~ "50u/req"
       )

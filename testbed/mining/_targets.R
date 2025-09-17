@@ -391,6 +391,14 @@ combined_graphs <-
         nb_functions
       )),
       packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_requests_env_live_graph,
+      command = wrap_graph(big_output_nb_requests_env_live_plot(
+        nb_requests,
+        nb_nodes
+      )),
+      packages = graph_pkgs
     )
   )
 
@@ -478,6 +486,15 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         output_requests_profit_graph,
         GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_requests_env_live_latex,
+      command = export_graph_tikz(
+        big_output_nb_requests_env_live_graph,
+        GRAPH_TWO_COLUMN_WIDTH / 3,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs

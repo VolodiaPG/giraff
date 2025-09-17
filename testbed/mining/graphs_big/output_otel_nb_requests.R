@@ -3,6 +3,7 @@ big_output_otel_nb_requests_plot <- function(
   nb_nodes
 ) {
   df <- nb_requests %>%
+    extract_context() %>%
     group_by(folder, env) %>%
     summarise(requests = sum(requests)) %>%
     left_join(nb_nodes, by = c("folder")) %>%
