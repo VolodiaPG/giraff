@@ -13,8 +13,6 @@ output_otel_budget_per_function_plot <- function(spans) {
     arrange(timestamp) %>%
     summarise(budget = last(budget) - first(budget))
 
-  Log(spans_budget)
-
   spans <- spans %>%
     select(
       folder,

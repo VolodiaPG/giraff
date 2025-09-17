@@ -1,7 +1,7 @@
 output_otel_functions_plot <- function(processed, spans, log_errors) {
   # Log(colnames(log_errors))
 
-  Log(log_errors %>% filter(error))
+  # Log(log_errors %>% filter(error))
 
   errors <- processed %>%
     filter(startsWith(span.name, "start_processing_requests")) %>%

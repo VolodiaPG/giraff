@@ -1,13 +1,15 @@
 big_output_nb_nodes_plot <- function(node_levels) {
   df <- node_levels %>%
-    mutate(alpha = FALSE) %>%
     extract_context() %>%
-    group_by(run, metric_group, level_value, alpha) %>%
+    group_by(folder, run, metric_group, level_value) %>%
     summarise(n = n()) %>%
-    group_by(run, level_value, alpha) %>%
-    summarise(n = mean(n)) %>%
+    group_by(run, level_value) %>%
+    summarise(n = min(n)) %>%
     mutate(level_value = as.character(level_value)) %>%
-    filter(!is.na(run))
+    filter(!is.na(run)) %>%
+    mutate(alpha = TRUE)
+
+  Log("toto lol")
 
   total <- df %>%
     group_by(run) %>%
@@ -18,7 +20,7 @@ big_output_nb_nodes_plot <- function(node_levels) {
   df <- df %>%
     bind_rows(total)
 
-  Log(df)
+  # Log(f)
 
   ggplot(
     data = df,

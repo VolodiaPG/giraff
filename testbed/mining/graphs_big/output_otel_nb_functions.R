@@ -2,8 +2,8 @@ big_output_otel_nb_functions_plot <- function(
   functions,
   nb_nodes
 ) {
-  Log(functions)
-  Log(colnames(functions))
+  # Log(functions)
+  # Log(colnames(functions))
 
   df <- functions %>%
     filter(status == "provisioned") %>%

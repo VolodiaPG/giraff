@@ -67,12 +67,12 @@ output_otel_creation_duration <- function(spans) {
       }
     )
 
-  Log("errors")
-  Log(
-    df %>%
-      filter(error == TRUE) %>%
-      select(folder, timestamp, service.namespace)
-  )
+  # Log("errors")
+  # Log(
+  #   df %>%
+  #     filter(error == TRUE) %>%
+  #     select(folder, timestamp, service.namespace)
+  # )
   # mutate(duration = end_timestamp - timestamp) %>%
   # filter(span.name %in% c("create_machine", "start_processing_requests")) %>%
   # full_join(df_spans)

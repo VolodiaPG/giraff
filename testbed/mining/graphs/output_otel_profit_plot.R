@@ -16,7 +16,7 @@ output_otel_profit_plot <- function(spans) {
     ) %>%
     select(folder, service.namespace, trend, slope)
 
-  Log(trend_data)
+  # Log(trend_data)
 
   # Merge trend back to original data
   spans <- spans %>%

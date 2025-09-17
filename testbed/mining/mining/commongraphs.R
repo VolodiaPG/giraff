@@ -18,7 +18,7 @@ output_provisioned_simple <- function(functions_total, node_levels) {
     mutate(ratio = functions / total) %>%
     extract_context()
 
-  Log(df)
+  # Log(df)
 
   provisioned <- df %>%
     ggplot(aes(x = placement_method, y = functions)) +
@@ -1034,7 +1034,7 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     extract_context() %>%
     correct_names()
 
-  Log(df)
+  # Log(df)
 
   create_metric_comparison_plot(
     data = df,

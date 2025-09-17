@@ -352,7 +352,7 @@ load_bids_raw <- function(ark) {
   if (
     (bids_raw %>% ungroup() %>% filter(bid < 0.0) %>% summarise(n = n()))$n != 0
   ) {
-    Log(bids_raw %>% ungroup() %>% filter(bid < 0.0))
+    # Log(bids_raw %>% ungroup() %>% filter(bid < 0.0))
     stop(paste0(
       "Error, there are negative bids in ",
       bids_raw %>%
@@ -621,12 +621,12 @@ load_acceptable_from_respected_slas <- function(ark) {
     mutate(nf = service_status >= 400 & service_status < 500) %>%
     mutate(nalat = is.na(latency))
   # %>% filter(!(docker_fn_name %in% c("audioToText", "classif")))
-  Log(
-    respected_sla %>%
-      filter(error < 0) %>%
-      filter(!nalat) %>%
-      filter(metric_group == "auction-quadratic_rates-no_complication")
-  )
+  # Log(
+  #   respected_sla %>%
+  #     filter(error < 0) %>%
+  #     filter(!nalat) %>%
+  #     filter(metric_group == "auction-quadratic_rates-no_complication")
+  # )
 
   respected_sla <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group, req_id) %>%

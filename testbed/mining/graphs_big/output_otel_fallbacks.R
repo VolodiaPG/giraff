@@ -3,7 +3,7 @@ big_output_otel_fallbacks_plot <- function(
   errors,
   nb_nodes
 ) {
-  Log(errors %>% select(fallbacks, error))
+  # Log(errors %>% select(fallbacks, error))
 
   requests <- spans %>%
     ungroup() %>%
@@ -17,13 +17,13 @@ big_output_otel_fallbacks_plot <- function(
     ) %>%
     select(folder, service.namespace, metric_group, trace_id, otel_error) %>%
     distinct()
-
-  Log(
-    requests %>%
-      select(folder, service.namespace, trace_id) %>%
-      group_by(folder, service.namespace) %>%
-      summarise(total = n())
-  )
+  #
+  # Log(
+  #   requests %>%
+  #     select(folder, service.namespace, trace_id) %>%
+  #     group_by(folder, service.namespace) %>%
+  #     summarise(total = n())
+  # )
 
   df <- requests %>%
     # left_join(degrades) %>%

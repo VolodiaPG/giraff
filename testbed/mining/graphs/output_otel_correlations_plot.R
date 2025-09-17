@@ -47,7 +47,7 @@ output_otel_correlations_plot <- function(spans, latency) {
   #   left_join(df_spans) %>%
   #   left_join(latency)
   #
-  Log(df_spans %>% select(span.name, mean_duration, latency))
+  # Log(df_spans %>% select(span.name, mean_duration, latency))
 
   # Create the correlation plot between for each of the unique span.names with the latency, the duration. Use ggplot and a heatmap
   # Prepare data for correlation analysis
@@ -75,7 +75,7 @@ output_otel_correlations_plot <- function(spans, latency) {
       values_to = "value"
     )
 
-  Log(correlation_data)
+  # Log(correlation_data)
 
   correlation_data_create_machine <- df %>%
     group_by(service.namespace) %>%
@@ -97,7 +97,7 @@ output_otel_correlations_plot <- function(spans, latency) {
     left_join(correlation_data_create_machine) %>%
     left_join(correlation_data_processing_requests)
 
-  Log(heatmap_data)
+  # Log(heatmap_data)
 
   heatmap_data <- summary_data %>%
     select(span.name, mean_duration, median_duration) %>%

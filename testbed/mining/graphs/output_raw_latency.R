@@ -3,7 +3,7 @@ output_raw_latency <- function(latency) {
     select(field) %>%
     distinct()
 
-  Log(fields)
+  # Log(fields)
 
   latency %>%
     filter(field == "average") %>%

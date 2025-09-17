@@ -6,7 +6,7 @@ big_output_otel_budget_plot <- function(spans) {
     arrange(timestamp) %>%
     summarise(budget = last(budget) - first(budget))
 
-  Log(spans_budget)
+  # Log(spans_budget)
 
   spans <- spans %>%
     select(
@@ -25,7 +25,7 @@ big_output_otel_budget_plot <- function(spans) {
     group_by(folder, env_live) %>%
     summarise(count = mean(count))
 
-  Log(spans)
+  # Log(spans)
 
   #
   # Log(spans %>% ungroup() %>% select(service.instance.id))
