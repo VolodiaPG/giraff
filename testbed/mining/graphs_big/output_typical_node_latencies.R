@@ -33,23 +33,35 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
     filter(source_level < destination_level) %>%
     mutate(latency = latency / 1000) %>%
     group_by(run, source_level, destination_level) %>%
+    summarise(latency = mean(latency)) %>%
+    mutate(
+      x = interaction(
+        source_level,
+        destination_level,
+        sep = " $\\rightarrow$ "
+      )
+    )
+
+  df_mean <- df %>%
+    group_by(x) %>%
     summarise(latency = mean(latency))
 
   ggplot(
     data = df,
     aes(
-      x = interaction(
-        source_level,
-        destination_level,
-        sep = " $\\rightarrow$ "
-      ),
+      x = x,
       y = latency,
-      color = run
     ),
   ) +
-    # facet_grid(rows = vars(env), cols = vars(env_live)) +
-    # geom_beeswarm() +
-    geom_quasirandom(method = "tukey") +
+    geom_col(
+      data = df_mean,
+      aes(x = x, y = latency),
+      position = position_dodge(width = 0.9),
+      alpha = 0.8,
+    ) +
+    geom_point(
+      position = position_dodge(width = 0.9),
+    ) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
