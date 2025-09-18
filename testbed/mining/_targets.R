@@ -413,7 +413,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_typical_latencies_latex,
       command = export_graph_tikz(
         big_output_typical_latencies_graph,
-        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+        GRAPH_TWO_COLUMN_WIDTH / 3,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
