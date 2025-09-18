@@ -27,20 +27,26 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       node_levels %>% rename(destination_level = level_value),
       by = c("destination" = "name", "folder")
     ) %>%
-    group_by(folder, metric_group, source_level, destination_level) %>%
-    summarise(latency = mean(latency)) %>%
-    extract_context() %>%
     filter(source_level < destination_level) %>%
     mutate(latency = latency / 1000) %>%
-    group_by(run, source_level, destination_level) %>%
-    summarise(latency = mean(latency)) %>%
     mutate(
       x = interaction(
         source_level,
         destination_level,
         sep = " $\\rightarrow$ "
       )
-    )
+    ) %>%
+    extract_context()
+
+  df_max <- df %>%
+    group_by(x) %>%
+    summarise(max_latency = max(latency), min_latency = min(latency))
+
+  df <- df %>%
+    group_by(folder, metric_group, x, run) %>%
+    summarise(latency = mean(latency)) %>%
+    group_by(run, x) %>%
+    summarise(latency = mean(latency))
 
   df_mean <- df %>%
     group_by(x) %>%
@@ -50,7 +56,6 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
     data = df,
     aes(
       x = x,
-      y = latency,
     ),
   ) +
     geom_col(
@@ -60,8 +65,16 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       alpha = 0.8,
     ) +
     geom_point(
+      aes(y = latency),
       position = position_dodge(width = 0.9),
     ) +
+    geom_errorbar(
+      data = df_max,
+      aes(x = x, ymin = min_latency, ymax = max_latency),
+      position = position_dodge(width = 0.9),
+      width = 0.2
+    ) +
+
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),

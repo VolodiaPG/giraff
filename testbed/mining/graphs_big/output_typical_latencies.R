@@ -9,12 +9,17 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       span.name
     ) %>%
     summarise(latency = mean(latency)) %>%
-    group_by(folder, metric_group, span.name) %>%
-    summarise(latency = mean(latency)) %>%
     extract_context() %>%
     extract_function_name() %>%
     extract_env_name()
 
+  all_max <- df %>%
+    group_by(span.name, env) %>%
+    summarise(max_latency = max(latency), min_latency = min(latency))
+
+  df <- df %>%
+    group_by(folder, metric_group, span.name, env) %>%
+    summarise(latency = mean(latency))
   all_averages <- df %>%
     group_by(span.name, env) %>%
     summarise(latency = mean(latency))
@@ -23,7 +28,6 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
     data = df,
     aes(
       x = span.name,
-      y = latency,
       group = env
     ),
   ) +
@@ -33,7 +37,16 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
-    geom_point(position = position_dodge(width = 0.9), aes = aes(color = env)) +
+    geom_point(
+      aes(y = latency, color = env),
+      position = position_dodge(width = 0.9)
+    ) +
+    geom_errorbar(
+      data = all_max,
+      aes(x = span.name, ymin = min_latency, ymax = max_latency, color = env),
+      position = position_dodge(width = 0.9),
+      width = 0.2
+    ) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
