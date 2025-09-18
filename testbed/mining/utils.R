@@ -1082,6 +1082,18 @@ wrap_graph <- function(graph) {
   list(graph = graph)
 }
 
+check_legend_position <- function(built) {
+  # Build the plot to get all resolved theme elements
+  # Get the theme from the built plot
+  if (!is.null(built$plot$theme$legend.position)) {
+    return(built$plot$theme$legend.position)
+  }
+
+  # Fall back to current default theme
+  return(theme_get()$legend.position %||% "right")
+}
+
+
 export_graph_tikz <- function(
   plot,
   width,
@@ -1091,7 +1103,7 @@ export_graph_tikz <- function(
 ) {
   name <- deparse(substitute(plot))
   name <- stringr::str_replace_all(name, "(.*?)_graph", "\\1")
-  Log(name)
+  # Log(name)
   # if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
   #   warning("tikzDevice package not found. TikZ export skipped.")
   #   Log("tikzDevice package not found. TikZ export skipped.")
@@ -1106,13 +1118,6 @@ export_graph_tikz <- function(
 
   # Extract title, subtitle, and axis labels from the ggplot object
   built_plot <- ggplot2::ggplot_build(plot_graph)
-  ggsave(
-    filename = paste0("out/", plot_name, ".png"),
-    plot = plot_graph,
-    width = width,
-    height = height,
-    dpi = 300
-  )
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
   plot_x_label <- built_plot$plot$labels$x
@@ -1125,12 +1130,17 @@ export_graph_tikz <- function(
       # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
       # panel.spacing = ggplot2::unit(0, "pt"),
       # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-      # legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-      # legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt")
-      # legend.spacing = ggplot2::unit(0, "pt")
     )
   if (remove_legend) {
     plot_graph <- plot_graph + theme(legend.position = "none")
+  } else if (check_legend_position(plot_graph) != "none") {
+    plot_graph <- plot_graph +
+      theme(
+        legend.position = "top",
+        legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+        legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
+        legend.spacing = ggplot2::unit(2, "pt")
+      )
   }
   plot_graph <- plot_graph +
     theme(
@@ -1146,6 +1156,15 @@ export_graph_tikz <- function(
 
   # Write the resizebox command
   # tex_width <- 1
+
+  ggsave(
+    filename = paste0("out/", plot_name, ".png"),
+    plot = plot_graph,
+    width = width,
+    height = height,
+    dpi = 300
+  )
+
   cat(
     sprintf("\\resizebox{\\columnwidth}{!}{\n"),
     file = file_conn

@@ -9,18 +9,28 @@ big_output_otel_nb_requests_plot <- function(
     left_join(nb_nodes, by = c("folder")) %>%
     mutate(nb_nodes = factor(nb_nodes))
 
+  df_mean <- df %>%
+    group_by(env, nb_nodes) %>%
+    summarise(requests = mean(requests))
+
   ggplot(
     data = df,
     aes(
       x = nb_nodes,
-      y = requests,
-      fill = env,
-      group = folder
+      group = env
     )
   ) +
-    geom_boxplot(position = position_dodge()) +
+    geom_col(
+      data = df_mean,
+      aes(y = requests, fill = env),
+      position = position_dodge(width = 0.9),
+      alpha = 0.8,
+    ) +
+    geom_point(
+      aes(y = requests, color = env),
+      position = position_dodge(width = 0.9)
+    ) +
     theme(
-      legend.position = "none",
       legend.background = element_rect(
         fill = alpha("white", .7),
         size = 0.2,

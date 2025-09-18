@@ -1,24 +1,64 @@
 big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
   df <- nb_functions %>%
-    left_join(nb_nodes, by = c("folder"))
+    group_by(folder, metric_group, service.namespace) %>%
+    summarise(
+      nb_functions = mean(nb_functions),
+      max_nb_functions = max(nb_functions),
+      min_nb_functions = min(nb_functions)
+    ) %>%
+    group_by(folder, metric_group) %>%
+    summarise(
+      nb_functions = mean(nb_functions),
+      max_nb_functions = max(max_nb_functions),
+      min_nb_functions = min(min_nb_functions)
+    ) %>%
+    extract_context() %>%
+    left_join(nb_nodes, by = c("folder")) %>%
+    mutate(nb_nodes = factor(nb_nodes)) %>%
+    extract_env_name()
+
+  df_mean <- df %>%
+    group_by(env, nb_nodes) %>%
+    summarise(
+      nb_functions = mean(nb_functions),
+      max_nb_functions = max(max_nb_functions),
+      min_nb_functions = min(min_nb_functions)
+    )
 
   ggplot(
     data = df,
     aes(
-      x = factor(nb_nodes),
-      y = nb_functions,
-      color = folder
-    ),
+      x = nb_nodes,
+      group = env
+    )
   ) +
-    # facet_grid(vars(un)) +
-    geom_quasirandom(method = "tukey") +
+    geom_col(
+      data = df_mean,
+      aes(y = nb_functions, fill = env),
+      position = position_dodge(width = 0.9),
+      alpha = 0.8,
+    ) +
+    geom_point(
+      aes(y = nb_functions, color = env),
+      position = position_dodge(width = 0.9)
+    ) +
+    geom_errorbar(
+      data = df_mean,
+      aes(
+        x = nb_nodes,
+        ymin = min_nb_functions,
+        ymax = max_nb_functions,
+        color = env
+      ),
+      position = position_dodge(width = 0.9),
+      width = 0.2
+    ) +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
         size = 0.2,
         color = alpha("white", .7)
       ),
-      legend.position = "none",
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),

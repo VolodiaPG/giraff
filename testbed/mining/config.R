@@ -43,6 +43,17 @@ METRICS_ARKS <- c(
   # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-17-23-16.tar.xz",
   "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-17-21-15.tar.xz",
   "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-17-23-50.tar.xz",
+
+  # "metrics_valuation_rates.env_2_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-18-08-51.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-18-06-54.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-18-07-36.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-18-08-16.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-18-07-14.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-18-06-18.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-18-07-56.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-18-09-57.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-18-09-34.tar.xz",
+  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-18-09-14.tar.xz",
   #---
   #---
   #---
@@ -52,6 +63,13 @@ METRICS_ARKS <- METRICS_ARKS[-length(METRICS_ARKS)]
 
 
 env_live_extract <- function(x) {
+  order <- c(
+    "$\\infty$u/req, No fallbacks",
+    "$\\infty$u/req",
+    "25u/req",
+    "50u/req"
+  )
+
   x %>%
     mutate(
       # scenrios relevant for pressure
@@ -63,11 +81,20 @@ env_live_extract <- function(x) {
         env_live == 2 ~ "$\\infty$u/req",
         env_live == 3 ~ "25u/req",
         env_live == 4 ~ "50u/req"
-      )
+      ),
+      env_live = factor(env_live, levels = order)
     )
 }
 
 extract_function_name <- function(spans) {
+  order <- c(
+    "Speech to Text",
+    "Speech to Text (degraded)",
+    "Sentiment Analysis",
+    "Text to Speech",
+    "End Function"
+  )
+
   spans %>%
     mutate(
       span.name = case_when(
@@ -77,7 +104,8 @@ extract_function_name <- function(spans) {
         span.name == "EndGame" ~ "End Function",
         span.name == "TextToSpeech" ~ "Text to Speech",
         TRUE ~ span.name
-      )
+      ),
+      span.name = factor(span.name, levels = order)
     )
 }
 

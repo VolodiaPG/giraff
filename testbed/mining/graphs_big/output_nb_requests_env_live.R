@@ -19,9 +19,9 @@ big_output_nb_requests_env_live_plot <- function(
     group_by(folder, env) %>%
     summarise(requests = mean(requests)) %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes)) %>%
     extract_context() %>%
-    env_live_extract()
+    env_live_extract() %>%
+    mutate(env_live = factor(env_live, levels = unique(env_live)))
 
   df_mean <- df %>%
     group_by(env_live) %>%
@@ -32,21 +32,35 @@ big_output_nb_requests_env_live_plot <- function(
     aes(
       x = env_live,
       y = requests,
-      group = env_live
     )
   ) +
     geom_col(
       data = df_mean,
-      aes(x = env_live, y = requests, fill = env_live),
+      aes(x = env_live, y = requests, group = env_live),
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
     geom_point(
+      aes(
+        size = nb_nodes,
+        color = interaction(run, env),
+        group = env_live,
+      ),
       position = position_dodge(width = 0.9),
-      aes = aes(color = env_live, size = nb_nodes),
     ) +
-    geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+    geom_line(
+      aes(
+        group = interaction(run, env),
+        color = interaction(run, env),
+        x = env_live,
+        y = requests,
+      ),
+      alpha = 0.7,
+      linetype = "dotted",
+    ) +
+    geom_hline(yintercept = 0, color = "black", linetype = "solid") +
     theme(
+      legend.position = "none",
       legend.background = element_rect(
         fill = alpha("white", .7),
         size = 0.2,
