@@ -43,7 +43,7 @@ big_output_nb_requests_env_live_plot <- function(
     ) +
     geom_point(
       position = position_dodge(width = 0.9),
-      aes = aes(color = env_live, size = nb_nodes, color = env_live),
+      aes = aes(color = env_live, size = nb_nodes),
     ) +
     geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
     theme(
