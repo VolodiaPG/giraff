@@ -235,9 +235,9 @@ _scenario archive_name env_variation env_live_variation +city_name_node_targets:
     log "sleeping $WAIT_TIME secs" false sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
-    {{ RUN }} integration.py collect
+    timeout 300 {{ RUN }} integration.py collect
 
-    log "sleeping 60 secs" false sleep 60
+    log "sleeping 120 secs" false sleep 120
 
 [private]
 scenarii +city_name_node_targets:

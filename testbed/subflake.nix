@@ -82,7 +82,7 @@
                     }
                   )
                 ];
-              experiments = final.python312.withPackages (ps: (with ps; [
+              experiments = final.python3.withPackages (ps: (with ps; [
                 dill
                 click
                 types-click

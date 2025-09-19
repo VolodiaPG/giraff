@@ -939,7 +939,7 @@ def collect(address=None, **kwargs):
     print(measurements)
     manager = mp.Manager()
     queue = manager.Queue()
-    pool = mp.Pool(mp.cpu_count() + 2)
+    pool = mp.Pool(8)
 
     # put listener to work first
     pool.apply_async(listener, (queue, archive))

@@ -549,7 +549,7 @@ def network_generation():
                     modifiers=[
                         drop_children(keep_one_in=3),
                         flavor_randomizer_cpu([0, 2]),
-                        flavor_randomizer_mem([0, 2, 4]),
+                        flavor_randomizer_mem([0, 2]),
                     ],
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
@@ -558,9 +558,9 @@ def network_generation():
                         rates=(10 * ONE_MBIT, ONE_GBIT),
                         losses=(1, 2),
                         modifiers=[
-                            set_iot_connected(keep_one_in=2),
-                            flavor_randomizer_mem([0, 2, 4]),
-                            flavor_randomizer_cpu([0, 2, 4]),
+                            set_iot_connected(keep_one_in=4),
+                            flavor_randomizer_mem([0, 2]),
+                            flavor_randomizer_cpu([0, 2]),
                         ],
                     ),
                 ),
