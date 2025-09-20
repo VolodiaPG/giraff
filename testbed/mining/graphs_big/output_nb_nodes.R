@@ -9,26 +9,25 @@ big_output_nb_nodes_plot <- function(node_levels) {
     mutate(level_value = as.character(level_value)) %>%
     filter(!is.na(run))
 
-  # total <- df %>%
-  #   group_by(run) %>%
-  #   summarise(n = sum(n)) %>%
-  #   mutate(level_value = "Total") %>%
-  #   mutate(alpha = TRUE)
+  total <- df %>%
+    group_by(run) %>%
+    summarise(nb_nodes = sum(n)) %>%
+    categorize_nb_nodes()
 
-  # df <- df %>%
-  #   bind_rows(total)
-  #
+  df <- df %>%
+    left_join(total)
+
   ggplot(
     data = df,
     aes(
-      x = n,
-      y = run,
+      y = n,
+      x = run,
       fill = level_value,
       # alpha = alpha
-      group = run,
+      group = run
     ),
   ) +
-    # facet_grid(rows = vars(env), cols = vars(env_live)) +
+    facet_grid(cols = vars(nb_nodes), scales = "free_x") +
     # geom_beeswarm() +
     # geom_quasirandom(method = "tukey") +
     geom_col() +
@@ -42,12 +41,12 @@ big_output_nb_nodes_plot <- function(node_levels) {
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
       # axis.text.x = element_text(angle k 0, vjust = 1, hjust = 1)
-      axis.text.y = element_blank()
+      axis.text.x = element_blank()
     ) +
     labs(
       title = paste("Number of nodes for each layer of the continuum"),
-      y = "Runs",
-      x = "Nodes (VMs)",
+      x = "Runs",
+      y = "Nodes (VMs)",
       color = "Node level"
     ) +
     scale_color_viridis(discrete = TRUE) +

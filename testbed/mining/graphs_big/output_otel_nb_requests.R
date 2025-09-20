@@ -7,7 +7,8 @@ big_output_otel_nb_requests_plot <- function(
     group_by(folder, env) %>%
     summarise(requests = sum(requests)) %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes))
+    extract_env_name() %>%
+    categorize_nb_nodes()
 
   df_mean <- df %>%
     group_by(env, nb_nodes) %>%

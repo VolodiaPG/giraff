@@ -495,7 +495,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_requests_env_live_graph,
         GRAPH_TWO_COLUMN_WIDTH / 3,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_ONE_COLUMN_HEIGHT,
+        TRUE
       ),
       packages = latex_pkgs
     )

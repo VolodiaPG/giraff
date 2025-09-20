@@ -5,14 +5,18 @@ output_otel_functions_plot <- function(processed, spans, log_errors) {
 
   errors <- processed %>%
     filter(startsWith(span.name, "start_processing_requests")) %>%
-    select(folder, service.namespace, trace_id, otel.status_code) %>%
     mutate(
-      otel_error = ifelse(
-        is.na(otel.status_code),
-        FALSE,
-        otel.status_code == "Error"
-      )
+      otel_error = if ("otel.status_code" %in% names(df)) {
+        ifelse(
+          is.na(otel.status_code),
+          FALSE,
+          otel.status_code == "Error"
+        )
+      } else {
+        FALSE # Default value if column does not exist
+      }
     ) %>%
+    select(folder, service.namespace, trace_id, otel_error) %>%
     full_join(log_errors, by = c("folder", "trace_id")) %>%
     group_by(folder, service.namespace) %>%
     summarise(

@@ -14,8 +14,9 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
     ) %>%
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes)) %>%
-    extract_env_name()
+    # mutate(nb_nodes = factor(nb_nodes)) %>%
+    extract_env_name() %>%
+    categorize_nb_nodes()
 
   df_mean <- df %>%
     group_by(env, nb_nodes) %>%
@@ -32,6 +33,11 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       group = env
     )
   ) +
+    # geom_ribbon(
+    #   data = df_mean,
+    #   aes(ymin = min_nb_functions, ymax = max_nb_functions, fill = env),
+    #   alpha = 0.2
+    # ) +
     geom_col(
       data = df_mean,
       aes(y = nb_functions, fill = env),
@@ -62,7 +68,7 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
       legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
     ) +
     labs(
       title = "Number of functions per application, depending on the number of nodes in the continuum",

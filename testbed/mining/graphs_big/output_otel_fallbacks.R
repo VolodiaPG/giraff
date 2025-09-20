@@ -3,18 +3,31 @@ big_output_otel_fallbacks_plot <- function(
   errors,
   nb_nodes
 ) {
-  # Log(errors %>% select(fallbacks, error))
+  # Log(errors %>% select(otel.status_code))
 
   requests <- spans %>%
     ungroup() %>%
     filter(span.name == "start_processing_requests") %>%
     mutate(
-      otel_error = ifelse(
-        is.na(otel.status_code),
-        FALSE,
-        otel.status_code == "Error"
-      )
+      otel_error = if ("otel.status_code" %in% names(df)) {
+        ifelse(
+          is.na(otel.status_code),
+          FALSE,
+          otel.status_code == "Error"
+        )
+      } else {
+        FALSE # Default value if column does not exist
+      }
     ) %>%
+    #
+    #
+    # mutate(
+    #   otel_error = ifelse(
+    #     is.na(otel.status_code),
+    #     FALSE,
+    #     otel.status_code == "Error"
+    #   )
+    # ) %>%
     select(folder, service.namespace, metric_group, trace_id, otel_error) %>%
     distinct()
   #
@@ -24,7 +37,6 @@ big_output_otel_fallbacks_plot <- function(
   #     group_by(folder, service.namespace) %>%
   #     summarise(total = n())
   # )
-
   df <- requests %>%
     # left_join(degrades) %>%
     left_join(
@@ -32,11 +44,15 @@ big_output_otel_fallbacks_plot <- function(
     ) %>%
     mutate(
       status = case_when(
+        # timeout ~ "Timeout",
         otel_error ~ "Failure",
+        error ~ "Failure",
         fallbacks > 0 ~ paste("Succes, Degraded with", fallbacks, "fallbacks"),
-        fallbacks == 0 ~ "Success, Nominal"
-      )
+        # fallbacks == 0 ~ "Success, Nominal",
+        TRUE ~ "Success, Nominal",
+      ),
     ) %>%
+    filter(!is.na(status)) %>%
     group_by(
       folder,
       metric_group,
@@ -52,31 +68,85 @@ big_output_otel_fallbacks_plot <- function(
     )
 
   total_successes <- df %>%
-    filter(status != "Failure") %>%
+    filter(status != "Failure" & status != "Timeout") %>%
     group_by(folder, metric_group, service.namespace, total) %>%
     summarise(n = sum(n)) %>%
     mutate(status = "Total Successes")
 
   df <- df %>%
     bind_rows(total_successes) %>%
-    group_by(folder, metric_group, status) %>%
     mutate(n = n / total) %>%
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes)) %>%
-    env_live_extract()
+    env_live_extract() %>%
+    categorize_nb_nodes()
+
+  df_mean <- df %>%
+    group_by(env_live, nb_nodes, status) %>%
+    summarise(
+      max_n = max(n),
+      min_n = min(n),
+      sd = sd(n, na.rm = TRUE),
+      nb = n(),
+      n = mean(n)
+    ) %>%
+    mutate(
+      se = sd / sqrt(nb),
+      lower.ci = n - qnorm(0.975) * se,
+      upper.ci = n + qnorm(0.975) * se
+    ) %>%
+    rowwise() %>%
+    mutate(
+      lower.ci = max(0, lower.ci),
+    )
+
+  df <- df %>%
+    group_by(folder, status, nb_nodes, env_live, run) %>%
+    summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n)) %>%
+    mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
 
   ggplot(
-    data = df %>% ungroup() %>% filter(!is.na(status)),
+    data = df,
     aes(
       x = nb_nodes,
       y = n,
-      fill = env_live,
-      group = folder
+      group = env_live
     )
   ) +
     facet_grid(cols = vars(status)) +
-    geom_boxplot(position = position_dodge2()) +
+    geom_col(
+      data = df_mean,
+      aes(y = n, fill = env_live),
+      position = position_dodge(width = 0.9),
+      alpha = 0.8,
+    ) +
+    geom_errorbar(
+      data = df_mean,
+      aes(ymin = lower.ci, ymax = upper.ci, fill = env_live),
+      position = position_dodge(width = 0.9),
+      alpha = 0.5,
+      width = 0.2
+    ) +
+    geom_point(
+      alpha = 0.7,
+      position = position_dodge(width = 0.9),
+    ) +
+    geom_errorbar(
+      aes(ymin = lower.se, ymax = upper.se, fill = env_live),
+      position = position_dodge(width = 0.9),
+      alpha = 0.5,
+      width = 0
+    ) +
+    # geom_ribbon(
+    #   data = df_mean,
+    #   aes(ymin = lower.ci, ymax = upper.ci, fill = env_live),
+    #   alpha = 0.2
+    # ) +
+    # geom_line(
+    #   aes(group = run),
+    #   # position = position_dodge(width = 0.9),
+    #   alpha = 0.2
+    # ) +
     theme(
       # legend.position = "none",
       legend.background = element_rect(
@@ -87,12 +157,13 @@ big_output_otel_fallbacks_plot <- function(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0)
     ) +
-    guides(group = "none") +
-    scale_y_continuous(labels = scales::percent) +
+    guides(group = "none", linetype = "none") +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",
-      fill = "Application Variation"
+      fill = "Application Variation",
+      color = "Application Variation"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

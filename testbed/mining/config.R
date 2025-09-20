@@ -9,51 +9,93 @@ time_interval <- 15 # secs
 CHAIN_LENGTH <- 3
 
 # GRAPH_ONE_COLUMN_HEIGHT <- 3 * 1.5
-GRAPH_ONE_COLUMN_HEIGHT <- 2 * 1.5
-GRAPH_ONE_COLUMN_WIDTH <- 3.6 * 1.5
-GRAPH_HALF_COLUMN_WIDTH <- 2.5 * 1.5
-GRAPH_TWO_COLUMN_WIDTH <- 6 * 1.5
+GRAPH_ONE_COLUMN_HEIGHT <- 2 * 2
+GRAPH_ONE_COLUMN_WIDTH <- 3.6 * 2
+GRAPH_HALF_COLUMN_WIDTH <- 2.5 * 2
+GRAPH_TWO_COLUMN_WIDTH <- 6 * 2
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
-  # "metrics_valuation_rates.env_1_1758101806-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-17-10-02.tar.xz",
-  # "metrics_valuation_rates.env_1_1758101806-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-17-10-31.tar.xz",
-  # "metrics_valuation_rates.env_1_1758101806-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-17-10-16.tar.xz",
+  # "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-17-13-40.tar.xz",
+  # "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-17-13-57.tar.xz",
+  # "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-17-13-08.tar.xz",
+  # "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-17-13-24.tar.xz",
+  #
+  # "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-17-15-02.tar.xz",
+  # "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-17-15-34.tar.xz",
+  # "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-17-15-52.tar.xz",
+  # "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-17-15-18.tar.xz",
+  #
+  # "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-17-19-00.tar.xz",
+  # "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-17-19-52.tar.xz",
+  # "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-17-19-16.tar.xz",
+  # "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-17-19-34.tar.xz",
+  #
+  # # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-17-21-50.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-17-21-32.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-17-22-24.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-17-22-58.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-17-22-40.tar.xz",
+  # # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-17-23-16.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-17-21-15.tar.xz",
+  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-17-23-50.tar.xz",
+  #
+  # # "metrics_valuation_rates.env_2_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-18-08-51.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-18-06-54.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-18-07-36.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-18-08-16.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-18-07-14.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-18-06-18.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-18-07-56.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-18-09-57.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-18-09-34.tar.xz",
+  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-18-09-14.tar.xz",
 
-  "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-17-13-40.tar.xz",
-  "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-17-13-57.tar.xz",
-  "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-17-13-08.tar.xz",
-  "metrics_valuation_rates.env_1_1758112101-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-17-13-24.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-18-23-52.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-18-23-18.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-18-23-01.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-18-22-11.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-18-22-27.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-18-22-45.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-18-23-35.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-18-21-38.tar.xz",
 
-  "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-17-15-02.tar.xz",
-  "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-17-15-34.tar.xz",
-  "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-17-15-52.tar.xz",
-  "metrics_valuation_rates.env_1_1758118542-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-17-15-18.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-19-00-47.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-19-00-26.tar.xz",
+  # "metrics_valuation_rates.env_1_1758229722-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-19-00-09.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-19-07-37.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-19-08-48.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-19-08-14.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-19-09-07.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-19-09-55.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-19-09-38.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-19-08-32.tar.xz",
+  # # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-19-10-12.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-19-07-00.tar.xz",
+  # "metrics_valuation_rates.env_1_1758262974-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-19-07-18.tar.xz",
 
-  "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-17-19-00.tar.xz",
-  "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-17-19-52.tar.xz",
-  "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-17-19-16.tar.xz",
-  "metrics_valuation_rates.env_1_1758134052-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-17-19-34.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-19-11-13.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-19-11-30.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-19-12-07.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-19-12-25.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-19-12-41.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-19-11-50.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-19-13-01.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-19-13-33.tar.xz",
+  # "metrics_valuation_rates.env_1_1758278869-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-19-13-50.tar.xz",
 
-  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-17-21-50.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-17-21-32.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-17-22-24.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-17-22-58.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-17-22-40.tar.xz",
-  # "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-17-23-16.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-17-21-15.tar.xz",
-  "metrics_valuation_rates.env_2_1758141408-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-17-23-50.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-19-15-39.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-19-15-57.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.3_2025-09-19-16-32.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-19-16-15.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.1_2025-09-19-17-28.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-19-15-03.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-19-17-45.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-19-17-10.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-19-15-22.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-19-16-52.tar.xz",
+  "metrics_valuation_rates.env_1_1758291872-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-19-18-18.tar.xz",
 
-  # "metrics_valuation_rates.env_2_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.1_2025-09-18-08-51.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.2_2025-09-18-06-54.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1-.env.live.4_2025-09-18-07-36.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.2_2025-09-18-08-16.tar.xz",
-  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.3_2025-09-18-07-14.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.2-.env.live.4_2025-09-18-06-18.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.1_2025-09-18-07-56.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.2_2025-09-18-09-57.tar.xz",
-  # "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.3_2025-09-18-09-34.tar.xz",
-  "metrics_valuation_rates.env_1_1758173067-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.3-.env.live.4_2025-09-18-09-14.tar.xz",
   #---
   #---
   #---
@@ -99,11 +141,11 @@ extract_function_name <- function(spans) {
     mutate(
       span.name = case_when(
         span.name == "SpeechToText" ~ "Speech to Text",
-        span.name == "VoskSpeechToText " ~ "Speech to Text (degraded)",
+        span.name == "VoskSpeechToText" ~ "Speech to Text (degraded)",
         span.name == "Sentiment" ~ "Sentiment Analysis",
         span.name == "EndGame" ~ "End Function",
         span.name == "TextToSpeech" ~ "Text to Speech",
-        TRUE ~ span.name
+        TRUE ~ paste0(span.name, " (raw)")
       ),
       span.name = factor(span.name, levels = order)
     )
@@ -117,6 +159,19 @@ extract_env_name <- function(x) {
         env == 2 ~ "Lower load",
         env == 3 ~ "Lower load, more functions",
         TRUE ~ env
+      )
+    )
+}
+
+categorize_nb_nodes <- function(nb_nodes) {
+  nb_nodes %>%
+    mutate(
+      nb_nodes = case_when(
+        nb_nodes < 100 ~ "$<100$",
+        nb_nodes < 200 ~ "$100\\leq x<200$",
+        nb_nodes < 300 ~ "$200\\leq x<300$",
+        nb_nodes < 400 ~ "$300\\leq x<400$",
+        TRUE ~ as.character(nb_nodes)
       )
     )
 }
