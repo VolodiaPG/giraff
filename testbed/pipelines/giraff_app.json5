@@ -16,6 +16,7 @@
             "envVars": {
               "NEW_BUDGET_PER_REQUEST": "<<NEW_BUDGET_PER_REQUEST>>",
               "INITIAL_BUDGET": "<<INITIAL_BUDGET>>",
+              "NO_FALLBACKS": "<<NO_FALLBACKS>>",
               "RELEASE_COOKIE": "<<random>>",
               "DOCKER_REGISTRY": "127.0.0.1:5555",
             }
