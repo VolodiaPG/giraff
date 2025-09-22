@@ -186,7 +186,8 @@ single_ops <- tar_map(
   tar_target(
     name = nb_requests_single,
     command = load_nb_requests(
-      otel_processed_single
+      otel_processed_single,
+      otel_errors_single
     ),
     packages = load_pkgs
   ),

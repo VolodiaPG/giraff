@@ -47,8 +47,8 @@ big_output_otel_fallbacks_plot <- function(
         # timeout ~ "Timeout",
         otel_error ~ "Failure",
         error ~ "Failure",
-        fallbacks > 0 ~ paste("Succes, Degraded with", fallbacks, "fallbacks"),
-        # fallbacks == 0 ~ "Success, Nominal",
+        fallbacks == 1 ~ "Succes, Degraded with 1 fallback",
+        fallbacks == 2 ~ "Succes, Degraded with 2 fallbacks",
         TRUE ~ "Success, Nominal",
       ),
     ) %>%
@@ -79,10 +79,29 @@ big_output_otel_fallbacks_plot <- function(
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
     env_live_extract() %>%
-    categorize_nb_nodes()
+    categorize_nb_nodes() %>%
+    mutate(
+      status = factor(
+        status,
+        levels = c(
+          "Failure",
+          "Total Successes",
+          "Success, Nominal",
+          "Succes, Degraded with 1 fallback",
+          "Succes, Degraded with 2 fallbacks"
+        )
+      )
+    ) %>%
+    mutate(
+      alpha = case_when(
+        status == "Failure" ~ 1,
+        status == "Total Successes" ~ 1,
+        TRUE ~ 0.8
+      )
+    )
 
   df_mean <- df %>%
-    group_by(env_live, nb_nodes, status) %>%
+    group_by(env_live, nb_nodes, status, alpha) %>%
     summarise(
       max_n = max(n),
       min_n = min(n),
@@ -101,7 +120,7 @@ big_output_otel_fallbacks_plot <- function(
     )
 
   df <- df %>%
-    group_by(folder, status, nb_nodes, env_live, run) %>%
+    group_by(folder, status, nb_nodes, env_live, run, alpha) %>%
     summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n)) %>%
     mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
 
@@ -117,16 +136,15 @@ big_output_otel_fallbacks_plot <- function(
     geom_col(
       data = df_mean,
       aes(y = n, fill = env_live),
-      position = position_dodge(width = 0.9),
-      alpha = 0.8,
+      position = position_dodge(width = 0.9)
     ) +
-    geom_errorbar(
-      data = df_mean,
-      aes(ymin = lower.ci, ymax = upper.ci, fill = env_live),
-      position = position_dodge(width = 0.9),
-      alpha = 0.5,
-      width = 0.2
-    ) +
+    # geom_errorbar(
+    #   data = df_mean,
+    #   aes(ymin = lower.ci, ymax = upper.ci, fill = env_live),
+    #   position = position_dodge(width = 0.9),
+    #   alpha = 0.5,
+    #   width = 0.2
+    # ) +
     geom_point(
       alpha = 0.7,
       position = position_dodge(width = 0.9),
@@ -134,8 +152,8 @@ big_output_otel_fallbacks_plot <- function(
     geom_errorbar(
       aes(ymin = lower.se, ymax = upper.se, fill = env_live),
       position = position_dodge(width = 0.9),
-      alpha = 0.5,
-      width = 0
+      alpha = 0.2,
+      width = 0.2
     ) +
     # geom_ribbon(
     #   data = df_mean,
