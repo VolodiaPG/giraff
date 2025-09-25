@@ -9,7 +9,9 @@ from io import TextIOWrapper
 from influxdb_client import InfluxDBClient  # type: ignore
 
 
-def query_chunk_with_retry(client, bucket, measurement_name, start_time, end_time, max_retries=1):
+def query_chunk_with_retry(
+    client, bucket, measurement_name, start_time, end_time, max_retries=1
+):
     """Query a time chunk with retry logic"""
     query = f"""from(bucket:"{bucket}")
                 |> range(start: {start_time}, stop: {end_time})
@@ -34,8 +36,9 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
 
             # Get current time and calculate start time (assuming we want last 24 hours of data)
             end_time = datetime.now()
+            # TODO: Make this configurable
             start_time = end_time - timedelta(hours=1)
-            chunk_duration = timedelta(minutes=3)
+            chunk_duration = timedelta(minutes=1)
 
             for address in addresses:
                 with InfluxDBClient(
@@ -50,7 +53,9 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
                         end_str = current_end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
                         try:
-                            values = query_chunk_with_retry(client, bucket, measurement_name, start_str, end_str)
+                            values = query_chunk_with_retry(
+                                client, bucket, measurement_name, start_str, end_str
+                            )
 
                             if len(values) < 3:
                                 current_start = current_end
@@ -81,7 +86,9 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
                                 writer.writerow(row)
 
                         except Exception as e:
-                            print(f"Failed to query chunk {start_str} to {end_str} for {measurement_name}: {e}")
+                            print(
+                                f"Failed to query chunk {start_str} to {end_str} for {measurement_name}: {e}"
+                            )
 
                         current_start = current_end
 
