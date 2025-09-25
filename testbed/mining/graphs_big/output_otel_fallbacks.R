@@ -136,7 +136,8 @@ big_output_otel_fallbacks_plot <- function(
     geom_col(
       data = df_mean,
       aes(y = n, fill = env_live),
-      position = position_dodge(width = 0.9)
+      position = position_dodge(width = 0.9),
+      alpha = 0.8
     ) +
     # geom_errorbar(
     #   data = df_mean,
@@ -146,13 +147,12 @@ big_output_otel_fallbacks_plot <- function(
     #   width = 0.2
     # ) +
     geom_point(
-      alpha = 0.7,
       position = position_dodge(width = 0.9),
     ) +
     geom_errorbar(
       aes(ymin = lower.se, ymax = upper.se, fill = env_live),
       position = position_dodge(width = 0.9),
-      alpha = 0.2,
+      alpha = 0.3,
       width = 0.2
     ) +
     # geom_ribbon(
@@ -167,6 +167,9 @@ big_output_otel_fallbacks_plot <- function(
     # ) +
     guides(group = "none", linetype = "none") +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    theme(
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    ) +
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",

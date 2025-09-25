@@ -60,20 +60,14 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       width = 0.2
     ) +
     theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
-      title = "Number of functions per application, depending on the number of nodes in the continuum",
+      # title = "Number of functions per application, depending on the number of nodes in the continuum",
       x = "Number of nodes",
-      y = "Number of functions"
+      y = "Number of functions",
+      fill = "Load",
+      color = "Load"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

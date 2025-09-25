@@ -28,26 +28,16 @@ big_output_nb_nodes_plot <- function(node_levels) {
     ),
   ) +
     facet_grid(cols = vars(nb_nodes), scales = "free_x") +
-    # geom_beeswarm() +
-    # geom_quasirandom(method = "tukey") +
-    geom_col() +
+    geom_col(alpha = 0.8) +
     theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      # axis.text.x = element_text(angle k 0, vjust = 1, hjust = 1)
       axis.text.x = element_blank()
     ) +
     labs(
-      title = paste("Number of nodes for each layer of the continuum"),
+      # title = paste("Number of nodes for each layer of the continuum"),
       x = "Runs",
       y = "Nodes (VMs)",
-      color = "Node level"
+      color = "Node level",
+      fill = "Node level"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +

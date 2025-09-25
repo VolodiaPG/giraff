@@ -74,21 +74,11 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       position = position_dodge(width = 0.9),
       width = 0.2
     ) +
-
     theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.position = "none",
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
-      title = paste("Typical Latencies between nodes (symmetric)"),
+      # title = paste("Typical Latencies between nodes (symmetric)"),
       x = "Node level source $\\rightarrow$ destination",
       y = "Latency (s)"
     ) +

@@ -32,17 +32,13 @@ big_output_otel_nb_requests_plot <- function(
       position = position_dodge(width = 0.9)
     ) +
     theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
       x = "Number of nodes",
-      y = "Number of requests"
+      y = "Number of requests",
+      fill = "Load",
+      color = "Load"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

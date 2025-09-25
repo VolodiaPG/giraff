@@ -1168,6 +1168,7 @@ export_graph_tikz <- function(
   )
 
   cat(
+    # sprintf("\\begin{minipage}{\\columnwidth}\n"),
     sprintf("\\resizebox{\\columnwidth}{!}{\n"),
     file = file_conn
   )
@@ -1190,6 +1191,7 @@ export_graph_tikz <- function(
 
   # Close the resizebox
   cat("}\n", file = file_conn)
+  # cat("\\end{minipage}\n", file = file_conn)
 
   # Close the file connection
   close(file_conn)

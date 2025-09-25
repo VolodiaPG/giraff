@@ -48,18 +48,9 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       width = 0.2
     ) +
     theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10),
-      axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
-      title = paste("Typical Latencies of Functions"),
       x = "Function",
       y = "Latency (s)",
       color = "Load",

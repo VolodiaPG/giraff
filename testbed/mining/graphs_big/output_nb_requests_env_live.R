@@ -73,27 +73,8 @@ big_output_nb_requests_env_live_plot <- function(
       ),
       position = position_dodge(width = 0.9),
     ) +
-    # geom_line(
-    #   aes(
-    #     group = interaction(run, env),
-    #     color = env,
-    #     x = env_live,
-    #     y = requests,
-    #   ),
-    #   alpha = 0.7,
-    #   linetype = "dotted",
-    # ) +
-    # geom_hline(yintercept = 0, color = "black", linetype = "solid") +
-    # geom_abline(intercept = 0) +
     theme(
-      # legend.position = "none",
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0)
+      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
       x = "Number of nodes",

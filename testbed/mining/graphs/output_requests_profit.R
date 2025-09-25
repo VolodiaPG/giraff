@@ -54,6 +54,7 @@ output_requests_profit_plot <- function(
     # ) %>%
     left_join(nb_nodes) %>%
     extract_context() %>%
+    filter(env_live != 4) %>%
     env_live_extract() %>%
     extract_env_name() %>%
     group_by(run, nb_nodes, folder, env_live, env) %>%
@@ -88,11 +89,11 @@ output_requests_profit_plot <- function(
       nb_functions = mean(nb_functions)
     )
 
-  # df_runnb <- df %>%
-  #   ungroup() %>%
-  #   select(run) %>%
-  #   distinct() %>%
-  #   mutate(run_label = row_number())
+  df_runnb <- df %>%
+    ungroup() %>%
+    select(run, env) %>%
+    distinct() %>%
+    mutate(run_label = row_number())
 
   max_env_live <- df %>%
     select(env, run, env_live) %>%
@@ -111,9 +112,10 @@ output_requests_profit_plot <- function(
     mutate(alpha = ifelse(nb_run == max_env_live, "Full", "Missing at least 1"))
 
   df <- df %>%
-    # left_join(df_runnb) %>%
+    left_join(df_runnb) %>%
     left_join(keep_runs) %>%
-    ungroup()
+    ungroup() %>%
+    filter(alpha == "Full")
 
   Log(df %>% select(run, nb_run, alpha))
 
@@ -124,20 +126,20 @@ output_requests_profit_plot <- function(
       x = requests,
       color = env_live,
       fill = env_live,
-      size = nb_nodes,
-      # group = folder
-      # label = run_label,
-      alpha = alpha
+      # size = nb_nodes,
+      # alpha = alph
+      label = run_label,
     ),
   ) +
     # facet_grid(cols = vars(env)) +
     # stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
     geom_point(
       # aes(
-      #   size = nb_functions,
+      #   # size = nb_functions,
+      #   # label = run_label,
       # ),
     ) +
-    # geom_text(hjust = 0, nudge_x = 0.2) +
+    geom_text(hjust = 0, nudge_x = 0.02) +
     geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
     geom_vline(xintercept = 0, color = "black", linetype = "dotted") +
     labs(
@@ -148,18 +150,6 @@ output_requests_profit_plot <- function(
       fill = "Application Configuration",
       alpha = "Completness of the run"
     ) +
-    # guides(alpha = "none") +
-    # theme(
-    #   # legend.background = element_rect(
-    #   #   fill = alpha("white", .7),
-    #   #   size = 0.2,
-    #   #   color = alpha("white", .7)
-    #   # ),
-    #   # legend.spacing.y = unit(0, "cm"),
-    #   # legend.margin = margin(0, 0, 0, 0),
-    #   # legend.box.margin = margin(-10, -10, -10, -10)
-    #   # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
-    # ) +
     scale_alpha_discrete(range = c(1, 0.35)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
