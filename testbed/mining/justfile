@@ -2,10 +2,8 @@
 _default: make
 
 make:
-    @mkdir -p /tmp/R-giraff
-    @ln -s /tmp/R-giraff ./cache || true
-    mkdir -p /tmp/R-giraff-out
-    ln -s /tmp/R-giraff-out ./out || true
+    mkdir ./cache || true
+    mkdir ./out || true
     @echo -e "\033[1;33mstarting...\033[0m" >> logs.fifo
     Rscript make.R || (echo -e "\033[1;31mERR\033[0m" >> logs.fifo ; false)
     @echo -e "\033[1;32mdone\033[0m"

@@ -84,22 +84,12 @@ big_pressure_fallbacks_plot <- function(
   ) +
     facet_grid(cols = vars(status)) +
     geom_boxplot(position = position_dodge2()) +
-    theme(
-      # legend.position = "none",
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0)
-    ) +
     guides(group = "none") +
     scale_y_continuous(labels = scales::percent) +
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",
-      fill = "Application Variation"
+      fill = "Application Configuration"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

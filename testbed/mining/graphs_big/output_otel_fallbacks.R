@@ -165,23 +165,13 @@ big_output_otel_fallbacks_plot <- function(
     #   # position = position_dodge(width = 0.9),
     #   alpha = 0.2
     # ) +
-    theme(
-      # legend.position = "none",
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0)
-    ) +
     guides(group = "none", linetype = "none") +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",
-      fill = "Application Variation",
-      color = "Application Variation"
+      fill = "Application Configuration",
+      color = "Application Configuration"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

@@ -1,45 +1,43 @@
 big_output_pressure_plot <- function(
-  spans,
+  nb_requests,
   nb_nodes
 ) {
-  df <- spans %>%
-    ungroup() %>%
-    filter(span.name == "start_processing_requests") %>%
-    select(folder, service.namespace, metric_group, trace_id) %>%
-    distinct() %>%
+  df <- nb_requests %>%
+    group_by(folder, metric_group) %>%
+    summarise(requests = sum(success), .groups = "drop") %>%
     extract_context() %>%
-    group_by(folder, service.namespace, env, env_live) %>%
-    summarise(requests = n()) %>%
     left_join(nb_nodes, by = c("folder")) %>%
-    mutate(nb_nodes = factor(nb_nodes)) %>%
     env_live_extract() %>%
-    filter(pressure == TRUE)
+    categorize_nb_nodes()
+
+  df_mean <- df %>%
+    group_by(env_live, nb_nodes) %>%
+    summarise(requests = mean(requests))
 
   ggplot(
     data = df,
     aes(
       x = nb_nodes,
       y = requests,
-      fill = env_live,
-      group = folder
     )
   ) +
-    geom_boxplot(position = position_dodge()) +
-    theme(
-      # legend.position = "none",
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0)
+    facet_grid(cols = vars(env)) +
+    geom_col(
+      data = df_mean,
+      aes(fill = env_live),
+      alpha = 0.8,
+      position = position_dodge(width = 0.9)
+    ) +
+    geom_point(
+      aes(color = env_live),
+      position = position_dodge(width = 0.9)
     ) +
     guides(group = "none") +
     labs(
       x = "Number of nodes",
-      y = "Number of requests",
-      fill = "Application Variation"
+      y = "Number of successful requests",
+      fill = "Application Configuration",
+      color = "Application Configuration"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

@@ -1,18 +1,14 @@
 output_requests_profit_plot <- function(
-  spans,
+  profit,
   nb_requests,
   nb_nodes,
   nb_functions
 ) {
-  df <- spans %>%
-    group_by(folder, service.namespace, metric_group) %>%
-    select(folder, metric_group, service.namespace, budget, timestamp) %>%
-    filter(!is.na(budget)) %>%
-    arrange(timestamp) %>%
-    summarise(profit = last(budget) - first(budget)) %>%
+  Log(colnames(nb_requests))
+  df <- profit %>%
     left_join(
       nb_requests %>%
-        mutate(requests = success) %>%
+        mutate(requests = success / requests) %>%
         select(folder, requests)
     ) %>%
     left_join(nb_functions)
@@ -22,34 +18,35 @@ output_requests_profit_plot <- function(
   # mutate(profit = profit / requests)
   # mutate(profit = profit / requests / nb_functions)
   # mutate(profit = profit)
-
-  center <- df %>%
-    group_by(folder) %>%
-    summarise(
-      mean = mean(profit),
-      sd = sd(profit),
-      mean_requests = mean(requests),
-      sd_requests = sd(requests),
-      mean_nb_functions = mean(nb_functions),
-      sd_nb_functions = sd(nb_functions),
-      nb = n()
-    ) %>%
-    mutate(
-      se = sd / sqrt(nb),
-      lower.ci = mean - qnorm(0.975) * se,
-      upper.ci = mean + qnorm(0.975) * se
-    )
+  #
+  # center <- df %>%
+  #   group_by(folder) %>%
+  #   summarise(
+  #     mean = mean(profit),
+  #     sd = sd(profit),
+  #     mean_requests = mean(requests),
+  #     sd_requests = sd(requests),
+  #     mean_nb_functions = mean(nb_functions),
+  #     sd_nb_functions = sd(nb_functions),
+  #     nb = n()
+  #   ) %>%
+  #   mutate(
+  #     se = sd_requests / sqrt(nb),
+  #     lower.ci = mean_requests - qnorm(0.975) * se,
+  #     upper.ci = mean_requests + qnorm(0.975) * se
+  #   )
 
   df <- df %>%
-    left_join(center) %>%
-    mutate(
-      ci = case_when(
-        profit < lower.ci ~ "below",
-        profit > upper.ci ~ "above",
-        TRUE ~ "within"
-      ),
-      ci = factor(ci, levels = c("below", "within", "above"))
-    ) %>%
+    # left_join(center) %>%
+    # rowwise() %>%
+    # mutate(
+    #   ci = case_when(
+    #     profit < lower.ci ~ "below",
+    #     profit > upper.ci ~ "above",
+    #     TRUE ~ "within"
+    #   ),
+    #   ci = factor(ci, levels = c("below", "within", "above"))
+    # ) %>%
     # mutate(profit = (profit - mean) / sd) %>%
     # mutate(requests = (requests - mean_requests) / sd_requests) %>%
     # mutate(
@@ -59,7 +56,7 @@ output_requests_profit_plot <- function(
     extract_context() %>%
     env_live_extract() %>%
     extract_env_name() %>%
-    group_by(run, nb_nodes, folder, env_live, ci, env) %>%
+    group_by(run, nb_nodes, folder, env_live, env) %>%
     summarise(
       profit = mean(profit),
       requests = mean(requests),
@@ -67,7 +64,7 @@ output_requests_profit_plot <- function(
     )
 
   df_center <- df %>%
-    group_by(run) %>%
+    group_by(run, env) %>%
     summarise(
       mean = mean(profit),
       sd = sd(profit),
@@ -84,46 +81,86 @@ output_requests_profit_plot <- function(
       requests = (requests - mean_requests) / sd_requests,
       nb_functions = (nb_functions - mean_nb_functions) / sd_nb_functions
     ) %>%
-    group_by(run, nb_nodes, env_live, ci, env) %>%
+    group_by(run, nb_nodes, env_live, env) %>%
     summarise(
       profit = mean(profit),
       requests = mean(requests),
       nb_functions = mean(nb_functions)
     )
 
+  # df_runnb <- df %>%
+  #   ungroup() %>%
+  #   select(run) %>%
+  #   distinct() %>%
+  #   mutate(run_label = row_number())
+
+  max_env_live <- df %>%
+    select(env, run, env_live) %>%
+    group_by(env, run) %>%
+    summarise(nb_envlive = n(), .groups = "drop") %>%
+    group_by(env) %>%
+    summarise(max_env_live = max(nb_envlive), .groups = "drop")
+
+  keep_runs <- df %>%
+    ungroup() %>%
+    select(run, env, env_live) %>%
+    distinct() %>%
+    group_by(run, env) %>%
+    summarise(nb_run = n(), .groups = "drop") %>%
+    left_join(max_env_live) %>%
+    mutate(alpha = ifelse(nb_run == max_env_live, "Full", "Missing at least 1"))
+
+  df <- df %>%
+    # left_join(df_runnb) %>%
+    left_join(keep_runs) %>%
+    ungroup()
+
+  Log(df %>% select(run, nb_run, alpha))
+
   ggplot(
     data = df,
     aes(
       y = profit,
       x = requests,
-      size = nb_functions,
       color = env_live,
       fill = env_live,
+      size = nb_nodes,
       # group = folder
+      # label = run_label,
+      alpha = alpha
     ),
   ) +
-    facet_grid(env ~ ci) +
-    stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
-    geom_point(alpha = 0.8) +
-    # geom_smooth(method = "lm") +
-    # facet_grid(benefit ~ env_live) +
-    # geom_boxplot(position = position_dodge2()) +
-    # geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
-    # labs(
-    #   x = "Number of nodes",
-    #   y = "Centered-reduced profit"
-    # ) +
-    theme(
-      legend.background = element_rect(
-        fill = alpha("white", .7),
-        size = 0.2,
-        color = alpha("white", .7)
-      ),
-      legend.spacing.y = unit(0, "cm"),
-      legend.margin = margin(0, 0, 0, 0),
-      legend.box.margin = margin(-10, -10, -10, -10)
-      # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+    # facet_grid(cols = vars(env)) +
+    # stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
+    geom_point(
+      # aes(
+      #   size = nb_functions,
+      # ),
     ) +
+    # geom_text(hjust = 0, nudge_x = 0.2) +
+    geom_hline(yintercept = 0, color = "black", linetype = "dotted") +
+    geom_vline(xintercept = 0, color = "black", linetype = "dotted") +
+    labs(
+      x = "Centered-reduced ratio of successful requests",
+      y = "Centered-reduced profit",
+      size = "Number of nodes",
+      color = "Application Configuration",
+      fill = "Application Configuration",
+      alpha = "Completness of the run"
+    ) +
+    # guides(alpha = "none") +
+    # theme(
+    #   # legend.background = element_rect(
+    #   #   fill = alpha("white", .7),
+    #   #   size = 0.2,
+    #   #   color = alpha("white", .7)
+    #   # ),
+    #   # legend.spacing.y = unit(0, "cm"),
+    #   # legend.margin = margin(0, 0, 0, 0),
+    #   # legend.box.margin = margin(-10, -10, -10, -10)
+    #   # axis.text.x = element_text(angle = 90, vjust = 1, hjust = 1)
+    # ) +
+    scale_alpha_discrete(range = c(1, 0.35)) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
 }

@@ -147,6 +147,11 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
+    name = otel_profit_single,
+    command = load_profit(otel_processed_single),
+    packages = load_pkgs
+  ),
+  tar_target(
     name = flame_func_single,
     command = flame_functions(
       otel_processed_single
@@ -340,7 +345,7 @@ combined_graphs <-
     tar_target(
       name = big_pressure_graph,
       command = wrap_graph(big_output_pressure_plot(
-        otel_processed,
+        nb_requests,
         nb_nodes
       )),
       packages = graph_pkgs
@@ -386,7 +391,7 @@ combined_graphs <-
     tar_target(
       name = output_requests_profit_graph,
       command = wrap_graph(output_requests_profit_plot(
-        otel_processed,
+        otel_profit,
         nb_requests,
         nb_nodes,
         nb_functions
@@ -396,6 +401,7 @@ combined_graphs <-
     tar_target(
       name = big_output_nb_requests_env_live_graph,
       command = wrap_graph(big_output_nb_requests_env_live_plot(
+        otel_profit,
         nb_requests,
         nb_nodes
       )),

@@ -1125,8 +1125,7 @@ export_graph_tikz <- function(
 
   plot_graph <- plot_graph +
     ggplot2::theme(
-      title = ggplot2::element_blank(),
-
+      # title = ggplot2::element_blank(),
       # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
       # panel.spacing = ggplot2::unit(0, "pt"),
       # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
@@ -1137,10 +1136,13 @@ export_graph_tikz <- function(
     plot_graph <- plot_graph +
       theme(
         legend.position = "top",
-        legend.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-        legend.box.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-        legend.spacing = ggplot2::unit(2, "pt")
-      )
+        legend.box = "vertical",
+        legend.margin = ggplot2::margin(),
+        legend.box.margin = ggplot2::margin(),
+        legend.spacing = ggplot2::unit(0, "pt"),
+        legend.justification = c(0, 0.8)
+      ) +
+      guides(col = guide_legend(nrow = 2, byrow = TRUE))
   }
   plot_graph <- plot_graph +
     theme(
