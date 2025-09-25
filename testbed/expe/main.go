@@ -283,7 +283,7 @@ func putRequestFogNode(ctx context.Context, function Function) ([]byte, int, err
 			}
 
 			if value == "" {
-				logger.Ctx(ctx).Error("Env variable is empty", zap.String("key", key))
+				logger.Ctx(ctx).Warn("Env variable is empty", zap.String("key", key))
 			}
 
 			envVars = append(envVars, []string{key, value})
