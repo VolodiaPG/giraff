@@ -1,0 +1,79 @@
+text_workload_characteristics <- function(
+  nb_functions,
+  nb_requests,
+  durations
+) {
+  functions <- nb_functions %>%
+    ungroup() %>%
+    summarise(avg = mean(nb_functions), max = max(nb_functions))
+
+  write(round(functions %>% pull(avg), 1), file = "out/avg_functions.txt")
+  write(functions %>% pull(max), file = "out/max_functions.txt")
+
+  total_functions <- nb_functions %>%
+    group_by(folder) %>%
+    summarise(total = sum(nb_functions)) %>%
+    ungroup() %>%
+    summarise(min = min(total), max = max(total))
+
+  write(total_functions %>% pull(min), file = "out/min_total_functions.txt")
+  write(total_functions %>% pull(max), file = "out/max_total_functions.txt")
+
+  total_functions <- nb_functions %>%
+    group_by(folder, run, env) %>%
+    summarise(total = sum(nb_functions)) %>%
+    group_by(run, env) %>%
+    summarise(min = min(total), max = max(total)) %>%
+    mutate(span = max / min) %>%
+    ungroup() %>%
+    summarise(span = max(span))
+
+  write(
+    total_functions %>% pull(span) %>% round(1),
+    file = "out/span_total_functions.txt"
+  )
+
+  total_requests <- nb_requests %>%
+    group_by(folder) %>%
+    summarise(total = sum(requests)) %>%
+    ungroup() %>%
+    summarise(min = min(total), max = max(total))
+
+  write(total_requests %>% pull(min), file = "out/min_total_requests.txt")
+  write(total_requests %>% pull(max), file = "out/max_total_requests.txt")
+
+  total_requests <- nb_requests %>%
+    left_join(durations) %>%
+    mutate(throughput = requests / as.numeric(duration)) %>%
+    ungroup() %>%
+    summarise(min = min(throughput), max = max(throughput))
+
+  write(
+    total_requests %>% pull(min) %>% round(1),
+    file = "out/min_throughput.txt"
+  )
+  write(
+    total_requests %>% pull(max) %>% round(1),
+    file = "out/max_throughput.txt"
+  )
+
+  successes <- nb_requests %>%
+    mutate(successes = success / requests * 100) %>%
+    ungroup() %>%
+    summarize(
+      mean_success = mean(successes),
+      n = n(),
+      std_dev = sd(successes),
+      margin_error = qt(0.975, df = n - 1) * std_dev / sqrt(n),
+      lower_ci = mean_success - margin_error,
+      upper_ci = mean_success + margin_error
+    )
+
+  mean_success <- successes %>% pull(mean_success) %>% round(1)
+  success_margin_error <- successes %>% pull(margin_error) %>% round(1)
+
+  write(
+    paste0(mean_success, "\\% \\pm ", success_margin_error, "\\%"),
+    file = "out/mean_success.txt"
+  )
+}

@@ -17,8 +17,8 @@ output_otel_budget_plot <- function(spans) {
     ) %>%
     mutate(attributes = lapply(attributes, fromJSON)) %>%
     unnest_wider(attributes) %>%
-    select(folder, timestamp, budget, service.namespace) %>%
-    filter(!is.na(budget))
+    select(folder, timestamp, new_budget, service.namespace) %>%
+    filter(!is.na(new_budget))
 
   # Log(df %>% sample_n(5))
   #
@@ -26,7 +26,7 @@ output_otel_budget_plot <- function(spans) {
     data = df,
     aes(
       x = timestamp,
-      y = budget,
+      y = new_budget,
       color = service.namespace,
     )
   ) +

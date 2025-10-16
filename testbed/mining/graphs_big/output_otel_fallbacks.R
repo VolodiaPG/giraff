@@ -44,7 +44,7 @@ big_output_otel_fallbacks_plot <- function(
     ) %>%
     mutate(
       status = case_when(
-        # timeout ~ "Timeout",
+        timeout ~ "Failure",
         otel_error ~ "Failure",
         error ~ "Failure",
         fallbacks == 1 ~ "Succes, Degraded with 1 fallback",
@@ -76,9 +76,11 @@ big_output_otel_fallbacks_plot <- function(
   df <- df %>%
     bind_rows(total_successes) %>%
     mutate(n = n / total) %>%
+    filter(!is.na(n)) %>%
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
     env_live_extract() %>%
+    extract_env_name() %>%
     categorize_nb_nodes() %>%
     mutate(
       status = factor(
@@ -100,8 +102,14 @@ big_output_otel_fallbacks_plot <- function(
       )
     )
 
+  anova_model <- aov(n ~ env_live * env * status, data = df)
+  tukey_result <- TukeyHSD(anova_model)
+
+  cld <- multcompLetters4(anova_model, tukey_result)
+  letters <- data.frame(cld$`env_live`$Letters)
+
   df_mean <- df %>%
-    group_by(env_live, nb_nodes, status, alpha) %>%
+    group_by(env_live, status, env, alpha) %>%
     summarise(
       max_n = max(n),
       min_n = min(n),
@@ -117,17 +125,20 @@ big_output_otel_fallbacks_plot <- function(
     rowwise() %>%
     mutate(
       lower.ci = max(0, lower.ci),
-    )
+    ) %>%
+    arrange(desc(profit_per_request))
+
+  df_mean$letters <- letters$cld.env_live.env.status.Letters
 
   df <- df %>%
-    group_by(folder, status, nb_nodes, env_live, run, alpha) %>%
+    group_by(folder, status, env, env_live, run, alpha) %>%
     summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n)) %>%
     mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
 
   ggplot(
     data = df,
     aes(
-      x = nb_nodes,
+      x = env,
       y = n,
       group = env_live
     )
@@ -147,6 +158,7 @@ big_output_otel_fallbacks_plot <- function(
     #   width = 0.2
     # ) +
     geom_point(
+      aes(color = env_live),
       position = position_dodge(width = 0.9),
     ) +
     geom_errorbar(
@@ -155,6 +167,13 @@ big_output_otel_fallbacks_plot <- function(
       alpha = 0.3,
       width = 0.2
     ) +
+    # geom_text(
+    #   data = df_mean,
+    #   aes(label = letters, group = env_live),
+    #   position = position_dodge(width = 0.9),
+    #   vjust = -0.5,
+    #   size = 5
+    # ) +
     # geom_ribbon(
     #   data = df_mean,
     #   aes(ymin = lower.ci, ymax = upper.ci, fill = env_live),
@@ -166,7 +185,7 @@ big_output_otel_fallbacks_plot <- function(
     #   alpha = 0.2
     # ) +
     guides(group = "none", linetype = "none") +
-    scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    # scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +

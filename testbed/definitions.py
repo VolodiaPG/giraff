@@ -317,7 +317,7 @@ service:
 """
 
 NB_CPU_PER_MACHINE_PER_CLUSTER = {
-    "gros": {"core": (2 * 18), "mem": 1024 * 96},
+    "gros": {"core": (2 * 18) - 1, "mem": 1024 * 96},
     # "paravance": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     "parasilo": {"core": (2 * 8 * 2), "mem": 1024 * 128},
     "ecotype": {"core": (2 * 10 * 2), "mem": 1024 * 128},
@@ -381,23 +381,23 @@ def additional_env_vars(level):
 
 
 TIER_4_FLAVOR = {
-    "core": 8,
-    "mem": 1024 * 7,
-    "reserved_core": 8,
+    "core": 6,
+    "mem": 1024 * 8,
+    "reserved_core": 6,
     "reserved_mem": 1024 * 7,
     "additional_env_vars": additional_env_vars(3),
 }
 TIER_3_FLAVOR = {
     "core": 8,
     "mem": 1024 * 16,
-    "reserved_core": 7,
+    "reserved_core": 8,
     "reserved_mem": 1024 * 15,
     "additional_env_vars": additional_env_vars(2),
 }
 TIER_2_FLAVOR = {
     "core": 16,
     "mem": 1024 * 32,
-    "reserved_core": 15,
+    "reserved_core": 16,
     "reserved_mem": 1024 * 31,
     "additional_env_vars": additional_env_vars(1),
 }
@@ -405,7 +405,7 @@ TIER_1_FLAVOR = {
     "is_cloud": True,
     "core": 34,
     "mem": 1024 * 80,
-    "reserved_core": 33,
+    "reserved_core": 34,
     "reserved_mem": 1024 * 78,
     "additional_env_vars": additional_env_vars(0),
 }
@@ -440,8 +440,7 @@ def generate_level(
     def inner(depth: int = 1) -> List[Dict[str, Any]]:
         ret: List[Dict] = []
         global uuid
-        first = True
-        for _ in range(
+        for ii in range(
             0, random.randint(math.ceil(nb_nodes[0]), math.ceil(nb_nodes[1]))
         ):
             uuid += 1
@@ -459,8 +458,7 @@ def generate_level(
             }
             if modifiers:
                 for mod in modifiers:
-                    mod(city, first)
-            first = False
+                    mod(city, ii)
             ret.append(city)
         return ret
 
@@ -472,19 +470,29 @@ def set_cloud(dd: Dict, *_):
 
 
 def set_iot_connected(keep_one_in: int):
-    def set_connected(dd: Dict, first: bool):
-        if first or random.randint(1, keep_one_in) == 1:
+    def set_connected(dd: Dict, ii: int):
+        if ii == 0 or random.randint(1, keep_one_in) == 1:
             dd["iot_connected"] = 0
 
     return set_connected
 
 
 def drop_children(keep_one_in: int = 1):
-    def drop(dd: Dict, first: bool):
-        if first:
+    def drop(dd: Dict, ii: int):
+        if ii == 0:
             return
         if random.randint(1, keep_one_in) != 1:
             dd["children"] = []
+
+    return drop
+
+
+def keep_children(keep: int = 1):
+    def drop(dd: Dict, ii: int):
+        if ii < keep:
+            return
+
+        dd["children"] = []
 
     return drop
 
@@ -524,41 +532,41 @@ def network_generation():
         "loss": 0,
         "children": generate_level(
             TIER_1_FLAVOR,
-            nb_nodes=(1, int(3 * 4 * SIZE_MULTIPLIER / 4)),
+            nb_nodes=(1, 4),  # int(3 * 4 * SIZE_MULTIPLIER / 4)),
             latencies=(1, 3),
             rates=(ONE_GBIT, ONE_GBIT),
-            modifiers=[set_cloud, drop_children(keep_one_in=6)],
+            modifiers=[set_cloud, keep_children(keep=1)],
             losses=(1, 2),
             next_lvl=generate_level(
                 TIER_2_FLAVOR,
-                nb_nodes=(3, int(6 * 3 * SIZE_MULTIPLIER / 3)),
-                latencies=(10, 22),
+                nb_nodes=(1, 3),  # int(6 * 3 * SIZE_MULTIPLIER / 3)),
+                latencies=(15, 30),
                 rates=(500 * ONE_MBIT, ONE_GBIT),
                 losses=(1, 2),
                 modifiers=[
-                    drop_children(keep_one_in=8)
+                    keep_children(keep=SIZE_MULTIPLIER),
                     # flavor_randomizer_cpu([0, 4]),
                     # flavor_randomizer_mem([0, 4]),
                 ],
                 next_lvl=generate_level(
                     TIER_3_FLAVOR,
                     nb_nodes=(4, int(8 * 2 * SIZE_MULTIPLIER / 2)),
-                    latencies=(20, 40),
+                    latencies=(15, 30),
                     rates=(100 * ONE_MBIT, ONE_GBIT),
-                    losses=(5, 10),
+                    losses=(1, 10),
                     modifiers=[
-                        drop_children(keep_one_in=3),
+                        keep_children(keep=4 * SIZE_MULTIPLIER),
                         flavor_randomizer_cpu([0, 2]),
                         flavor_randomizer_mem([0, 2]),
                     ],
                     next_lvl=generate_level(
                         TIER_4_FLAVOR,
-                        nb_nodes=(10, int(20 * SIZE_MULTIPLIER)),
-                        latencies=(1, 3),
+                        nb_nodes=(4, int(8 * SIZE_MULTIPLIER)),
+                        latencies=(5, 10),
                         rates=(10 * ONE_MBIT, ONE_GBIT),
-                        losses=(1, 2),
+                        losses=(1, 10),
                         modifiers=[
-                            set_iot_connected(keep_one_in=4),
+                            set_iot_connected(keep_one_in=2),
                             flavor_randomizer_mem([0, 2]),
                             flavor_randomizer_cpu([0, 2]),
                         ],

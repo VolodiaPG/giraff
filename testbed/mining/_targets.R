@@ -21,7 +21,8 @@ source("commongraphs.R")
 files <- c(
   list.files(file.path("graphs/"), pattern = "\\.R$", full.names = TRUE),
   list.files(file.path("graphs_big/"), pattern = "\\.R$", full.names = TRUE),
-  list.files(file.path("loaders/"), pattern = "\\.R$", full.names = TRUE)
+  list.files(file.path("loaders/"), pattern = "\\.R$", full.names = TRUE),
+  list.files(file.path("text/"), pattern = "\\.R$", full.names = TRUE)
 )
 for (file in files) {
   source(file)
@@ -66,7 +67,9 @@ graph_pkgs <- c(
   "igraph",
   "viridis",
   "patchwork",
-  "ggbeeswarm"
+  "ggbeeswarm",
+  "rstatix",
+  "ggpubr"
 )
 
 graph_html_pkgs <- c(
@@ -84,7 +87,7 @@ latex_pkgs <- c(
 tar_option_set(
   packages = core_pkgs, # Packages that your targets need for their tasks.
   format = "qs", # Optionally set the default storage format. qs is fast.
-  controller = crew::crew_controller_local(workers = all_workers), # Use workers from config.R
+  controller = crew::crew_controller_local(workers = workers), # Use workers from config.R
 )
 
 single_ops <- tar_map(
@@ -106,11 +109,11 @@ single_ops <- tar_map(
     command = load_bids_raw(ark),
     packages = load_pkgs
   ),
-  tar_target(
-    name = provisioned_sla_single,
-    command = load_provisioned_sla(ark),
-    packages = load_pkgs
-  ),
+  # tar_target(
+  #   name = provisioned_sla_single,
+  #   command = load_provisioned_sla(ark),
+  #   packages = load_pkgs
+  # ),
   tar_target(
     name = functions_single,
     command = load_functions(ark),
@@ -142,10 +145,15 @@ single_ops <- tar_map(
     packages = load_pkgs
   ),
   tar_target(
-    name = bids_won_function_single,
-    command = load_bids_won_function(bids_raw_single, provisioned_sla_single),
+    name = otel_duration_single,
+    command = load_otel_duration(otel_processed_single),
     packages = load_pkgs
   ),
+  # tar_target(
+  #   name = bids_won_function_single,
+  #   command = load_bids_won_function(bids_raw_single, provisioned_sla_single),
+  #   packages = load_pkgs
+  # ),
   tar_target(
     name = otel_profit_single,
     command = load_profit(otel_processed_single),
@@ -235,11 +243,11 @@ single_ops <- tar_map(
     )),
     packages = graph_pkgs
   ),
-  tar_target(
-    name = output_otel_sla_duration_graph,
-    command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
-    packages = graph_pkgs
-  ),
+  # tar_target(
+  #   name = output_otel_sla_duration_graph,
+  #   command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
+  #   packages = graph_pkgs
+  # ),
   tar_target(
     name = output_otel_duration_latency_graph,
     command = wrap_graph(output_otel_duration_latency_plot(
@@ -310,9 +318,14 @@ combined_graphs <-
     ),
     tar_target(
       name = big_otel_budget_graph,
-      command = wrap_graph(big_output_otel_budget_plot(
-        otel_processed
-      )),
+      command = wrap_graph(
+        big_output_otel_budget_plot(
+          otel_profit,
+          nb_requests,
+          nb_nodes,
+          nb_functions
+        )
+      ),
       packages = graph_pkgs
     ),
     tar_target(
@@ -406,6 +419,23 @@ combined_graphs <-
         nb_nodes
       )),
       packages = graph_pkgs
+    ),
+    # Text outputs
+    tar_target(
+      name = text_output_nb_functions,
+      command = text_workload_characteristics(
+        nb_functions,
+        nb_requests,
+        otel_duration
+      ),
+      packages = core_pkgs
+    ),
+    tar_target(
+      name = text_profit,
+      command = text_profit_output(
+        otel_profit
+      ),
+      packages = core_pkgs
     )
   )
 
@@ -502,8 +532,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_requests_env_live_graph,
         GRAPH_TWO_COLUMN_WIDTH / 3,
-        GRAPH_ONE_COLUMN_HEIGHT,
-        TRUE
+        GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
     )

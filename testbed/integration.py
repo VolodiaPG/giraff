@@ -633,6 +633,13 @@ def iot_emulation(env: EnosEnv = None, **kwargs):
             background=True,
         )
 
+        # check if jaeger and iot are running
+        # p.shell(
+        #     'while [ "$(docker inspect -f \'{{.State.Status}}\' iot_emulation)" != "running" ]; do sleep 1; done',
+        #     task_name="Waiting for jaeger and iot to be running",
+        # )
+        #
+
 
 @cli.command()  # type: ignore
 @enostask()
@@ -930,16 +937,29 @@ def collect(address=None, **kwargs):
     archive = f"{prefix_dir}/metrics_{prefix_filename}_{today}.tar.xz"
     measurements = set()
     for address in addresses:
-        with InfluxDBClient(url="http://" + address, token=token, org=org) as client:
-            query = f"""import "influxdata/influxdb/schema"
-                schema.measurements(bucket: "{bucket}")
-            """
-            tables = client.query_api().query(query)
-            measurements.update([list(value)[2] for value in tables.to_values()])
+        max_retries = 3
+        for attempt in range(max_retries + 1):
+            try:
+                with InfluxDBClient(
+                    url="http://" + address, token=token, org=org
+                ) as client:
+                    query = f"""import "influxdata/influxdb/schema"
+                      schema.measurements(bucket: "{bucket}")
+                  """
+                    tables = client.query_api().query(query)
+                    measurements.update(
+                        [list(value)[2] for value in tables.to_values()]
+                    )
+                    break
+            except Exception as e:
+                if attempt >= max_retries:
+                    raise e
+                time.sleep(10)
+
     print(measurements)
     manager = mp.Manager()
     queue = manager.Queue()
-    pool = mp.Pool(8)
+    pool = mp.Pool(128)
 
     # put listener to work first
     pool.apply_async(listener, (queue, archive))
@@ -956,20 +976,23 @@ def collect(address=None, **kwargs):
 
     # collect results from the workers through the pool result queue
     for job in jobs:
-        if job is not None:
-            job.get()
+        job.get()
 
     queue.put("kill")
     pool.close()
     pool.join()
 
-    print(f"Finished writing archive {archive}")
+    env = os.environ.copy()
+    env["XZ_OPT"] = "-9"
 
-    try:
-        os.remove("latest_metrics.tar.xz")
-    except (FileExistsError, FileNotFoundError):
-        pass
-    os.symlink(archive, "latest_metrics.tar.xz")
+    subprocess.run(
+        ["tar", "-cvJf", archive, "-C", f"{archive}.d/", "."],
+        env=env,
+    )
+
+    shutil.rmtree(f"{archive}.d")
+
+    print(f"Finished writing archive {archive}")
 
 
 @cli.command()  # type: ignore

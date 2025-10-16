@@ -1,6 +1,5 @@
 import csv
 import os
-import tarfile
 import tempfile
 import time
 from datetime import datetime, timedelta
@@ -23,9 +22,9 @@ def query_chunk_with_retry(
             tables = client.query_api().query_csv(query)
             return tables.to_values()
         except Exception as e:
-            if attempt == max_retries:
+            if attempt >= max_retries:
                 raise e
-            time.sleep(1)  # Wait 1 second before retry
+            time.sleep(10)
 
 
 def worker(queue, addresses, token, bucket, org, measurement_name):
@@ -52,63 +51,82 @@ def worker(queue, addresses, token, bucket, org, measurement_name):
                         start_str = current_start.strftime("%Y-%m-%dT%H:%M:%SZ")
                         end_str = current_end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-                        try:
-                            values = query_chunk_with_retry(
-                                client, bucket, measurement_name, start_str, end_str
-                            )
+                        values = query_chunk_with_retry(
+                            client, bucket, measurement_name, start_str, end_str
+                        )
 
-                            if len(values) < 3:
-                                current_start = current_end
+                        if len(values) < 3:
+                            current_start = current_end
+                            continue
+                        values = values[3:]
+
+                        if len(values) == 0:
+                            current_start = current_end
+                            continue
+
+                        header = values[0]
+                        if write_headers:
+                            writer.writerow(header)
+                            write_headers = False
+
+                        values = values[1:]
+
+                        remove_next = False
+                        for row in values:
+                            if row[0].startswith("#"):
+                                remove_next = True
                                 continue
-                            values = values[3:]
 
-                            if len(values) == 0:
-                                current_start = current_end
+                            if remove_next:
+                                remove_next = False
                                 continue
 
-                            header = values[0]
-                            if write_headers:
-                                writer.writerow(header)
-                                write_headers = False
-
-                            values = values[1:]
-
-                            remove_next = False
-                            for row in values:
-                                if row[0].startswith("#"):
-                                    remove_next = True
-                                    continue
-
-                                if remove_next:
-                                    remove_next = False
-                                    continue
-
-                                writer.writerow(row)
-
-                        except Exception as e:
-                            print(
-                                f"Failed to query chunk {start_str} to {end_str} for {measurement_name}: {e}"
-                            )
+                            writer.writerow(row)
 
                         current_start = current_end
 
-        tmpfile.close()  # Close before sending to threads
+        # tmpfile.close()  # Close before sending to threads
+        print("spans done,", tmpfile.name)
         queue.put((measurement_name, tmpfile.name))
 
 
 def listener(queue, filepath):
-    with tarfile.open(filepath, "w:xz", preset=9) as tar:  # type: ignore
-        while True:
-            m = queue.get()
-            if m == "kill":
-                break
+    import shutil
 
-            metrixName, tmpfile_name = m
+    arkdir = f"{filepath}.d"
+    os.mkdir(arkdir)
+    while True:
+        m = queue.get()
+        print(m)
+        if m == "kill":
+            break
 
-            tarinfo = tarfile.TarInfo(f"{metrixName}.csv")
-            tarinfo.size = os.path.getsize(tmpfile_name)
-            tarinfo.mtime = int(os.path.getmtime(tmpfile_name))
-            with open(tmpfile_name, "rb") as tmpfile:
-                tar.addfile(tarinfo, tmpfile)
+        metrixName, tmpfile_name = m
+        new_file = shutil.copy(tmpfile_name, arkdir)
+        os.rename(
+            new_file,
+            os.path.join(arkdir, f"{metrixName}.csv"),
+        )
 
-            os.remove(tmpfile_name)
+        # try:
+        #     with tarfile.open(filepath, "w:xz") as tar:  # type: ignore
+        #         tar.add(tmpfile_name)
+        # except Exception:
+        #     pass
+
+    # with tarfile.open(filepath, "w:zst") as tar:  # type: ignore
+    #     while True:
+    #         m = queue.get()
+    #         if m == "kill":
+    #             break
+    #
+    # metrixName, tmpfile_name = m
+    # tar.add(tmpfile_name)
+
+    # tarinfo = tarfile.TarInfo(f"{metrixName}.csv")
+    # tarinfo.size = os.path.getsize(tmpfile_name)
+    # tarinfo.mtime = int(os.path.getmtime(tmpfile_name))
+    # with open(tmpfile_name, "rb") as tmpfile:
+    #     tar.addfile(tarinfo, tmpfile)
+
+    # os.remove(tmpfile_name)

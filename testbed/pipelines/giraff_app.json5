@@ -10,7 +10,7 @@
             "cpu": 500,
             "input_max_size": "1 b",
             "latency": "LOW_LATENCY",
-            "expectedRequestIntervalMs": 500,
+            "expectedRequestIntervalMs": 50,
             "replicas": 1,
             "envProcess": "server",
             "envVars": {

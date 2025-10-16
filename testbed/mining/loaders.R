@@ -115,7 +115,7 @@ load_functions <- function(ark) {
         status = character(0),
         n = numeric(0)
       )
-      Log(paste0("cannot get refused gauge functions for ", ark))
+      # Log(paste0("cannot get refused gauge functions for ", ark))
       return(df)
     }
   )
@@ -156,7 +156,7 @@ load_functions <- function(ark) {
         status = character(0),
         n = numeric(0)
       )
-      Log(paste0("cannot get failed gauge functions for ", ark))
+      # Log(paste0("cannot get failed gauge functions for ", ark))
       return(df)
     }
   )

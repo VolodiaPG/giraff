@@ -15,8 +15,8 @@
 
     processors:
       batch:
-        timeout: 1s
-        send_batch_size: 1024
+        timeout: 60s
+        send_batch_size: 16384
 
     exporters:
       influxdb:
@@ -24,7 +24,7 @@
         org: "faasfog"
         bucket: "faasfog"
         token: "${influxToken}"
-        timeout: 5s
+        timeout: 60s
         metrics_schema: "telegraf-prometheus-v1"
 
     service:
@@ -32,12 +32,15 @@
         metrics:
           receivers: [otlp]
           exporters: [influxdb]
+          processors: [batch]
         traces:
           receivers: [otlp]
           exporters: [influxdb]
+          processors: [batch]
         logs:
           receivers: [otlp]
           exporters: [influxdb]
+          processors: [batch]
   '';
 in {
   services = {
@@ -101,8 +104,7 @@ in {
     opentelemetry-collector = {
       serviceConfig = {
         ExecStartPre = "${pkgs.coreutils}/bin/test -f /etc/opentelemetry-config/collector.yaml";
-        ExecStart =
-          lib.mkForce "${lib.getExe pkgs.opentelemetry-collector-contrib} --config=file:${opentelemetry-config} --config=file:/etc/opentelemetry-config/collector.yaml";
+        ExecStart = lib.mkForce "${lib.getExe pkgs.opentelemetry-collector-contrib} --config=file:${opentelemetry-config} --config=file:/etc/opentelemetry-config/collector.yaml";
         RestartSec = "10s";
       };
     };

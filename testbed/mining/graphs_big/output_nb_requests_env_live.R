@@ -43,12 +43,37 @@ big_output_nb_requests_env_live_plot <- function(
     summarise(nb_benefit = sum(benefit), nb = n()) %>%
     mutate(ratio_benefit = nb_benefit / nb)
 
+  anova_model <- aov(ratio_benefit ~ env_live * env, data = df)
+  tukey_result <- TukeyHSD(anova_model)
+
+  # Log(tukey_result)
+
+  cld <- multcompLetters4(anova_model, tukey_result)
+  letters <- data.frame(cld$`env_live:env`$Letters)
+  Log(letters)
+  # cld_df <- data.frame(
+  #   env_live = names(cld$`env_live:env`$Letters),
+  #   letter = cld$`env_live:env`$Letters
+  # )
+
   df_mean <- df %>%
     group_by(env_live, env) %>%
     summarise(
       nb_benefit = mean(nb_benefit),
       ratio_benefit = mean(ratio_benefit)
-    )
+    ) %>%
+    arrange(desc(ratio_benefit))
+
+  df_mean$letters <- letters$cld..env_live.env..Letters
+  # cld_df <- cld_df %>%
+  #   separate(env_live, into = c("env_live", "env"), sep = ":")
+  #
+  # Log(cld_df)
+
+  # df_mean_letters <- df_mean %>%
+  #   left_join(cld_df, by = c("env_live", "env"))
+
+  Log(df_mean)
 
   ggplot(
     data = df,
@@ -73,12 +98,21 @@ big_output_nb_requests_env_live_plot <- function(
       ),
       position = position_dodge(width = 0.9),
     ) +
+    geom_text(
+      data = df_mean,
+      aes(label = letters, group = env_live),
+      position = position_dodge(width = 0.9),
+      vjust = -0.5,
+      size = 5
+    ) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
     labs(
       x = "Number of nodes",
-      y = "Ratio of functions that made a profit"
+      y = "Ratio of functions that made a profit",
+      fill = "Application Configuration",
+      color = "Application Configuration"
     ) +
     scale_y_continuous(labels = scales::percent) +
     scale_color_viridis(discrete = TRUE) +

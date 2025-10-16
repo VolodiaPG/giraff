@@ -4,14 +4,14 @@ big_output_otel_nb_requests_plot <- function(
 ) {
   df <- nb_requests %>%
     extract_context() %>%
-    group_by(folder, env) %>%
+    group_by(folder, env, env_live) %>%
     summarise(requests = sum(requests)) %>%
     left_join(nb_nodes, by = c("folder")) %>%
     extract_env_name() %>%
     categorize_nb_nodes()
 
   df_mean <- df %>%
-    group_by(env, nb_nodes) %>%
+    group_by(env, nb_nodes, env_live) %>%
     summarise(requests = mean(requests))
 
   ggplot(
@@ -21,6 +21,7 @@ big_output_otel_nb_requests_plot <- function(
       group = env
     )
   ) +
+    facet_grid(cols = vars(env_live)) +
     geom_col(
       data = df_mean,
       aes(y = requests, fill = env),

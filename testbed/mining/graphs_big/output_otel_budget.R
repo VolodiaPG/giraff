@@ -1,59 +1,27 @@
-big_output_otel_budget_plot <- function(spans) {
-  spans_budget <- spans %>%
-    group_by(folder, metric_group, service.namespace) %>%
-    select(folder, metric_group, service.namespace, budget, timestamp) %>%
-    filter(!is.na(budget)) %>%
-    arrange(timestamp) %>%
-    summarise(budget = last(budget) - first(budget))
-
-  # Log(spans_budget)
-
-  spans <- spans %>%
-    select(
-      folder,
-      service.namespace,
-      trace_id,
-      metric_group
-    ) %>%
-    ungroup() %>%
-    group_by(folder, metric_group, service.namespace) %>%
-    distinct() %>%
-    summarise(requests = n()) %>%
-    inner_join(spans_budget) %>%
-    mutate(count = budget / requests) %>%
+big_output_otel_budget_plot <- function(
+  profit,
+  nb_requests,
+  nb_nodes,
+  nb_functions
+) {
+  df <- profit %>%
+    left_join(nb_requests) %>%
     extract_context() %>%
-    group_by(folder, env_live) %>%
-    summarise(count = mean(count))
-
-  # Log(spans)
-
-  #
-  # Log(spans %>% ungroup() %>% select(service.instance.id))
-  # summarigje(count = n())
-
-  # Log(spans %>% select(gunctionImage, functionLiveName))
+    extract_env_name() %>%
+    env_live_extract() %>%
+    mutate(profit_per_request = profit / requests)
 
   ggplot(
-    data = spans,
+    data = df,
     aes(
-      x = env_live,
-      y = count,
-      fill = env_live
-      # color = span.name,
-    ),
+      # x = requests,
+      y = profit_per_request,
+      color = env_live,
+      group = folder,
+    )
   ) +
-    geom_col(
-      # position = position_dodge2()
-    ) +
-    # geom_beeswarm() +
-    # labs(
-    #   title = paste(
-    #     "Budget evolution of each application\n",
-    #     # unique(spans$folder)
-    #   ),
-    #   x = "Service Namespace",
-    #   y = "Budget",
-    # ) +
+    # geom_point() +
+    stat_ecdf() +
     theme(
       legend.background = element_rect(
         fill = alpha("white", .7),
@@ -67,4 +35,6 @@ big_output_otel_budget_plot <- function(spans) {
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
+  # scale_x_continuous(labels = scales::percent) +
+  # scale_y_log10()
 }

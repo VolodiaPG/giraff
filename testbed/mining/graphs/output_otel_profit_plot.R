@@ -9,7 +9,7 @@ output_otel_profit_plot <- function(spans) {
     filter(!is.na(budget)) %>%
     group_by(folder, service.namespace) %>%
     mutate(timestamp_numeric = as.numeric(timestamp)) %>%
-    do(model = lm(budget ~ timestamp_numeric, data = .)) %>%
+    do(model = lm(new_budget ~ timestamp_numeric, data = .)) %>%
     mutate(
       slope = coef(model)["timestamp_numeric"],
       trend = ifelse(slope > 0, "increasing", "decreasing")
@@ -26,7 +26,7 @@ output_otel_profit_plot <- function(spans) {
     data = spans,
     aes(
       x = service.namespace,
-      y = budget,
+      y = new_budget,
       color = trend,
     )
   ) +

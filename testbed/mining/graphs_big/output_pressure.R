@@ -8,10 +8,11 @@ big_output_pressure_plot <- function(
     extract_context() %>%
     left_join(nb_nodes, by = c("folder")) %>%
     env_live_extract() %>%
-    categorize_nb_nodes()
+    categorize_nb_nodes() %>%
+    extract_env_name()
 
   df_mean <- df %>%
-    group_by(env_live, nb_nodes) %>%
+    group_by(env_live, nb_nodes, env) %>%
     summarise(requests = mean(requests))
 
   ggplot(

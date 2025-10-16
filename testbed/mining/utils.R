@@ -490,28 +490,33 @@ load_csv <- function(filename) {
       metric_group_group = METRICS_GROUP_GROUP[which(METRICS_ARKS == .x)]
     )
   )
+  Log(all_data)
   return(all_data)
 }
 
 load_single_csv <- function(arkfile, filename) {
-  archive <- paste(METRICS_PATH, arkfile, sep = "/")
+  archive_path <- paste(METRICS_PATH, arkfile, sep = "/")
+  # because tin the tar xz the files are ./file.csv, with the ./ prefix
+  filename <- paste0("./", filename)
 
-  if (!file.exists(archive)) {
+  if (!file.exists(archive_path)) {
     stop(paste0("archive doesn't exist ", archive))
   }
 
-  connection <- archive_read(archive, file = filename)
   tryCatch(
     {
-      all_data <- vroom(
-        connection,
-        progress = FALSE,
-        col_types = cols(),
-        col_names = TRUE,
-        delim = "\t",
-        .name_repair = "unique"
-      ) %>%
-        distinct() %>%
+      all_data <-
+        vroom(
+          archive_read(
+            archive_path,
+            file = filename
+          ),
+          progress = FALSE,
+          col_types = cols(),
+          col_names = TRUE,
+          delim = "\t",
+          .name_repair = "unique"
+        ) %>%
         mutate(
           folder = tools::file_path_sans_ext(tools::file_path_sans_ext(
             arkfile
@@ -523,7 +528,13 @@ load_single_csv <- function(arkfile, filename) {
         )
     },
     error = function(e) {
-      stop(paste("file doesn't exist in archive", filename, archive, sep = " "))
+      stop(paste(
+        "file doesn't exist in archive",
+        filename,
+        archive_path,
+        e,
+        sep = " "
+      ))
     }
   )
 
@@ -1169,7 +1180,7 @@ export_graph_tikz <- function(
 
   cat(
     # sprintf("\\begin{minipage}{\\columnwidth}\n"),
-    sprintf("\\resizebox{\\columnwidth}{!}{\n"),
+    sprintf("\\resizebox{\\columnwidth}{!}{\n\\footnotesize\n"),
     file = file_conn
   )
   cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)

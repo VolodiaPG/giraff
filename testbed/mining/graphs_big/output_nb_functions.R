@@ -19,7 +19,7 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
     categorize_nb_nodes()
 
   df_mean <- df %>%
-    group_by(env, nb_nodes) %>%
+    group_by(env, nb_nodes, env_live) %>%
     summarise(
       nb_functions = mean(nb_functions),
       max_nb_functions = max(max_nb_functions),
@@ -38,6 +38,7 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
     #   aes(ymin = min_nb_functions, ymax = max_nb_functions, fill = env),
     #   alpha = 0.2
     # ) +
+    facet_grid(cols = vars(env_live)) +
     geom_col(
       data = df_mean,
       aes(y = nb_functions, fill = env),

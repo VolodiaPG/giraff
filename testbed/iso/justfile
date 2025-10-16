@@ -16,7 +16,6 @@ build-vm:
     script_vm=$(nix build --extra-experimental-features nix-command --extra-experimental-features flakes .#nixosConfigurations.node_vm.config.system.build.diskoImagesScript --print-out-paths --no-link --quiet)
     $script_vm --build-memory 4096
 
-
 build-vagrant:
     #!/usr/bin/env bash
     set -e

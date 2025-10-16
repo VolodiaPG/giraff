@@ -724,18 +724,19 @@ func saveFile(filename string) error {
 
 				for {
 					fn := fnDesc.Pipeline[fnName]
-					scalingRatio := float64(fn.ExpectedRequestIntervalMs) / float64(requestInterval)
-					logger.Info("env", zap.Float64("scalingRatio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
+					// scalingRatio := float64(fn.ExpectedRequestIntervalMs) / float64(requestInterval)
+					// logger.Info("env", zap.Float64("scalingRatio", scalingRatio), zap.Int("requestInterval", requestInterval), zap.Int("duration", duration), zap.Int("arrival", arrival))
 					latencyStr := os.Getenv(fnDesc.Pipeline[fnName].Latency)
 					latency, _ := strconv.Atoi(latencyStr)
 					latency = int(math.Ceil(math.Abs(rand.NormFloat64() * float64(latency))))
 					t := time.Now()
 					functionName := fnName + t.Format("20060102150405") + "-i" + strconv.Itoa(index) + "-c" + strconv.Itoa(fn.CPU) + "-m" + strconv.Itoa(fn.Mem) + "-l" + strconv.Itoa(latency) + "-a" + strconv.Itoa(arrival) + "-r" + strconv.Itoa(requestInterval) + "-d" + strconv.Itoa(duration)
+					requestInterval := max(requestInterval, fn.ExpectedRequestIntervalMs)
 
-					if scalingRatio > 1.0 {
-						fn.Mem = int(math.Ceil(float64(fn.Mem) * scalingRatio))
-						fn.CPU = int(math.Ceil(float64(fn.CPU) * scalingRatio))
-					}
+					// if scalingRatio > 1.0 {
+					// 	fn.Mem = int(math.Ceil(float64(fn.Mem) * scalingRatio))
+					// 	fn.CPU = int(math.Ceil(float64(fn.CPU) * scalingRatio))
+					// }
 
 					fnChain = append(fnChain, Function{
 						TargetNode:        targetNodeName,

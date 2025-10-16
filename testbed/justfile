@@ -235,7 +235,7 @@ _scenario archive_name env_variation env_live_variation +city_name_node_targets:
     log "sleeping $WAIT_TIME secs" false sleep $WAIT_TIME
 
     export COLLECT_ARCHIVE_NAME="{{ archive_name }}"
-    timeout 300 {{ RUN }} integration.py collect
+    {{ RUN }} integration.py collect
 
     log "sleeping 120 secs" false sleep 120
 
@@ -722,7 +722,7 @@ get_metrics_back grep="" folder="metrics-arks" experiments_dotfile=".experiments
     echo $city
     mkdir -p metrics-arks
     output1=$(ls ./metrics-arks | grep {{ grep }})
-    ssh $city.grid5000.fr ls {{ folder }} | grep {{ grep }} | parallel --will-cite -j5 rsync -cazpq $city.grid5000.fr:~/{{ folder }}/{} ./metrics-arks/{}
+    ssh $city.grid5000.fr ls {{ folder }} | grep {{ grep }} | parallel --will-cite -j12 rsync -cazpq $city.grid5000.fr:~/{{ folder }}/{} ./metrics-arks/{}
     output2=$(ls ./metrics-arks | grep {{ grep }})
     diff_output=$(diff <(echo "$output1") <(echo "$output2"))
     echo -e "$diff_output"
