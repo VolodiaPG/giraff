@@ -64,9 +64,10 @@ big_output_typical_node_latencies_plot <- function(latency, node_levels) {
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
-    geom_point(
+    geom_beeswarm(
       aes(y = latency),
       position = position_dodge(width = 0.9),
+      alpha = 0.5
     ) +
     geom_errorbar(
       data = df_max,

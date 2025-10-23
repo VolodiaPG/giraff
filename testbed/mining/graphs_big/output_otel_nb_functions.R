@@ -28,9 +28,11 @@ big_output_otel_nb_functions_plot <- function(
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
-    geom_point(
-      aes(y = total, color = env),
-      position = position_dodge(width = 0.9)
+    geom_beeswarm(
+      aes(y = total, group = env),
+      dodge.width = 0.9,
+      position = position_dodge(width = 0.9),
+      alpha = 0.5
     ) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)

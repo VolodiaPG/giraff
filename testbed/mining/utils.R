@@ -1141,20 +1141,20 @@ export_graph_tikz <- function(
       # panel.spacing = ggplot2::unit(0, "pt"),
       # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
     )
-  if (remove_legend) {
-    plot_graph <- plot_graph + theme(legend.position = "none")
-  } else if (check_legend_position(plot_graph) != "none") {
-    plot_graph <- plot_graph +
-      theme(
-        legend.position = "top",
-        legend.box = "vertical",
-        legend.margin = ggplot2::margin(),
-        legend.box.margin = ggplot2::margin(),
-        legend.spacing = ggplot2::unit(0, "pt"),
-        legend.justification = c(0, 0.8)
-      ) +
-      guides(col = guide_legend(nrow = 2, byrow = TRUE))
-  }
+  # if (remove_legend) {
+  #   plot_graph <- plot_graph + theme(legend.position = "none")
+  # } else if (check_legend_position(plot_graph) != "none") {
+  plot_graph <- plot_graph +
+    theme(
+      legend.position = "top",
+      legend.box = "vertical",
+      legend.margin = ggplot2::margin(),
+      legend.box.margin = ggplot2::margin(),
+      legend.spacing = ggplot2::unit(0, "pt"),
+      legend.justification = c(0, 0.8)
+    ) +
+    guides(col = guide_legend(nrow = 4, byrow = TRUE))
+  # }
   plot_graph <- plot_graph +
     theme(
       axis.title.x = ggplot2::element_text(plot_x_label),

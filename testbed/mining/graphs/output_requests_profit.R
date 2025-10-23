@@ -29,25 +29,26 @@ output_requests_profit_plot <- function(
   cld <- multcompLetters4(anova_model, tukey_result)
   letters <- data.frame(cld$`env_live`$Letters)
 
+  Log(letters)
+
   df_mean <- df %>%
     group_by(env_live) %>%
     summarise(
       profit_per_request = mean(profit_per_request),
     ) %>%
+    ungroup() %>%
     arrange(desc(profit_per_request))
 
   df_mean$letters <- letters$cld.env_live.Letters
-
-  Log(df_mean)
 
   p <- ggplot(
     data = df,
     aes(
       x = env_live,
-      y = profit_per_request,
-      fill = env_live
+      y = profit_per_request
     )
   ) +
+    # facet_grid(cols = vars(env)) +
     geom_col(
       data = df_mean,
       aes(fill = env_live),
@@ -56,16 +57,18 @@ output_requests_profit_plot <- function(
     ) +
     # facet_grid(~env) +
     # geom_boxplot(alpha = 0.7) +
-    geom_point(
-      aes(
-        shape = run
-      ),
+    geom_beeswarm(
+      # aes(color = env_live),
       alpha = 0.7,
       position = position_dodge(width = 0.9),
     ) +
     geom_text(
       data = df_mean,
-      aes(label = letters, group = env_live),
+      aes(
+        label = letters,
+        group = env_live,
+        y = max(df$profit_per_request) + 1
+      ),
       position = position_dodge(width = 0.9),
       vjust = -0.5,
       size = 5
@@ -82,16 +85,20 @@ output_requests_profit_plot <- function(
     #   hide.ns = TRUE,
     #   tip.length = 0.01
     # ) +
+    scale_y_continuous(limits = c(0, max(df$profit_per_request) + 2)) +
     labs(
       x = "Environment Configuration",
       y = "Profit per Request",
-      title = "Profit per Request by Environment Configuration",
+      # title = "Profit per Request by Environment Configuration",
       fill = "Application Configuration",
       color = "Application Configuration"
     ) +
-    theme_minimal() +
-    theme(legend.position = "none") +
+    theme(
+      # legend.position = "none",
+      axis.text.x = element_blank() # axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    ) +
     scale_fill_viridis_d() +
+    scale_color_viridis_d() +
     guides(shape = "none")
 
   return(p)

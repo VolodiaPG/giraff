@@ -1,14 +1,20 @@
 text_workload_characteristics <- function(
   nb_functions,
   nb_requests,
-  durations
+  durations,
+  nb_nodes
 ) {
   functions <- nb_functions %>%
     ungroup() %>%
-    summarise(avg = mean(nb_functions), max = max(nb_functions))
+    summarise(
+      avg = mean(nb_functions),
+      max = max(nb_functions),
+      p99 = quantile(nb_functions, 0.99)
+    )
 
   write(round(functions %>% pull(avg), 1), file = "out/avg_functions.txt")
   write(functions %>% pull(max), file = "out/max_functions.txt")
+  write(functions %>% pull(p99), file = "out/p99_functions.txt")
 
   total_functions <- nb_functions %>%
     group_by(folder) %>%
@@ -76,4 +82,31 @@ text_workload_characteristics <- function(
     paste0(mean_success, "\\% \\pm ", success_margin_error, "\\%"),
     file = "out/mean_success.txt"
   )
+
+  Log(
+    nb_nodes %>%
+      group_by(nb_nodes) %>%
+      summarise(total = n())
+  )
+
+  max_nb_nodes <- nb_nodes %>%
+    ungroup() %>%
+    summarise(max = max(nb_nodes))
+
+  write(
+    max_nb_nodes %>% pull(max),
+    file = "out/max_nb_nodes_app.txt"
+  )
+
+  apps <- nb_functions %>%
+    ungroup() %>%
+    select(folder, service.namespace) %>%
+    distinct() %>%
+    group_by(folder) %>%
+    summarise(total = n()) %>%
+    ungroup() %>%
+    summarise(min = min(total), max = max(total))
+
+  write(apps %>% pull(min), file = "out/min_apps.txt")
+  write(apps %>% pull(max), file = "out/max_apps.txt")
 }

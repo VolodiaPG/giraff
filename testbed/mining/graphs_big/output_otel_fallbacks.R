@@ -102,48 +102,51 @@ big_output_otel_fallbacks_plot <- function(
       )
     )
 
-  anova_model <- aov(n ~ env_live * env * status, data = df)
-  tukey_result <- TukeyHSD(anova_model)
+  # anova_model <- aov(n ~ env_live + status + env, data = df)
+  # tukey_result <- TukeyHSD(anova_model)
+  #
+  # cld <- multcompLetters4(anova_model, tukey_result)
+  # letters <- data.frame(cld$`env_live:env:status`$Letters)
 
-  cld <- multcompLetters4(anova_model, tukey_result)
-  letters <- data.frame(cld$`env_live`$Letters)
+  # Log(letters)
 
   df_mean <- df %>%
-    group_by(env_live, status, env, alpha) %>%
+    group_by(env_live, status, alpha) %>%
     summarise(
       max_n = max(n),
       min_n = min(n),
       sd = sd(n, na.rm = TRUE),
       nb = n(),
       n = mean(n)
-    ) %>%
-    mutate(
-      se = sd / sqrt(nb),
-      lower.ci = n - qnorm(0.975) * se,
-      upper.ci = n + qnorm(0.975) * se
-    ) %>%
-    rowwise() %>%
-    mutate(
-      lower.ci = max(0, lower.ci),
-    ) %>%
-    arrange(desc(profit_per_request))
+    )
+  # %>%
+  # mutate(
+  #   se = sd / sqrt(nb),
+  #   lower.ci = n - qnorm(0.975) * se,
+  #   upper.ci = n + qnorm(0.975) * se
+  # ) %>%
+  # rowwise() %>%
+  # mutate(
+  #   lower.ci = max(0, lower.ci),
+  # )
+  # arrange(desc(n))
 
-  df_mean$letters <- letters$cld.env_live.env.status.Letters
+  # df_mean$letters <- letters$cld..env_live.env.status..Letters
 
   df <- df %>%
-    group_by(folder, status, env, env_live, run, alpha) %>%
-    summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n)) %>%
-    mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
+    group_by(folder, status, env_live, run, alpha) %>%
+    summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n))
+  # mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
 
   ggplot(
     data = df,
     aes(
-      x = env,
+      x = status,
       y = n,
       group = env_live
     )
   ) +
-    facet_grid(cols = vars(status)) +
+    # facet_grid(cols = vars(status)) +
     geom_col(
       data = df_mean,
       aes(y = n, fill = env_live),
@@ -157,16 +160,19 @@ big_output_otel_fallbacks_plot <- function(
     #   alpha = 0.5,
     #   width = 0.2
     # ) +
-    geom_point(
-      aes(color = env_live),
+    geom_beeswarm(
+      # aes(color = env_live),
       position = position_dodge(width = 0.9),
+      dodge.width = 0.9,
+      cex = 0.8,
+      alpha = 0.5
     ) +
-    geom_errorbar(
-      aes(ymin = lower.se, ymax = upper.se, fill = env_live),
-      position = position_dodge(width = 0.9),
-      alpha = 0.3,
-      width = 0.2
-    ) +
+    # geom_linerange(
+    #   aes(ymin = lower.se, ymax = upper.se, fill = env_live),
+    #   position = position_dodge(width = 0.9),
+    #   alpha = 0.3,
+    #   width = 0.2
+    # ) +
     # geom_text(
     #   data = df_mean,
     #   aes(label = letters, group = env_live),
@@ -185,12 +191,12 @@ big_output_otel_fallbacks_plot <- function(
     #   alpha = 0.2
     # ) +
     guides(group = "none", linetype = "none") +
-    # scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
-    theme(
-      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-    ) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    # theme(
+    #   axis.text.x = element_blank() # axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    # ) +
     labs(
-      x = "Number of nodes",
+      x = "Request status",
       y = "Proportion of requests",
       fill = "Application Configuration",
       color = "Application Configuration"

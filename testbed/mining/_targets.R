@@ -88,7 +88,12 @@ tar_option_set(
   packages = core_pkgs, # Packages that your targets need for their tasks.
   format = "qs", # Optionally set the default storage format. qs is fast.
   controller = crew::crew_controller_local(workers = workers), # Use workers from config.R
+  memory = "transient",
+  garbage_collection = 1,
+  deployment = "worker"
 )
+
+cue_loaders <- tar_cue(mode = "never")
 
 single_ops <- tar_map(
   # unlist = FALSE, # Return a nested list from tar_map()
@@ -97,17 +102,20 @@ single_ops <- tar_map(
   tar_target(
     name = node_levels_single,
     command = load_node_levels(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = nb_nodes_single,
     command = load_nb_nodes(node_levels_single),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = bids_raw_single,
     command = load_bids_raw(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   # tar_target(
   #   name = provisioned_sla_single,
@@ -117,37 +125,44 @@ single_ops <- tar_map(
   tar_target(
     name = functions_single,
     command = load_functions(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = raw_deployment_times_single,
     command = load_raw_deployment_times(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = raw_latency_single,
     command = load_raw_latency(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_single,
     command = load_otel(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_logs_single,
     command = load_otel_logs(ark),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_processed_single,
     command = load_otel_processed(otel_single),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_duration_single,
     command = load_otel_duration(otel_processed_single),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   # tar_target(
   #   name = bids_won_function_single,
@@ -157,28 +172,32 @@ single_ops <- tar_map(
   tar_target(
     name = otel_profit_single,
     command = load_profit(otel_processed_single),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = flame_func_single,
     command = flame_functions(
       otel_processed_single
     ),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_degrades_single,
     command = load_otel_degrades(
       otel_logs_single
     ),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = otel_errors_single,
     command = load_otel_errors(
       otel_logs_single
     ),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = flame_with_latency_single,
@@ -186,7 +205,8 @@ single_ops <- tar_map(
       otel_processed_single,
       raw_latency_single
     ),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = nb_functions_single,
@@ -194,7 +214,8 @@ single_ops <- tar_map(
       otel_processed_single,
       nb_nodes_single
     ),
-    packages = load_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   ),
   tar_target(
     name = nb_requests_single,
@@ -202,84 +223,90 @@ single_ops <- tar_map(
       otel_processed_single,
       otel_errors_single
     ),
-    packages = load_pkgs
-  ),
-  tar_target(
-    name = output_mean_time_to_deploy_simple_graph,
-    command = wrap_graph(output_mean_time_to_deploy_simple(
-      raw_deployment_times_single
-    )),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_loss_graph,
-    command = wrap_graph(output_loss(raw_latency_single)),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_raw_latency_graph,
-    command = wrap_graph(output_raw_latency(raw_latency_single)),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_graph,
-    command = wrap_graph(output_otel_plot(otel_single)),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_creation_duration_graph,
-    command = wrap_graph(output_otel_creation_duration(otel_single)),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_budget_graph,
-    command = wrap_graph(output_otel_budget_plot(otel_single)),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = otel_function_latency_graph,
-    command = wrap_graph(output_otel_function_latency_plot(
-      flame_with_latency_single
-    )),
-    packages = graph_pkgs
-  ),
-  # tar_target(
-  #   name = output_otel_sla_duration_graph,
-  #   command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
-  #   packages = graph_pkgs
-  # ),
-  tar_target(
-    name = output_otel_duration_latency_graph,
-    command = wrap_graph(output_otel_duration_latency_plot(
-      otel_processed_single,
-      raw_latency_single
-    )),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_profit_graph,
-    command = wrap_graph(output_otel_profit_plot(
-      otel_processed_single
-    )),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_functions_graph,
-    command = wrap_graph(output_otel_functions_plot(
-      otel_processed_single,
-      flame_func_single,
-      otel_errors_single
-    )),
-    packages = graph_pkgs
-  ),
-  tar_target(
-    name = output_otel_budget_per_function_graph,
-    command = wrap_graph(output_otel_budget_per_function_plot(
-      otel_processed_single
-    )),
-    packages = graph_pkgs
+    packages = load_pkgs,
+    cue = cue_loaders
   )
 )
+if (!ONLY_BIG_GRAPHS) {
+  single_ops <- list(
+    single_ops,
+    tar_target(
+      name = output_mean_time_to_deploy_simple_graph,
+      command = wrap_graph(output_mean_time_to_deploy_simple(
+        raw_deployment_times_single
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_loss_graph,
+      command = wrap_graph(output_loss(raw_latency_single)),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_raw_latency_graph,
+      command = wrap_graph(output_raw_latency(raw_latency_single)),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_graph,
+      command = wrap_graph(output_otel_plot(otel_single)),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_creation_duration_graph,
+      command = wrap_graph(output_otel_creation_duration(otel_single)),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_budget_graph,
+      command = wrap_graph(output_otel_budget_plot(otel_single)),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = otel_function_latency_graph,
+      command = wrap_graph(output_otel_function_latency_plot(
+        flame_with_latency_single
+      )),
+      packages = graph_pkgs
+    ),
+    # tar_target(
+    #   name = output_otel_sla_duration_graph,
+    #   command = wrap_graph(output_otel_sla_duration_plot(otel_single)),
+    #   packages = graph_pkgs
+    # ),
+    tar_target(
+      name = output_otel_duration_latency_graph,
+      command = wrap_graph(output_otel_duration_latency_plot(
+        otel_processed_single,
+        raw_latency_single
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_profit_graph,
+      command = wrap_graph(output_otel_profit_plot(
+        otel_processed_single
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_functions_graph,
+      command = wrap_graph(output_otel_functions_plot(
+        otel_processed_single,
+        flame_func_single,
+        otel_errors_single
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = output_otel_budget_per_function_graph,
+      command = wrap_graph(output_otel_budget_per_function_plot(
+        otel_processed_single
+      )),
+      packages = graph_pkgs
+    )
+  )
+}
 
 singles <- tibble(name = names(single_ops), value = single_ops) %>%
   dplyr::mutate(
@@ -426,7 +453,8 @@ combined_graphs <-
       command = text_workload_characteristics(
         nb_functions,
         nb_requests,
-        otel_duration
+        otel_duration,
+        nb_nodes
       ),
       packages = core_pkgs
     ),
@@ -434,6 +462,14 @@ combined_graphs <-
       name = text_profit,
       command = text_profit_output(
         otel_profit
+      ),
+      packages = core_pkgs
+    ),
+    tar_target(
+      name = text_pressure,
+      command = text_pressure_output(
+        nb_requests,
+        otel_duration
       ),
       packages = core_pkgs
     )
@@ -513,7 +549,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_pressure_latex,
       command = export_graph_tikz(
         big_pressure_graph,
-        GRAPH_TWO_COLUMN_WIDTH / 2,
+        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
@@ -522,7 +558,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_requests_profit_latex,
       command = export_graph_tikz(
         output_requests_profit_graph,
-        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+        GRAPH_TWO_COLUMN_WIDTH / 2,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
@@ -531,7 +567,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_nb_requests_env_live_latex,
       command = export_graph_tikz(
         big_output_nb_requests_env_live_graph,
-        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_TWO_COLUMN_WIDTH / 2,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
@@ -545,7 +581,7 @@ graphs <- tibble(name = names(single_ops), value = single_ops) %>%
   ) %>%
   filter(!is.na(graph_name))
 
-assertthat::assert_that(nrow(graphs) > 0)
+# assertthat::assert_that(nrow(graphs) > 0)
 
 combined_plots <-
   tar_eval(

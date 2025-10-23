@@ -62,6 +62,7 @@ big_output_nb_requests_env_live_plot <- function(
       nb_benefit = mean(nb_benefit),
       ratio_benefit = mean(ratio_benefit)
     ) %>%
+    ungroup() %>%
     arrange(desc(ratio_benefit))
 
   df_mean$letters <- letters$cld..env_live.env..Letters
@@ -80,7 +81,6 @@ big_output_nb_requests_env_live_plot <- function(
     aes(
       x = env,
       y = ratio_benefit,
-      # shape = env,
       group = env_live
     )
   ) +
@@ -91,30 +91,36 @@ big_output_nb_requests_env_live_plot <- function(
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
-    geom_point(
+    geom_beeswarm(
       aes(
         # size = nb_nodes,
-        color = env_live,
+        # color = env_live,
       ),
+      dodge.width = 0.9,
+      alpha = 0.5,
       position = position_dodge(width = 0.9),
     ) +
     geom_text(
       data = df_mean,
-      aes(label = letters, group = env_live),
+      aes(label = letters, group = env_live, y = max(df$ratio_benefit) + 0.02),
       position = position_dodge(width = 0.9),
       vjust = -0.5,
       size = 5
     ) +
-    theme(
-      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-    ) +
+    # theme(
+    #   #   axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    #   axis.text.x = element_blank()
+    # ) +
     labs(
-      x = "Number of nodes",
+      x = "Load",
       y = "Ratio of functions that made a profit",
       fill = "Application Configuration",
       color = "Application Configuration"
     ) +
-    scale_y_continuous(labels = scales::percent) +
+    scale_y_continuous(
+      labels = scales::percent,
+      limits = c(0, max(df$ratio_benefit) + 0.05)
+    ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
 }

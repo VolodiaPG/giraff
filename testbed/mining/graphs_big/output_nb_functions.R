@@ -16,7 +16,8 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
     left_join(nb_nodes, by = c("folder")) %>%
     # mutate(nb_nodes = factor(nb_nodes)) %>%
     extract_env_name() %>%
-    categorize_nb_nodes()
+    # categorize_nb_nodes() %>%
+    env_live_extract()
 
   df_mean <- df %>%
     group_by(env, nb_nodes, env_live) %>%
@@ -30,35 +31,39 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
     data = df,
     aes(
       x = nb_nodes,
-      group = env
+      y = nb_functions,
+      # group = env
+      color = env_live,
+      fill = env_live
     )
   ) +
-    # geom_ribbon(
+    geom_beeswarm(alpha = 0.5, color = "black") +
+    # geom_segment(
     #   data = df_mean,
-    #   aes(ymin = min_nb_functions, ymax = max_nb_functions, fill = env),
-    #   alpha = 0.2
+    #   aes(
+    #     x = nb_nodes - 1,
+    #     xend = nb_nodes + 1,
+    #     y = max_nb_functions,
+    #     yend = max_nb_functions,
+    #   ),
+    #   size = 0.2
     # ) +
-    facet_grid(cols = vars(env_live)) +
-    geom_col(
-      data = df_mean,
-      aes(y = nb_functions, fill = env),
-      position = position_dodge(width = 0.9),
-      alpha = 0.8,
-    ) +
-    geom_point(
-      aes(y = nb_functions, color = env),
-      position = position_dodge(width = 0.9)
-    ) +
-    geom_errorbar(
-      data = df_mean,
-      aes(
-        x = nb_nodes,
-        ymin = min_nb_functions,
-        ymax = max_nb_functions,
-        color = env
-      ),
-      position = position_dodge(width = 0.9),
-      width = 0.2
+    # geom_segment(
+    #   data = df_mean,
+    #   aes(
+    #     x = nb_nodes - 2,
+    #     xend = nb_nodes + 2,
+    #     y = min_nb_functions,
+    #     yend = min_nb_functions,
+    #   ),
+    #   size = 0.2
+    # ) +
+    geom_smooth(
+      method = "lm",
+      se = TRUE,
+      fullrange = TRUE,
+      level = 0.95,
+      alpha = 0.5
     ) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
@@ -67,8 +72,8 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       # title = "Number of functions per application, depending on the number of nodes in the continuum",
       x = "Number of nodes",
       y = "Number of functions",
-      fill = "Load",
-      color = "Load"
+      fill = "Application Configuration",
+      color = "Application Configuration"
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

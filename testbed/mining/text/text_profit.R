@@ -30,4 +30,26 @@ text_profit_output <- function(otel_profit) {
         file = paste0("out/", .x$file_name)
       )
     )
+
+  roi_increase <- otel_profit %>%
+    extract_context() %>%
+    group_by(env_live, folder) %>%
+    summarise(roi = mean(roi)) %>%
+    group_by(env_live) %>%
+    summarise(roi = mean(roi)) %>%
+    arrange(env_live)
+
+  increase <- (roi_increase[2, ]$roi + roi_increase[3, ]$roi) /
+    (2 * roi_increase[1, ]$roi)
+  write(
+    paste0(round(increase * 100, 1), "\\%"),
+    file = "out/roi_increase.txt"
+  )
+
+  increase <- (roi_increase[3, ]$roi + roi_increase[4, ]$roi) /
+    (roi_increase[1, ]$roi + roi_increase[2, ]$roi)
+  write(
+    paste0(round(increase * 100, 1), "\\%"),
+    file = "out/roi_increase_2.txt"
+  )
 }
