@@ -219,8 +219,8 @@ METRICS_ARKS <- unique(METRICS_ARKS[-length(METRICS_ARKS)])
 
 env_live_extract <- function(x) {
   order <- c(
-    "10u/req, $\\infty$ initial budget, No fallbacks",
-    "10u/req, $\\infty$ initial budget",
+    "10u/req, $\\infty$ initial balance, No fallbacks",
+    "10u/req, $\\infty$ initial balance",
     "10u/req",
     "20u/req"
   )
@@ -232,8 +232,8 @@ env_live_extract <- function(x) {
     ) %>%
     mutate(
       env_live = case_when(
-        env_live == 1 ~ "10u/req, $\\infty$ initial budget, No fallbacks",
-        env_live == 2 ~ "10u/req, $\\infty$ initial budget",
+        env_live == 1 ~ "10u/req, $\\infty$ initial balance, No fallbacks",
+        env_live == 2 ~ "10u/req, $\\infty$ initial balance",
         env_live == 3 ~ "10u/req",
         env_live == 4 ~ "20u/req"
       ),

@@ -45,21 +45,24 @@ output_requests_profit_plot <- function(
     data = df,
     aes(
       x = env_live,
-      y = profit_per_request
+      y = profit_per_request,
+      fill = env_live,
+      color = env_live
     )
   ) +
     # facet_grid(cols = vars(env)) +
     geom_col(
       data = df_mean,
-      aes(fill = env_live),
       position = position_dodge(width = 0.9),
       alpha = 0.8,
+      color = "none"
     ) +
     # facet_grid(~env) +
     # geom_boxplot(alpha = 0.7) +
     geom_beeswarm(
       # aes(color = env_live),
       alpha = 0.7,
+      color = "black",
       position = position_dodge(width = 0.9),
     ) +
     geom_text(
@@ -69,6 +72,7 @@ output_requests_profit_plot <- function(
         group = env_live,
         y = max(df$profit_per_request) + 1
       ),
+      color = "black",
       position = position_dodge(width = 0.9),
       vjust = -0.5,
       size = 5
@@ -88,7 +92,7 @@ output_requests_profit_plot <- function(
     scale_y_continuous(limits = c(0, max(df$profit_per_request) + 2)) +
     labs(
       x = "Environment Configuration",
-      y = "Profit per Request",
+      y = "RoI",
       # title = "Profit per Request by Environment Configuration",
       fill = "Application Configuration",
       color = "Application Configuration"
@@ -97,9 +101,8 @@ output_requests_profit_plot <- function(
       # legend.position = "none",
       axis.text.x = element_blank() # axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +
-    scale_fill_viridis_d() +
-    scale_color_viridis_d() +
-    guides(shape = "none")
+    scale_color_viridis(discrete = TRUE) +
+    scale_fill_viridis(discrete = TRUE)
 
   return(p)
 }
