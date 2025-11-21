@@ -139,7 +139,14 @@
                       ec
                       ;
                   })
-                  rPackages.tikzDevice
+                  (rPackages.tikzDevice.overrideAttrs (_: {
+                    src = pkgs.fetchFromGitHub {
+                      owner = "volodiapg";
+                      repo = "tikzDevice";
+                      rev = "e3efd4f71ad54ffe7d1b9e28072eb0e79febd5cf";
+                      sha256 = "sha256-hBe8s3mfAY91gsKWETyDERhwd8an2tUOB3/75YRZGLY=";
+                    };
+                  }))
                 ]);
             };
           }

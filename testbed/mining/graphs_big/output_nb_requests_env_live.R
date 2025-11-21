@@ -114,8 +114,8 @@ big_output_nb_requests_env_live_plot <- function(
     labs(
       x = "Load",
       y = "Ratio of functions that made a profit",
-      fill = "Application Configuration",
-      color = "Application Configuration"
+      fill = APP_CONFIG,
+      color = APP_CONFIG
     ) +
     scale_y_continuous(
       labels = scales::percent,

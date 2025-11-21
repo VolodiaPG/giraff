@@ -54,8 +54,8 @@ output_requests_profit_plot <- function(
     geom_col(
       data = df_mean,
       position = position_dodge(width = 0.9),
-      alpha = 0.8,
-      color = "none"
+      alpha = 0.8
+      # color = "none"
     ) +
     # facet_grid(~env) +
     # geom_boxplot(alpha = 0.7) +
@@ -94,8 +94,8 @@ output_requests_profit_plot <- function(
       x = "Environment Configuration",
       y = "RoI",
       # title = "Profit per Request by Environment Configuration",
-      fill = "Application Configuration",
-      color = "Application Configuration"
+      fill = APP_CONFIG,
+      color = APP_CONFIG
     ) +
     theme(
       # legend.position = "none",

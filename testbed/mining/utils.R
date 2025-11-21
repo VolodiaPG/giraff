@@ -1112,6 +1112,10 @@ export_graph_tikz <- function(
   remove_legend = FALSE,
   caption = NULL
 ) {
+  # oldwd <- getwd()
+  # setwd(paste0(getwd(), "/out"))
+  # on.exit(setwd(oldwd))
+
   name <- deparse(substitute(plot))
   name <- stringr::str_replace_all(name, "(.*?)_graph", "\\1")
   # Log(name)
@@ -1120,12 +1124,14 @@ export_graph_tikz <- function(
   #   Log("tikzDevice package not found. TikZ export skipped.")
   #   return()
   # }
+
+  plot_name <- to_lower_camel_case(name)
   load_tikz()
 
-  plot_name <- name
+  # plot_name <- to_lower_camel_case(name)
   plot_graph <- plot$graph
-  tikz_name <- paste0("out/", plot_name, ".tex")
-  caption_name <- paste0("out/", plot_name, "_caption.tex")
+  # tikz_name <- paste0(plot_name, ".tex")
+  # caption_name <- paste0(plot_name, "_caption.tex")
 
   # Extract title, subtitle, and axis labels from the ggplot object
   built_plot <- ggplot2::ggplot_build(plot_graph)
@@ -1165,66 +1171,69 @@ export_graph_tikz <- function(
     )
 
   # Open the file in write mode
-  file_conn <- file(tikz_name, "w")
+  # file_conn <- file(tikz_name, "w")
 
   # Write the resizebox command
   # tex_width <- 1
 
-  ggsave(
-    filename = paste0("out/", plot_name, ".png"),
-    plot = plot_graph,
-    width = width,
-    height = height,
-    dpi = 300
-  )
+  # ggsave(
+  #   filename = paste0(plot_name, ".png"),
+  #   plot = plot_graph,
+  #   width = width,
+  #   height = height,
+  #   dpi = 300
+  # )
 
-  cat(
-    # sprintf("\\begin{minipage}{\\columnwidth}\n"),
-    sprintf("\\resizebox{\\columnwidth}{!}{\n\\footnotesize\n"),
-    file = file_conn
-  )
-  cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
+  # cat(
+  #   # sprintf("\\begin{minipage}{\\columnwidth}\n"),
+  #   sprintf("\\resizebox{\\columnwidth}{!}{\n\\footnotesize\n"),
+  #   file = file_conn
+  # )
+  # cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
 
   # Capture tikz output
-  capture.output(
-    file = file_conn,
-    append = TRUE,
-    tikz(
-      console = TRUE,
-      width = width,
-      height = height,
-      standAlone = FALSE,
-      sanitize = TRUE
-    ),
-    draw(plot_graph, x_in = width, y_in = height),
-    graphics.off()
+  # capture.output(
+  #   file = file_conn,
+  #   # append = TRUE,
+  tikz(
+    filename = paste0("figures/", plot_name, ".tex"),
+    console = FALSE,
+    width = width,
+    height = height,
+    standAlone = FALSE,
+    sanitize = TRUE,
+    verbose = FALSE
   )
-
+  draw(plot_graph, x_in = width, y_in = height)
+  graphics.off()
+  # dev.off()
+  # )
+  #
   # Close the resizebox
-  cat("}\n", file = file_conn)
+  # cat("}\n", file = file_conn)
   # cat("\\end{minipage}\n", file = file_conn)
 
   # Close the file connection
-  close(file_conn)
+  # close(file_conn)
 
   # Export caption to a separate file
-  caption_conn <- file(caption_name, "w")
-  plot_name <- gsub("_", "", plot_name)
-  if (!is.null(caption)) {
-    cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
-  } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
-    caption <- plot_title
-    if (!is.null(plot_subtitle)) {
-      caption <- paste0(
-        caption,
-        ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{",
-        plot_subtitle,
-        "}}"
-      )
-    }
-    cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
-  }
-  close(caption_conn)
+  # caption_conn <- file(caption_name, "w")
+  # plot_name <- gsub("_", "", plot_name)
+  # if (!is.null(caption)) {
+  #   cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
+  # } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
+  #   caption <- plot_title
+  #   if (!is.null(plot_subtitle)) {
+  #     caption <- paste1(
+  #       caption,
+  #       ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{",
+  #       plot_subtitle,
+  #       "}}"
+  #     )
+  #   }
+  #   cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
+  # }
+  # close(caption_conn)
 }
 
 merge_and_export_legend <- function(
@@ -1587,4 +1596,16 @@ extract_flame_function_name <- function(spans) {
 
   spans %>%
     mutate(span.name = names[, 2])
+}
+
+log10_labels <- function() {
+  scales::trans_format("log10", function(x) {
+    sapply(x, function(val) {
+      return(paste0(
+        "$10^{",
+        val,
+        "}$"
+      ))
+    })
+  })
 }

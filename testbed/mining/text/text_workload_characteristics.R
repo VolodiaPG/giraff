@@ -50,6 +50,7 @@ text_workload_characteristics <- function(
 
   total_requests <- nb_requests %>%
     left_join(durations) %>%
+    filter(duration != 0) %>%
     mutate(throughput = requests / as.numeric(duration)) %>%
     ungroup() %>%
     summarise(min = min(throughput), max = max(throughput))
@@ -83,19 +84,18 @@ text_workload_characteristics <- function(
     file = "out/mean_success.txt"
   )
 
-  Log(
-    nb_nodes %>%
-      group_by(nb_nodes) %>%
-      summarise(total = n())
-  )
-
   max_nb_nodes <- nb_nodes %>%
     ungroup() %>%
-    summarise(max = max(nb_nodes))
+    summarise(max = max(nb_nodes), min = min(nb_nodes))
 
   write(
     max_nb_nodes %>% pull(max),
     file = "out/max_nb_nodes_app.txt"
+  )
+
+  write(
+    max_nb_nodes %>% pull(min),
+    file = "out/min_nb_nodes_app.txt"
   )
 
   apps <- nb_functions %>%

@@ -11,10 +11,10 @@ ONLY_BIG_GRAPHS <- TRUE
 CHAIN_LENGTH <- 3
 
 # GRAPH_ONE_COLUMN_HEIGHT <- 3 * 1.5
-GRAPH_ONE_COLUMN_HEIGHT <- 2 * 2
-GRAPH_ONE_COLUMN_WIDTH <- 3.6 * 2
-GRAPH_HALF_COLUMN_WIDTH <- 2.5 * 2
-GRAPH_TWO_COLUMN_WIDTH <- 6 * 2
+GRAPH_ONE_COLUMN_HEIGHT <- 4
+GRAPH_ONE_COLUMN_WIDTH <- 3
+GRAPH_HALF_COLUMN_WIDTH <- 1.5
+GRAPH_TWO_COLUMN_WIDTH <- 7
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
@@ -217,12 +217,16 @@ METRICS_ARKS <- c(
 METRICS_ARKS <- unique(METRICS_ARKS[-length(METRICS_ARKS)])
 
 
+SCE_ONE <- "{10u/req, $\\infty$ init. bal., no fallbacks}"
+SCE_TWO <- "{10u/req, $\\infty$ init. bal.}"
+SCE_THREE <- "10u/req"
+SCE_FOUR <- "20u/req"
 env_live_extract <- function(x) {
   order <- c(
-    "10u/req, $\\infty$ initial balance, No fallbacks",
-    "10u/req, $\\infty$ initial balance",
-    "10u/req",
-    "20u/req"
+    SCE_ONE,
+    SCE_TWO,
+    SCE_THREE,
+    SCE_FOUR
   )
 
   x %>%
@@ -232,14 +236,16 @@ env_live_extract <- function(x) {
     ) %>%
     mutate(
       env_live = case_when(
-        env_live == 1 ~ "10u/req, $\\infty$ initial balance, No fallbacks",
-        env_live == 2 ~ "10u/req, $\\infty$ initial balance",
-        env_live == 3 ~ "10u/req",
-        env_live == 4 ~ "20u/req"
+        env_live == 1 ~ SCE_ONE,
+        env_live == 2 ~ SCE_TWO,
+        env_live == 3 ~ SCE_THREE,
+        env_live == 4 ~ SCE_FOUR
       ),
       env_live = factor(env_live, levels = order)
     )
 }
+
+APP_CONFIG <- "Flavor"
 
 extract_function_name <- function(spans) {
   order <- c(
@@ -254,7 +260,7 @@ extract_function_name <- function(spans) {
     mutate(
       span.name = case_when(
         span.name == "SpeechToText" ~ "Speech to Text",
-        span.name == "VoskSpeechToText" ~ "Speech to Text (degraded)",
+        span.name == "VoskSpeechToText" ~ "Speech to Text (fallback)",
         span.name == "Sentiment" ~ "Sentiment Analysis",
         span.name == "EndGame" ~ "End Function",
         span.name == "TextToSpeech" ~ "Text to Speech",
@@ -268,11 +274,12 @@ extract_env_name <- function(x) {
   x %>%
     mutate(
       env = case_when(
-        env == 1 ~ "High load",
-        env == 2 ~ "Normal load",
-        env == 3 ~ "Normal load, more functions",
+        env == 1 ~ "Nominal",
+        env == 2 ~ "TODO",
+        env == 3 ~ "More functions",
         TRUE ~ env
-      )
+      ),
+      env = factor(env, levels = c("Nominal", "More functions"))
     )
 }
 

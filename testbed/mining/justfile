@@ -3,6 +3,7 @@ _default: make
 
 make:
     mkdir ./cache || true
+    mkdir ./figures || true
     mkdir ./out || true
     @echo -e "\033[1;33mstarting...\033[0m" >> logs.fifo
     Rscript make.R || (echo -e "\033[1;31mERR\033[0m" >> logs.fifo ; false)

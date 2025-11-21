@@ -58,8 +58,8 @@ big_output_otel_nb_requests_plot <- function(
     labs(
       x = "Number of nodes",
       y = "Number of requests",
-      fill = "Application Configuration",
-      color = "Application Configuration",
+      fill = APP_CONFIG,
+      color = APP_CONFIG,
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

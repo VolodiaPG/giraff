@@ -72,8 +72,8 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       # title = "Number of functions per application, depending on the number of nodes in the continuum",
       x = "Number of nodes",
       y = "Number of functions",
-      fill = "Application Configuration",
-      color = "Application Configuration"
+      fill = APP_CONFIG,
+      color = APP_CONFIG
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)

@@ -80,6 +80,7 @@ graph_html_pkgs <- c(
 
 latex_pkgs <- c(
   "tikzDevice",
+  "snakecase",
   graph_pkgs
 )
 
@@ -330,6 +331,10 @@ combined_single_data_processed <- list(
   tar_target(
     functions_total,
     command = load_functions_total(functions)
+  ),
+  tar_target(
+    fallbacks_processed,
+    command = load_fallbacks_processed(otel_processed, otel_errors, nb_nodes)
   )
 )
 
@@ -358,9 +363,7 @@ combined_graphs <-
     tar_target(
       name = big_otel_fallbacks_graph,
       command = wrap_graph(big_output_otel_fallbacks_plot(
-        otel_processed,
-        otel_errors,
-        nb_nodes
+        fallbacks_processed
       )),
       packages = graph_pkgs
     ),
@@ -447,6 +450,24 @@ combined_graphs <-
       )),
       packages = graph_pkgs
     ),
+    tar_target(
+      name = big_output_nb_success_vs_requests_graph,
+      command = wrap_graph(big_output_nb_success_vs_requests_plot(
+        nb_functions,
+        nb_requests,
+        nb_nodes
+      )),
+      packages = graph_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_success_vs_nb_functions_graph,
+      command = wrap_graph(big_output_nb_success_vs_nb_functions_plot(
+        nb_functions,
+        nb_requests,
+        nb_nodes
+      )),
+      packages = graph_pkgs
+    ),
     # Text outputs
     tar_target(
       name = text_output_nb_functions,
@@ -486,7 +507,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_output_typical_latencies_latex,
       command = export_graph_tikz(
         big_output_typical_latencies_graph,
-        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
@@ -531,7 +552,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_otel_nb_functions_latex,
       command = export_graph_tikz(
         big_output_otel_nb_functions_graph,
-        GRAPH_TWO_COLUMN_WIDTH / 3,
+        GRAPH_TWO_COLUMN_WIDTH / 2,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs
@@ -568,6 +589,24 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_requests_env_live_graph,
         GRAPH_TWO_COLUMN_WIDTH / 2,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_success_vs_requests_latex,
+      command = export_graph_tikz(
+        big_output_nb_success_vs_requests_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
+        GRAPH_ONE_COLUMN_HEIGHT
+      ),
+      packages = latex_pkgs
+    ),
+    tar_target(
+      name = big_output_nb_requests_vs_nb_functions_latex,
+      command = export_graph_tikz(
+        big_output_nb_success_vs_nb_functions_graph,
+        GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT
       ),
       packages = latex_pkgs

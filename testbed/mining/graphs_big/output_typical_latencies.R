@@ -8,18 +8,30 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       service.namespace,
       span.name
     ) %>%
-    summarise(latency = mean(latency)) %>%
+    # summarise(latency = mean(latency)) %>%
     extract_context() %>%
     extract_function_name() %>%
     extract_env_name()
 
   all_max <- df %>%
     group_by(span.name) %>%
-    summarise(max_latency = max(latency), min_latency = min(latency))
+    summarise(
+      max_latency = max(latency),
+      min_latency = min(latency),
+      sd = sd(latency, na.rm = TRUE),
+      nb = n(),
+      avg = mean(latency)
+    ) %>%
+    mutate(
+      se = sd / sqrt(nb),
+      lower.ci = avg - qnorm(0.975) * se,
+      upper.ci = avg + qnorm(0.975) * se
+    )
 
   df <- df %>%
-    group_by(folder, metric_group, span.name) %>%
+    group_by(folder, metric_group, span.name, service.namespace) %>%
     summarise(latency = mean(latency))
+
   all_averages <- df %>%
     group_by(span.name) %>%
     summarise(latency = mean(latency))
@@ -36,25 +48,30 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       position = position_dodge(width = 0.9),
       alpha = 0.8,
     ) +
-    geom_beeswarm(
+    # geom_beeswarm(
+    #   aes(y = latency),
+    #   position = position_dodge(width = 0.9),
+    #   cex = 0.8,
+    #   alpha = 0.5,
+    #   size = 0.01,
+    # ) +
+    geom_violin(
       aes(y = latency),
       position = position_dodge(width = 0.9),
-      cex = 0.8,
-      alpha = 0.5,
-      size = 0.5,
     ) +
-    geom_errorbar(
-      data = all_max,
-      aes(x = span.name, ymin = min_latency, ymax = max_latency),
-      position = position_dodge(width = 0.9),
-      width = 0.1,
-    ) +
-    theme(
-      axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-    ) +
+    # geom_errorbar(
+    #   data = all_max,
+    #   aes(x = span.name, ymin = lower.ci, ymax = upper.ci),
+    #   # aes(x = span.name, ymin = min_latency, ymax = max_latency),
+    #   position = position_dodge(width = 0.9),
+    #   width = 0.1,
+    # ) +
+    # theme(
+    #   axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+    # ) +
     labs(
-      x = "Function",
-      y = "Latency (s)",
+      x = "Destination function",
+      y = "Latency from parent function (s)",
       color = "Load",
       fill = "Load",
     ) +

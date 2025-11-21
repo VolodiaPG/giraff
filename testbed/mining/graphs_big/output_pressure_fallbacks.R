@@ -89,7 +89,7 @@ big_pressure_fallbacks_plot <- function(
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",
-      fill = "Application Configuration"
+      fill = APP_CONFIG
     ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
