@@ -12,9 +12,9 @@ text_workload_characteristics <- function(
       p99 = quantile(nb_functions, 0.99)
     )
 
-  write(round(functions %>% pull(avg), 1), file = "out/avg_functions.txt")
-  write(functions %>% pull(max), file = "out/max_functions.txt")
-  write(functions %>% pull(p99), file = "out/p99_functions.txt")
+  write(round(functions %>% pull(avg), 1), file = "figures/avg_functions.txt")
+  write(functions %>% pull(max), file = "figures/max_functions.txt")
+  write(functions %>% pull(p99), file = "figures/p99_functions.txt")
 
   total_functions <- nb_functions %>%
     group_by(folder) %>%
@@ -22,8 +22,8 @@ text_workload_characteristics <- function(
     ungroup() %>%
     summarise(min = min(total), max = max(total))
 
-  write(total_functions %>% pull(min), file = "out/min_total_functions.txt")
-  write(total_functions %>% pull(max), file = "out/max_total_functions.txt")
+  write(total_functions %>% pull(min), file = "figures/min_total_functions.txt")
+  write(total_functions %>% pull(max), file = "figures/max_total_functions.txt")
 
   total_functions <- nb_functions %>%
     group_by(folder, run, env) %>%
@@ -36,7 +36,7 @@ text_workload_characteristics <- function(
 
   write(
     total_functions %>% pull(span) %>% round(1),
-    file = "out/span_total_functions.txt"
+    file = "figures/span_total_functions.txt"
   )
 
   total_requests <- nb_requests %>%
@@ -45,8 +45,8 @@ text_workload_characteristics <- function(
     ungroup() %>%
     summarise(min = min(total), max = max(total))
 
-  write(total_requests %>% pull(min), file = "out/min_total_requests.txt")
-  write(total_requests %>% pull(max), file = "out/max_total_requests.txt")
+  write(total_requests %>% pull(min), file = "figures/min_total_requests.txt")
+  write(total_requests %>% pull(max), file = "figures/max_total_requests.txt")
 
   total_requests <- nb_requests %>%
     left_join(durations) %>%
@@ -55,13 +55,20 @@ text_workload_characteristics <- function(
     ungroup() %>%
     summarise(min = min(throughput), max = max(throughput))
 
+  # Log(
+  #   durations %>%
+  #     select(duration) %>%
+  #     mutate(duration = duration / 60) %>%
+  #     arrange(desc(duration))
+  # )
+
   write(
     total_requests %>% pull(min) %>% round(1),
-    file = "out/min_throughput.txt"
+    file = "figures/min_throughput.txt"
   )
   write(
     total_requests %>% pull(max) %>% round(1),
-    file = "out/max_throughput.txt"
+    file = "figures/max_throughput.txt"
   )
 
   successes <- nb_requests %>%
@@ -81,7 +88,7 @@ text_workload_characteristics <- function(
 
   write(
     paste0(mean_success, "\\% \\pm ", success_margin_error, "\\%"),
-    file = "out/mean_success.txt"
+    file = "figures/mean_success.txt"
   )
 
   max_nb_nodes <- nb_nodes %>%
@@ -90,12 +97,12 @@ text_workload_characteristics <- function(
 
   write(
     max_nb_nodes %>% pull(max),
-    file = "out/max_nb_nodes_app.txt"
+    file = "figures/max_nb_nodes_app.txt"
   )
 
   write(
     max_nb_nodes %>% pull(min),
-    file = "out/min_nb_nodes_app.txt"
+    file = "figures/min_nb_nodes_app.txt"
   )
 
   apps <- nb_functions %>%
@@ -107,6 +114,6 @@ text_workload_characteristics <- function(
     ungroup() %>%
     summarise(min = min(total), max = max(total))
 
-  write(apps %>% pull(min), file = "out/min_apps.txt")
-  write(apps %>% pull(max), file = "out/max_apps.txt")
+  write(apps %>% pull(min), file = "figures/min_apps.txt")
+  write(apps %>% pull(max), file = "figures/max_apps.txt")
 }

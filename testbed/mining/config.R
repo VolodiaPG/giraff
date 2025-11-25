@@ -11,10 +11,11 @@ ONLY_BIG_GRAPHS <- TRUE
 CHAIN_LENGTH <- 3
 
 # GRAPH_ONE_COLUMN_HEIGHT <- 3 * 1.5
-GRAPH_ONE_COLUMN_HEIGHT <- 4
+GRAPH_ONE_COLUMN_HEIGHT <- 3
+GRAPH_TWO_COLUMN_HEIGHT <- 4
 GRAPH_ONE_COLUMN_WIDTH <- 3
 GRAPH_HALF_COLUMN_WIDTH <- 1.5
-GRAPH_TWO_COLUMN_WIDTH <- 7
+GRAPH_TWO_COLUMN_WIDTH <- 6
 
 METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
@@ -217,8 +218,8 @@ METRICS_ARKS <- c(
 METRICS_ARKS <- unique(METRICS_ARKS[-length(METRICS_ARKS)])
 
 
-SCE_ONE <- "{10u/req, $\\infty$ init. bal., no fallbacks}"
-SCE_TWO <- "{10u/req, $\\infty$ init. bal.}"
+SCE_ONE <- "10u/req, $\\infty$ initial bal., no fallbacks"
+SCE_TWO <- "10u/req, $\\infty$ initial bal."
 SCE_THREE <- "10u/req"
 SCE_FOUR <- "20u/req"
 env_live_extract <- function(x) {
@@ -250,7 +251,7 @@ APP_CONFIG <- "Flavor"
 extract_function_name <- function(spans) {
   order <- c(
     "Speech to Text",
-    "Speech to Text (degraded)",
+    "Speech to Text (fallback)",
     "Sentiment Analysis",
     "Text to Speech",
     "End Function"
@@ -270,16 +271,18 @@ extract_function_name <- function(spans) {
     )
 }
 
+LOAD_ONE <- "$\\times 1$ load"
+LOAD_THREE <- "$\\times 3$ load"
 extract_env_name <- function(x) {
   x %>%
     mutate(
       env = case_when(
-        env == 1 ~ "Nominal",
+        env == 1 ~ LOAD_ONE,
         env == 2 ~ "TODO",
-        env == 3 ~ "More functions",
+        env == 3 ~ LOAD_THREE,
         TRUE ~ env
       ),
-      env = factor(env, levels = c("Nominal", "More functions"))
+      env = factor(env, levels = c(LOAD_ONE, LOAD_THREE))
     )
 }
 

@@ -40,6 +40,8 @@ output_requests_profit_plot <- function(
     arrange(desc(profit_per_request))
 
   df_mean$letters <- letters$cld.env_live.Letters
+  df_mean <- df_mean %>%
+    mutate(letters = paste0("\\tiny{", letters, "}"))
 
   p <- ggplot(
     data = df,

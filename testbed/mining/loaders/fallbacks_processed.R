@@ -45,9 +45,9 @@ load_fallbacks_processed <- function(
         timeout ~ "Failure",
         otel_error ~ "Failure",
         error ~ "Failure",
-        fallbacks == 1 ~ "Success, Degraded with 1 fallback",
-        fallbacks == 2 ~ "Success, Degraded with 2 fallbacks",
-        TRUE ~ "Success, Nominal",
+        fallbacks == 1 ~ "1 fallback",
+        fallbacks == 2 ~ "2 fallbacks",
+        TRUE ~ "0 fallback",
       ),
     ) %>%
     filter(!is.na(status)) %>%
@@ -69,7 +69,7 @@ load_fallbacks_processed <- function(
     filter(status != "Failure" & status != "Timeout") %>%
     group_by(folder, metric_group, service.namespace, total) %>%
     summarise(n = sum(n)) %>%
-    mutate(status = "Total Successes")
+    mutate(status = "Total")
 
   df <- df %>%
     bind_rows(total_successes) %>%
@@ -80,25 +80,26 @@ load_fallbacks_processed <- function(
     env_live_extract() %>%
     extract_env_name() %>%
     categorize_nb_nodes() %>%
+    filter(status != "Failure") %>%
     mutate(
       status = factor(
         status,
         levels = c(
-          "Failure",
-          "Total Successes",
-          "Success, Nominal",
-          "Success, Degraded with 1 fallback",
-          "Success, Degraded with 2 fallbacks"
+          # "Failure",
+          "Total",
+          "0 fallback",
+          "1 fallback",
+          "2 fallbacks"
         )
       )
-    ) %>%
-    mutate(
-      alpha = case_when(
-        status == "Failure" ~ 1,
-        status == "Total Successes" ~ 1,
-        TRUE ~ 0.8
-      )
     )
+  # mutate(
+  #   alpha = case_when(
+  #     status == "Failure" ~ 1,
+  #     status == "Total Successes" ~ 1,
+  #     TRUE ~ 0.8
+  #   )
+  # )
 
   df
 }

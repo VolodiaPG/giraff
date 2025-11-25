@@ -2,18 +2,6 @@ big_output_otel_fallbacks_plot <- function(
   fallbacks_processed
 ) {
   df <- fallbacks_processed %>%
-    filter(status != "Failure") %>%
-    mutate(
-      status = factor(
-        status,
-        levels = c(
-          "Total Successes",
-          "Success, Nominal",
-          "Success, Degraded with 1 fallback",
-          "Success, Degraded with 2 fallbacks"
-        )
-      )
-    ) %>%
     ungroup() %>%
     complete(status, env_live, fill = list(n = NA))
 
@@ -28,7 +16,7 @@ big_output_otel_fallbacks_plot <- function(
   letters <- data.frame(cld$`env_live:status`$Letters)
 
   df_mean <- df %>%
-    group_by(env_live, status, alpha) %>%
+    group_by(env_live, status) %>%
     summarise(
       max_n = max(n),
       min_n = min(n),
@@ -52,10 +40,11 @@ big_output_otel_fallbacks_plot <- function(
   df_mean$letters <- letters$cld..env_live.status..Letters
 
   df_mean <- df_mean %>%
-    mutate(letters = ifelse(letters == "abcdefgh", "", letters))
+    mutate(letters = ifelse(letters == "abcdefgh", "", letters)) %>%
+    mutate(letters = paste0("\\tiny{", letters, "}"))
 
   df <- df %>%
-    group_by(folder, status, env_live, run, alpha) %>%
+    group_by(folder, status, env_live, run) %>%
     summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n))
   # mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
 
@@ -87,7 +76,8 @@ big_output_otel_fallbacks_plot <- function(
       vjust = -0.5,
       size = 5
     ) +
-    guides(group = "none", linetype = "none") +
+    # guides(group = "none", linetype = "none") +
+    # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
     scale_y_continuous(labels = scales::percent, limits = c(0, 1.05)) +
     labs(
       x = "Request status",

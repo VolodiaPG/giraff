@@ -25,7 +25,7 @@ text_pressure_output <- function(nb_requests, durations) {
 
   write(
     round(inc_success, 1),
-    file = "out/pressure_increase.txt"
+    file = "figures/pressure_increase.txt"
   )
 
   df %>%
@@ -39,7 +39,7 @@ text_pressure_output <- function(nb_requests, durations) {
           # round(.x$margin_error * 100, 1),
           # "\\%"
         ),
-        file = paste0("out/", .x$file_name)
+        file = paste0("figures/", .x$file_name)
       )
     )
 
@@ -71,7 +71,7 @@ text_pressure_output <- function(nb_requests, durations) {
     group_walk(
       ~ write(
         round(.x$avg_p99_throughput, 1),
-        file = paste0("out/", .x$file_name)
+        file = paste0("figures/", .x$file_name)
       )
     )
 }

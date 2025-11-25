@@ -59,6 +59,7 @@ big_output_typical_latencies_plot <- function(func_with_latencies) {
       aes(y = latency),
       position = position_dodge(width = 0.9),
     ) +
+    scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
     # geom_errorbar(
     #   data = all_max,
     #   aes(x = span.name, ymin = lower.ci, ymax = upper.ci),

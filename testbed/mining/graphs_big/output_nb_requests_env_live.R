@@ -50,7 +50,6 @@ big_output_nb_requests_env_live_plot <- function(
 
   cld <- multcompLetters4(anova_model, tukey_result)
   letters <- data.frame(cld$`env_live:env`$Letters)
-  Log(letters)
   # cld_df <- data.frame(
   #   env_live = names(cld$`env_live:env`$Letters),
   #   letter = cld$`env_live:env`$Letters
@@ -66,6 +65,8 @@ big_output_nb_requests_env_live_plot <- function(
     arrange(desc(ratio_benefit))
 
   df_mean$letters <- letters$cld..env_live.env..Letters
+  df_mean <- df_mean %>%
+    mutate(letters = paste0("\\tiny{", letters, "}"))
   # cld_df <- cld_df %>%
   #   separate(env_live, into = c("env_live", "env"), sep = ":")
   #

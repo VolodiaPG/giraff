@@ -41,7 +41,7 @@ big_output_otel_nb_functions_plot <- function(
       level = 0.95,
       alpha = 0.3,
     ) +
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
+    # geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
     # geom_beeswarm(
     #   aes(y = total, group = env),
     #   dodge.width = 0.9,
@@ -54,9 +54,10 @@ big_output_otel_nb_functions_plot <- function(
     labs(
       x = "Number of nodes",
       y = "Total number of functions",
-      fill = "Load",
-      color = "Load"
+      fill = "Flavor",
+      color = "Flavor"
     ) +
+    guides(group = "none", linetype = "none", alpha = "none") +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE)
 }

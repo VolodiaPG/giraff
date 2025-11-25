@@ -69,7 +69,8 @@ graph_pkgs <- c(
   "patchwork",
   "ggbeeswarm",
   "rstatix",
-  "ggpubr"
+  "ggpubr",
+  "forcats"
 )
 
 graph_html_pkgs <- c(
@@ -544,7 +545,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_otel_fallbacks_graph,
         GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_ONE_COLUMN_HEIGHT,
+        legend_position = "none",
       ),
       packages = latex_pkgs
     ),
@@ -552,8 +554,12 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       name = big_otel_nb_functions_latex,
       command = export_graph_tikz(
         big_output_otel_nb_functions_graph,
-        GRAPH_TWO_COLUMN_WIDTH / 2,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+        GRAPH_ONE_COLUMN_HEIGHT,
+        extract_legend = TRUE,
+        legend_width = GRAPH_TWO_COLUMN_WIDTH,
+        legend_height = GRAPH_ONE_COLUMN_HEIGHT / 4,
+        legend_nrow = 2
       ),
       packages = latex_pkgs
     ),
@@ -562,7 +568,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_otel_nb_requests_graph,
         GRAPH_TWO_COLUMN_WIDTH / 3,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_ONE_COLUMN_HEIGHT,
+        legend_position = "none"
       ),
       packages = latex_pkgs
     ),
@@ -580,7 +587,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         output_requests_profit_graph,
         GRAPH_TWO_COLUMN_WIDTH / 2,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_ONE_COLUMN_HEIGHT,
+        legend_position = "none"
       ),
       packages = latex_pkgs
     ),
@@ -589,7 +597,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_requests_env_live_graph,
         GRAPH_TWO_COLUMN_WIDTH / 2,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_ONE_COLUMN_HEIGHT,
+        legend_position = "none"
       ),
       packages = latex_pkgs
     ),
@@ -598,7 +607,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_success_vs_requests_graph,
         GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_TWO_COLUMN_HEIGHT,
+        legend_position = "right"
       ),
       packages = latex_pkgs
     ),
@@ -607,7 +617,8 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       command = export_graph_tikz(
         big_output_nb_success_vs_nb_functions_graph,
         GRAPH_TWO_COLUMN_WIDTH,
-        GRAPH_ONE_COLUMN_HEIGHT
+        GRAPH_TWO_COLUMN_HEIGHT,
+        legend_position = "right"
       ),
       packages = latex_pkgs
     )

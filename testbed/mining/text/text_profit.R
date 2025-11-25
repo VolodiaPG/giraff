@@ -27,7 +27,7 @@ text_profit_output <- function(otel_profit) {
           round(.x$margin_error * 100, 1),
           "\\%"
         ),
-        file = paste0("out/", .x$file_name)
+        file = paste0("figures/", .x$file_name)
       )
     )
 
@@ -43,13 +43,13 @@ text_profit_output <- function(otel_profit) {
     (2 * roi_increase[1, ]$roi)
   write(
     paste0(round(increase * 100, 1), "\\%"),
-    file = "out/roi_increase.txt"
+    file = "figures/roi_increase.txt"
   )
 
   increase <- (roi_increase[3, ]$roi + roi_increase[4, ]$roi) /
     (roi_increase[1, ]$roi + roi_increase[2, ]$roi)
   write(
     paste0(round(increase * 100, 1), "\\%"),
-    file = "out/roi_increase_2.txt"
+    file = "figures/roi_increase_2.txt"
   )
 }

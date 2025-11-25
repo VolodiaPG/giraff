@@ -1109,92 +1109,111 @@ export_graph_tikz <- function(
   plot,
   width,
   height,
-  remove_legend = FALSE,
-  caption = NULL
+  ...,
+  caption = NULL,
+  legend_position = NULL,
+  extract_legend = FALSE,
+  legend_width = NULL,
+  legend_height = NULL,
+  legend_nrow = 4
 ) {
+  if (is.null(legend_width)) {
+    legend_width <- width
+  }
+  if (is.null(legend_height)) {
+    legend_height <- height
+  }
   # oldwd <- getwd()
   # setwd(paste0(getwd(), "/out"))
   # on.exit(setwd(oldwd))
 
   name <- deparse(substitute(plot))
   name <- stringr::str_replace_all(name, "(.*?)_graph", "\\1")
-  # Log(name)
-  # if (length(find.package("tikzDevice", quiet = TRUE)) == 0) {
-  #   warning("tikzDevice package not found. TikZ export skipped.")
-  #   Log("tikzDevice package not found. TikZ export skipped.")
-  #   return()
-  # }
-
+  raw_plot_name <- name
   plot_name <- to_lower_camel_case(name)
   load_tikz()
 
-  # plot_name <- to_lower_camel_case(name)
   plot_graph <- plot$graph
-  # tikz_name <- paste0(plot_name, ".tex")
-  # caption_name <- paste0(plot_name, "_caption.tex")
 
   # Extract title, subtitle, and axis labels from the ggplot object
   built_plot <- ggplot2::ggplot_build(plot_graph)
   plot_title <- built_plot$plot$labels$title
   plot_subtitle <- built_plot$plot$labels$subtitle
-  plot_x_label <- built_plot$plot$labels$x
-  plot_y_label <- built_plot$plot$labels$y
+  plot_x_label <- paste0("\\tiny{", built_plot$plot$labels$x, "}")
+  plot_y_label <- paste0("\\tiny{", built_plot$plot$labels$y, "}")
 
   plot_graph <- plot_graph +
-    ggplot2::theme(
-      # title = ggplot2::element_blank(),
-      # plot.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-      # panel.spacing = ggplot2::unit(0, "pt"),
-      # panel.margin = ggplot2::margin(0, 0, 0, 0, "pt"),
-    )
-  # if (remove_legend) {
-  #   plot_graph <- plot_graph + theme(legend.position = "none")
-  # } else if (check_legend_position(plot_graph) != "none") {
+    ggplot2::theme()
+
+  if (is.null(legend_position)) {
+    plot_graph <- plot_graph +
+      theme(
+        legend.position = "top",
+        legend.box = "vertical"
+      )
+  } else {
+    plot_graph <- plot_graph +
+      theme(
+        legend.position = legend_position
+      )
+  }
+
   plot_graph <- plot_graph +
     theme(
-      legend.position = "top",
-      legend.box = "vertical",
-      legend.margin = ggplot2::margin(),
-      legend.box.margin = ggplot2::margin(),
+      # legend.margin = ggplot2::margin(),
+      # legend.box.margin = ggplot2::margin(),
+      legend.box.margin = margin(0, 0, 0, 0, "pt"),
+      plot.margin = margin(0, 0, 0, 0, "pt"),
       legend.spacing = ggplot2::unit(0, "pt"),
-      legend.justification = c(0, 0.8)
-    ) +
-    guides(col = guide_legend(nrow = 4, byrow = TRUE))
-  # }
-  plot_graph <- plot_graph +
-    theme(
+      legend.justification = c(0, 0.8),
       axis.title.x = ggplot2::element_text(plot_x_label),
       axis.title.y = ggplot2::element_text(plot_y_label),
       panel.border = ggplot2::element_blank(),
       panel.background = ggplot2::element_blank(),
-      axis.line = ggplot2::element_line(color = "black"),
+      axis.line = ggplot2::element_line(color = "black")
+    ) +
+    guides(col = guide_legend(nrow = legend_nrow, byrow = TRUE))
+
+  if (extract_legend) {
+    legend <- cowplot::get_legend(plot_graph)
+    legend_plot <- ggplot() +
+      theme_void() +
+      theme(
+        legend.position = "right"
+      ) +
+      annotation_custom(grob = legend)
+
+    ggsave(
+      paste0("out/", plot_name, "_legend.png"),
+      legend_plot,
+      width = legend_width,
+      height = legend_height
     )
 
-  # Open the file in write mode
-  # file_conn <- file(tikz_name, "w")
+    tikz(
+      filename = paste0("figures/", plot_name, "Legend.tex"),
+      console = FALSE,
+      width = legend_width,
+      height = legend_height,
+      standAlone = FALSE,
+      sanitize = TRUE,
+      verbose = FALSE
+    )
+    draw(legend_plot, x_in = legend_width, y_in = legend_height)
+    graphics.off()
 
-  # Write the resizebox command
-  # tex_width <- 1
+    plot_graph <- plot_graph +
+      theme(legend.position = "none")
+  }
 
-  # ggsave(
-  #   filename = paste0(plot_name, ".png"),
-  #   plot = plot_graph,
-  #   width = width,
-  #   height = height,
-  #   dpi = 300
-  # )
+  ggsave(
+    filename = paste0("out/", raw_plot_name, ".jpg"),
+    plot = plot_graph,
+    width = width,
+    height = height,
+    dpi = 100
+  )
 
-  # cat(
-  #   # sprintf("\\begin{minipage}{\\columnwidth}\n"),
-  #   sprintf("\\resizebox{\\columnwidth}{!}{\n\\footnotesize\n"),
-  #   file = file_conn
-  # )
-  # cat(sprintf("\\tikzsetnextfilename{%s}\n", plot_name), file = file_conn)
-
-  # Capture tikz output
-  # capture.output(
-  #   file = file_conn,
-  #   # append = TRUE,
   tikz(
     filename = paste0("figures/", plot_name, ".tex"),
     console = FALSE,
@@ -1206,34 +1225,6 @@ export_graph_tikz <- function(
   )
   draw(plot_graph, x_in = width, y_in = height)
   graphics.off()
-  # dev.off()
-  # )
-  #
-  # Close the resizebox
-  # cat("}\n", file = file_conn)
-  # cat("\\end{minipage}\n", file = file_conn)
-
-  # Close the file connection
-  # close(file_conn)
-
-  # Export caption to a separate file
-  # caption_conn <- file(caption_name, "w")
-  # plot_name <- gsub("_", "", plot_name)
-  # if (!is.null(caption)) {
-  #   cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
-  # } else if (!is.null(plot_title) || !is.null(plot_subtitle)) {
-  #   caption <- plot_title
-  #   if (!is.null(plot_subtitle)) {
-  #     caption <- paste1(
-  #       caption,
-  #       ". \\\\ \\footnotesize\\textcolor{gray}{\\textit{",
-  #       plot_subtitle,
-  #       "}}"
-  #     )
-  #   }
-  #   cat(sprintf("%s\\label{fig:%s}\n", caption, plot_name), file = caption_conn)
-  # }
-  # close(caption_conn)
 }
 
 merge_and_export_legend <- function(

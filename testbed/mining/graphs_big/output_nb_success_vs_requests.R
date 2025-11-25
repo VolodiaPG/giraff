@@ -15,6 +15,15 @@ big_output_nb_success_vs_requests_plot <- function(
     extract_env_name() %>%
     env_live_extract()
 
+  original_levels <- levels(diamonds$env_live)
+  wrapped_levels <- str_wrap(original_levels, width = 18)
+
+  df <- df %>%
+    mutate(
+      wrapped_label = str_wrap(env_live, width = 18),
+      env_live = fct_relevel(wrapped_label, wrapped_levels)
+    )
+
   outliers <- df %>%
     group_by(env, env_live) %>%
     filter(
@@ -30,6 +39,7 @@ big_output_nb_success_vs_requests_plot <- function(
         fill = after_stat(density)
       ),
       geom = "raster",
+      bounds = c(0, Inf),
       contour = FALSE,
       interpolate = TRUE
     ) +
@@ -41,7 +51,7 @@ big_output_nb_success_vs_requests_plot <- function(
       alpha = 0.7,
       shape = "cross"
     ) +
-    scale_fill_viridis(option = "turbo", guide = "none") +
+    scale_fill_viridis(option = "turbo") +
     scale_x_log10(
       breaks = trans_breaks("log10", function(x) 10^x),
       labels = log10_labels()
@@ -50,7 +60,12 @@ big_output_nb_success_vs_requests_plot <- function(
       breaks = trans_breaks("log10", function(x) 10^x),
       labels = log10_labels()
     ) +
-    annotation_logticks() +
+    guides(x = guide_axis_logticks(negative.small = 1)) +
+    guides(y = guide_axis_logticks(negative.small = 1)) +
     facet_grid(cols = vars(env_live), rows = vars(env)) +
-    labs(fill = "Density")
+    labs(
+      fill = "Density",
+      x = "End-user requests to the application",
+      y = "Successful responses by the application"
+    )
 }

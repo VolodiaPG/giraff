@@ -27,6 +27,8 @@ big_output_pressure_plot <- function(
     arrange(desc(requests))
 
   df_mean$letters <- letters$cld.env_live.Letters
+  df_mean <- df_mean %>%
+    mutate(letters = paste0("\\tiny{", letters, "}"))
 
   ggplot(
     data = df,
