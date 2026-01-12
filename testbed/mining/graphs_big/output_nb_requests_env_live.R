@@ -43,20 +43,20 @@ big_output_nb_requests_env_live_plot <- function(
     summarise(nb_benefit = sum(benefit), nb = n()) %>%
     mutate(ratio_benefit = nb_benefit / nb)
 
-  anova_model <- aov(ratio_benefit ~ env_live * env, data = df)
+  anova_model <- aov(ratio_benefit ~ env_live, data = df)
   tukey_result <- TukeyHSD(anova_model)
 
   # Log(tukey_result)
 
   cld <- multcompLetters4(anova_model, tukey_result)
-  letters <- data.frame(cld$`env_live:env`$Letters)
+  letters <- data.frame(cld$`env_live`$Letters)
   # cld_df <- data.frame(
   #   env_live = names(cld$`env_live:env`$Letters),
   #   letter = cld$`env_live:env`$Letters
   # )
 
   df_mean <- df %>%
-    group_by(env_live, env) %>%
+    group_by(env_live) %>%
     summarise(
       nb_benefit = mean(nb_benefit),
       ratio_benefit = mean(ratio_benefit)
@@ -64,7 +64,7 @@ big_output_nb_requests_env_live_plot <- function(
     ungroup() %>%
     arrange(desc(ratio_benefit))
 
-  df_mean$letters <- letters$cld..env_live.env..Letters
+  df_mean$letters <- letters$cld.env_live.Letters
   df_mean <- df_mean %>%
     mutate(letters = paste0("\\tiny{", letters, "}"))
   # cld_df <- cld_df %>%
@@ -80,9 +80,9 @@ big_output_nb_requests_env_live_plot <- function(
   ggplot(
     data = df,
     aes(
-      x = env,
+      x = env_live,
       y = ratio_benefit,
-      group = env_live
+      # group = env_live
     )
   ) +
     # facet_wrap(~env) +
@@ -108,13 +108,13 @@ big_output_nb_requests_env_live_plot <- function(
       vjust = -0.5,
       size = 5
     ) +
-    # theme(
-    #   #   axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-    #   axis.text.x = element_blank()
-    # ) +
+    theme(
+      #   axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
+      axis.text.x = element_blank()
+    ) +
     labs(
-      x = "Load",
-      y = "Ratio of functions that made a profit",
+      x = "Flavors",
+      y = "Share of profitable applications",
       fill = APP_CONFIG,
       color = APP_CONFIG
     ) +

@@ -546,7 +546,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
         big_otel_fallbacks_graph,
         GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT,
-        legend_position = "none",
+        legend_position = "top"
       ),
       packages = latex_pkgs
     ),

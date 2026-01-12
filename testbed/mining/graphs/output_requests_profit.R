@@ -93,7 +93,7 @@ output_requests_profit_plot <- function(
     # ) +
     scale_y_continuous(limits = c(0, max(df$profit_per_request) + 2)) +
     labs(
-      x = "Environment Configuration",
+      x = APP_CONFIG,
       y = "RoI",
       # title = "Profit per Request by Environment Configuration",
       fill = APP_CONFIG,

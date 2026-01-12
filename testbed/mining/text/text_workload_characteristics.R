@@ -48,6 +48,21 @@ text_workload_characteristics <- function(
   write(total_requests %>% pull(min), file = "figures/min_total_requests.txt")
   write(total_requests %>% pull(max), file = "figures/max_total_requests.txt")
 
+  total_requests_per_app <- nb_requests %>%
+    group_by(folder, service.namespace) %>%
+    summarise(total = sum(requests)) %>%
+    ungroup() %>%
+    summarise(min = min(total), max = max(total))
+
+  write(
+    total_requests_per_app %>% pull(min),
+    file = "figures/min_total_requests_per_app.txt"
+  )
+  write(
+    total_requests_per_app %>% pull(max),
+    file = "figures/max_total_requests_per_app.txt"
+  )
+
   total_requests <- nb_requests %>%
     left_join(durations) %>%
     filter(duration != 0) %>%

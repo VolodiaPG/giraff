@@ -57,7 +57,11 @@ big_output_nb_success_vs_nb_functions_plot <- function(
     #   labels = log10_labels()
     # ) +
     scale_y_log10() +
-    scale_x_continuous(labels = scales::percent, n.breaks = 3) +
+    scale_x_continuous(
+      labels = scales::percent,
+      breaks = c(0.1, 0.5, 0.9),
+      # guide = guide_axis(n.dodge = 3)
+    ) +
     guides(y = guide_axis_logticks(negative.small = 1)) +
     facet_grid(cols = vars(env_live), rows = vars(env)) +
     labs(

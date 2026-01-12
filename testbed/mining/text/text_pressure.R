@@ -21,10 +21,11 @@ text_pressure_output <- function(nb_requests, durations) {
 
   Log(df)
 
-  inc_success <- df[2, ]$requests / df[1, ]$requests
+  # inc_success <- (df[2, ]$requests - df[1, ]$requests) / df[2, ]$requests
+  inc_success <- df[2, ]$requests - df[1, ]$requests
 
   write(
-    round(inc_success, 1),
+    paste0(round(inc_success * 100, 1), "\\%"),
     file = "figures/pressure_increase.txt"
   )
 

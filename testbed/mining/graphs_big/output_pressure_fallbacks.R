@@ -86,6 +86,7 @@ big_pressure_fallbacks_plot <- function(
     geom_boxplot(position = position_dodge2()) +
     guides(group = "none") +
     scale_y_continuous(labels = scales::percent) +
+    scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
     labs(
       x = "Number of nodes",
       y = "Proportion of requests",

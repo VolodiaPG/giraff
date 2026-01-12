@@ -6,7 +6,7 @@ text_profit_output <- function(otel_profit) {
     group_by(env_live, env, folder) %>%
     summarise(nb_benefit = sum(benefit), nb = n()) %>%
     mutate(ratio_benefit = nb_benefit / nb) %>%
-    group_by(env, env_live) %>%
+    group_by(env_live) %>%
     summarize(
       mean = mean(ratio_benefit),
       n = n(),
@@ -15,7 +15,7 @@ text_profit_output <- function(otel_profit) {
       lower_ci = mean - margin_error,
       upper_ci = mean + margin_error
     ) %>%
-    mutate(file_name = paste0("profitables_", env, "_", env_live, ".txt"))
+    mutate(file_name = paste0("profitables_", env_live, ".txt"))
 
   profitables %>%
     rowwise() %>%
@@ -31,6 +31,14 @@ text_profit_output <- function(otel_profit) {
       )
     )
 
+  increase <- ((profitables[3, ]$mean + profitables[4, ]$mean) -
+    (profitables[1, ]$mean + profitables[2, ]$mean))
+  # (profitables[1, ]$mean + profitables[2, ]$mean)
+  write(
+    paste0(round(increase * 100, 1), "\\%"),
+    file = "figures/profitable_increase.txt"
+  )
+
   roi_increase <- otel_profit %>%
     extract_context() %>%
     group_by(env_live, folder) %>%
@@ -39,15 +47,15 @@ text_profit_output <- function(otel_profit) {
     summarise(roi = mean(roi)) %>%
     arrange(env_live)
 
-  increase <- (roi_increase[2, ]$roi + roi_increase[3, ]$roi) /
-    (2 * roi_increase[1, ]$roi)
+  increase <- (roi_increase[3, ]$roi - roi_increase[2, ]$roi) /
+    (roi_increase[2, ]$roi)
   write(
     paste0(round(increase * 100, 1), "\\%"),
     file = "figures/roi_increase.txt"
   )
 
-  increase <- (roi_increase[3, ]$roi + roi_increase[4, ]$roi) /
-    (roi_increase[1, ]$roi + roi_increase[2, ]$roi)
+  increase <- (roi_increase[4, ]$roi - roi_increase[3, ]$roi) /
+    (roi_increase[3, ]$roi)
   write(
     paste0(round(increase * 100, 1), "\\%"),
     file = "figures/roi_increase_2.txt"
