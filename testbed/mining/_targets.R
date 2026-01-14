@@ -559,7 +559,7 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
         extract_legend = TRUE,
         legend_width = GRAPH_TWO_COLUMN_WIDTH,
         legend_height = GRAPH_ONE_COLUMN_HEIGHT / 4,
-        legend_nrow = 2
+        legend_nrow = 1
       ),
       packages = latex_pkgs
     ),

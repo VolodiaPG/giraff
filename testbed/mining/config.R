@@ -217,11 +217,10 @@ METRICS_ARKS <- c(
 )
 METRICS_ARKS <- unique(METRICS_ARKS[-length(METRICS_ARKS)])
 
-
-SCE_ONE <- "10u/req, $\\infty$ initial bal., no fallbacks"
-SCE_TWO <- "10u/req, $\\infty$ initial bal."
-SCE_THREE <- "10u/req"
-SCE_FOUR <- "20u/req"
+SCE_ONE <- "\\flavoronegraph{}"
+SCE_TWO <- "\\flavortwograph{}"
+SCE_THREE <- "\\flavorthreegraph{}"
+SCE_FOUR <- "\\flavorfourgraph{}"
 env_live_extract <- function(x) {
   order <- c(
     SCE_ONE,

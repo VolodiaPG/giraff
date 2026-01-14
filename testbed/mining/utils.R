@@ -1082,7 +1082,15 @@ load_tikz <- function() {
     tikzUnicodeMetricPackages = c(
       "\\usepackage[T1]{fontenc}\n",
       "\\usetikzlibrary{calc}\n",
-      "\\usepackage{fontspec,xunicode}\n"
+      "\\usepackage{fontspec,xunicode}\n",
+      "\\providecommand{\\flavorone}{flavorone}\n",
+      "\\providecommand{\\flavortwo}{flavortwo}\n",
+      "\\providecommand{\\flavorthree}{flavorthree}\n",
+      "\\providecommand{\\flavorfour}{flavorfour}\n",
+      "\\providecommand{\\flavoronegraph}{\\flavorone}\n",
+      "\\providecommand{\\flavortwograph}{\\flavortwo}\n",
+      "\\providecommand{\\flavorthreegraph}{\\flavorthree}\n",
+      "\\providecommand{\\flavorfourgraph}{\\flavorfour}\n"
     )
   )
 
@@ -1164,8 +1172,9 @@ export_graph_tikz <- function(
       # legend.box.margin = ggplot2::margin(),
       legend.box.margin = margin(0, 0, 0, 0, "pt"),
       plot.margin = margin(0, 0, 0, 0, "pt"),
-      legend.spacing = ggplot2::unit(0, "pt"),
-      legend.justification = c(0, 0.8),
+      # legend.spacing = ggplot2::unit(0, "pt"),
+      legen.key.spacing.x = ggplot2::unit(1, "cm"),
+      # legend.justification = c(0, 0.8),
       axis.title.x = ggplot2::element_text(plot_x_label),
       axis.title.y = ggplot2::element_text(plot_y_label),
       panel.border = ggplot2::element_blank(),
