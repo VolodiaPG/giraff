@@ -70,7 +70,8 @@ graph_pkgs <- c(
   "ggbeeswarm",
   "rstatix",
   "ggpubr",
-  "forcats"
+  "forcats",
+  "akima"
 )
 
 graph_html_pkgs <- c(

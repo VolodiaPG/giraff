@@ -93,6 +93,8 @@
               memoise
               cachem
               gifski
+              hexbin
+              akima
             ];
             my-R = pkgs.rWrapper.override {packages = R-pkgs;};
             commonPackages = with pkgs; [

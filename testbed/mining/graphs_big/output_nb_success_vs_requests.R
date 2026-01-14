@@ -24,33 +24,74 @@ big_output_nb_success_vs_requests_plot <- function(
       env_live = fct_relevel(wrapped_label, wrapped_levels)
     )
 
-  outliers <- df %>%
-    group_by(env, env_live) %>%
-    filter(
-      requests > quantile(requests, 0.99) |
-        requests < quantile(requests, 0.01) |
-        nb_functions > quantile(nb_functions, 0.99) |
-        nb_functions < quantile(nb_functions, 0.01)
-    )
+  # Create bins manually per facet
+  # bin_data <- df %>%
+  #   group_by(env, env_live) %>%
+  #   filter(
+  #     !is.na(requests) &
+  #       !is.na(success) &
+  #       requests > 0 &
+  #       success > 0
+  #   ) %>%
+  #   mutate(requests = log10(requests)) %>%
+  #   mutate(success = log10(success)) %>%
+  #   mutate(
+  #     x_bin = cut(requests, breaks = 15),
+  #     y_bin = cut(success, breaks = 15)
+  #   ) %>%
+  #   group_by(env, env_live, x_bin, y_bin) %>%
+  #   summarise(
+  #     x = mean(requests),
+  #     y = mean(success),
+  #     count = n(),
+  #     .groups = "drop"
+  #   ) # Perform Linear Interpolation per facet
+  # interp_df <- bin_data %>%
+  #   group_by(env, env_live) %>%
+  #   group_map(
+  #     function(data, keys) {
+  #       surface <- akima::interp(
+  #         x = data$x,
+  #         y = data$y,
+  #         z = data$count,
+  #         linear = TRUE,
+  #         extrap = FALSE,
+  #         xo = seq(min(data$x), max(data$x), length.out = 200),
+  #         yo = seq(min(data$y), max(data$y), length.out = 200)
+  #       )
+  #       data.frame(
+  #         x = rep(surface$x, length(surface$y)),
+  #         y = rep(surface$y, each = length(surface$x)),
+  #         z = as.vector(surface$z),
+  #         env = keys$env,
+  #         env_live = keys$env_live
+  #       )
+  #     },
+  #     .keep = TRUE
+  #   ) %>%
+  #   bind_rows() %>%
+  #   filter(!is.na(x) & !is.na(y) & !is.na(z)) %>%
+  #   mutate(x = (11^x)) %>%
+  #   mutate(y = (10^y))
 
+  # outliers <- df %>%
+  #   group_by(env, env_live) %>%
+  #   filter(
+  #     requests > quantile(requests, 0.99) |
+  #       requests < quantile(requests, 0.01) |
+  #       nb_functions > quantile(nb_functions, 0.99) |
+  #       nb_functions < quantile(nb_functions, 0.01)
+  #   )
   ggplot(df, aes(x = requests, y = success)) +
-    stat_density_2d(
-      aes(
-        fill = after_stat(density)
-      ),
-      geom = "raster",
+    geom_hex(
+      bins = 10,
       bounds = c(0, Inf),
-      contour = FALSE,
-      interpolate = TRUE
+      geom = "raster"
     ) +
-    stat_density_2d(color = "white", alpha = 0.5, bins = 5) +
-    geom_point(
-      data = outliers,
-      color = "red",
-      size = 0.2,
-      alpha = 0.7,
-      shape = "cross"
-    ) +
+    # ggplot(interp_df, aes(x = x, y = y, fill = z)) +
+    #   geom_raster(na.rm = TRUE) +
+    # geom_hex(stat = "identity") +
+
     scale_fill_viridis(option = "turbo") +
     scale_x_log10(
       breaks = trans_breaks("log10", function(x) 10^x),
@@ -64,7 +105,7 @@ big_output_nb_success_vs_requests_plot <- function(
     guides(y = guide_axis_logticks(negative.small = 1)) +
     facet_grid(cols = vars(env_live), rows = vars(env)) +
     labs(
-      fill = "Density",
+      fill = "Nb",
       x = "End-user requests to the application",
       y = "Successful responses by the application"
     )
