@@ -31,9 +31,13 @@ text_profit_output <- function(otel_profit) {
       )
     )
 
-  increase <- ((profitables[3, ]$mean + profitables[4, ]$mean) -
-    (profitables[1, ]$mean + profitables[2, ]$mean))
-  # (profitables[1, ]$mean + profitables[2, ]$mean)
+  # increase <- (((profitables[3, ]$mean + profitables[4, ]$mean) -
+  #   (profitables[1, ]$mean + profitables[2, ]$mean)) /
+  #   2)
+  meangood <- (profitables[3, ]$mean + profitables[4, ]$mean) / 2
+  meanbad <- (profitables[1, ]$mean + profitables[2, ]$mean) / 2
+
+  increase <- (meangood - meanbad) / meanbad
   write(
     paste0(round(increase * 100, 1), "\\%"),
     file = "figures/profitable_increase.txt"
