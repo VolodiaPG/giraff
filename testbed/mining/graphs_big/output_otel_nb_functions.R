@@ -54,8 +54,8 @@ big_output_otel_nb_functions_plot <- function(
     labs(
       x = "Number of nodes",
       y = "Total number of functions",
-      fill = "Flavor",
-      color = "Flavor"
+      fill = "Flavors",
+      color = "Flavors"
     ) +
     guides(group = "none", linetype = "none", alpha = "none") +
     scale_color_viridis(discrete = TRUE) +

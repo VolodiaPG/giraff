@@ -99,7 +99,7 @@ big_output_nb_success_vs_nb_functions_plot <- function(
     guides(y = guide_axis_logticks(negative.small = 1)) +
     facet_grid(cols = vars(env_live), rows = vars(env)) +
     labs(
-      fill = "Nb",
+      fill = "Nb apps",
       # x = "End-user requests to the gateway",
       x = "Ratio of successful requests to total requests per application",
       y = "Nb functions per application"

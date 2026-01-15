@@ -105,7 +105,7 @@ big_output_nb_success_vs_requests_plot <- function(
     guides(y = guide_axis_logticks(negative.small = 1)) +
     facet_grid(cols = vars(env_live), rows = vars(env)) +
     labs(
-      fill = "Nb",
+      fill = "Nb apps",
       x = "End-user requests to the application",
       y = "Successful responses by the application"
     )
