@@ -37,9 +37,9 @@ text_profit_output <- function(otel_profit) {
   meangood <- (profitables[3, ]$mean + profitables[4, ]$mean) / 2
   meanbad <- (profitables[1, ]$mean + profitables[2, ]$mean) / 2
 
-  increase <- (meangood - meanbad) / meanbad
+  increase <- meangood - meanbad
   write(
-    paste0(round(increase * 100, 1), "\\%"),
+    paste0(round(increase * 100, 1), " percentage points"),
     file = "figures/profitable_increase.txt"
   )
 
