@@ -541,13 +541,26 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       ),
       packages = latex_pkgs
     ),
+    # tar_target(
+    #   name = big_otel_fallbacks_latex,
+    #   command = export_graph_tikz(
+    #     big_otel_fallbacks_graph,
+    #     GRAPH_TWO_COLUMN_WIDTH,
+    #     GRAPH_ONE_COLUMN_HEIGHT,
+    #     legend_position = "none"
+    #   ),
+    #   packages = latex_pkgs
+    # ),
     tar_target(
       name = big_otel_fallbacks_latex,
       command = export_graph_tikz(
         big_otel_fallbacks_graph,
         GRAPH_TWO_COLUMN_WIDTH,
         GRAPH_ONE_COLUMN_HEIGHT,
-        legend_position = "top"
+        extract_legend = TRUE,
+        legend_width = GRAPH_TWO_COLUMN_WIDTH,
+        legend_height = GRAPH_ONE_COLUMN_HEIGHT / 4,
+        legend_nrow = 1
       ),
       packages = latex_pkgs
     ),

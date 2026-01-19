@@ -78,5 +78,7 @@ big_output_otel_fallbacks_plot <- function(
       fill = APP_CONFIG,
       color = APP_CONFIG
     ) +
-    scale_fill_viridis(discrete = TRUE, option = "turbo")
+    # Fix colors since only two flavors are displayed
+    scale_fill_manual(values = c("#440154", "#31688e")) +
+    scale_color_manual(values = c("#440154", "#31688e"))
 }

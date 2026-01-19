@@ -15,34 +15,47 @@ text_pressure_output <- function(nb_requests, durations) {
       .groups = "drop"
     ) %>%
     extract_context() %>%
-    group_by(env_live) %>%
+    env_live_extract() %>%
+    extract_env_name() %>%
+    # filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
+    group_by(env_live, env) %>%
     summarise(requests = mean(requests), successes = mean(successes)) %>%
-    arrange(env_live)
+    arrange(env_live, env)
 
   Log(df)
 
-  # inc_success <- (df[2, ]$requests - df[1, ]$requests) / df[2, ]$requests
-  inc_success <- df[2, ]$requests - df[1, ]$requests
-
+  inc_success <- df[3, ]$requests - df[1, ]$requests
   write(
-    paste0(round(inc_success * 100, 1), "\\%"),
+    paste0(round(inc_success * 100, 1), " percentage points"),
     file = "figures/pressure_increase.txt"
   )
 
-  df %>%
-    mutate(file_name = paste0("pressure_successes_", env_live, ".txt")) %>%
-    rowwise() %>%
-    group_walk(
-      ~ write(
-        paste0(
-          round(.x$successes, 1)
-          # "\\% \\pm ",
-          # round(.x$margin_error * 100, 1),
-          # "\\%"
-        ),
-        file = paste0("figures/", .x$file_name)
-      )
-    )
+  inc_success <- df[3, ]$requests - df[4, ]$requests
+  write(
+    paste0(round(inc_success * 100, 1), " percentage points"),
+    file = "figures/pressure_increase_btw_loads.txt"
+  )
+
+  inc_success <- df[5, ]$requests - df[3, ]$requests
+  write(
+    paste0(round(inc_success * 100, 1), " percentage points"),
+    file = "figures/pressure_increase_ccc.txt"
+  )
+
+  # df %>%
+  #   mutate(file_name = paste0("pressure_successes_", env_live, ".txt")) %>%
+  #   rowwise() %>%
+  #   group_walk(
+  #     ~ write(
+  #       paste0(
+  #         round(.x$successes, 1)
+  #         # "\\% \\pm ",
+  #         # round(.x$margin_error * 100, 1),
+  #         # "\\%"
+  #       ),
+  #       file = paste0("figures/", .x$file_name)
+  #     )
+  #   )
 
   p99_df <- nb_requests %>%
     left_join(durations) %>%
