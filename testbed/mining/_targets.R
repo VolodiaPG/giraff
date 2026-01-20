@@ -492,7 +492,8 @@ combined_graphs <-
       name = text_pressure,
       command = text_pressure_output(
         nb_requests,
-        otel_duration
+        otel_duration,
+        fallbacks_processed
       ),
       packages = core_pkgs
     )

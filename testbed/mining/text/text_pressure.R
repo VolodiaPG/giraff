@@ -1,4 +1,4 @@
-text_pressure_output <- function(nb_requests, durations) {
+text_pressure_output <- function(nb_requests, durations, fallbacks_processed) {
   df <- nb_requests %>%
     left_join(durations) %>%
     group_by(folder, metric_group, service.namespace) %>%
@@ -88,4 +88,24 @@ text_pressure_output <- function(nb_requests, durations) {
         file = paste0("figures/", .x$file_name)
       )
     )
+
+  df <- fallbacks_processed %>%
+    filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
+    mutate(
+      env_live = factor(env_live, levels = c(SCE_ONE, SCE_TWO))
+    ) %>%
+    ungroup() %>%
+    complete(status, env_live, env, fill = list(n = NA)) %>%
+    group_by(status, env_live, env) %>%
+    summarise(avg = mean(n)) %>%
+    filter(status %in% c("Total", "0 fallback")) %>%
+    filter(env == LOAD_ONE)
+
+  Log(df)
+
+  inc_success_with_fallbacks <- df[2, ]$avg - df[4, ]$avg
+  write(
+    paste0(round(inc_success_with_fallbacks * 100, 1), " percentage points"),
+    file = "figures/pressure_increase_with_fallbacks.txt"
+  )
 }
