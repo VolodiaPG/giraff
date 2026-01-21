@@ -1,4 +1,4 @@
-load_nb_functions <- function(spans, nb_nodes) {
+load_nb_functions <- function(spans) {
   df <- spans %>%
     extract_context() %>%
     select(

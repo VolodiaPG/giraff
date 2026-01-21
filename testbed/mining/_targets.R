@@ -214,17 +214,7 @@ single_ops <- tar_map(
   tar_target(
     name = nb_functions_single,
     command = load_nb_functions(
-      otel_processed_single,
-      nb_nodes_single
-    ),
-    packages = load_pkgs,
-    cue = cue_loaders
-  ),
-  tar_target(
-    name = nb_requests_single,
-    command = load_nb_requests(
-      otel_processed_single,
-      otel_errors_single
+      otel_processed_single
     ),
     packages = load_pkgs,
     cue = cue_loaders
@@ -335,8 +325,18 @@ combined_single_data_processed <- list(
     command = load_functions_total(functions)
   ),
   tar_target(
+    fallbacks_processed_preprocessed,
+    command = load_fallbacks_processed(otel_processed, otel_errors)
+  ),
+  tar_target(
     fallbacks_processed,
-    command = load_fallbacks_processed(otel_processed, otel_errors, nb_nodes)
+    command = load_fallbacks_processed_stage2(fallbacks_processed_preprocessed)
+  ),
+  tar_target(
+    nb_requests,
+    command = load_nb_requests(
+      fallbacks_processed_preprocessed
+    )
   )
 )
 
@@ -387,14 +387,14 @@ combined_graphs <-
       )),
       packages = graph_pkgs
     ),
-    tar_target(
-      name = big_pressure_graph,
-      command = wrap_graph(big_output_pressure_plot(
-        nb_requests,
-        nb_nodes
-      )),
-      packages = graph_pkgs
-    ),
+    # tar_target(
+    #   name = big_pressure_graph,
+    #   command = wrap_graph(big_output_pressure_plot(
+    #     nb_requests,
+    #     nb_nodes
+    #   )),
+    #   packages = graph_pkgs
+    # ),
     tar_target(
       name = big_output_nb_functions_graph,
       command = wrap_graph(big_output_nb_functions_plot(
@@ -588,15 +588,15 @@ if (!requireNamespace("tikzDevice", quietly = TRUE)) {
       ),
       packages = latex_pkgs
     ),
-    tar_target(
-      name = big_pressure_latex,
-      command = export_graph_tikz(
-        big_pressure_graph,
-        GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
-        GRAPH_ONE_COLUMN_HEIGHT
-      ),
-      packages = latex_pkgs
-    ),
+    # tar_target(
+    #   name = big_pressure_latex,
+    #   command = export_graph_tikz(
+    #     big_pressure_graph,
+    #     GRAPH_TWO_COLUMN_WIDTH * 2 / 3,
+    #     GRAPH_ONE_COLUMN_HEIGHT
+    #   ),
+    #   packages = latex_pkgs
+    # ),
     tar_target(
       name = big_requests_profit_latex,
       command = export_graph_tikz(

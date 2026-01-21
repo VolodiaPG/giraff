@@ -1,8 +1,25 @@
 big_output_otel_fallbacks_plot <- function(
   fallbacks_processed
 ) {
+  # Log(fallbacks_processed)
+  # tmp <- fallbacks_processed %>%
+  #   filter(service.namespace == "5945ba35-ae77-463d-8eb2-bd36c4a11e62")
+  #
+  # write_csv(tmp, "tmp.csv")
+  fallbacks_processed <- fallbacks_processed %>%
+    filter(env_live %in% c(SCE_ONE, SCE_TWO))
+
+  total <- fallbacks_processed %>%
+    select(folder, total) %>%
+    distinct() %>%
+    group_by(folder) %>%
+    summarise(total = sum(total))
+
   df <- fallbacks_processed %>%
-    filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
+    group_by(folder, status, env, env_live, run) %>%
+    summarise(n = sum(n)) %>%
+    inner_join(total, by = c("folder")) %>%
+    mutate(n = n / total) %>%
     mutate(
       env_live = factor(env_live, levels = c(SCE_ONE, SCE_TWO))
     ) %>%
@@ -22,10 +39,6 @@ big_output_otel_fallbacks_plot <- function(
   df_mean <- df %>%
     group_by(env_live, env, status) %>%
     summarise(
-      max_n = max(n),
-      min_n = min(n),
-      sd = sd(n, na.rm = TRUE),
-      nb = n(),
       n = mean(n)
     ) %>%
     arrange(desc(n))
@@ -33,13 +46,12 @@ big_output_otel_fallbacks_plot <- function(
   df_mean$letters <- letters$cld..env_live.env.status..Letters
 
   df_mean <- df_mean %>%
-    mutate(letters = ifelse(str_length(letters) > 5, "", letters)) %>%
+    mutate(letters = ifelse(str_length(letters) > 3, "", letters)) %>%
     mutate(letters = paste0("\\tiny{", letters, "}"))
 
   df <- df %>%
     group_by(folder, status, env_live, env, run) %>%
-    summarise(sd = sd(n, na.rm = TRUE), nb = n(), n = mean(n))
-  # mutate(se = sd / sqrt(nb), lower.se = n - se, upper.se = n + se)
+    summarise(n = mean(n))
 
   ggplot(
     data = df,
