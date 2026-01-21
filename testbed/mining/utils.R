@@ -1168,6 +1168,7 @@ export_graph_tikz <- function(
 
   plot_graph <- plot_graph +
     theme(
+      strip.background = element_blank(),
       # legend.margin = ggplot2::margin(),
       # legend.box.margin = ggplot2::margin(),
       legend.box.margin = margin(0, 0, 0, 0, "pt"),
