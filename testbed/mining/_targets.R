@@ -37,7 +37,8 @@ core_pkgs <- c(
   "stringr",
   "rlang",
   "formattable",
-  "tidyverse"
+  "tidyverse",
+  "multidplyr"
 )
 
 load_pkgs <- c(
@@ -96,7 +97,7 @@ tar_option_set(
   deployment = "worker"
 )
 
-cue_loaders <- tar_cue(mode = "never")
+cue_loaders <- tar_cue()
 
 single_ops <- tar_map(
   # unlist = FALSE, # Return a nested list from tar_map()
@@ -182,14 +183,6 @@ single_ops <- tar_map(
     name = flame_func_single,
     command = flame_functions(
       otel_processed_single
-    ),
-    packages = load_pkgs,
-    cue = cue_loaders
-  ),
-  tar_target(
-    name = otel_degrades_single,
-    command = load_otel_degrades(
-      otel_logs_single
     ),
     packages = load_pkgs,
     cue = cue_loaders
@@ -335,7 +328,7 @@ combined_single_data_processed <- list(
   tar_target(
     nb_requests,
     command = load_nb_requests(
-      fallbacks_processed_preprocessed
+      fallbacks_processed
     )
   )
 )
@@ -365,20 +358,21 @@ combined_graphs <-
     tar_target(
       name = big_otel_fallbacks_graph,
       command = wrap_graph(big_output_otel_fallbacks_plot(
-        fallbacks_processed
-      )),
-      packages = graph_pkgs
-    ),
-    tar_target(
-      name = big_pressure_fallbacks_graph,
-      command = wrap_graph(big_pressure_fallbacks_plot(
-        otel_processed,
-        otel_errors,
-        nb_nodes,
+        fallbacks_processed,
         nb_requests
       )),
       packages = graph_pkgs
     ),
+    # tar_target(
+    #   name = big_pressure_fallbacks_graph,
+    #   command = wrap_graph(big_pressure_fallbacks_plot(
+    #     otel_processed,
+    #     otel_errors,
+    #     nb_nodes,
+    #     nb_requests
+    #   )),
+    #   packages = graph_pkgs
+    # ),
     tar_target(
       name = big_otel_nb_requests_graph,
       command = wrap_graph(big_output_otel_nb_requests_plot(

@@ -7,7 +7,7 @@ output_requests_profit_plot <- function(
   df <- profit %>%
     left_join(
       nb_requests %>%
-        mutate(requests = requests) %>%
+        mutate(requests = total) %>%
         select(folder, requests)
     ) %>%
     left_join(nb_functions) %>%

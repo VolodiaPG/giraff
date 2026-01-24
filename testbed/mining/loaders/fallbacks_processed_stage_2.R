@@ -24,6 +24,14 @@ load_fallbacks_processed_stage2 <- function(
   #
   # write_csv(tmp, "tmp.csv")
 
+  # total <- df %>%
+  #   group_by(
+  #     folder,
+  #     metric_group,
+  #     service.namespace
+  #   ) %>%
+  #   summarise(total = n(), .groups = "drop")
+
   df <- df %>%
     group_by(
       folder,
@@ -33,29 +41,25 @@ load_fallbacks_processed_stage2 <- function(
     ) %>%
     summarise(n = n(), .groups = "drop")
 
-  total <- df %>%
-    group_by(folder, metric_group, service.namespace) %>%
-    summarise(total = sum(n))
-
-  total_successes <- df %>%
-    filter(status != "Failure") %>%
-    group_by(folder, metric_group, service.namespace) %>%
-    summarise(n = sum(n)) %>%
-    mutate(status = "Total")
+  # total_successes <- df %>%
+  #   filter(status != "Failure") %>%
+  #   group_by(folder, metric_group, service.namespace) %>%
+  #   summarise(n = sum(n)) %>%
+  #   mutate(status = "Total")
 
   df <- df %>%
-    bind_rows(total_successes) %>%
-    inner_join(total) %>%
+    # bind_rows(total_successes) %>%
+    # left_join(total) %>%
     extract_context() %>%
     env_live_extract() %>%
     extract_env_name() %>%
-    filter(status != "Failure") %>%
+    # filter(status != "Failure") %>%
     mutate(
       status = factor(
         status,
         levels = c(
-          # "Failure",
-          "Total",
+          "Failure",
+          # "Total",
           "0 fallback",
           "1 fallback",
           "2 fallbacks"

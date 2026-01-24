@@ -1,5 +1,6 @@
 big_output_otel_fallbacks_plot <- function(
-  fallbacks_processed
+  fallbacks_processed,
+  nb_requests
 ) {
   # Log(fallbacks_processed)
   # tmp <- fallbacks_processed %>%
@@ -7,25 +8,42 @@ big_output_otel_fallbacks_plot <- function(
   #
   # write_csv(tmp, "tmp.csv")
   fallbacks_processed <- fallbacks_processed %>%
-    filter(env_live %in% c(SCE_ONE, SCE_TWO))
+    filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
+    filter(status != "Failure") %>%
+    # filter(status != "Total") %>%
+    mutate(
+      status = factor(
+        status,
+        levels = c(
+          # "Total",
+          # "Failure",
+          "0 fallback",
+          "1 fallback",
+          "2 fallbacks"
+        )
+      )
+    )
 
-  total <- fallbacks_processed %>%
-    select(folder, total) %>%
-    distinct() %>%
+  total <- nb_requests %>%
     group_by(folder) %>%
-    summarise(total = sum(total))
+    summarise(nb_functions = n())
 
   df <- fallbacks_processed %>%
+    left_join(nb_requests, by = c("folder", "service.namespace")) %>%
+    mutate(n = n / total) %>%
     group_by(folder, status, env, env_live, run) %>%
     summarise(n = sum(n)) %>%
-    inner_join(total, by = c("folder")) %>%
-    mutate(n = n / total) %>%
+    left_join(total, by = c("folder")) %>%
+    mutate(n = n / nb_functions) %>%
     mutate(
       env_live = factor(env_live, levels = c(SCE_ONE, SCE_TWO))
     ) %>%
     ungroup() %>%
     complete(status, env_live, env, fill = list(n = NA))
 
+  # Log(df %>% sample_n(10) %>% select(status, n))
+  # tot
+  #
   df_anova <- df %>%
     select(env_live, env, status, n) %>%
     mutate(n = ifelse(is.na(n), 0, n))
@@ -46,8 +64,22 @@ big_output_otel_fallbacks_plot <- function(
   df_mean$letters <- letters$cld..env_live.env.status..Letters
 
   df_mean <- df_mean %>%
-    mutate(letters = ifelse(str_length(letters) > 3, "", letters)) %>%
+    mutate(
+      letters = ifelse(
+        status %in% c("1 fallback", "2 fallbacks") & env_live == SCE_ONE,
+        "",
+        letters
+      )
+    ) %>%
     mutate(letters = paste0("\\tiny{", letters, "}"))
+
+  df_cumsum <- df_mean %>%
+    mutate(n = ifelse(is.na(n), 0, n)) %>%
+    group_by(env_live, env) %>%
+    arrange(status) %>%
+    mutate(n_cumsum = cumsum(n))
+
+  Log(df_cumsum)
 
   df <- df %>%
     group_by(folder, status, env_live, env, run) %>%
@@ -76,14 +108,26 @@ big_output_otel_fallbacks_plot <- function(
     ) +
     geom_text(
       data = df_mean,
-      aes(label = letters, group = env_live, y = 1),
+      aes(label = letters, group = env_live, y = 0.62),
       position = position_dodge(width = 0.9),
       vjust = -0.5,
       size = 5
     ) +
+    geom_line(
+      data = df_cumsum,
+      aes(y = n_cumsum, group = env_live, color = env_live),
+      # position = position_dodge(width = 0.9),
+      linewidth = 1
+    ) +
+    geom_point(
+      data = df_cumsum,
+      aes(y = n_cumsum, group = env_live, color = env_live),
+      # position = position_dodge(width = 0.9),
+      size = 2
+    ) +
     guides(color = "none", linetype = "none") +
     scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
-    scale_y_continuous(labels = scales::percent, limits = c(0, 1.05)) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 0.63)) +
     labs(
       y = "Share of successful responses",
       x = "Number of fallbacks",

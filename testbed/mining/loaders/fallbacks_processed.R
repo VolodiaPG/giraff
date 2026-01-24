@@ -2,62 +2,56 @@ load_fallbacks_processed <- function(
   spans,
   errors
 ) {
-  df <- spans %>%
+  spans <- spans %>%
     ungroup() %>%
     filter(span.name == "start_processing_requests") %>%
+    filter(duration > 0) %>%
     mutate(
       otel_error = otel.status_code == "Error"
-      # otel_error = if ("otel.status_code" %in% names(df)) {
-      #   ifelse(
-      #     is.na(otel.status_code),
-      #     FALSE,
-      #     otel.status_code == "Error"
-      #   )
-      # } else {
-      #   FALSE # Default value if column does not exist
-      # }
     ) %>%
-    mutate(from = "spmans")
-
-  Log(colnames(df))
+    select(folder, metric_group, service.namespace, otel_error, trace_id) %>%
+    distinct()
 
   # df <- df %>%
-  #   select(
-  #     folder,
-  #     service.name,
-  #     service.namespace,
-  #     metric_group,
-  #     trace_id,
-  #     otel_error,
-  #     span.name
-  #   ) %>%
-  #   distinct()
-  Log(colnames(errors))
-
-  df <- df %>%
+  # inner_join(
+  df <- errors %>%
+    select(
+      folder,
+      metric_group,
+      trace_id,
+      fallbacks,
+      timeout,
+      error,
+      is_fallback
+    ) %>%
+    distinct() %>%
     full_join(
-      errors %>%
-        mutate(from = "errors"),
-      by = c(
-        "folder",
-        "metric_group",
-        "trace_id"
-      )
+      spans,
+      by = c("folder", "metric_group", "trace_id")
     )
-
-  Log(colnames(df))
 
   df <- df %>%
     mutate(
       status = case_when(
+        is_fallback ~ paste0(
+          fallbacks,
+          ifelse(fallbacks > 1, " fallbacks", " fallback")
+        ),
         timeout ~ "Failure",
         otel_error ~ "Failure",
         error ~ "Failure",
-        fallbacks == 1 ~ "1 fallback",
-        fallbacks == 2 ~ "2 fallbacks",
-        fallbacks == 0 ~ "0 fallback",
-        TRUE ~ NA,
-      ),
-    )
+        # TRUE ~ "0 fallback"
+        # TRUE ~ "Failure"
+        TRUE ~ NA
+      )
+    ) %>%
+    filter(!is.na(status))
+  # group_by(metric_group, folder, trace_id) %>%
+  # complete(
+  #   status,
+  #   fill = list(n = 0)
+  # ) %>%
+  # collect()
+
   df
 }

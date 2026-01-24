@@ -41,7 +41,7 @@ text_workload_characteristics <- function(
 
   total_requests <- nb_requests %>%
     group_by(folder) %>%
-    summarise(total = sum(requests)) %>%
+    summarise(total = sum(total)) %>%
     ungroup() %>%
     summarise(min = min(total), max = max(total))
 
@@ -50,7 +50,7 @@ text_workload_characteristics <- function(
 
   total_requests_per_app <- nb_requests %>%
     group_by(folder, service.namespace) %>%
-    summarise(total = sum(requests)) %>%
+    summarise(total = sum(total)) %>%
     ungroup() %>%
     summarise(min = min(total), max = max(total))
 
@@ -66,7 +66,7 @@ text_workload_characteristics <- function(
   total_requests <- nb_requests %>%
     left_join(durations) %>%
     filter(duration != 0) %>%
-    mutate(throughput = requests / as.numeric(duration)) %>%
+    mutate(throughput = total / as.numeric(duration)) %>%
     ungroup() %>%
     summarise(min = min(throughput), max = max(throughput))
 
@@ -87,7 +87,7 @@ text_workload_characteristics <- function(
   )
 
   successes <- nb_requests %>%
-    mutate(successes = success / requests * 100) %>%
+    mutate(successes = success / total * 100) %>%
     ungroup() %>%
     summarize(
       mean_success = mean(successes),

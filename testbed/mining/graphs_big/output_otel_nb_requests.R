@@ -3,9 +3,9 @@ big_output_otel_nb_requests_plot <- function(
   nb_nodes
 ) {
   df <- nb_requests %>%
+    group_by(folder, metric_group) %>%
+    summarise(requests = sum(total), success = sum(success)) %>%
     extract_context() %>%
-    group_by(folder, env, env_live) %>%
-    summarise(requests = sum(requests), success = sum(success)) %>%
     left_join(nb_nodes, by = c("folder")) %>%
     extract_env_name() %>%
     env_live_extract()

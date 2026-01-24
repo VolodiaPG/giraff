@@ -4,6 +4,7 @@ parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
 all_workers <- parallel::detectCores()
 workers <- min(all_workers / 4, 8)
+partition_cluster <- all_workers
 time_interval <- 15 # secs
 # Not small graphs
 ONLY_BIG_GRAPHS <- TRUE

@@ -6,7 +6,7 @@ big_output_nb_success_vs_requests_plot <- function(
   df <- nb_requests %>%
     extract_context() %>%
     group_by(folder, env, env_live, service.namespace) %>%
-    summarise(requests = sum(requests), success = sum(success)) %>%
+    summarise(requests = sum(total), success = sum(success)) %>%
     mutate(success_rate = success / requests) %>%
     left_join(nb_nodes, by = c("folder")) %>%
     left_join(

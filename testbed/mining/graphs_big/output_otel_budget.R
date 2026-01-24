@@ -9,7 +9,7 @@ big_output_otel_budget_plot <- function(
     extract_context() %>%
     extract_env_name() %>%
     env_live_extract() %>%
-    mutate(profit_per_request = profit / requests)
+    mutate(profit_per_request = profit / total)
 
   ggplot(
     data = df,
