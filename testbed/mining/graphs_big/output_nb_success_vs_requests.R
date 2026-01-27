@@ -94,11 +94,11 @@ big_output_nb_success_vs_requests_plot <- function(
 
     scale_fill_viridis(option = "turbo") +
     scale_x_log10(
-      breaks = trans_breaks("log10", function(x) 10^x),
+      breaks = breaks_log(),
       labels = log10_labels()
     ) +
     scale_y_log10(
-      breaks = trans_breaks("log10", function(x) 10^x),
+      breaks = breaks_log(),
       labels = log10_labels()
     ) +
     guides(x = guide_axis_logticks(negative.small = 1)) +

@@ -6,7 +6,9 @@ text_profit_output <- function(otel_profit) {
     group_by(env_live, env, folder) %>%
     summarise(nb_benefit = sum(benefit), nb = n()) %>%
     mutate(ratio_benefit = nb_benefit / nb) %>%
-    group_by(env_live) %>%
+    # Groups are anova letters
+    mutate(group = ifelse(env_live %in% c("1", "2"), "b", "a")) %>%
+    group_by(group) %>%
     summarize(
       mean = mean(ratio_benefit),
       n = n(),
@@ -15,7 +17,7 @@ text_profit_output <- function(otel_profit) {
       lower_ci = mean - margin_error,
       upper_ci = mean + margin_error
     ) %>%
-    mutate(file_name = paste0("profitables_", env_live, ".txt"))
+    mutate(file_name = paste0("profitables_letter_", group, ".txt"))
 
   profitables %>%
     rowwise() %>%
@@ -24,20 +26,16 @@ text_profit_output <- function(otel_profit) {
         paste0(
           round(.x$mean * 100, 1),
           "\\% \\pm ",
-          round(.x$margin_error * 100, 1),
+          round(.x$std_dev * 100, 1),
           "\\%"
         ),
         file = paste0("figures/", .x$file_name)
       )
     )
 
-  # increase <- (((profitables[3, ]$mean + profitables[4, ]$mean) -
-  #   (profitables[1, ]$mean + profitables[2, ]$mean)) /
-  #   2)
-  meangood <- (profitables[3, ]$mean + profitables[4, ]$mean) / 2
-  meanbad <- (profitables[1, ]$mean + profitables[2, ]$mean) / 2
-
-  increase <- meangood - meanbad
+  meangood <- profitables[2, ]$mean
+  meanbad <- profitables[1, ]$mean
+  increase <- abs(meangood - meanbad)
   write(
     paste0(round(increase * 100, 1), " percentage points"),
     file = "figures/profitable_increase.txt"

@@ -126,7 +126,7 @@ big_output_otel_fallbacks_plot <- function(
       size = 2
     ) +
     guides(color = "none", linetype = "none") +
-    scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+    # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
     scale_y_continuous(labels = scales::percent, limits = c(0, 0.63)) +
     labs(
       y = "Share of successful responses",
