@@ -37,7 +37,7 @@ text_profit_output <- function(otel_profit) {
   meanbad <- profitables[1, ]$mean
   increase <- abs(meangood - meanbad)
   write(
-    paste0(round(increase * 100, 1), " percentage points"),
+    paste0(round(increase * 100, 1), "\\text{ percentage points}"),
     file = "figures/profitable_increase.txt"
   )
 

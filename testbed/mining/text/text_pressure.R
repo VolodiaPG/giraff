@@ -10,29 +10,38 @@ text_pressure_output <- function(nb_requests, durations, fallbacks_processed) {
     extract_context() %>%
     env_live_extract() %>%
     extract_env_name() %>%
-    filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
     group_by(env_live, env) %>%
     summarise(requests = mean(requests)) %>%
     arrange(env_live, env)
 
-  inc_success <- df[3, ]$requests - df[1, ]$requests
+  df_main <- df %>%
+    filter(env_live %in% c(SCE_ONE, SCE_TWO))
+
+  inc_success <- df_main[3, ]$requests - df_main[1, ]$requests
   write(
-    paste0(round(inc_success * 100, 1), " percentage points"),
+    paste0(round(inc_success * 100, 1), "\\text{ percentage points}"),
     file = "figures/pressure_increase.txt"
   )
 
-  inc_success <- df[3, ]$requests - df[4, ]$requests
+  inc_success <- df_main[3, ]$requests - df_main[4, ]$requests
   write(
-    paste0(round(inc_success * 100, 1), " percentage points"),
+    paste0(round(inc_success * 100, 1), "\\text{ percentage points}"),
     file = "figures/pressure_increase_btw_loads.txt"
   )
 
-  inc_success <- df[5, ]$requests - df[3, ]$requests
+  df_ccc <- df %>%
+    filter(env_live %in% c(SCE_TWO, SCE_THREE))
+
+  inc_success <- df[3, ]$requests - df[1, ]$requests
   write(
-    paste0(round(inc_success * 100, 1), " percentage points"),
+    paste0(round(inc_success * 100, 1), "\\text{ percentage points}"),
     file = "figures/pressure_increase_ccc.txt"
   )
 
+  write(
+    paste0(round(df_ccc[3, ]$requests * 100, 1), "\\%"),
+    file = "figures/success_flavor_three.txt"
+  )
   Log(colnames(fallbacks_processed))
 
   total <- nb_requests %>%
