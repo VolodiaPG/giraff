@@ -107,7 +107,6 @@
               rPackages.languageserver
               binserve
               parallel
-              # nmap
             ];
             FONTCONFIG_FILE = pkgs.makeFontsConf {
               fontDirectories = [pkgs.freefont_ttf];

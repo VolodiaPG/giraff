@@ -1097,7 +1097,35 @@ load_tikz <- function() {
   tikzDevice::tikzTest()
 }
 
-wrap_graph <- function(graph) {
+wrap_graph <- function(
+  graph,
+  ops = NULL,
+  x_axis = function(graph) {
+    graph +
+      guides(x = "prism_offset")
+  },
+  y_axis = function(graph) {
+    graph +
+      guides(y = "prism_offset")
+  }
+) {
+  base_size <- 10
+  graph <- graph +
+    theme_prism(
+      base_size = base_size,
+      base_family = "sans",
+      base_fontface = "plain",
+      base_line_size = 1 / 2,
+      base_rect_size = 1 / 2
+    )
+
+  graph <- x_axis(graph)
+  graph <- y_axis(graph)
+
+  if (!is.null(ops)) {
+    graph <- ops(graph)
+  }
+
   list(graph = graph)
 }
 

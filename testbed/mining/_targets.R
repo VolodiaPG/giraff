@@ -87,14 +87,22 @@ latex_pkgs <- c(
   graph_pkgs
 )
 
+controller <- NULL
+if (workers > 1) {
+  controller <- crew::crew_controller_local(
+    workers = workers,
+    seconds_idle = 10,
+    garbage_collection = TRUE
+  )
+}
+
 # Set default target options with minimal packages
 tar_option_set(
   packages = core_pkgs, # Packages that your targets need for their tasks.
   format = "qs", # Optionally set the default storage format. qs is fast.
-  controller = crew::crew_controller_local(workers = workers), # Use workers from config.R
+  controller = controller,
   memory = "transient",
-  garbage_collection = 1,
-  deployment = "worker"
+  garbage_collection = TRUE
 )
 
 cue_loaders <- tar_cue()
@@ -407,9 +415,15 @@ combined_graphs <-
     ),
     tar_target(
       name = big_output_typical_latencies_graph,
-      command = wrap_graph(big_output_typical_latencies_plot(
-        flame_with_latency
-      )),
+      command = wrap_graph(
+        big_output_typical_latencies_plot(
+          flame_with_latency
+        ),
+        x_axis = function(graph) {
+          graph +
+            scale_x_discrete(guide = guide_prism_offset(n.dodge = 2))
+        }
+      ),
       packages = graph_pkgs
     ),
     tar_target(
@@ -429,21 +443,39 @@ combined_graphs <-
     ),
     tar_target(
       name = output_requests_profit_graph,
-      command = wrap_graph(output_requests_profit_plot(
-        otel_profit,
-        nb_requests,
-        nb_nodes,
-        nb_functions
-      )),
+      command = wrap_graph(
+        output_requests_profit_plot(
+          otel_profit,
+          nb_requests,
+          nb_nodes,
+          nb_functions
+        ),
+        function(graph) {
+          return(
+            graph +
+              theme(axis.text.x = element_blank())
+            # scale_x_discrete(guide = guide_axis(n.dodge = 2))
+          )
+        }
+      ),
       packages = graph_pkgs
     ),
     tar_target(
       name = big_output_nb_requests_env_live_graph,
-      command = wrap_graph(big_output_nb_requests_env_live_plot(
-        otel_profit,
-        nb_requests,
-        nb_nodes
-      )),
+      command = wrap_graph(
+        big_output_nb_requests_env_live_plot(
+          otel_profit,
+          nb_requests,
+          nb_nodes
+        ),
+        function(graph) {
+          return(
+            graph +
+              theme(axis.text.x = element_blank())
+            # scale_x_discrete(guide = guide_axis(n.dodge = 2))
+          )
+        }
+      ),
       packages = graph_pkgs
     ),
     tar_target(
