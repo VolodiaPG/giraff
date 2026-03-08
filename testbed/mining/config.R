@@ -170,6 +170,13 @@ METRICS_ARKS <- c(
 )
 METRICS_ARKS <- unique(METRICS_ARKS[-length(METRICS_ARKS)])
 
+# Moves the files from metrics arks list to the toto/ directory
+# for (file in METRICS_ARKS) {
+#   file <- paste0(METRICS_PATH, '/', file)
+#   print(file)
+#   file.copy(file, paste0("toto/", basename(file)))
+# }
+
 SCE_ONE <- "\\flavoronegraph{}"
 SCE_TWO <- "\\flavortwograph{}"
 SCE_THREE <- "\\flavorthreegraph{}"
