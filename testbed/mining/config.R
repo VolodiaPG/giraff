@@ -10,11 +10,12 @@ no_memoization <- FALSE
 single_graphs <- FALSE
 
 GRAPH_ONE_COLUMN_HEIGHT <- 3
-GRAPH_ONE_COLUMN_WIDTH <- 3.6
-GRAPH_HALF_COLUMN_WIDTH <- 2.5
-GRAPH_TWO_COLUMN_WIDTH <- 9
+GRAPH_TWO_COLUMN_HEIGHT <- 3
+GRAPH_ONE_COLUMN_WIDTH <- 3
+GRAPH_HALF_COLUMN_WIDTH <- 1.5
+GRAPH_TWO_COLUMN_WIDTH <- 6
 
-METRICS_PATH <- "./metrics-arks"
+METRICS_PATH <- "../metrics-arks"
 METRICS_ARKS <- c(
   "metrics_valuation_rates.env_1_1729755003-fog_node-auction-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-24-08-34.tar.xz",
   "metrics_valuation_rates.env_1_1729755003-fog_node-edge_first-quadratic_rates-no_complication-market-default_strategy-.env.1_2024-10-24-08-03.tar.xz",
@@ -99,6 +100,7 @@ stopifnot(length(METRICS_ARKS) == length(METRICS_GROUP_GROUP))
 # Make the output of the console real wide
 # alt+z on the vscode console to make it not wrap
 options(width = 10000)
+options(height = 10000)
 
 # Not scientific notations
 options(scipen = 10000)

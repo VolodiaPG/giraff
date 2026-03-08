@@ -9,7 +9,12 @@ output_provisioned_simple <- function(functions_total, node_levels) {
         summarise(total = sum(n)),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
-    inner_join(node_levels %>% group_by(metric_group, metric_group_group, folder) %>% summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     mutate(ratio = functions / total) %>%
     extract_context()
 
@@ -22,7 +27,11 @@ output_provisioned_simple <- function(functions_total, node_levels) {
       y = "ration of functions provisioned over requested number"
     ) +
     scale_alpha_continuous(guide = "none") +
-    guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
+    guides(
+      color = guide_legend(nrow = 1),
+      shape = guide_legend(nrow = 1),
+      size = guide_legend(nrow = 1)
+    ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     geom_point(aes(size = nodes, color = run, fill = run)) +
@@ -43,9 +52,12 @@ output_provisioned_simple_total <- function(functions_total, node_levels) {
         summarise(total = sum(n)),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
-    inner_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     extract_context() %>%
     mutate(ratio = n / total)
 
@@ -58,7 +70,11 @@ output_provisioned_simple_total <- function(functions_total, node_levels) {
     ) +
     scale_y_continuous(labels = scales::percent) +
     scale_alpha_continuous(guide = "none") +
-    guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
+    guides(
+      color = guide_legend(nrow = 1),
+      shape = guide_legend(nrow = 1),
+      size = guide_legend(nrow = 1)
+    ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     geom_point(aes(size = nodes, fill = env, color = env)) +
@@ -73,7 +89,10 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
   df <- earnings %>%
     left_join(
       functions_all_total %>%
-        rename(total_requested_functions = total, ratio_requested_functions = ratio),
+        rename(
+          total_requested_functions = total,
+          ratio_requested_functions = ratio
+        ),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     left_join(
@@ -100,7 +119,13 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
     )
 
   jains <- df %>%
-    ggplot(aes(alpha = 1, x = placement_method, y = y, color = env, fill = env)) +
+    ggplot(aes(
+      alpha = 1,
+      x = placement_method,
+      y = y,
+      color = env,
+      fill = env
+    )) +
     # facet_grid(rows = vars(env)) +
     # geom_hline(yintercept = max(earnings$worst_case), color = "black") +
     labs(
@@ -108,7 +133,11 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
       y = "Jain's index"
     ) +
     scale_alpha_continuous(guide = "none") +
-    guides(color = guide_legend(nrow = 1), shape = guide_legend(nrow = 1), size = guide_legend(nrow = 1)) +
+    guides(
+      color = guide_legend(nrow = 1),
+      shape = guide_legend(nrow = 1),
+      size = guide_legend(nrow = 1)
+    ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
@@ -121,11 +150,18 @@ output_jains_simple <- function(earnings, functions_all_total, node_levels) {
   return(jains)
 }
 
-output_jains_anova_plot <- function(earnings, functions_all_total, node_levels) {
+output_jains_anova_plot <- function(
+  earnings,
+  functions_all_total,
+  node_levels
+) {
   df <- earnings %>%
     left_join(
       functions_all_total %>%
-        rename(total_requested_functions = total, ratio_requested_functions = ratio),
+        rename(
+          total_requested_functions = total,
+          ratio_requested_functions = ratio
+        ),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     left_join(
@@ -171,10 +207,13 @@ output_spending_plot_simple_total <- function(bids_won, node_levels) {
       minor_breaks = rep(1:9, 4) * (10^rep(0:3, each = 9)),
       guide = "prism_minor"
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
@@ -184,7 +223,11 @@ output_spending_plot_simple_total <- function(bids_won, node_levels) {
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     guides(colour = guide_legend(nrow = 1)) +
-    geom_quasirandom(aes(shape = run, color = env), method = "tukey", alpha = .2) +
+    geom_quasirandom(
+      aes(shape = run, color = env),
+      method = "tukey",
+      alpha = .2
+    ) +
     # geom_line(aes(group = metric_group_group), alpha = .2) +
     # geom_point(aes(color = metric_group, fill = metric_group, )) +
     # stat_summary(aes(color = metric_group, fill = metric_group, ), fun = mean, geom = "bar", alpha = 0.5)
@@ -197,7 +240,12 @@ output_number_requests <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group, docker_fn_name) %>%
     summarise(total = sum(total)) %>%
-    inner_join(node_levels %>% group_by(metric_group, metric_group_group, folder) %>% summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     extract_context()
 
   p <- ggplot(data = df, aes(x = placement_method, y = total, alpha = 1)) +
@@ -208,10 +256,13 @@ output_number_requests <- function(respected_sla, node_levels) {
       y = "total requests",
       x = "function name",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
@@ -223,31 +274,48 @@ output_number_requests <- function(respected_sla, node_levels) {
     guides(colour = guide_legend(nrow = 1)) +
     geom_point(aes(color = placement_method, fill = placement_method, )) +
     geom_line(aes(group = run), alpha = .2) +
-    stat_summary(aes(color = placement_method, fill = placement_method, ), fun = mean, geom = "bar", alpha = 0.5)
+    stat_summary(
+      aes(color = placement_method, fill = placement_method, ),
+      fun = mean,
+      geom = "bar",
+      alpha = 0.5
+    )
 
   return(p)
 }
 
-output_respected_data_plot_total <- function(respected_sla, functions_all_total, node_levels) {
+output_respected_data_plot_total <- function(
+  respected_sla,
+  functions_all_total,
+  node_levels
+) {
   df <- respected_sla %>%
     group_by(metric_group, metric_group_group, folder) %>%
     filter(docker_fn_name == "echo") %>%
     mutate(chained = acceptable_chained) %>%
     select(metric_group_group, metric_group, folder, chained) %>%
     summarise(chained = sum(chained)) %>%
-    inner_join(respected_sla %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      filter(prev_function == "<iot_emulation>") %>%
-      select(metric_group_group, metric_group, folder, total) %>%
-      summarise(total = sum(total))) %>%
+    inner_join(
+      respected_sla %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        filter(prev_function == "<iot_emulation>") %>%
+        select(metric_group_group, metric_group, folder, total) %>%
+        summarise(total = sum(total))
+    ) %>%
     mutate(satisfied_ratio = chained / total) %>%
     extract_context() %>%
-    left_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    left_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     left_join(
       functions_all_total %>%
-        rename(total_requested_functions = total, ratio_requested_functions = ratio),
+        rename(
+          total_requested_functions = total,
+          ratio_requested_functions = ratio
+        ),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     ungroup() %>%
@@ -266,7 +334,6 @@ output_respected_data_plot_total <- function(respected_sla, functions_all_total,
       label = unique(placement_method)
     )
 
-
   p <- ggplot(data = df, aes(alpha = 1, x = x, y = y)) +
     # facet_grid(rows = vars(env)) +
     scale_color_viridis(discrete = TRUE) +
@@ -277,9 +344,19 @@ output_respected_data_plot_total <- function(respected_sla, functions_all_total,
       x = "ratio of functions requested to place (centered reduced)"
     ) +
     # geom_line(aes(group = env, linetype = env), alpha = .1) +
-    stat_ellipse(aes(color = placement_method, fill = placement_method), type = "norm", geom = "polygon", alpha = .1) +
+    stat_ellipse(
+      aes(color = placement_method, fill = placement_method),
+      type = "norm",
+      geom = "polygon",
+      alpha = .1
+    ) +
     # geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
-    geom_point(aes(shape = env, size = nodes, color = placement_method, fill = placement_method))
+    geom_point(aes(
+      shape = env,
+      size = nodes,
+      color = placement_method,
+      fill = placement_method
+    ))
 
   # stat_summary(fun = mean, geom = "bar", alpha = 0.25)
   return(p)
@@ -289,9 +366,12 @@ output_number_requests_total <- function(respected_sla, node_levels) {
   df <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(total = sum(total)) %>%
-    inner_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(n = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(n = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     extract_context()
 
   p <- ggplot(data = df, aes(x = placement_method, y = total, alpha = 1)) +
@@ -302,10 +382,13 @@ output_number_requests_total <- function(respected_sla, node_levels) {
       y = "total requests",
       x = "function name",
     ) +
-    theme(legend.background = element_rect(
-      fill = alpha("white", .7),
-      size = 0.2, color = alpha("white", .7)
-    )) +
+    theme(
+      legend.background = element_rect(
+        fill = alpha("white", .7),
+        size = 0.2,
+        color = alpha("white", .7)
+      )
+    ) +
     theme(
       legend.spacing.y = unit(0, "cm"),
       legend.margin = margin(0, 0, 0, 0),
@@ -322,22 +405,48 @@ output_number_requests_total <- function(respected_sla, node_levels) {
   return(p)
 }
 
-output_mean_time_to_deploy_simple_total <- function(deployment_times, node_levels, paid_functions) {
+output_mean_time_to_deploy_simple_total <- function(
+  deployment_times,
+  node_levels,
+  paid_functions
+) {
   df <- deployment_times %>%
-    inner_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(n = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
-    left_join(paid_functions %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      rename(timestamp_paid = timestamp, paid = value), by = c("folder", "metric_group", "metric_group_group", "docker_fn_name", "sla_id")) %>%
-    mutate(kube_overhaead = difftime(timestamp, timestamp_paid, units = "secs")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(n = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
+    left_join(
+      paid_functions %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        rename(timestamp_paid = timestamp, paid = value),
+      by = c(
+        "folder",
+        "metric_group",
+        "metric_group_group",
+        "docker_fn_name",
+        "sla_id"
+      )
+    ) %>%
+    mutate(
+      kube_overhaead = difftime(timestamp, timestamp_paid, units = "secs")
+    ) %>%
     mutate(placement_overhead = value / 1000 - kube_overhaead) %>%
     extract_context() %>%
     mutate(y = value) %>%
     ungroup() %>%
     mutate(y_centered = (y - mean(y, na.rm = TRUE)) / sd(y, na.rm = TRUE))
 
-  p <- ggplot(data = df, aes(alpha = 1, x = as.factor(n), y = placement_overhead, color = placement_method)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      alpha = 1,
+      x = as.factor(n),
+      y = placement_overhead,
+      color = placement_method
+    )
+  ) +
     facet_grid(cols = vars(placement_method)) +
     theme(legend.position = "none") +
     scale_alpha_continuous(guide = "none") +
@@ -366,7 +475,11 @@ output_mean_time_to_deploy_simple_total <- function(deployment_times, node_level
   return(p)
 }
 
-output_requests_served_v_provisioned <- function(respected_sla, functions_total, node_levels) {
+output_requests_served_v_provisioned <- function(
+  respected_sla,
+  functions_total,
+  node_levels
+) {
   df <- respected_sla %>%
     group_by(folder, metric_group, metric_group_group) %>%
     summarise(all_requests = sum(total)) %>%
@@ -377,9 +490,12 @@ output_requests_served_v_provisioned <- function(respected_sla, functions_total,
         summarise(functions = sum(n)),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
-    inner_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(n = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    inner_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(n = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     extract_context() %>%
     mutate(x = functions) %>%
     mutate(y = all_requests) %>%
@@ -395,7 +511,16 @@ output_requests_served_v_provisioned <- function(respected_sla, functions_total,
       label = unique(placement_method)
     )
 
-  p <- ggplot(data = df, aes(x = x_centered, y = y_centered, color = placement_method, fill = placement_method, alpha = 1)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      x = x_centered,
+      y = y_centered,
+      color = placement_method,
+      fill = placement_method,
+      alpha = 1
+    )
+  ) +
     scale_alpha_continuous(guide = "none") +
     scale_size_continuous(guide = "none") +
     labs(
@@ -423,13 +548,22 @@ output_requests_served_v_provisioned <- function(respected_sla, functions_total,
       size = guide_legend(order = 2)
     ) +
     stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
-    geom_text(data = df_centroid, aes(label = label, x = x_centered, y = y_centered), check_overlap = TRUE, show.legend = FALSE) +
+    geom_text(
+      data = df_centroid,
+      aes(label = label, x = x_centered, y = y_centered),
+      check_overlap = TRUE,
+      show.legend = FALSE
+    ) +
     geom_point(aes(size = n))
 
   return(p)
 }
 
-output_non_respected <- function(respected_sla, functions_all_total, node_levels) {
+output_non_respected <- function(
+  respected_sla,
+  functions_all_total,
+  node_levels
+) {
   df <- respected_sla %>%
     filter(acceptable == 0 & service_oked > 0) %>%
     group_by(metric_group, metric_group_group, folder) %>%
@@ -444,12 +578,18 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     extract_context() %>%
-    left_join(node_levels %>%
-      group_by(metric_group, metric_group_group, folder) %>%
-      summarise(nodes = n()), by = c("folder", "metric_group", "metric_group_group")) %>%
+    left_join(
+      node_levels %>%
+        group_by(metric_group, metric_group_group, folder) %>%
+        summarise(nodes = n()),
+      by = c("folder", "metric_group", "metric_group_group")
+    ) %>%
     left_join(
       functions_all_total %>%
-        rename(total_requested_functions = total, ratio_requested_functions = ratio),
+        rename(
+          total_requested_functions = total,
+          ratio_requested_functions = ratio
+        ),
       by = c("folder", "metric_group", "metric_group_group")
     ) %>%
     # mutate(x = total_requested_functions) %>%
@@ -468,7 +608,16 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
       label = unique(placement_method)
     )
 
-  p <- ggplot(data = df, aes(alpha = 1, x = x_centered, y = y_centered, color = placement_method, fill = placement_method)) +
+  p <- ggplot(
+    data = df,
+    aes(
+      alpha = 1,
+      x = x_centered,
+      y = y_centered,
+      color = placement_method,
+      fill = placement_method
+    )
+  ) +
     scale_color_viridis(discrete = TRUE) +
     scale_fill_viridis(discrete = TRUE) +
     labs(
@@ -476,14 +625,24 @@ output_non_respected <- function(respected_sla, functions_all_total, node_levels
       y = "# of functions that miss their target for ALL of their requests (center_reduced)"
     ) +
     stat_ellipse(type = "norm", geom = "polygon", alpha = .1) +
-    geom_text(data = df_centroid, aes(label = label, color = label), check_overlap = TRUE) +
+    geom_text(
+      data = df_centroid,
+      aes(label = label, color = label),
+      check_overlap = TRUE
+    ) +
     geom_point(aes(size = nodes))
   # geom_line(aes(group = run, linetype = run), alpha = .1)
   # stat_summary(fun = mean, geom = "bar", alpha = 0.25)
   return(p)
 }
 
-output_placement_method_comparison <- function(respected_sla, functions_total, node_levels, bids_won_function, raw_deployment_times) {
+output_placement_method_comparison <- function(
+  respected_sla,
+  functions_total,
+  node_levels,
+  bids_won_function,
+  raw_deployment_times
+) {
   df <- respected_sla %>%
     group_by(chain_id, folder, metric_group, metric_group_group) %>%
     summarise(
@@ -532,13 +691,23 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       raw_deployment_times %>%
         inner_join(
           respected_sla %>%
-            select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+            select(
+              folder,
+              metric_group,
+              metric_group_group,
+              docker_fn_name,
+              sla_id,
+              chain_id
+            ),
           by = c("folder", "metric_group", "metric_group_group", "sla_id")
-    ) %>%
+        ) %>%
         group_by(folder, metric_group, metric_group_group, chain_id) %>%
         summarise(value = sum(value), .groups = "drop") %>%
         group_by(folder, metric_group, metric_group_group) %>%
-        summarise(avg_deployment_time = mean(value, na.rm = TRUE) / 1000, .groups = "drop"),
+        summarise(
+          avg_deployment_time = mean(value, na.rm = TRUE) / 1000,
+          .groups = "drop"
+        ),
       by = c("folder", "metric_group_group", "metric_group")
     ) %>%
     mutate(total_cost = total_cost / total_functions)
@@ -546,30 +715,68 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   # Explicitly extract placement_method and env
   df <- df %>%
     extract_context() %>%
-    select(placement_method, env, run, not_respected_slas, functions_not_deployed, nodes, total_cost, avg_latency, avg_deployment_time)
+    select(
+      placement_method,
+      env,
+      run,
+      not_respected_slas,
+      functions_not_deployed,
+      nodes,
+      total_cost,
+      avg_latency,
+      avg_deployment_time
+    )
 
   # Center and reduce the variables
   df <- df %>%
     group_by(env, run) %>%
     group_by(env, run) %>%
-    mutate(across(c(not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time),
-      list(scaled = ~ {
-        ref_mean <- mean(.[placement_method == "auctionno_complication"], na.rm = TRUE)
-        ref_sd <- sd(., na.rm = TRUE)
-        (. - ref_mean) / ref_sd
-      }),
+    mutate(across(
+      c(
+        not_respected_slas,
+        functions_not_deployed,
+        total_cost,
+        avg_latency,
+        avg_deployment_time
+      ),
+      list(
+        scaled = ~ {
+          ref_mean <- mean(
+            .[placement_method == "auctionno_complication"],
+            na.rm = TRUE
+          )
+          ref_sd <- sd(., na.rm = TRUE)
+          (. - ref_mean) / ref_sd
+        }
+      ),
       .names = "{col}_{fn}"
     )) %>%
     ungroup()
 
-
   # Define the order of metrics
-  metric_order <- c("not_respected_slas", "functions_not_deployed", "total_cost", "avg_latency", "avg_deployment_time")
+  metric_order <- c(
+    "not_respected_slas",
+    "functions_not_deployed",
+    "total_cost",
+    "avg_latency",
+    "avg_deployment_time"
+  )
 
   # Reshape data for ggplot
   df_long <- df %>%
     correct_names() %>%
-    select(placement_method, env, run, ends_with("_scaled"), not_respected_slas, functions_not_deployed, total_cost, avg_latency, avg_deployment_time, nodes) %>%
+    select(
+      placement_method,
+      env,
+      run,
+      ends_with("_scaled"),
+      not_respected_slas,
+      functions_not_deployed,
+      total_cost,
+      avg_latency,
+      avg_deployment_time,
+      nodes
+    ) %>%
     pivot_longer(
       cols = ends_with("_scaled"),
       names_to = "metric",
@@ -600,13 +807,30 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       ci_upper = value + qt((1 - 0.05) / 2 + .5, df = n() - 1) * se,
       .groups = "drop"
     ) %>%
-    mutate(x_jitter = as.numeric(factor(metric)) + as.numeric(factor(placement_method)) * 0.05 - 0.2)
+    mutate(
+      x_jitter = as.numeric(factor(metric)) +
+        as.numeric(factor(placement_method)) * 0.05 -
+        0.2
+    )
 
   df_long <- df_long %>%
-    mutate(x_jitter = as.numeric(factor(metric)) + as.numeric(factor(placement_method)) * 0.05 - 0.2)
+    mutate(
+      x_jitter = as.numeric(factor(metric)) +
+        as.numeric(factor(placement_method)) * 0.05 -
+        0.2
+    )
 
   # Create the parallel coordinates plot
-  p <- ggplot(df_mean, aes(x = metric, y = value, color = placement_method, fill = placement_method, group = placement_method)) +
+  p <- ggplot(
+    df_mean,
+    aes(
+      x = metric,
+      y = value,
+      color = placement_method,
+      fill = placement_method,
+      group = placement_method
+    )
+  ) +
     scale_color_viridis_d() +
     scale_fill_viridis_d() +
     theme(
@@ -635,26 +859,67 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
       subtitle = "Focus on relative differences to GIRAFF by centering each experiment's distribution around GIRAFF and dividing by the standard deviation ($\\sigma$).",
       color = "Placement Method"
     ) +
-    geom_point(data = data.frame(
-      metric = unique(df_mean$metric),
-      value = min(df_mean$value) - 0.5,
-      placement_method = "\\footnotesize{GIRAFF}"
-    ), aes(x = metric, y = value), alpha = 0, show.legend = FALSE) +
+    geom_point(
+      data = data.frame(
+        metric = unique(df_mean$metric),
+        value = min(df_mean$value) - 0.5,
+        placement_method = "\\footnotesize{GIRAFF}"
+      ),
+      aes(x = metric, y = value),
+      alpha = 0,
+      show.legend = FALSE
+    ) +
     # geom_ribbon(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, fill = placement_method), color = NA, alpha = 0.2) +
-    geom_errorbar(aes(x = x_jitter, ymin = ci_lower, ymax = ci_upper, color = placement_method), width = 0.2, alpha = 0.5) +
+    geom_errorbar(
+      aes(
+        x = x_jitter,
+        ymin = ci_lower,
+        ymax = ci_upper,
+        color = placement_method
+      ),
+      width = 0.2,
+      alpha = 0.5
+    ) +
     geom_line(aes(x = x_jitter), size = 0.4, alpha = 0.8) +
-    geom_line(data = df_mean %>% filter(placement_method == "\\footnotesize{GIRAFF}"), aes(x = x_jitter), size = 1, alpha = 0.8) +
-    geom_point(data = df_long, aes(x = x_jitter, y = value, color = placement_method, 
-               text = sprintf(
-                 "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
-                 metric, placement_method, value, raw_value
-               )), 
-               alpha = 0.5, stroke = 0, size = 1) +
-    geom_point(aes(x = x_jitter, text = sprintf(
-      "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
-      metric, placement_method,
-      value, raw_value
-    )), alpha = 1, stroke = 0, size = 2) +
+    geom_line(
+      data = df_mean %>% filter(placement_method == "\\footnotesize{GIRAFF}"),
+      aes(x = x_jitter),
+      size = 1,
+      alpha = 0.8
+    ) +
+    geom_point(
+      data = df_long,
+      aes(
+        x = x_jitter,
+        y = value,
+        color = placement_method,
+        text = sprintf(
+          "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
+          metric,
+          placement_method,
+          value,
+          raw_value
+        )
+      ),
+      alpha = 0.5,
+      stroke = 0,
+      size = 1
+    ) +
+    geom_point(
+      aes(
+        x = x_jitter,
+        text = sprintf(
+          "<br>Metric: %s<br>Placement Method: %s<br>Standardized Value: %.2f SD<br>Raw Value: %.2f",
+          metric,
+          placement_method,
+          value,
+          raw_value
+        )
+      ),
+      alpha = 1,
+      stroke = 0,
+      size = 2
+    ) +
     guides(
       color = guide_legend(title = "Placement Method", nrow = 2),
       fill = "none",
@@ -665,12 +930,23 @@ output_placement_method_comparison <- function(respected_sla, functions_total, n
   return(p)
 }
 
-output_mean_deployment_times <- function(raw_deployment_times, node_levels, respected_sla) {
+output_mean_deployment_times <- function(
+  raw_deployment_times,
+  node_levels,
+  respected_sla
+) {
   df <- raw_deployment_times %>%
     # Join with respected_sla to get the chain information
     inner_join(
       respected_sla %>%
-        select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+        select(
+          folder,
+          metric_group,
+          metric_group_group,
+          docker_fn_name,
+          sla_id,
+          chain_id
+        ),
       by = c("folder", "metric_group", "metric_group_group", "sla_id")
     ) %>%
     # Group by folder, metric_group, metric_group_group, and chain_id
@@ -700,8 +976,10 @@ output_mean_deployment_times <- function(raw_deployment_times, node_levels, resp
     group_col = "folder",
     value_col = "deployment_time_per_function",
     node_col = "nodes",
-    title = "Mean Deployment Time per Function in Chain by Network Size",
-    y_suffix = " s"
+    # title = "Mean Deployment Time per Function in Chain by Network Size",
+    y_suffix = " s",
+    y_label = "Deployment Time",
+    x_label = "Number of Nodes"
   )
 }
 
@@ -744,17 +1022,29 @@ output_mean_respected_slas <- function(respected_sla, node_levels) {
     group_col = "folder",
     value_col = "mean_sla_violations",
     node_col = "nodes",
-    title = "Mean SLA Violations by Network Size",
-    y_suffix = "%"
+    y_suffix = "%",
+    y_label = "Mean SLA Violations",
+    x_label = "Number of nodes"
   )
 }
 
-output_mean_spending <- function(bids_won_function, node_levels, respected_sla) {
+output_mean_spending <- function(
+  bids_won_function,
+  node_levels,
+  respected_sla
+) {
   df <- bids_won_function %>%
     # Join with respected_sla to get the chain information
     inner_join(
       respected_sla %>%
-        select(folder, metric_group, metric_group_group, docker_fn_name, sla_id, chain_id),
+        select(
+          folder,
+          metric_group,
+          metric_group_group,
+          docker_fn_name,
+          sla_id,
+          chain_id
+        ),
       by = c("folder", "metric_group", "metric_group_group", "sla_id")
     ) %>%
     # Group by folder, metric_group, metric_group_group, and chain_id
@@ -780,9 +1070,10 @@ output_mean_spending <- function(bids_won_function, node_levels, respected_sla) 
     group_col = "folder",
     value_col = "spending_per_chain",
     node_col = "nodes",
-    title = "Mean Spending per Function Chain by Network Size",
+    # title = "Mean Spending per Function Chain by Network Size",
     y_label = "Spending per Chain",
-    y_suffix = " units"
+    y_suffix = " units",
+    x_label = "Number of nodes"
   )
 }
 
@@ -809,13 +1100,17 @@ output_mean_latency <- function(respected_sla, node_levels) {
     group_col = "folder",
     value_col = "avg_latency",
     node_col = "nodes",
-    title = "Mean Latency between Functions by Network Size",
+    # title = "Mean Latency between Functions by Network Size",
     y_label = "Mean Latency",
-    y_suffix = " s"
+    y_suffix = " s",
+    x_label = "Number of nodes"
   )
 }
 
-output_mean_placed_functions_per_node <- function(provisioned_functions, node_levels) {
+output_mean_placed_functions_per_node <- function(
+  provisioned_functions,
+  node_levels
+) {
   # Compute median latency separately
   # Calculate quantiles
   df <- provisioned_functions %>%
@@ -829,11 +1124,14 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
       )
     ) %>%
     mutate(
-      latency_type = factor(latency_type, levels = c(
-        "Low lat. ($<$ 15ms)",
-        "Med. lat. (15ms - 150ms)",
-        "High lat. ($>$ 150ms)"
-      ))
+      latency_type = factor(
+        latency_type,
+        levels = c(
+          "Low lat. ($<$ 15ms)",
+          "Med. lat. (15ms - 150ms)",
+          "High lat. ($>$ 150ms)"
+        )
+      )
     ) %>%
     group_by(folder, metric_group, metric_group_group, latency_type) %>%
     summarise(
@@ -843,7 +1141,9 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     ) %>%
     mutate(
       functions_not_deployed = (total - provisioned) / total * 100,
-      se = sqrt((functions_not_deployed * (100 - functions_not_deployed)) / total),
+      se = sqrt(
+        (functions_not_deployed * (100 - functions_not_deployed)) / total
+      ),
       margin_of_error = qt(0.975, df = total - 1) * se,
       ci_lower = functions_not_deployed - margin_of_error,
       ci_upper = functions_not_deployed + margin_of_error
@@ -863,8 +1163,10 @@ output_mean_placed_functions_per_node <- function(provisioned_functions, node_le
     group_col = "folder",
     value_col = "functions_not_deployed",
     node_col = "nodes",
-    title = "Mean Relative Difference of Unplaced Functions per Node by Network Size and Latency Type",
+    # title = "Mean Relative Difference of Unplaced Functions per Node by Network Size and Latency Type",
     y_suffix = " %",
-    facet_col = "latency_type"
+    facet_col = "latency_type",
+    x_label = "Number of Nodes",
+    y_label = "Unplaced Functions"
   )
 }
