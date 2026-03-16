@@ -326,18 +326,15 @@ correct_names <- function(x) {
     x %>%
       mutate(
         placement_method = case_when(
+          placement_method == "auctionno_complication" ~ "\\algogiraffgraph{}",
           placement_method ==
-            "auctionno_complication" ~ "\\footnotesize{GIRAFF}",
+            "edge_wardno_complication" ~ "\\algoedgewardgraph{}",
           placement_method ==
-            "auctionreduction" ~ "\\footnotesize{GIRAFF (reduction)}",
+            "edge_firstno_complication" ~ "\\algoedgefirstgraph{}",
           placement_method ==
-            "edge_wardno_complication" ~ "\\footnotesize{Edge ward}",
+            "edge_furthestno_complication" ~ "\\algoedgefurthestgraph{}",
           placement_method ==
-            "edge_firstno_complication" ~ "\\footnotesize{Edge first}",
-          placement_method ==
-            "edge_furthestno_complication" ~ "\\footnotesize{Edge furthest}",
-          placement_method ==
-            "mincpurandomno_complication" ~ "\\footnotesize{MinCPU random}",
+            "mincpurandomno_complication" ~ "\\algomincpugraph{}",
           TRUE ~ paste0("\\footnotesize{", placement_method, " (raw)}")
         )
       ) %>%
@@ -345,12 +342,11 @@ correct_names <- function(x) {
         placement_method = factor(
           placement_method,
           levels = c(
-            "\\footnotesize{GIRAFF}",
-            "\\footnotesize{GIRAFF (reduction)}",
-            "\\footnotesize{Edge ward}",
-            "\\footnotesize{Edge first}",
-            "\\footnotesize{Edge furthest}",
-            "\\footnotesize{MinCPU random}"
+            "\\algogiraffgraph{}",
+            "\\algoedgewardgraph{}",
+            "\\algoedgefirstgraph{}",
+            "\\algoedgefurthestgraph{}",
+            "\\algomincpugraph{}"
           )
         )
       )
@@ -1061,14 +1057,18 @@ load_tikz <- function() {
       "\\usepackage[T1]{fontenc}\n",
       "\\usetikzlibrary{calc}\n",
       "\\usepackage{fontspec,xunicode}\n",
-      "\\providecommand{\\flavorone}{flavorone}\n",
-      "\\providecommand{\\flavortwo}{flavortwo}\n",
-      "\\providecommand{\\flavorthree}{flavorthree}\n",
-      "\\providecommand{\\flavorfour}{flavorfour}\n",
-      "\\providecommand{\\flavoronegraph}{\\flavorone}\n",
-      "\\providecommand{\\flavortwograph}{\\flavortwo}\n",
-      "\\providecommand{\\flavorthreegraph}{\\flavorthree}\n",
-      "\\providecommand{\\flavorfourgraph}{\\flavorfour}\n"
+
+      "\\newcommand\\algogiraffgraph{{GIRAFF}}\n",
+      "\\newcommand\\algoedgewardgraph{{Edge-ward}}\n",
+      "\\newcommand\\algoedgefirstgraph{{Edge-first}}\n",
+      "\\newcommand\\algoedgefurthestgraph{{Edge-furthest}}\n",
+      "\\newcommand\\algomincpugraph{{MinCPU random}}\n",
+
+      "\\newcommand\\algogiraff{\\algogiraffgraph}\n",
+      "\\newcommand\\algoedgeward{\\algoedgewardgraph}\n",
+      "\\newcommand\\algoedgefirst{\\algoedgefirstgraph}\n",
+      "\\newcommand\\algoedgefurthest{\\algoedgefurthestgraph}\n",
+      "\\newcommand\\algomincpu{\\algomincpugraph}\n"
     )
   )
 
