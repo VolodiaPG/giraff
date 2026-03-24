@@ -32,7 +32,9 @@ text_pressure_output <- function(nb_requests, durations, fallbacks_processed) {
   df_ccc <- df %>%
     filter(env_live %in% c(SCE_TWO, SCE_THREE))
 
-  inc_success <- df[3, ]$requests - df[1, ]$requests
+  Log(df_ccc)
+
+  inc_success <- df_ccc[3, ]$requests - df_ccc[1, ]$requests
   write(
     paste0(round(inc_success * 100, 1), " percentage points"),
     file = "figures/pressure_increase_ccc.txt"

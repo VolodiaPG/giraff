@@ -2,15 +2,12 @@ big_output_otel_fallbacks_plot <- function(
   fallbacks_processed,
   nb_requests
 ) {
-  # Log(fallbacks_processed)
-  # tmp <- fallbacks_processed %>%
-  #   filter(service.namespace == "5945ba35-ae77-463d-8eb2-bd36c4a11e62")
-  #
-  # write_csv(tmp, "tmp.csv")
+  env_live_levels <- c(SCE_ONE, SCE_TWO, SCE_THREE)
+  keep_letters_for <- c(SCE_TWO, SCE_THREE, SCE_FOUR)
+
   fallbacks_processed <- fallbacks_processed %>%
-    filter(env_live %in% c(SCE_ONE, SCE_TWO)) %>%
+    filter(env_live %in% env_live_levels) %>%
     filter(status != "Failure") %>%
-    # filter(status != "Total") %>%
     mutate(
       status = factor(
         status,
@@ -36,14 +33,11 @@ big_output_otel_fallbacks_plot <- function(
     left_join(total, by = c("folder")) %>%
     mutate(n = n / nb_functions) %>%
     mutate(
-      env_live = factor(env_live, levels = c(SCE_ONE, SCE_TWO))
+      env_live = factor(env_live, levels = env_live_levels)
     ) %>%
     ungroup() %>%
     complete(status, env_live, env, fill = list(n = NA))
 
-  # Log(df %>% sample_n(10) %>% select(status, n))
-  # tot
-  #
   df_anova <- df %>%
     select(env_live, env, status, n) %>%
     mutate(n = ifelse(is.na(n), 0, n))
@@ -66,9 +60,11 @@ big_output_otel_fallbacks_plot <- function(
   df_mean <- df_mean %>%
     mutate(
       letters = ifelse(
-        status %in% c("1 fallback", "2 fallbacks") & env_live == SCE_ONE,
-        "",
-        letters
+        status %in%
+          c("0 fallback") |
+          env_live %in% keep_letters_for,
+        letters,
+        ""
       )
     ) %>%
     mutate(letters = paste0("\\tiny{", letters, "}"))
@@ -78,8 +74,6 @@ big_output_otel_fallbacks_plot <- function(
     group_by(env_live, env) %>%
     arrange(status) %>%
     mutate(n_cumsum = cumsum(n))
-
-  Log(df_cumsum)
 
   df <- df %>%
     group_by(folder, status, env_live, env, run) %>%
@@ -96,8 +90,7 @@ big_output_otel_fallbacks_plot <- function(
     geom_col(
       data = df_mean,
       aes(y = n, fill = env_live),
-      position = position_dodge(width = 0.9),
-      alpha = 0.8
+      position = position_dodge(width = 0.9)
     ) +
     geom_beeswarm(
       aes(group = env_live),
@@ -108,7 +101,7 @@ big_output_otel_fallbacks_plot <- function(
     ) +
     geom_text(
       data = df_mean,
-      aes(label = letters, group = env_live, y = 0.62),
+      aes(label = letters, group = env_live, y = 0.83),
       position = position_dodge(width = 0.9),
       vjust = -0.5,
       size = 5
@@ -127,7 +120,7 @@ big_output_otel_fallbacks_plot <- function(
     ) +
     guides(color = "none", linetype = "none") +
     # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
-    scale_y_continuous(labels = scales::percent, limits = c(0, 0.63)) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, .85)) +
     labs(
       y = "Share of successful responses",
       x = "Number of fallbacks",
@@ -135,6 +128,10 @@ big_output_otel_fallbacks_plot <- function(
       color = APP_CONFIG
     ) +
     # Fix colors since only two flavors are displayed
-    scale_fill_manual(values = c("#440154", "#31688e")) +
-    scale_color_manual(values = c("#440154", "#31688e"))
+    scale_fill_manual(
+      values = c("#440154", "#31688e", "#35b7794D", "#fde7254D")
+    ) +
+    scale_color_manual(
+      values = c("#440154", "#31688e", "#35b7794D", "#fde7254D")
+    )
 }

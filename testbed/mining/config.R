@@ -4,7 +4,7 @@ parallel_loading_datasets <- 2
 parallel_loading_datasets_small <- 22
 # all_workers <- parallel::detectCores()
 # workers <- min(all_workers / 4, 4)
-workers <- 4
+workers <- 2
 # workers <- all_workers
 partition_cluster <- workers
 time_interval <- 15 # secs
