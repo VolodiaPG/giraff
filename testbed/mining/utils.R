@@ -1062,7 +1062,7 @@ load_tikz <- function() {
       "\\newcommand\\algoedgewardgraph{{Edge-ward}}\n",
       "\\newcommand\\algoedgefirstgraph{{Edge-first}}\n",
       "\\newcommand\\algoedgefurthestgraph{{Edge-furthest}}\n",
-      "\\newcommand\\algomincpugraph{{MinCPU random}}\n",
+      "\\newcommand\\algomincpugraph{{MinCPU}}\n",
 
       "\\newcommand\\algogiraff{\\algogiraffgraph}\n",
       "\\newcommand\\algoedgeward{\\algoedgewardgraph}\n",
