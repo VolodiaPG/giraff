@@ -22,42 +22,37 @@ big_output_otel_nb_functions_plot <- function(
       x = nb_nodes,
       y = total,
       color = env_live,
-      fill = env_live
-      # group = env
+      group = env_live,
     )
   ) +
-    # geom_col(
-    #   data = df_mean,
-    #   aes(y = total, fill = env),
-    #   position = position_dodge(width = 0.9),
-    #   alpha = 0.8,
-    # ) +
     facet_grid(cols = vars(env)) +
-    geom_point(alpha = 0.5) +
+    geom_point(alpha = 0.8) +
     geom_smooth(
+      aes(fill = env_live),
       method = "lm",
       se = TRUE,
       fullrange = TRUE,
       level = 0.95,
-      alpha = 0.3,
+      alpha = 0.1,
+      size = 0,
+      show.legend = FALSE
     ) +
-    # geom_abline(intercept = 0, slope = 1, linetype = "dashed", color = "red") +
-    # geom_beeswarm(
-    #   aes(y = total, group = env),
-    #   dodge.width = 0.9,
-    #   position = position_dodge(width = 0.9),
-    #   alpha = 0.5
-    # ) +
-    # theme(
-    #   axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
-    # ) +
+    geom_line(stat = "smooth", method = "lm", alpha = 0.3, size = 1) +
+    guides(
+      group = "none",
+    ) +
     labs(
       x = "Number of nodes",
       y = "Total number of functions",
-      fill = "Flavors",
-      color = "Flavors"
+      fill = APP_CONFIG,
+      color = APP_CONFIG
     ) +
-    guides(group = "none", linetype = "none", alpha = "none") +
-    scale_color_viridis(discrete = TRUE) +
-    scale_fill_viridis(discrete = TRUE)
+    scale_color_viridis(
+      discrete = TRUE,
+      guide = guide_legend(override.aes = list(size = 2, alpha = 1))
+    ) +
+    scale_fill_viridis(
+      discrete = TRUE,
+      guide = guide_legend(override.aes = list(size = 2, alpha = 1))
+    )
 }

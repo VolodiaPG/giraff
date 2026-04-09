@@ -35,7 +35,7 @@ load_fallbacks_processed <- function(
       status = case_when(
         is_fallback ~ paste0(
           fallbacks,
-          ifelse(fallbacks > 1, " fallbacks", " fallback")
+          ifelse(fallbacks == 1, " fallback", " fallbacks")
         ),
         timeout ~ "Failure",
         otel_error ~ "Failure",

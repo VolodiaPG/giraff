@@ -1197,13 +1197,8 @@ export_graph_tikz <- function(
   plot_graph <- plot_graph +
     theme(
       strip.background = element_blank(),
-      # legend.margin = ggplot2::margin(),
-      # legend.box.margin = ggplot2::margin(),
       legend.box.margin = margin(0, 0, 0, 0, "pt"),
       plot.margin = margin(0, 0, 0, 0, "pt"),
-      # legend.spacing = ggplot2::unit(0, "pt"),
-      legen.key.spacing.x = ggplot2::unit(1, "cm"),
-      # legend.justification = c(0, 0.8),
       axis.title.x = ggplot2::element_text(plot_x_label),
       axis.title.y = ggplot2::element_text(plot_y_label),
       panel.border = ggplot2::element_blank(),

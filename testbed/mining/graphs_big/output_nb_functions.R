@@ -37,34 +37,16 @@ big_output_nb_functions_plot <- function(nb_functions, nb_nodes) {
       fill = env_live
     )
   ) +
-    geom_beeswarm(alpha = 0.5, color = "black") +
-    # geom_segment(
-    #   data = df_mean,
-    #   aes(
-    #     x = nb_nodes - 1,
-    #     xend = nb_nodes + 1,
-    #     y = max_nb_functions,
-    #     yend = max_nb_functions,
-    #   ),
-    #   size = 0.2
-    # ) +
-    # geom_segment(
-    #   data = df_mean,
-    #   aes(
-    #     x = nb_nodes - 2,
-    #     xend = nb_nodes + 2,
-    #     y = min_nb_functions,
-    #     yend = min_nb_functions,
-    #   ),
-    #   size = 0.2
-    # ) +
+    geom_beeswarm(alpha = 0.8, color = "black") +
     geom_smooth(
       method = "lm",
       se = TRUE,
       fullrange = TRUE,
       level = 0.95,
-      alpha = 0.5
+      alpha = 0.1,
+      size = 0
     ) +
+    geom_line(stat = "smooth", method = "lm", alpha = 0.3, size = 1) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +

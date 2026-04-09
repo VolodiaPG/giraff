@@ -205,7 +205,7 @@ env_live_extract <- function(x) {
     )
 }
 
-APP_CONFIG <- "Flavor"
+APP_CONFIG <- "Flavors"
 
 extract_function_name <- function(spans) {
   order <- c(

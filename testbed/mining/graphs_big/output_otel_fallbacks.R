@@ -14,7 +14,7 @@ big_output_otel_fallbacks_plot <- function(
         levels = c(
           # "Total",
           # "Failure",
-          "0 fallback",
+          "0 fallbacks",
           "1 fallback",
           "2 fallbacks"
         )
@@ -61,7 +61,7 @@ big_output_otel_fallbacks_plot <- function(
     mutate(
       letters = ifelse(
         status %in%
-          c("0 fallback") |
+          c("0 fallbacks") |
           env_live %in% keep_letters_for,
         letters,
         ""
@@ -90,19 +90,20 @@ big_output_otel_fallbacks_plot <- function(
     geom_col(
       data = df_mean,
       aes(y = n, fill = env_live),
-      position = position_dodge(width = 0.9)
+      position = position_dodge(width = 1),
+      alpha = 0.8
     ) +
     geom_beeswarm(
       aes(group = env_live),
-      position = position_dodge(width = 0.9),
-      dodge.width = 0.9,
-      cex = 0.8,
+      position = position_dodge(width = 1),
+      dodge.width = 1,
+      # cex = 0.8,
       alpha = 0.5
     ) +
     geom_text(
       data = df_mean,
       aes(label = letters, group = env_live, y = 0.83),
-      position = position_dodge(width = 0.9),
+      position = position_dodge(width = 1),
       vjust = -0.5,
       size = 5
     ) +
@@ -118,7 +119,7 @@ big_output_otel_fallbacks_plot <- function(
       # position = position_dodge(width = 0.9),
       size = 2
     ) +
-    guides(color = "none", linetype = "none") +
+    guides(group = "none", linetype = "none", alpha = "none", fill = "none") +
     # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
     scale_y_continuous(labels = scales::percent, limits = c(0, .85)) +
     labs(
@@ -129,9 +130,9 @@ big_output_otel_fallbacks_plot <- function(
     ) +
     # Fix colors since only two flavors are displayed
     scale_fill_manual(
-      values = c("#440154", "#31688e", "#35b7794D", "#fde7254D")
+      values = c("#440154", "#31688e", "#35b779", "#fff")
     ) +
     scale_color_manual(
-      values = c("#440154", "#31688e", "#35b7794D", "#fde7254D")
+      values = c("#440154", "#31688e", "#35b779", "#fde725")
     )
 }

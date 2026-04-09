@@ -24,34 +24,16 @@ big_output_otel_nb_requests_plot <- function(
       fill = env_live
     )
   ) +
-    # facet_grid(cols = vars(env_live)) +
-    geom_point(alpha = 0.3) +
+    geom_point(alpha = 0.8) +
     geom_smooth(
       method = "lm",
       se = TRUE,
       fullrange = TRUE,
       level = 0.95,
-      alpha = 0.3,
+      alpha = 0.1,
+      size = 0
     ) +
-    # geom_smooth(
-    #   aes(y = success),
-    #   method = "lm",
-    #   se = TRUE,
-    #   fullrange = TRUE,
-    #   level = 0.95,
-    #   alpha = 0.5,
-    #   linetype = "dotted"
-    # ) +
-    # geom_col(
-    #   data = df_mean,
-    #   aes(y = requests, fill = env),
-    #   position = position_dodge(width = 0.9),
-    #   alpha = 0.8,
-    # ) +
-    # geom_point(
-    #   aes(y = requests, color = env),
-    #   position = position_dodge(width = 0.9)
-    # ) +
+    geom_line(stat = "smooth", method = "lm", alpha = 0.3, size = 1) +
     theme(
       axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)
     ) +

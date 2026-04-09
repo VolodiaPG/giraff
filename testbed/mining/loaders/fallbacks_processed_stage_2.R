@@ -60,7 +60,7 @@ load_fallbacks_processed_stage2 <- function(
         levels = c(
           "Failure",
           # "Total",
-          "0 fallback",
+          "0 fallbacks",
           "1 fallback",
           "2 fallbacks"
         )
