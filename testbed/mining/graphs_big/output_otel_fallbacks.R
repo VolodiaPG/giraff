@@ -12,7 +12,6 @@ big_output_otel_fallbacks_plot <- function(
       status = factor(
         status,
         levels = c(
-          # "Total",
           # "Failure",
           "0 fallbacks",
           "1 fallback",
@@ -38,7 +37,19 @@ big_output_otel_fallbacks_plot <- function(
     ungroup() %>%
     complete(status, env_live, env, fill = list(n = NA))
 
+  # Individual points for Total column
+  df_total_points <- df %>%
+    filter(!is.na(n)) %>%
+    select(folder, env_live, env, run, n) %>%
+    group_by(folder, env_live, env, run) %>%
+    summarise(n = sum(n), .groups = "drop") %>%
+    mutate(
+      status = "Total",
+      plot_group = "Total"
+    )
+
   df_anova <- df %>%
+    bind_rows(df_total_points) %>%
     select(env_live, env, status, n) %>%
     mutate(n = ifelse(is.na(n), 0, n))
 
@@ -46,9 +57,12 @@ big_output_otel_fallbacks_plot <- function(
   tukey_result <- TukeyHSD(anova_model)
 
   cld <- multcompLetters4(anova_model, tukey_result)
-  letters <- data.frame(cld$`env_live:env:status`$Letters)
+  letters <- data.frame(
+    cld$`env_live:env:status`$Letters,
+    stringsAsFactors = FALSE
+  )
 
-  df_mean <- df %>%
+  df_mean <- df_anova %>%
     group_by(env_live, env, status) %>%
     summarise(
       n = mean(n)
@@ -61,7 +75,7 @@ big_output_otel_fallbacks_plot <- function(
     mutate(
       letters = ifelse(
         status %in%
-          c("0 fallbacks") |
+          c("0 fallbacks", "Total") |
           env_live %in% keep_letters_for,
         letters,
         ""
@@ -69,18 +83,29 @@ big_output_otel_fallbacks_plot <- function(
     ) %>%
     mutate(letters = paste0("\\tiny{", letters, "}"))
 
-  df_cumsum <- df_mean %>%
-    mutate(n = ifelse(is.na(n), 0, n)) %>%
-    group_by(env_live, env) %>%
-    arrange(status) %>%
-    mutate(n_cumsum = cumsum(n))
+  # Add plot_group for faceting: Total separate from details
+  df_mean <- df_mean %>%
+    mutate(
+      plot_group = ifelse(
+        status == "Total",
+        "Total",
+        "Details"
+      )
+    )
 
-  Log("df_cumsum")
-  Log(df_cumsum)
+  df_total <- df_mean %>%
+    group_by(env_live, env) %>%
+    summarise(n = sum(n, na.rm = TRUE), .groups = "drop") %>%
+    mutate(
+      status = "Total",
+      plot_group = "Total"
+    )
 
   df <- df %>%
+    filter(status != "Total") %>%
     group_by(folder, status, env_live, env, run) %>%
-    summarise(n = mean(n))
+    summarise(n = mean(n)) %>%
+    mutate(plot_group = "Details")
 
   ggplot(
     data = df,
@@ -89,9 +114,31 @@ big_output_otel_fallbacks_plot <- function(
       y = n
     )
   ) +
-    facet_grid(cols = vars(env)) +
+    facet_grid(
+      cols = vars(env, plot_group),
+      scales = "free_x",
+      space = "free_x",
+      shrink = TRUE,
+      drop = TRUE,
+      labeller = labeller(plot_group = function(x) rep("", length(x)))
+    ) +
     geom_col(
-      data = df_mean,
+      data = df_mean %>% filter(status == "Total"),
+      aes(y = n, color = env_live),
+      fill = "transparent",
+      position = position_dodge(width = 1),
+      width = 0.7,
+      alpha = 0.9
+    ) +
+    geom_beeswarm(
+      data = df_total_points,
+      aes(group = env_live),
+      position = position_dodge(width = 1),
+      dodge.width = 1,
+      alpha = 0.5
+    ) +
+    geom_col(
+      data = df_mean %>% filter(status != "Total"),
       aes(y = n, fill = env_live),
       position = position_dodge(width = 1),
       alpha = 0.8
@@ -100,7 +147,6 @@ big_output_otel_fallbacks_plot <- function(
       aes(group = env_live),
       position = position_dodge(width = 1),
       dodge.width = 1,
-      # cex = 0.8,
       alpha = 0.5
     ) +
     geom_text(
@@ -110,32 +156,25 @@ big_output_otel_fallbacks_plot <- function(
       vjust = -0.5,
       size = 5
     ) +
-    geom_line(
-      data = df_cumsum,
-      aes(y = n_cumsum, group = env_live, color = env_live),
-      # position = position_dodge(width = 0.9),
-      linewidth = 1
-    ) +
-    geom_point(
-      data = df_cumsum,
-      aes(y = n_cumsum, group = env_live, color = env_live),
-      # position = position_dodge(width = 0.9),
-      size = 2
-    ) +
     guides(group = "none", linetype = "none", alpha = "none", fill = "none") +
-    # scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+    scale_x_discrete(
+      guide = guide_prism_bracket(width = 0.15),
+      labels = scales::wrap_format(5)
+    ) +
     scale_y_continuous(labels = scales::percent, limits = c(0, .85)) +
     labs(
       y = "Share of successful responses",
-      x = "Number of fallbacks",
+      x = "Number of fallbacks involved in the response",
       fill = APP_CONFIG,
       color = APP_CONFIG
     ) +
     # Fix colors since only two flavors are displayed
     scale_fill_manual(
-      values = c("#440154", "#31688e", "#35b779", "#fff")
+      values = c("#440154", "#31688e", "#35b779", "#fff"),
+      guide = guide_legend(override.aes = list(size = 2, alpha = 1))
     ) +
     scale_color_manual(
-      values = c("#440154", "#31688e", "#35b779", "#fde725")
+      values = c("#440154", "#31688e", "#35b779", "#fde725"),
+      guide = guide_legend(override.aes = list(size = 2, alpha = 1))
     )
 }
