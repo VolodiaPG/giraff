@@ -75,6 +75,9 @@ big_output_otel_fallbacks_plot <- function(
     arrange(status) %>%
     mutate(n_cumsum = cumsum(n))
 
+  Log("df_cumsum")
+  Log(df_cumsum)
+
   df <- df %>%
     group_by(folder, status, env_live, env, run) %>%
     summarise(n = mean(n))

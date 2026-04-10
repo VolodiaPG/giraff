@@ -1,18 +1,65 @@
 text_pressure_output <- function(nb_requests, durations, fallbacks_processed) {
-  df <- nb_requests %>%
-    group_by(folder, metric_group) %>%
+  # same code as for the graph
+  fallbacks_processed <- fallbacks_processed %>%
+    filter(status != "Failure") %>%
+    mutate(
+      status = factor(
+        status,
+        levels = c(
+          # "Total",
+          # "Failure",
+          "0 fallbacks",
+          "1 fallback",
+          "2 fallbacks"
+        )
+      )
+    )
+
+  total <- nb_requests %>%
+    group_by(folder) %>%
+    summarise(nb_functions = n())
+
+  df <- fallbacks_processed %>%
+    left_join(nb_requests, by = c("folder", "service.namespace")) %>%
+    mutate(n = n / total) %>%
+    group_by(folder, status, env, env_live, run) %>%
+    summarise(n = sum(n)) %>%
+    left_join(total, by = c("folder")) %>%
+    mutate(n = n / nb_functions) %>%
+    ungroup() %>%
+    complete(status, env_live, env, fill = list(n = NA))
+
+  # df <- nb_requests %>%
+  #   group_by(folder, metric_group) %>%
+  #   summarise(
+  #     success = sum(success),
+  #     total = sum(total),
+  #     .groups = "drop"
+  #   ) %>%
+  #   mutate(requests = success / total) %>%
+  #   extract_context() %>%
+  #   env_live_extract() %>%
+  #   extract_env_name() %>%
+  #   group_by(env_live, env) %>%
+  #   summarise(requests = mean(requests)) %>%
+  #   arrange(env_live, env)
+  #
+
+  df <- df %>%
+    group_by(env_live, env, status) %>%
     summarise(
-      success = sum(success),
-      total = sum(total),
-      .groups = "drop"
-    ) %>%
-    mutate(requests = success / total) %>%
-    extract_context() %>%
-    env_live_extract() %>%
-    extract_env_name() %>%
+      n = mean(n)
+    )
+
+  df <- df %>%
+    mutate(n = ifelse(is.na(n), 0, n)) %>%
     group_by(env_live, env) %>%
-    summarise(requests = mean(requests)) %>%
-    arrange(env_live, env)
+    mutate(n_cumsum = cumsum(n)) %>%
+    group_by(env_live, env, status) %>%
+    summarise(n_cumsum = mean(n_cumsum)) %>%
+    filter(status == "2 fallbacks") %>%
+    select(-status) %>%
+    rename(requests = n_cumsum)
 
   df_main <- df %>%
     filter(env_live %in% c(SCE_ONE, SCE_TWO))
