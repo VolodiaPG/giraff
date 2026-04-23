@@ -1,5 +1,6 @@
 library(targets)
 library(tools)
+source("config.R")
 
 first_time <- TRUE
 
@@ -41,7 +42,12 @@ monitor_and_build <- function() {
       cat("Detected changes in R files. Rebuilding...\n")
       tryCatch(
         {
-          targets::tar_make()
+          if (ONLY_BIG_GRAPHS) {
+            targets::tar_make(names = starts_with("big_output"))
+          } else {
+            targets::tar_make()
+          }
+          cat("Rebuild complete.\n")
         },
         error = function(e) {
           cat("Error rebuilding targets:\n", e$message)

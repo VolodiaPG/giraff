@@ -310,15 +310,84 @@ singles <- tibble(name = names(single_ops), value = single_ops) %>%
 
 assertthat::assert_that(nrow(singles) > 0)
 
-combined_single_data <-
-  tar_eval(
-    tar_combine_raw(
-      name,
-      value,
-      command = expression(bind_rows(!!!.x))
-    ),
-    values = singles
-  )
+# Tree-reduction bind_rows to minimize memory pressure
+# Recursively merges pairs until single result remains
+# Level 0: original targets, Level 1: pairs, Level 2: pairs-of-pairs, etc.
+combined_single_data <- list()
+for (i in seq_len(nrow(singles))) {
+  metric_name <- singles$name[i]
+  targets_list <- singles$value[[i]]
+  n_targets <- length(targets_list)
+
+  if (n_targets == 1) {
+    # Only one target, no need to combine
+    combined_single_data <- c(combined_single_data, targets_list)
+  } else {
+    # Tree reduction: merge pairs recursively
+    all_levels <- list()
+    current_level <- targets_list
+    level_num <- 0
+    while (length(current_level) > 1) {
+      next_level <- list()
+      level_num <- level_num + 1
+      j <- 1
+      pair_idx <- 1
+      while (j <= length(current_level)) {
+        if (j + 1 <= length(current_level)) {
+          # Merge two targets from current level
+          pair_name <- paste0(metric_name, "_l", level_num, "_p", pair_idx)
+          # Log(paste0(
+          #   "Merging pair ",
+          #   pair_name,
+          #   " from level ",
+          #   level_num
+          # ))
+          level <- tar_combine_raw(
+            name = pair_name,
+            current_level[[j]],
+            current_level[[j + 1]],
+            command = expression(dplyr::bind_rows(!!!.x)),
+            packages = core_pkgs
+          )
+
+          all_levels <- c(all_levels, level)
+          next_level[[pair_name]] <- level
+          j <- j + 2
+        } else {
+          # Odd one out, carry forward
+          pair_name <- paste0(metric_name, "_l", level_num, "_p", pair_idx)
+          next_level[[pair_name]] <- current_level[[j]]
+          j <- j + 1
+        }
+        pair_idx <- pair_idx + 1
+      }
+      current_level <- next_level
+    }
+
+    # Log(paste0(
+    #   "Level ",
+    #   level_num,
+    #   " has ",
+    #   length(current_level),
+    #   " targets: ",
+    #   metric_name
+    # ))
+
+    # Final target is the last remaining one, rename to metric_name
+    combined_single_data <- c(
+      combined_single_data,
+      all_levels,
+      list(
+        tar_combine_raw(
+          name = metric_name,
+          current_level[[1]],
+          command = expression(dplyr::bind_rows(!!!.x)),
+          packages = core_pkgs
+        )
+      )
+    )
+  }
+}
 
 combined_single_data_processed <- list(
   tar_target(

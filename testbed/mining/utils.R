@@ -978,7 +978,7 @@ write_multigraphs <- function(name, ...) {
 export_graph <- function(name, ggplot_graph) {
   callback_name <- deparse(substitute(ggplot_graph))
   Log(paste0("Graphing (", name, ") ", callback_name, " ..."))
-  ggsave(paste0("out/", name, ".png"), ggplot_graph)
+  ggsave(paste0("out/", name, ".svg"), ggplot_graph)
 
   # Extract subtitle from the ggplot object
   plot_subtitle <- ggplot_graph$labels$subtitle
@@ -1240,7 +1240,7 @@ export_graph_tikz <- function(
   }
 
   ggsave(
-    filename = paste0("out/", raw_plot_name, ".jpg"),
+    filename = paste0("out/", raw_plot_name, ".svg"),
     plot = plot_graph,
     width = width,
     height = height,
